@@ -608,8 +608,8 @@ function renderWaiterView() {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>FacturaPOS Comandero</title>
-  <link rel="manifest" href="data:application/manifest+json;utf8,{'name':'FacturaPOS','short_name':'Comandas','display':'standalone','start_url':'/waiter'}">
+  <title>Happy Days — Comandero</title>
+  <link rel="manifest" href="data:application/manifest+json;utf8,{'name':'Happy Days Comandero','short_name':'HD Comandas','display':'standalone','start_url':'/waiter'}">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <style>
@@ -706,7 +706,7 @@ function renderWaiterView() {
   <header>
     <div class="brand">
       <span style="font-size: 1.25rem;">🍦</span>
-      <span id="headerTitle">FacturaPOS</span>
+      <span id="headerTitle">Happy Days</span>
     </div>
     <div class="header-actions">
       <div id="tabletRateBadge" class="rate-badge" title="Tasa BCV del Día">💵 Bs. --</div>
@@ -724,7 +724,7 @@ function renderWaiterView() {
   <main id="appContent">
     <div style="margin: auto; text-align: center; color: #64748b; padding: 40px;">
       <div style="font-size: 2rem; margin-bottom: 10px;">⏳</div>
-      <div>Conectando con FacturaPOS...</div>
+      <div>Conectando con Happy Days POS...</div>
     </div>
   </main>
 

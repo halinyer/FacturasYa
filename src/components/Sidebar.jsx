@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import { ShoppingCart, LayoutDashboard, Users, Package, Calculator, LogOut, Database, Download, Upload, CheckCircle, AlertCircle, X, QrCode, Utensils, Sliders } from 'lucide-react';
 import QRConnectModal from './QRConnectModal';
+import { CLIENT_CONFIG } from '../config/clientConfig';
 import './Sidebar.css';
 
 const Sidebar = () => {
@@ -62,8 +63,8 @@ const Sidebar = () => {
     <div className="sidebar">
       <div className="sidebar-header">
         <div className="brand">
-          <span className="brand-icon">⚡</span>
-          <span className="brand-text">FacturaPOS</span>
+          <span className="brand-icon">{CLIENT_CONFIG.branding.logoIcon}</span>
+          <span className="brand-text">{CLIENT_CONFIG.branding.logoText}</span>
         </div>
       </div>
 

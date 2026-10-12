@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Shield, User, Lock, ArrowRight } from 'lucide-react';
+import { CLIENT_CONFIG } from '../config/clientConfig';
 
 const Login = () => {
   const [role, setRole] = useState('cajero');
@@ -67,9 +68,9 @@ const Login = () => {
       <div className={`login-card ${error ? 'shake-animation' : ''}`}>
         <div className="login-header">
           <div className="logo-container">
-            <h1 className="logo-text glow-animation">FacturaPOS</h1>
+            <h1 className="logo-text glow-animation">{CLIENT_CONFIG.branding.logoText}</h1>
           </div>
-          <p className="login-subtitle">Sistema de Facturación</p>
+          <p className="login-subtitle">{CLIENT_CONFIG.subtitle}</p>
         </div>
 
         <div className="role-selector">

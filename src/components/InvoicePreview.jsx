@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Printer, CheckCircle, AlertTriangle, Receipt } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
+import { CLIENT_CONFIG } from '../config/clientConfig';
 
 const InvoicePreview = ({ invoice, onClose }) => {
   const { clients = [] } = useData() || {};
@@ -144,11 +145,12 @@ const InvoicePreview = ({ invoice, onClose }) => {
               
               {/* Business Header */}
               <div className="ticket-center">
-                <div className="ticket-bold" style={{ fontSize: '16px' }}>HELADERÍA & RESTAURANT</div>
-                <div style={{ fontSize: '10px', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Documento de Control Interno (No Fiscal)</div>
-                <div style={{ fontSize: '11px' }}>RIF: J-50123456-7</div>
-                <div style={{ fontSize: '11px' }}>Caracas, Venezuela</div>
-                <div style={{ fontSize: '11px' }}>Teléfono: 0414-1234567</div>
+                <div className="ticket-bold" style={{ fontSize: '17px', letterSpacing: '0.5px' }}>{CLIENT_CONFIG.receipt.headerTitle}</div>
+                <div style={{ fontSize: '11px', fontWeight: '600' }}>{CLIENT_CONFIG.receipt.subtitle}</div>
+                <div style={{ fontSize: '10px', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{CLIENT_CONFIG.receipt.nonFiscalNotice}</div>
+                <div style={{ fontSize: '11px' }}>RIF: {CLIENT_CONFIG.rif}</div>
+                <div style={{ fontSize: '11px' }}>{CLIENT_CONFIG.address}</div>
+                <div style={{ fontSize: '11px' }}>Teléfono: {CLIENT_CONFIG.phone}</div>
               </div>
 
               <div className="ticket-divider" />
@@ -283,8 +285,8 @@ const InvoicePreview = ({ invoice, onClose }) => {
 
               {/* Footer */}
               <div className="ticket-center" style={{ fontSize: '11px', marginTop: '6px' }}>
-                <div>¡GRACIAS POR SU VISITA!</div>
-                <div>FacturaPOS - Nota de Entrega</div>
+                <div className="ticket-bold">{CLIENT_CONFIG.receipt.footerGreeting}</div>
+                <div style={{ fontSize: '10px', marginTop: '2px' }}>{CLIENT_CONFIG.receipt.contactNotice}</div>
                 <div style={{ fontSize: '9px', marginTop: '4px', color: '#555' }}>--------------------------------</div>
               </div>
 
