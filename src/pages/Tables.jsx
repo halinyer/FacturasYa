@@ -1,0 +1,704 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useData } from '../contexts/DataContext';
+import { Utensils, Clock, CheckCircle, AlertCircle, ShoppingCart, Users, Plus, Check, RefreshCw, QrCode, ArrowRight, X } from 'lucide-react';
+import QRConnectModal from '../components/QRConnectModal';
+
+export default function Tables() {
+  const navigate = useNavigate();
+  const { exchangeRate = 36.5 } = useData() || {};
+
+  const [activeTab, setActiveTab] = useState('mesas'); // 'mesas' | 'comandas' | 'config'
+  const [selectedZone, setSelectedZone] = useState('Todos');
+  const [selectedTable, setSelectedTable] = useState(null);
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [restaurantState, setRestaurantState] = useState({
+    tables: [],
+    waiters: [],
+    activeOrders: []
+  });
+  const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState(null);
+
+  // Form states for salon configuration
+  const [newTable, setNewTable] = useState({ name: '', zone: 'Salón' });
+  const [newWaiter, setNewWaiter] = useState({ name: '', pin: '' });
+
+  const showToast = (msg, type = 'success') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3500);
+  };
+
+  const fetchState = async () => {
+    try {
+      const res = await fetch('http://localhost:3001/api/restaurant/state');
+      if (res.ok) {
+        const data = await res.json();
+        setRestaurantState(data);
+      }
+    } catch (e) {
+      console.warn('Error fetching restaurant state:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchState();
+    const interval = setInterval(fetchState, 3000); // Polling every 3s
+    return () => clearInterval(interval);
+  }, []);
+
+  // Zones list
+  const zones = useMemo(() => {
+    const list = new Set((restaurantState.tables || []).map(t => t.zone || 'Salón'));
+    return ['Todos', ...Array.from(list)];
+  }, [restaurantState.tables]);
+
+  // Filtered tables
+  const filteredTables = useMemo(() => {
+    if (selectedZone === 'Todos') return restaurantState.tables || [];
+    return (restaurantState.tables || []).filter(t => t.zone === selectedZone);
+  }, [restaurantState.tables, selectedZone]);
+
+  // Active rounds for kitchen
+  const activeRounds = useMemo(() => {
+    const rounds = [];
+    (restaurantState.activeOrders || []).forEach(order => {
+      (order.rounds || []).forEach(rnd => {
+        if (rnd.status !== 'servida') {
+          rounds.push({
+            ...rnd,
+            orderId: order.id,
+            tableName: order.tableName,
+            tableId: order.tableId
+          });
+        }
+      });
+    });
+    // Sort oldest first
+    return rounds.sort((a, b) => new Date(a.sentAt) - new Date(b.sentAt));
+  }, [restaurantState.activeOrders]);
+
+  // Action: Mark round as ready (Vibrates Waiter Tablet)
+  const handleMarkRoundReady = async (roundId) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/restaurant/round/${roundId}/ready`, {
+        method: 'POST'
+      });
+      if (res.ok) {
+        showToast('🔔 Comanda marcada como Lista. Se notificó a la tablet del mesero.');
+        fetchState();
+      }
+    } catch (e) {
+      showToast('Error al actualizar comanda', 'error');
+    }
+  };
+
+  // Action: Mark round as served/delivered
+  const handleMarkRoundServed = async (roundId) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/restaurant/round/${roundId}/served`, {
+        method: 'POST'
+      });
+      if (res.ok) {
+        showToast('✓ Comanda marcada como servida.');
+        fetchState();
+      }
+    } catch (e) {
+      showToast('Error al actualizar comanda', 'error');
+    }
+  };
+
+  // Action: Free / Close Table
+  const handleFreeTable = async (tableId) => {
+    if (!window.confirm('¿Seguro que deseas liberar esta mesa?')) return;
+    try {
+      const res = await fetch(`http://localhost:3001/api/restaurant/table/${tableId}/free`, {
+        method: 'POST'
+      });
+      if (res.ok) {
+        showToast('Mesa liberada.');
+        setSelectedTable(null);
+        fetchState();
+      }
+    } catch (e) {
+      showToast('Error al liberar mesa', 'error');
+    }
+  };
+
+  // Action: Send to POS to charge
+  const handleChargeInPOS = (table, order) => {
+    if (!order || !order.rounds || order.rounds.length === 0) {
+      showToast('Esta mesa no tiene consumos registrados.', 'error');
+      return;
+    }
+
+    // Consolidate all items from all rounds
+    const consolidatedItems = [];
+    order.rounds.forEach(rnd => {
+      rnd.items.forEach(item => {
+        const found = consolidatedItems.find(i => i.productId === item.productId && i.note === item.note);
+        if (found) {
+          found.quantity += item.quantity;
+        } else {
+          consolidatedItems.push({
+            id: item.productId,
+            name: item.name,
+            priceUSD: item.priceUSD,
+            quantity: item.quantity,
+            note: item.note
+          });
+        }
+      });
+    });
+
+    // Save temporary table transfer in sessionStorage so POS picks it up
+    sessionStorage.setItem('pos_incoming_table_order', JSON.stringify({
+      tableId: table.id,
+      tableName: table.name,
+      waiterName: order.waiterName,
+      items: consolidatedItems
+    }));
+
+    // Navigate directly to POS
+    navigate('/pos');
+  };
+
+  // Add Table
+  const handleAddTable = async (e) => {
+    e.preventDefault();
+    if (!newTable.name.trim()) return;
+    try {
+      const res = await fetch('http://localhost:3001/api/restaurant/tables', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newTable)
+      });
+      if (res.ok) {
+        showToast('Mesa creada exitosamente');
+        setNewTable({ name: '', zone: 'Salón' });
+        fetchState();
+      }
+    } catch (err) {
+      showToast('Error al crear mesa', 'error');
+    }
+  };
+
+  // Add Waiter
+  const handleAddWaiter = async (e) => {
+    e.preventDefault();
+    if (!newWaiter.name.trim() || !newWaiter.pin.trim()) return;
+    try {
+      const res = await fetch('http://localhost:3001/api/restaurant/waiters', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newWaiter)
+      });
+      if (res.ok) {
+        showToast('Mesero registrado exitosamente');
+        setNewWaiter({ name: '', pin: '' });
+        fetchState();
+      }
+    } catch (err) {
+      showToast('Error al registrar mesero', 'error');
+    }
+  };
+
+  return (
+    <div style={{ padding: '24px', maxWidth: '1440px', margin: '0 auto', color: '#111827' }}>
+      
+      {/* Top Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Utensils size={24} color="#2563eb" />
+            </div>
+            <div>
+              <h1 style={{ margin: 0, fontSize: '1.65rem', fontWeight: '800' }}>Control de Salón y Comandas</h1>
+              <p style={{ margin: '2px 0 0 0', color: '#6b7280', fontSize: '0.88rem' }}>
+                Monitoreo en tiempo real de mesas, pedidos de meseros y cocina
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            type="button"
+            onClick={() => setShowQRModal(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px',
+              background: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '10px',
+              fontWeight: '700', cursor: 'pointer', fontSize: '0.88rem', boxShadow: '0 4px 12px rgba(37,99,235,0.2)'
+            }}
+          >
+            <QrCode size={18} /> Vincular Tablets (QR)
+          </button>
+        </div>
+      </div>
+
+      {/* Tabs Bar */}
+      <div style={{ display: 'flex', gap: '12px', borderBottom: '1px solid #e5e7eb', marginBottom: '24px' }}>
+        <button
+          type="button"
+          onClick={() => setActiveTab('mesas')}
+          style={{
+            padding: '12px 20px', background: 'none', border: 'none',
+            borderBottom: activeTab === 'mesas' ? '3px solid #2563eb' : '3px solid transparent',
+            color: activeTab === 'mesas' ? '#2563eb' : '#6b7280',
+            fontWeight: '800', cursor: 'pointer', fontSize: '0.95rem'
+          }}
+        >
+          Mapa de Mesas ({filteredTables.length})
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('comandas')}
+          style={{
+            padding: '12px 20px', background: 'none', border: 'none',
+            borderBottom: activeTab === 'comandas' ? '3px solid #2563eb' : '3px solid transparent',
+            color: activeTab === 'comandas' ? '#2563eb' : '#6b7280',
+            fontWeight: '800', cursor: 'pointer', fontSize: '0.95rem',
+            display: 'flex', alignItems: 'center', gap: '8px'
+          }}
+        >
+          <span>Comandas en Curso</span>
+          {activeRounds.filter(r => r.status === 'pendiente').length > 0 && (
+            <span style={{ background: '#ef4444', color: '#fff', fontSize: '0.75rem', padding: '2px 7px', borderRadius: '999px', fontWeight: '800' }}>
+              {activeRounds.filter(r => r.status === 'pendiente').length}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('config')}
+          style={{
+            padding: '12px 20px', background: 'none', border: 'none',
+            borderBottom: activeTab === 'config' ? '3px solid #2563eb' : '3px solid transparent',
+            color: activeTab === 'config' ? '#2563eb' : '#6b7280',
+            fontWeight: '800', cursor: 'pointer', fontSize: '0.95rem'
+          }}
+        >
+          Meseros y Salón
+        </button>
+      </div>
+
+      {/* TAB 1: MAPA DE MESAS */}
+      {activeTab === 'mesas' && (
+        <div>
+          {/* Zones Pills */}
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', overflowX: 'auto', paddingBottom: '4px' }}>
+            {zones.map(z => (
+              <button
+                key={z}
+                type="button"
+                onClick={() => setSelectedZone(z)}
+                style={{
+                  padding: '7px 16px', borderRadius: '999px',
+                  background: selectedZone === z ? '#0f172a' : '#ffffff',
+                  color: selectedZone === z ? '#ffffff' : '#4b5563',
+                  border: selectedZone === z ? 'none' : '1px solid #d1d5db',
+                  fontWeight: '700', fontSize: '0.84rem', cursor: 'pointer'
+                }}
+              >
+                {z}
+              </button>
+            ))}
+          </div>
+
+          {/* Grid of Tables */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '16px' }}>
+            {filteredTables.map(table => {
+              const order = (restaurantState.activeOrders || []).find(o => o.tableId === table.id);
+              const totalUSD = order 
+                ? order.rounds.reduce((acc, r) => acc + r.items.reduce((sum, i) => sum + (i.priceUSD * i.quantity), 0), 0)
+                : 0;
+
+              const isOccupied = table.status === 'ocupada';
+              const isBillRequested = table.status === 'cuenta';
+
+              return (
+                <div
+                  key={table.id}
+                  onClick={() => setSelectedTable({ table, order })}
+                  style={{
+                    background: '#ffffff',
+                    border: isBillRequested ? '2px solid #3b82f6' : isOccupied ? '2px solid #f97316' : '1.5px solid #86efac',
+                    borderRadius: '16px',
+                    padding: '16px',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    minHeight: '140px',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: '800', fontSize: '1.2rem', color: '#111827' }}>{table.name}</span>
+                      <span style={{
+                        fontSize: '0.72rem', fontWeight: '800', textTransform: 'uppercase',
+                        padding: '3px 8px', borderRadius: '6px',
+                        background: isBillRequested ? '#dbeafe' : isOccupied ? '#ffedd5' : '#dcfce7',
+                        color: isBillRequested ? '#1e40af' : isOccupied ? '#9a3412' : '#166534'
+                      }}>
+                        {isBillRequested ? 'Pide Cuenta' : isOccupied ? 'Ocupada' : 'Libre'}
+                      </span>
+                    </div>
+
+                    <div style={{ fontSize: '0.8rem', color: '#6b7280', marginTop: '4px' }}>
+                      Zona: <strong>{table.zone || 'Salón'}</strong>
+                    </div>
+
+                    {order && (
+                      <div style={{ fontSize: '0.78rem', color: '#2563eb', fontWeight: '700', marginTop: '6px' }}>
+                        👤 Mesero: {order.waiterName}
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '12px' }}>
+                    <div>
+                      {totalUSD > 0 && (
+                        <div>
+                          <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#d97706' }}>${totalUSD.toFixed(2)}</div>
+                          <div style={{ fontSize: '0.72rem', color: '#64748b' }}>Bs. {(totalUSD * exchangeRate).toFixed(2)}</div>
+                        </div>
+                      )}
+                    </div>
+
+                    {isOccupied && (
+                      <span style={{ fontSize: '0.75rem', color: '#4b5563', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Clock size={12} /> Ver &rarr;
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 2: COMANDAS EN CURSO (KITCHEN / DISPATCH) */}
+      {activeTab === 'comandas' && (
+        <div>
+          {activeRounds.length === 0 ? (
+            <div style={{ background: '#ffffff', borderRadius: '16px', padding: '48px', textAlign: 'center', color: '#9ca3af' }}>
+              <CheckCircle size={48} color="#10b981" style={{ marginBottom: '12px' }} />
+              <h3 style={{ margin: 0, color: '#111827', fontSize: '1.2rem' }}>¡Cocina al día!</h3>
+              <p style={{ margin: '6px 0 0 0', fontSize: '0.88rem' }}>No hay comandas pendientes por despachar en este momento.</p>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
+              {activeRounds.map(rnd => {
+                const isReady = rnd.status === 'lista';
+                const elapsedMin = Math.round((Date.now() - new Date(rnd.sentAt).getTime()) / 60000);
+
+                return (
+                  <div
+                    key={rnd.id}
+                    style={{
+                      background: '#ffffff',
+                      borderRadius: '16px',
+                      border: isReady ? '1.5px solid #a7f3d0' : elapsedMin > 15 ? '2px solid #ef4444' : '1.5px solid #e2e8f0',
+                      padding: '18px',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between'
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <span style={{ fontWeight: '800', fontSize: '1.25rem', color: '#111827' }}>{rnd.tableName}</span>
+                        <span style={{
+                          fontSize: '0.75rem', fontWeight: '800', padding: '3px 8px', borderRadius: '6px',
+                          background: isReady ? '#d1fae5' : elapsedMin > 15 ? '#fee2e2' : '#f3f4f6',
+                          color: isReady ? '#065f46' : elapsedMin > 15 ? '#b91c1c' : '#4b5563'
+                        }}>
+                          {isReady ? 'LISTA PARA SERVIR' : `HACE ${elapsedMin} MIN`}
+                        </span>
+                      </div>
+
+                      <div style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '12px' }}>
+                        Mesero: <strong>{rnd.waiterName}</strong> • {new Date(rnd.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+
+                      {/* Items List */}
+                      <div style={{ background: '#f8fafc', borderRadius: '10px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {rnd.items.map((item, idx) => (
+                          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                            <div>
+                              <strong style={{ color: '#0f172a' }}>{item.quantity}x</strong> {item.name}
+                              {item.note && (
+                                <div style={{ fontSize: '0.78rem', color: '#d97706', fontStyle: 'italic', marginTop: '2px' }}>
+                                  ⚠️ Nota: {item.note}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div style={{ marginTop: '16px' }}>
+                      {!isReady ? (
+                        <button
+                          type="button"
+                          onClick={() => handleMarkRoundReady(rnd.id)}
+                          style={{
+                            width: '100%', padding: '12px', background: '#10b981', color: '#ffffff',
+                            border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.95rem'
+                          }}
+                        >
+                          <Check size={18} /> Marcar Listo (Avisar a Mesero)
+                        </button>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <div style={{ textAlign: 'center', fontSize: '0.84rem', color: '#059669', fontWeight: '800' }}>
+                            🔔 Plato notificado a tablet
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleMarkRoundServed(rnd.id)}
+                            style={{
+                              width: '100%', padding: '9px', background: '#e2e8f0', color: '#334155',
+                              border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer',
+                              fontSize: '0.84rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
+                            }}
+                          >
+                            <Check size={16} /> Marcar como Servido en Mesa
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 3: CONFIGURAR MESAS Y MESEROS */}
+      {activeTab === 'config' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '24px' }}>
+          
+          {/* Waiters Card */}
+          <div style={{ background: '#ffffff', borderRadius: '16px', padding: '24px', border: '1px solid #eaedf2' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '1.15rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Users size={20} color="#2563eb" /> Meseros Activos
+            </h3>
+
+            <form onSubmit={handleAddWaiter} style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+              <input
+                required
+                type="text"
+                placeholder="Nombre del mesero..."
+                value={newWaiter.name}
+                onChange={e => setNewWaiter({ ...newWaiter, name: e.target.value })}
+                style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.88rem' }}
+              />
+              <input
+                required
+                type="password"
+                maxLength="4"
+                placeholder="PIN 4 dígitos"
+                value={newWaiter.pin}
+                onChange={e => setNewWaiter({ ...newWaiter, pin: e.target.value })}
+                style={{ width: '100px', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.88rem' }}
+              />
+              <button
+                type="submit"
+                style={{ background: '#0f172a', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '10px 16px', fontWeight: '700', cursor: 'pointer' }}
+              >
+                + Añadir
+              </button>
+            </form>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {(restaurantState.waiters || []).map(w => (
+                <div key={w.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.88rem' }}>
+                  <span style={{ fontWeight: '700' }}>👤 {w.name}</span>
+                  <span style={{ color: '#64748b', fontFamily: 'monospace' }}>PIN: ****</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Tables Card */}
+          <div style={{ background: '#ffffff', borderRadius: '16px', padding: '24px', border: '1px solid #eaedf2' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '1.15rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Utensils size={20} color="#d97706" /> Mesas y Áreas
+            </h3>
+
+            <form onSubmit={handleAddTable} style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+              <input
+                required
+                type="text"
+                placeholder="Ej: Mesa 7, Barra 2..."
+                value={newTable.name}
+                onChange={e => setNewTable({ ...newTable, name: e.target.value })}
+                style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.88rem' }}
+              />
+              <select
+                value={newTable.zone}
+                onChange={e => setNewTable({ ...newTable, zone: e.target.value })}
+                style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.88rem', background: '#fff' }}
+              >
+                <option value="Salón">Salón</option>
+                <option value="Terraza">Terraza</option>
+                <option value="Barra">Barra</option>
+                <option value="Delivery">Delivery / Llevar</option>
+              </select>
+              <button
+                type="submit"
+                style={{ background: '#0f172a', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '10px 16px', fontWeight: '700', cursor: 'pointer' }}
+              >
+                + Añadir
+              </button>
+            </form>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              {(restaurantState.tables || []).map(t => (
+                <div key={t.id} style={{ padding: '10px 12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.85rem' }}>
+                  <div style={{ fontWeight: '700' }}>{t.name}</div>
+                  <div style={{ fontSize: '0.72rem', color: '#64748b' }}>{t.zone}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </div>
+      )}
+
+      {/* Detail Drawer Modal for Table Action */}
+      {selectedTable && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'flex-end', zIndex: 1200 }}>
+          <div style={{ background: '#ffffff', width: '100%', maxWidth: '420px', height: '100%', padding: '24px', display: 'flex', flexDirection: 'column', boxShadow: '-10px 0 25px rgba(0,0,0,0.15)' }}>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '800' }}>{selectedTable.table.name}</h2>
+                <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>Zona: {selectedTable.table.zone}</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedTable(null)}
+                style={{ background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer' }}
+              >
+                <X size={22} />
+              </button>
+            </div>
+
+            {/* Consumptions List */}
+            <div style={{ flex: 1, overflowY: 'auto' }}>
+              {!selectedTable.order || selectedTable.order.rounds.length === 0 ? (
+                <div style={{ textAlign: 'center', color: '#9ca3af', marginTop: '60px' }}>
+                  <ShoppingCart size={40} style={{ opacity: 0.4, marginBottom: '8px' }} />
+                  <div>Mesa libre sin pedidos activos</div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <div style={{ fontSize: '0.82rem', color: '#4b5563' }}>
+                    Mesero: <strong>{selectedTable.order.waiterName}</strong>
+                  </div>
+
+                  {selectedTable.order.rounds.map((rnd, rIdx) => (
+                    <div key={rnd.id} style={{ background: '#f8fafc', borderRadius: '12px', padding: '12px', border: '1px solid #e2e8f0' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#64748b', fontWeight: '700', marginBottom: '8px' }}>
+                        <span>Ronda #{rIdx + 1}</span>
+                        <span>{new Date(rnd.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                      {rnd.items.map((i, iIdx) => (
+                        <div key={iIdx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', marginBottom: '4px' }}>
+                          <span><strong>{i.quantity}x</strong> {i.name}</span>
+                          <span style={{ fontWeight: '700' }}>${(i.priceUSD * i.quantity).toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Bottom Actions */}
+            {selectedTable.order && selectedTable.order.rounds.length > 0 && (
+              <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '16px', marginTop: '16px' }}>
+                {(() => {
+                  const total = selectedTable.order.rounds.reduce((acc, r) => acc + r.items.reduce((s, i) => s + (i.priceUSD * i.quantity), 0), 0);
+                  return (
+                    <div style={{ marginBottom: '16px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.25rem', fontWeight: '800' }}>
+                        <span>Total a Cobrar:</span>
+                        <span style={{ color: '#d97706' }}>${total.toFixed(2)}</span>
+                      </div>
+                      <div style={{ textAlign: 'right', fontSize: '0.8rem', color: '#6b7280' }}>
+                        Bs. {(total * exchangeRate).toFixed(2)}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => handleChargeInPOS(selectedTable.table, selectedTable.order)}
+                    style={{
+                      width: '100%', padding: '14px', background: '#dc2626', color: '#ffffff',
+                      border: 'none', borderRadius: '12px', fontWeight: '800', fontSize: '1rem',
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                      boxShadow: '0 4px 14px rgba(220, 38, 38, 0.35)'
+                    }}
+                  >
+                    <ShoppingCart size={18} /> COBRAR EN CAJA (POS) &rarr;
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleFreeTable(selectedTable.table.id)}
+                    style={{
+                      width: '100%', padding: '10px', background: 'transparent', color: '#6b7280',
+                      border: '1px solid #cbd5e1', borderRadius: '10px', fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer'
+                    }}
+                  >
+                    Liberar Mesa
+                  </button>
+                </div>
+              </div>
+            )}
+
+          </div>
+        </div>
+      )}
+
+      {/* QR Connect Modal */}
+      {showQRModal && (
+        <QRConnectModal onClose={() => setShowQRModal(false)} />
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <div style={{
+          position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)',
+          background: toast.type === 'success' ? '#10b981' : '#dc2626',
+          color: '#fff', padding: '10px 22px', borderRadius: '24px',
+          fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px',
+          boxShadow: '0 8px 20px rgba(0,0,0,0.15)', zIndex: 3000, fontSize: '0.88rem'
+        }}>
+          {toast.type === 'success' ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
+          {toast.msg}
+        </div>
+      )}
+
+    </div>
+  );
+}
