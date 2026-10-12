@@ -297,7 +297,21 @@ function createLocalServer() {
     table.status = 'cuenta';
     saveOrdersData(restaurantData);
     io.emit('mesas:actualizadas', restaurantData.tables);
-    res.json({ success: true });
+    io.emit('restaurante:sync', getFullRestaurantState());
+    io.emit('cuenta:pedida', { tableId: table.id, tableName: table.name });
+    res.json({ success: true, table });
+  });
+
+  // Reopen table from 'cuenta' back to 'ocupada' (if client wants to order more or cancelled bill request)
+  app.post('/api/restaurant/table/:id/reopen', (req, res) => {
+    const table = restaurantData.tables.find(t => t.id === req.params.id);
+    if (!table) return res.status(404).json({ error: 'Mesa no encontrada' });
+
+    table.status = 'ocupada';
+    saveOrdersData(restaurantData);
+    io.emit('mesas:actualizadas', restaurantData.tables);
+    io.emit('restaurante:sync', getFullRestaurantState());
+    res.json({ success: true, table });
   });
 
   // Free / Close Table
@@ -1217,7 +1231,7 @@ function renderWaiterView() {
       app.innerHTML = 
         '<div class="menu-header">' +
           '<button class="back-btn" onclick="renderTablesScreen()">&larr; Volver a Mesas</button>' +
-          (existingOrder ? '<button class="back-btn" onclick="requestBill()" style="background:#dbeafe; color:#1e40af; font-weight:800;">Pedir Cuenta</button>' : '') +
+          (existingOrder ? (selectedTable.status === 'cuenta' ? '<span style="background:#dbeafe; color:#1e40af; font-weight:800; font-size:0.8rem; padding:6px 12px; border-radius:10px;">💳 Cuenta Pedida en Caja</span>' : '<button class="back-btn" onclick="requestBill()" style="background:#2563eb; color:#ffffff; font-weight:800; border:none; box-shadow:0 2px 6px rgba(37,99,235,0.25);">🧾 Pedir Cuenta</button>') : '') +
         '</div>' +
 
         '<div class="sticky-order-bar">' +

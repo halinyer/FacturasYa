@@ -131,11 +131,57 @@ export default function Tables() {
     }
   };
 
+  // Action: Request bill from PC and generate pre-bill
+  const handleRequestBill = async (table, order) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/restaurant/table/${table.id}/bill`, {
+        method: 'POST'
+      });
+      if (res.ok) {
+        showToast(`🔔 Pre-cuenta solicitada para ${table.name}.`);
+        handlePrintPreBill(table, order);
+        fetchState();
+      } else {
+        showToast('Error al solicitar cuenta', 'error');
+      }
+    } catch (e) {
+      showToast('Error al conectar con servidor', 'error');
+    }
+  };
+
+  // Action: Reopen Table (Return from 'cuenta' to 'ocupada')
+  const handleReopenTable = async (tableId) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/restaurant/table/${tableId}/reopen`, {
+        method: 'POST'
+      });
+      if (res.ok) {
+        showToast('Mesa devuelta a estado de consumo.');
+        fetchState();
+      } else {
+        showToast('Error al reabrir mesa', 'error');
+      }
+    } catch (e) {
+      showToast('Error al conectar con servidor', 'error');
+    }
+  };
+
   // Action: Send to POS to charge
-  const handleChargeInPOS = (table, order) => {
+  const handleChargeInPOS = async (table, order) => {
     if (!order || !order.rounds || order.rounds.length === 0) {
       showToast('Esta mesa no tiene consumos registrados.', 'error');
       return;
+    }
+
+    if (table.status !== 'cuenta') {
+      const confirmCharge = window.confirm(
+        `La mesa "${table.name}" aún no ha pedido la cuenta formalmente (sigue en consumo).\n\n¿Deseas solicitar la pre-cuenta y pasar directamente a cobrar a caja?`
+      );
+      if (!confirmCharge) return;
+
+      try {
+        await fetch(`http://localhost:3001/api/restaurant/table/${table.id}/bill`, { method: 'POST' });
+      } catch (err) {}
     }
 
     // Consolidate all items from all rounds
@@ -906,116 +952,193 @@ export default function Tables() {
       )}
 
       {/* Detail Drawer Modal for Table Action */}
-      {selectedTable && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'flex-end', zIndex: 1200 }}>
-          <div style={{ background: '#ffffff', width: '100%', maxWidth: '420px', height: '100%', padding: '24px', display: 'flex', flexDirection: 'column', boxShadow: '-10px 0 25px rgba(0,0,0,0.15)' }}>
-            
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <div>
-                <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '800' }}>{selectedTable.table.name}</h2>
-                <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>Zona: {selectedTable.table.zone}</div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedTable(null)}
-                style={{ background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer' }}
-              >
-                <X size={22} />
-              </button>
-            </div>
+      {selectedTable && (() => {
+        const currentTable = (restaurantState.tables || []).find(t => t.id === selectedTable.table.id) || selectedTable.table;
+        const currentOrder = (restaurantState.activeOrders || []).find(o => o.tableId === currentTable.id) || selectedTable.order;
+        const isBillRequested = currentTable.status === 'cuenta';
+        const isOccupied = currentTable.status === 'ocupada';
 
-            {/* Consumptions List */}
-            <div style={{ flex: 1, overflowY: 'auto' }}>
-              {!selectedTable.order || selectedTable.order.rounds.length === 0 ? (
-                <div style={{ textAlign: 'center', color: '#9ca3af', marginTop: '60px' }}>
-                  <ShoppingCart size={40} style={{ opacity: 0.4, marginBottom: '8px' }} />
-                  <div>Mesa libre sin pedidos activos</div>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                  <div style={{ fontSize: '0.82rem', color: '#4b5563' }}>
-                    Mesero: <strong>{selectedTable.order.waiterName}</strong>
+        return (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'flex-end', zIndex: 1200 }}>
+            <div style={{ background: '#ffffff', width: '100%', maxWidth: '420px', height: '100%', padding: '24px', display: 'flex', flexDirection: 'column', boxShadow: '-10px 0 25px rgba(0,0,0,0.15)' }}>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '800' }}>{currentTable.name}</h2>
+                    <span style={{
+                      fontSize: '0.72rem', fontWeight: '800', textTransform: 'uppercase',
+                      padding: '2px 8px', borderRadius: '6px',
+                      background: isBillRequested ? '#dbeafe' : isOccupied ? '#ffedd5' : '#dcfce7',
+                      color: isBillRequested ? '#1e40af' : isOccupied ? '#9a3412' : '#166534'
+                    }}>
+                      {isBillRequested ? 'Pide Cuenta' : isOccupied ? 'En Consumo' : 'Libre'}
+                    </span>
                   </div>
+                  <div style={{ fontSize: '0.8rem', color: '#6b7280', marginTop: '3px' }}>Zona: {currentTable.zone}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTable(null)}
+                  style={{ background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer' }}
+                >
+                  <X size={22} />
+                </button>
+              </div>
 
-                  {selectedTable.order.rounds.map((rnd, rIdx) => (
-                    <div key={rnd.id} style={{ background: '#f8fafc', borderRadius: '12px', padding: '12px', border: '1px solid #e2e8f0' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#64748b', fontWeight: '700', marginBottom: '8px' }}>
-                        <span>Ronda #{rIdx + 1}</span>
-                        <span>{new Date(rnd.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                      </div>
-                      {rnd.items.map((i, iIdx) => (
-                        <div key={iIdx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', marginBottom: '4px' }}>
-                          <span><strong>{i.quantity}x</strong> {i.name}</span>
-                          <span style={{ fontWeight: '700' }}>${(i.priceUSD * i.quantity).toFixed(2)}</span>
-                        </div>
-                      ))}
+              {/* Consumptions List */}
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                {!currentOrder || !currentOrder.rounds || currentOrder.rounds.length === 0 ? (
+                  <div style={{ textAlign: 'center', color: '#9ca3af', marginTop: '60px' }}>
+                    <ShoppingCart size={40} style={{ opacity: 0.4, marginBottom: '8px' }} />
+                    <div>Mesa libre sin pedidos activos</div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    <div style={{ fontSize: '0.82rem', color: '#4b5563' }}>
+                      Mesero: <strong>{currentOrder.waiterName || 'Mesero'}</strong>
                     </div>
-                  ))}
+
+                    {currentOrder.rounds.map((rnd, rIdx) => (
+                      <div key={rnd.id} style={{ background: '#f8fafc', borderRadius: '12px', padding: '12px', border: '1px solid #e2e8f0' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#64748b', fontWeight: '700', marginBottom: '8px' }}>
+                          <span>Ronda #{rIdx + 1}</span>
+                          <span>{new Date(rnd.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                        {rnd.items.map((i, iIdx) => (
+                          <div key={iIdx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', marginBottom: '4px' }}>
+                            <span><strong>{i.quantity}x</strong> {i.name}</span>
+                            <span style={{ fontWeight: '700' }}>${(i.priceUSD * i.quantity).toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Bottom Actions */}
+              {currentOrder && currentOrder.rounds && currentOrder.rounds.length > 0 && (
+                <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '16px', marginTop: '16px' }}>
+                  {(() => {
+                    const total = currentOrder.rounds.reduce((acc, r) => acc + r.items.reduce((s, i) => s + (i.priceUSD * i.quantity), 0), 0);
+                    return (
+                      <div style={{ marginBottom: '16px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.25rem', fontWeight: '800' }}>
+                          <span>Total de la Mesa:</span>
+                          <span style={{ color: '#d97706' }}>${total.toFixed(2)}</span>
+                        </div>
+                        <div style={{ textAlign: 'right', fontSize: '0.8rem', color: '#6b7280' }}>
+                          Bs. {(total * exchangeRate).toFixed(2)}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {/* CASO 1: LA MESA ESTÁ EN CONSUMO (Aún NO ha pedido la cuenta) */}
+                    {!isBillRequested && (
+                      <>
+                        <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '12px', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <Clock size={20} color="#d97706" style={{ flexShrink: 0 }} />
+                          <div style={{ fontSize: '0.82rem', color: '#92400e', lineHeight: 1.35 }}>
+                            <strong>Mesa comiendo.</strong> Los comensales aún no han solicitado la cuenta. Solicita la pre-cuenta para habilitar el cobro en caja.
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleRequestBill(currentTable, currentOrder)}
+                          style={{
+                            width: '100%', padding: '13px', background: '#2563eb', color: '#ffffff',
+                            border: 'none', borderRadius: '12px', fontWeight: '800', fontSize: '0.95rem',
+                            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                            boxShadow: '0 4px 12px rgba(37,99,235,0.25)'
+                          }}
+                        >
+                          <Printer size={18} /> Solicitar Pre-cuenta (Pide Cuenta)
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleChargeInPOS(currentTable, currentOrder)}
+                          style={{
+                            width: '100%', padding: '10px', background: '#f8fafc', color: '#475569',
+                            border: '1px solid #cbd5e1', borderRadius: '10px', fontWeight: '700', fontSize: '0.82rem',
+                            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
+                          }}
+                        >
+                          <ShoppingCart size={15} /> Cobrar directo en POS (Confirmar)
+                        </button>
+                      </>
+                    )}
+
+                    {/* CASO 2: LA MESA YA PIDIÓ LA CUENTA (Lista para cobrar) */}
+                    {isBillRequested && (
+                      <>
+                        <div style={{ background: '#eff6ff', border: '1.5px solid #bfdbfe', borderRadius: '12px', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <CheckCircle size={18} color="#2563eb" />
+                            <div style={{ fontSize: '0.84rem', color: '#1e40af', fontWeight: '800' }}>
+                              Cuenta Solicitada (Lista para cobro)
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleReopenTable(currentTable.id)}
+                            style={{ background: '#ffffff', border: '1px solid #cbd5e1', color: '#475569', fontSize: '0.72rem', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontWeight: '700' }}
+                            title="Volver a consumo si piden más productos"
+                          >
+                            ↩️ Reabrir
+                          </button>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleChargeInPOS(currentTable, currentOrder)}
+                          style={{
+                            width: '100%', padding: '14px', background: '#dc2626', color: '#ffffff',
+                            border: 'none', borderRadius: '12px', fontWeight: '800', fontSize: '1rem',
+                            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                            boxShadow: '0 4px 14px rgba(220, 38, 38, 0.35)'
+                          }}
+                        >
+                          <ShoppingCart size={18} /> COBRAR EN CAJA (POS) &rarr;
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handlePrintPreBill(currentTable, currentOrder)}
+                          style={{
+                            width: '100%', padding: '10px', background: '#eff6ff', color: '#1e40af',
+                            border: '1px solid #bfdbfe', borderRadius: '10px', fontWeight: '700', fontSize: '0.85rem',
+                            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
+                          }}
+                        >
+                          <Printer size={16} /> Re-imprimir Nota de Entrega (Pre-cuenta)
+                        </button>
+                      </>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => handleFreeTable(currentTable.id)}
+                      style={{
+                        width: '100%', padding: '8px', background: 'transparent', color: '#94a3b8',
+                        border: 'none', borderRadius: '8px', fontWeight: '600', fontSize: '0.8rem', cursor: 'pointer',
+                        marginTop: '4px'
+                      }}
+                    >
+                      Liberar / Cancelar Mesa
+                    </button>
+                  </div>
                 </div>
               )}
+
             </div>
-
-            {/* Bottom Actions */}
-            {selectedTable.order && selectedTable.order.rounds.length > 0 && (
-              <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '16px', marginTop: '16px' }}>
-                {(() => {
-                  const total = selectedTable.order.rounds.reduce((acc, r) => acc + r.items.reduce((s, i) => s + (i.priceUSD * i.quantity), 0), 0);
-                  return (
-                    <div style={{ marginBottom: '16px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.25rem', fontWeight: '800' }}>
-                        <span>Total a Cobrar:</span>
-                        <span style={{ color: '#d97706' }}>${total.toFixed(2)}</span>
-                      </div>
-                      <div style={{ textAlign: 'right', fontSize: '0.8rem', color: '#6b7280' }}>
-                        Bs. {(total * exchangeRate).toFixed(2)}
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <button
-                    type="button"
-                    onClick={() => handlePrintPreBill(selectedTable.table, selectedTable.order)}
-                    style={{
-                      width: '100%', padding: '12px', background: '#eff6ff', color: '#1e40af',
-                      border: '1.5px solid #bfdbfe', borderRadius: '12px', fontWeight: '800', fontSize: '0.92rem',
-                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
-                    }}
-                  >
-                    <Printer size={18} color="#2563eb" /> Imprimir Nota de Entrega (Pre-cuenta)
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleChargeInPOS(selectedTable.table, selectedTable.order)}
-                    style={{
-                      width: '100%', padding: '14px', background: '#dc2626', color: '#ffffff',
-                      border: 'none', borderRadius: '12px', fontWeight: '800', fontSize: '1rem',
-                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                      boxShadow: '0 4px 14px rgba(220, 38, 38, 0.35)'
-                    }}
-                  >
-                    <ShoppingCart size={18} /> COBRAR EN CAJA (POS) &rarr;
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleFreeTable(selectedTable.table.id)}
-                    style={{
-                      width: '100%', padding: '10px', background: 'transparent', color: '#6b7280',
-                      border: '1px solid #cbd5e1', borderRadius: '10px', fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer'
-                    }}
-                  >
-                    Liberar Mesa
-                  </button>
-                </div>
-              </div>
-            )}
-
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Edit Waiter Modal */}
       {editingWaiter && (
