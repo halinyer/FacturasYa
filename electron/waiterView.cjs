@@ -34,10 +34,10 @@ function renderWaiterView() {
     .waiter-badge:active { background: rgba(255,255,255,0.3); }
     .waiter-badge-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-    main { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 14px 16px 120px 16px; display: flex; flex-direction: column; position: relative; -webkit-overflow-scrolling: touch; }
+    main { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 0 16px 120px 16px; display: flex; flex-direction: column; position: relative; -webkit-overflow-scrolling: touch; }
 
     /* Screen 1: Login / Turno */
-    .login-container { margin: auto; max-width: 360px; width: 100%; text-align: center; }
+    .login-container { margin: auto; max-width: 360px; width: 100%; text-align: center; padding-top: 24px; }
     .login-header-icon { width: 56px; height: 56px; border-radius: 16px; background: #601718; color: #ffffff; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px auto; box-shadow: 0 6px 16px rgba(96,23,24,0.3); border: 2px solid #D52829; }
     .waiter-card-btn { width: 100%; padding: 14px 16px; background: #ffffff; border: 1.5px solid #e4e4e7; border-radius: 14px; font-weight: 800; font-size: 0.96rem; color: #18181b; cursor: pointer; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 6px rgba(0,0,0,0.03); transition: all 0.15s; margin-bottom: 10px; }
     .waiter-card-btn:active { transform: scale(0.98); background: #fafafa; border-color: #D52829; }
@@ -57,8 +57,11 @@ function renderWaiterView() {
     .pin-key:active { background: #D52829; color: #ffffff; border-color: #D52829; transform: scale(0.94); }
     .pin-key.key-action { font-size: 1rem; background: #f1f5f9; color: #64748b; font-weight: 700; }
 
+    /* Sticky Top Bars for Tables and Ordering */
+    .tables-top-bar, .order-top-bar { position: sticky; top: 0; background: #f4f4f7; z-index: 30; margin-left: -16px; margin-right: -16px; padding: 10px 16px 8px 16px; border-bottom: 1.5px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.03); margin-bottom: 12px; }
+
     /* Segmented Zone / Category Bars */
-    .zones-bar { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 6px 0; margin-bottom: 8px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    .zones-bar { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 6px 0; margin-bottom: 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
     .zones-bar::-webkit-scrollbar { display: none; }
     .zone-pill, .cat-pill { flex-shrink: 0; height: 38px; padding: 0 16px; border-radius: 10px; background: #ffffff; color: #475569; font-weight: 800; font-size: 0.8rem; border: 1.5px solid #e2e8f0; white-space: nowrap; cursor: pointer; transition: all 0.12s ease; text-transform: uppercase; letter-spacing: 0.4px; display: inline-flex; align-items: center; justify-content: center; user-select: none; }
     .zone-pill:active, .cat-pill:active { transform: scale(0.96); }
@@ -83,12 +86,14 @@ function renderWaiterView() {
     .status-cuenta { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
     .table-total { font-weight: 900; font-size: 1.05rem; color: #D52829; text-align: right; }
 
-    /* Ordering Screen */
-    .menu-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-shrink: 0; }
-    .back-btn { background: #ffffff; border: 1.5px solid #e2e8f0; padding: 8px 14px; border-radius: 10px; font-weight: 800; font-size: 0.84rem; color: #1e293b; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); }
-    .bill-btn { background: #601718; color: #ffffff; border: none; padding: 8px 14px; border-radius: 10px; font-weight: 800; font-size: 0.84rem; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(96,23,24,0.3); }
+    /* Ordering Screen Header Elements */
+    .menu-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-shrink: 0; }
+    .table-badge-active { display: inline-flex; align-items: center; gap: 7px; background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 6px 14px; font-size: 0.92rem; font-weight: 900; color: #18181b; box-shadow: 0 1px 3px rgba(0,0,0,0.03); }
+    .table-badge-dot { width: 8px; height: 8px; border-radius: 50%; background: #7CBE43; }
+    .status-cuenta-badge { background: #fee2e2; color: #b91c1c; font-weight: 800; font-size: 0.76rem; padding: 6px 12px; border-radius: 8px; border: 1px solid #fca5a5; white-space: nowrap; }
+    .back-btn { background: #ffffff; border: 1.5px solid #e2e8f0; padding: 7px 12px; border-radius: 10px; font-weight: 800; font-size: 0.82rem; color: #1e293b; cursor: pointer; display: flex; align-items: center; gap: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); }
+    .bill-btn { background: #601718; color: #ffffff; border: none; padding: 7px 12px; border-radius: 10px; font-weight: 800; font-size: 0.82rem; cursor: pointer; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 8px rgba(96,23,24,0.3); }
     
-    .sticky-order-bar { position: sticky; top: 0; background: #f4f4f7; z-index: 30; margin-left: -16px; margin-right: -16px; padding: 10px 16px 8px 16px; border-bottom: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.03); margin-bottom: 12px; }
     .search-box { position: relative; margin-bottom: 8px; }
     .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none; }
     .search-input { width: 100%; height: 42px; padding: 0 16px 0 40px; border-radius: 11px; border: 1.5px solid #e2e8f0; font-size: 0.9rem; background: #ffffff; outline: none; font-weight: 600; color: #18181b; box-shadow: 0 1px 2px rgba(0,0,0,0.03); transition: border-color 0.15s; }
@@ -748,10 +753,12 @@ function renderWaiterView() {
 
       const app = document.getElementById('appContent');
       app.innerHTML = 
-        '<div class="zones-bar">' +
-          zones.map(function(z) {
-            return '<button class="zone-pill ' + (selectedZone === z ? 'active' : '') + '" data-zone="' + z + '" onclick="filterZoneFromBtn(this)">' + z + '</button>';
-          }).join('') +
+        '<div class="tables-top-bar">' +
+          '<div class="zones-bar">' +
+            zones.map(function(z) {
+              return '<button class="zone-pill ' + (selectedZone === z ? 'active' : '') + '" data-zone="' + z + '" onclick="filterZoneFromBtn(this)">' + z + '</button>';
+            }).join('') +
+          '</div>' +
         '</div>' +
         '<div class="tables-grid">' +
           filteredTables.map(function(t) {
@@ -821,17 +828,21 @@ function renderWaiterView() {
 
       const app = document.getElementById('appContent');
       app.innerHTML = 
-        '<div class="menu-header">' +
-          '<button class="back-btn" onclick="renderTablesScreen()">' +
-            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>' +
-            '<span>Mesas (' + selectedTable.name + ')</span>' +
-          '</button>' +
-          (existingOrder ? (selectedTable.status === 'cuenta' 
-            ? '<span style="background:#fee2e2; color:#b91c1c; font-weight:800; font-size:0.76rem; padding:6px 10px; border-radius:8px; border:1px solid #fca5a5;">Cuenta en Caja</span>' 
-            : '<button class="bill-btn" onclick="requestBill()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/></svg><span>Pedir Cuenta</span></button>') : '') +
-        '</div>' +
+        '<div class="order-top-bar">' +
+          '<div class="menu-header">' +
+            '<button class="back-btn" onclick="renderTablesScreen()">' +
+              '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>' +
+              '<span>Mesas</span>' +
+            '</button>' +
+            '<div class="table-badge-active">' +
+              '<span class="table-badge-dot"></span>' +
+              '<span>' + selectedTable.name + '</span>' +
+            '</div>' +
+            (existingOrder ? (selectedTable.status === 'cuenta' 
+              ? '<span class="status-cuenta-badge">Cuenta en Caja</span>' 
+              : '<button class="bill-btn" onclick="requestBill()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/></svg><span>Pedir Cuenta</span></button>') : '<div style="width:70px;"></div>') +
+          '</div>' +
 
-        '<div class="sticky-order-bar">' +
           '<div class="search-box">' +
             '<svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="2" x2="16.65" y2="16.65"/></svg>' +
             '<input type="text" id="prodSearchInput" class="search-input" placeholder="Buscar combo o hamburguesa..." value="' + prodSearchQuery.replace(/"/g, '&quot;') + '" oninput="onProductSearch(this.value)">' +
@@ -1018,25 +1029,25 @@ function renderWaiterView() {
             '<button class="modal-close-btn" onclick="closeCartModal()">&times;</button>' +
           '</div>' +
 
-          '<div style="flex:1; overflow-y:auto; max-height:48vh; padding-right:4px;">' +
-            currentCart.map(function(i, idx) {
+          '<div id="cartModalItemsList" style="flex:1; overflow-y:auto; max-height:48vh; padding-right:4px;">' +
+            currentCart.map(function(i) {
               const hasImg = i.image && typeof i.image === 'string' && i.image.length > 4;
-              return '<div class="cart-item-row">' +
+              return '<div class="cart-item-row" id="cartRow_' + i.id + '">' +
                 '<div class="cart-thumb">' +
                   (hasImg 
-                    ? '<img src="' + i.image + '" style="width:100%; height:100%; object-fit:contain;" onerror="this.style.display=\\'none\\'">' 
+                    ? '<img src="' + i.image + '" style="width:100%; height:100%; object-fit:contain;" onerror="this.style.display=\'none\'">' 
                     : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D6862B" stroke-width="2"><path d="M3 11c0-3.3 2.7-6 6-6h6c3.3 0 6 2.7 6 6v1H3v-1Z"/><path d="M3 16h18v2a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-2Z"/></svg>'
                   ) +
                 '</div>' +
                 '<div style="flex:1;">' +
                   '<div style="font-weight:800; font-size:0.9rem; color:#18181b;">' + i.name + '</div>' +
-                  '<div style="font-size:0.8rem; color:#D52829; font-weight:800;">$' + (i.priceUSD * i.quantity).toFixed(2) + ' <span style="font-size:0.7rem; color:#71717a; font-weight:600;">(Bs. ' + ((i.priceUSD * i.quantity) * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ')</span></div>' +
-                  '<input type="text" placeholder="Nota: ej. sin pepinillos, extra salsa..." value="' + (i.note || '').replace(/"/g, '&quot;') + '" onchange="currentCart[' + idx + '].note = this.value" style="width:96%; padding:6px 9px; font-size:0.78rem; border:1px solid #e4e4e7; border-radius:6px; margin-top:4px; outline:none;">' +
+                  '<div class="cart-item-price-val" style="font-size:0.8rem; color:#D52829; font-weight:800;">$' + (i.priceUSD * i.quantity).toFixed(2) + ' <span style="font-size:0.7rem; color:#71717a; font-weight:600;">(Bs. ' + ((i.priceUSD * i.quantity) * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ')</span></div>' +
+                  '<input type="text" placeholder="Nota: ej. sin pepinillos, extra salsa..." value="' + (i.note || '').replace(/"/g, '&quot;') + '" onchange="updateItemNote(\'' + i.id + '\', this.value)" style="width:96%; padding:6px 9px; font-size:0.78rem; border:1px solid #e4e4e7; border-radius:6px; margin-top:4px; outline:none;">' +
                 '</div>' +
                 '<div style="display:flex; align-items:center; gap:6px;">' +
-                  '<button class="qty-btn" data-idx="' + idx + '" onclick="changeQtyFromBtn(this, -1)">&minus;</button>' +
-                  '<span style="font-weight:900; min-width:20px; text-align:center; font-size:1rem;">' + i.quantity + '</span>' +
-                  '<button class="qty-btn" data-idx="' + idx + '" onclick="changeQtyFromBtn(this, 1)">&plus;</button>' +
+                  '<button class="qty-btn" data-id="' + i.id + '" onclick="changeQtyFromBtn(this, -1)">&minus;</button>' +
+                  '<span class="cart-item-qty-val" style="font-weight:900; min-width:20px; text-align:center; font-size:1rem;">' + i.quantity + '</span>' +
+                  '<button class="qty-btn" data-id="' + i.id + '" onclick="changeQtyFromBtn(this, 1)">&plus;</button>' +
                 '</div>' +
               '</div>';
             }).join('') +
@@ -1046,8 +1057,8 @@ function renderWaiterView() {
             '<div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:12px;">' +
               '<span style="font-weight:800; color:#71717a; font-size:0.85rem; text-transform:uppercase;">Total Comanda:</span>' +
               '<div style="text-align:right;">' +
-                '<div style="font-size:1.3rem; font-weight:900; color:#D52829;">$' + totalUSD.toFixed(2) + '</div>' +
-                '<div style="font-size:0.75rem; color:#71717a; font-weight:700; font-family:ui-monospace, monospace;">Bs. ' + totalBS.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</div>' +
+                '<div id="cartModalTotalUSD" style="font-size:1.3rem; font-weight:900; color:#D52829;">$' + totalUSD.toFixed(2) + '</div>' +
+                '<div id="cartModalTotalBS" style="font-size:0.75rem; color:#71717a; font-weight:700; font-family:ui-monospace, monospace;">Bs. ' + totalBS.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</div>' +
               '</div>' +
             '</div>' +
             '<button class="cart-send-btn" style="width:100%; padding:14px; font-size:0.95rem; justify-content:center;" onclick="closeCartModal(); sendOrderRound();">' +
@@ -1059,27 +1070,58 @@ function renderWaiterView() {
       document.body.appendChild(modal);
     }
 
-    function changeQtyFromBtn(btn) {
-      const idx = parseInt(btn.getAttribute('data-idx'), 10);
-      const delta = btn.innerText === '+' || btn.innerText === '＋' || btn.innerHTML.indexOf('plus') !== -1 || btn.textContent.charCodeAt(0) === 43 || btn.textContent.charCodeAt(0) === 65291 ? 1 : -1;
-      changeQty(idx, delta);
+    function updateItemNote(id, note) {
+      const item = currentCart.find(function(i) { return i.id === id; });
+      if (item) item.note = note;
     }
 
-    function changeQty(idx, delta) {
+    function changeQtyFromBtn(btn, delta) {
+      const prodId = btn.getAttribute('data-id');
+      changeQty(prodId, delta);
+    }
+
+    function changeQty(prodId, delta) {
+      const idx = currentCart.findIndex(function(i) { return i.id === prodId; });
+      if (idx === -1) return;
       const item = currentCart[idx];
-      if (!item) return;
-      const prodId = item.id;
       item.quantity += delta;
-      let finalQty = item.quantity;
+      const finalQty = item.quantity;
       if (item.quantity <= 0) {
         currentCart.splice(idx, 1);
-        finalQty = 0;
       }
+      
       updateCartBar();
-      updateCardBadge(prodId, finalQty);
-      if (document.getElementById('cartModal')) {
-        closeCartModal();
-        if (currentCart.length > 0) openCartModal();
+      updateCardBadge(prodId, finalQty > 0 ? finalQty : 0);
+
+      const modal = document.getElementById('cartModal');
+      if (modal) {
+        if (currentCart.length === 0) {
+          closeCartModal();
+          return;
+        }
+
+        const rate = getLiveExchangeRate();
+        const totalUSD = currentCart.reduce(function(acc, i) { return acc + (i.priceUSD * i.quantity); }, 0);
+        const totalBS = totalUSD * rate;
+
+        const totalUsdEl = document.getElementById('cartModalTotalUSD');
+        const totalBsEl = document.getElementById('cartModalTotalBS');
+        if (totalUsdEl) totalUsdEl.innerText = '$' + totalUSD.toFixed(2);
+        if (totalBsEl) totalBsEl.innerText = 'Bs. ' + totalBS.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        const row = document.getElementById('cartRow_' + prodId);
+        if (finalQty <= 0) {
+          if (row) row.remove();
+        } else if (row) {
+          const qtyEl = row.querySelector('.cart-item-qty-val');
+          const priceEl = row.querySelector('.cart-item-price-val');
+          if (qtyEl) qtyEl.innerText = finalQty;
+          if (priceEl) {
+            priceEl.innerHTML = '$' + (item.priceUSD * finalQty).toFixed(2) + 
+              ' <span style="font-size:0.7rem; color:#71717a; font-weight:600;">(Bs. ' + 
+              ((item.priceUSD * finalQty) * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ')</span>';
+          }
+        }
       }
     }
 
