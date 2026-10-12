@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Search, 
   Plus, 
@@ -16,7 +17,8 @@ import {
   User,
   Sparkles,
   IceCreamCone,
-  Trash2
+  Trash2,
+  Utensils
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
@@ -24,8 +26,9 @@ import ClientSearch from '../components/ClientSearch';
 import InvoicePreview from '../components/InvoicePreview';
 
 const POS = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
-  const { products = [], createInvoice, exchangeRate = 36.5, loadExchangeRate } = useData() || {};
+  const { products = [], createInvoice, exchangeRate = 36.5, loadExchangeRate, restaurantMode } = useData() || {};
 
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('Todos');
@@ -278,6 +281,32 @@ const POS = () => {
           <div style={{ color: '#6b7280', fontSize: '0.85rem', fontWeight: '500' }}>
             {filteredProducts.length} productos disponibles
           </div>
+
+          {restaurantMode && (
+            <button
+              type="button"
+              onClick={() => navigate('/tables')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 16px',
+                background: '#ffffff',
+                border: '1.5px solid #fdba74',
+                borderRadius: '12px',
+                color: '#c2410c',
+                fontWeight: '700',
+                cursor: 'pointer',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                fontSize: '0.88rem',
+                marginLeft: 'auto'
+              }}
+              title="Ir a Mesas y Comandas de Salón"
+            >
+              <Utensils size={18} color="#ea580c" />
+              <span>Mesas y Salón</span>
+            </button>
+          )}
         </div>
 
         <style>

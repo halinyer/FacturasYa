@@ -81,7 +81,7 @@ export const db = {
   // RESTAURANT MODE
   getRestaurantMode: () => {
     const settings = getStorageItem('pos_settings');
-    return settings && typeof settings.restaurantMode === 'boolean' ? settings.restaurantMode : false;
+    return settings && typeof settings.restaurantMode === 'boolean' ? settings.restaurantMode : true;
   },
   setRestaurantMode: (enabled) => {
     const settings = getStorageItem('pos_settings');

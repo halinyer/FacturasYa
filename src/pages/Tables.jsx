@@ -227,6 +227,18 @@ export default function Tables() {
         <div style={{ display: 'flex', gap: '10px' }}>
           <button
             type="button"
+            onClick={() => navigate('/pos')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px',
+              background: '#f8fafc', color: '#0f172a', border: '1.5px solid #cbd5e1', borderRadius: '10px',
+              fontWeight: '700', cursor: 'pointer', fontSize: '0.88rem'
+            }}
+          >
+            <ShoppingCart size={18} color="#2563eb" /> Punto de Venta (POS)
+          </button>
+
+          <button
+            type="button"
             onClick={() => setShowQRModal(true)}
             style={{
               display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px',

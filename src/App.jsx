@@ -80,16 +80,8 @@ function App() {
               </ProtectedRoute>
             } />
 
-            <Route path="/tables" element={
-              <ProtectedRoute>
-                <Tables />
-              </ProtectedRoute>
-            } />
-            <Route path="/mesas" element={
-              <ProtectedRoute>
-                <Tables />
-              </ProtectedRoute>
-            } />
+            <Route path="/tables" element={<Tables />} />
+            <Route path="/mesas" element={<Tables />} />
             
             {/* Default redirect based on role */}
             <Route path="*" element={

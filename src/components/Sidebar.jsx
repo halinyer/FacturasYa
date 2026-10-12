@@ -74,10 +74,21 @@ const Sidebar = () => {
         </NavLink>
 
         {restaurantMode && (
-          <NavLink to="/tables" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-            <Utensils size={22} color="#f59e0b" />
-            <span className="nav-text" style={{ fontWeight: '700' }}>Mesas y Salón</span>
-          </NavLink>
+          <>
+            <NavLink to="/tables" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <Utensils size={22} color="#f59e0b" />
+              <span className="nav-text" style={{ fontWeight: '700' }}>Mesas y Salón</span>
+            </NavLink>
+            <button
+              type="button"
+              onClick={() => setShowQRModal(true)}
+              className="nav-item"
+              style={{ background: 'rgba(37, 99, 235, 0.08)', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit' }}
+            >
+              <QrCode size={22} color="#2563eb" />
+              <span className="nav-text" style={{ color: '#1d4ed8', fontWeight: '800' }}>Vincular Tablets</span>
+            </button>
+          </>
         )}
 
         {isAdmin() && (
@@ -98,19 +109,6 @@ const Sidebar = () => {
               <Calculator size={22} />
               <span className="nav-text">Cierre de Caja</span>
             </NavLink>
-
-            {/* Restaurant Mode QR tablets button */}
-            {restaurantMode && (
-              <button
-                type="button"
-                onClick={() => setShowQRModal(true)}
-                className="nav-item"
-                style={{ background: 'rgba(37, 99, 235, 0.08)', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit' }}
-              >
-                <QrCode size={22} color="#2563eb" />
-                <span className="nav-text" style={{ color: '#1d4ed8', fontWeight: '800' }}>Vincular Tablets</span>
-              </button>
-            )}
 
             {/* Backup & Restore Action */}
             <button
