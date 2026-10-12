@@ -63,7 +63,13 @@ const Sidebar = () => {
     <div className="sidebar">
       <div className="sidebar-header">
         <div className="brand">
-          <span className="brand-icon">{CLIENT_CONFIG.branding.logoIcon}</span>
+          <div className="brand-icon">
+            {CLIENT_CONFIG.branding.logoImage ? (
+              <img src={CLIENT_CONFIG.branding.logoImage} alt="Logo" />
+            ) : (
+              <span>{CLIENT_CONFIG.branding.logoIcon}</span>
+            )}
+          </div>
           <span className="brand-text">{CLIENT_CONFIG.branding.logoText}</span>
         </div>
       </div>

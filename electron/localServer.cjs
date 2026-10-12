@@ -102,18 +102,30 @@ function saveOrdersData(data) {
 }
 
 const defaultSeedProducts = [
-  { id: 'prod_1', name: 'Barquilla Simple', category: 'Barquillas', priceUSD: 1.5, image: 'https://images.unsplash.com/photo-1557142046-c704a3adf8f6?auto=format&fit=crop&w=400' },
-  { id: 'prod_2', name: 'Barquilla Doble', category: 'Barquillas', priceUSD: 2.5, image: 'https://images.unsplash.com/photo-1563805042-7684c8a9e9ce?auto=format&fit=crop&w=400' },
-  { id: 'prod_3', name: 'Barquilla Premium', category: 'Barquillas', priceUSD: 3.5, image: 'https://images.unsplash.com/photo-1497034825429-c343d7c6a68f?auto=format&fit=crop&w=400' },
-  { id: 'prod_4', name: 'Helado 1 Litro', category: 'Litros', priceUSD: 6.0, image: 'https://images.unsplash.com/photo-1501443762994-82bd5dace89a?auto=format&fit=crop&w=400' },
-  { id: 'prod_5', name: 'Helado 2 Litros', category: 'Litros', priceUSD: 11.0, image: 'https://images.unsplash.com/photo-1553177595-4de2bb0842b9?auto=format&fit=crop&w=400' },
-  { id: 'prod_6', name: 'Helado 4.5 Litros (Tinetta)', category: 'Litros', priceUSD: 20.0, image: 'https://images.unsplash.com/photo-1570197781417-0a82375c9371?auto=format&fit=crop&w=400' },
-  { id: 'prod_7', name: 'Sundae Sencillo', category: 'Sundaes', priceUSD: 2.0, image: 'https://images.unsplash.com/photo-1560008581-09826d1de69e?auto=format&fit=crop&w=400' },
-  { id: 'prod_8', name: 'Sundae Especial', category: 'Sundaes', priceUSD: 3.5, image: 'https://images.unsplash.com/photo-1563805042-7684c8a9e9ce?auto=format&fit=crop&w=400' },
-  { id: 'prod_9', name: 'Banana Split', category: 'Sundaes', priceUSD: 5.0, image: 'https://images.unsplash.com/photo-1529124479902-1596706e232e?auto=format&fit=crop&w=400' },
-  { id: 'prod_10', name: 'Sirope Extra', category: 'Toppings/Extras', priceUSD: 0.5 },
-  { id: 'prod_11', name: 'Lluvia de Chocolate', category: 'Toppings/Extras', priceUSD: 0.5 },
-  { id: 'prod_12', name: 'Galleta Adicional', category: 'Toppings/Extras', priceUSD: 0.8 }
+  { id: 'hd_prod_1', name: '2 Burger Mini!', category: 'Combos', priceUSD: 5.99, image: '/happydays/combo_2_burger_mini.png' },
+  { id: 'hd_prod_2', name: '4 Burger Pana!', category: 'Combos', priceUSD: 14.99, image: '/happydays/combo_4_burger_pana.png' },
+  { id: 'hd_prod_3', name: 'Happy Panita!', category: 'Combos', priceUSD: 21.99, image: '/happydays/combo_happy_panita.png' },
+  { id: 'hd_prod_4', name: 'Full Burger Happy!', category: 'Combos', priceUSD: 24.99, image: '/happydays/combo_full_burger_happy.png' },
+  { id: 'hd_prod_5', name: 'Full Pollo Happy!', category: 'Combos', priceUSD: 24.99, image: '/happydays/combo_full_pollo_happy.png' },
+  { id: 'hd_prod_6', name: 'Club House Happy!', category: 'Combos', priceUSD: 34.99, image: '/happydays/combo_club_house_happy.png' },
+  { id: 'hd_prod_7', name: 'Happy Familiar!', category: 'Combos', priceUSD: 49.99, image: '/happydays/combo_happy_familiar.png' },
+  { id: 'hd_prod_8', name: 'Parrilla Happy!', category: 'Combos', priceUSD: 49.99, image: '/happydays/combo_parrilla_happy.png' },
+  { id: 'hd_prod_9', name: 'Mini Burger Individual', category: 'Hamburguesas', priceUSD: 2.50 },
+  { id: 'hd_prod_10', name: 'Burger Gourmet Carne', category: 'Hamburguesas', priceUSD: 4.50 },
+  { id: 'hd_prod_11', name: 'Burger Pollo Cheese', category: 'Hamburguesas', priceUSD: 4.50 },
+  { id: 'hd_prod_12', name: 'MEGA Club House', category: 'Especialidades', priceUSD: 9.00 },
+  { id: 'hd_prod_13', name: 'Parrilla Mixta', category: 'Especialidades', priceUSD: 14.00 },
+  { id: 'hd_prod_14', name: 'Pieza de Pollo Crispy', category: 'Pollo Frito', priceUSD: 2.00 },
+  { id: 'hd_prod_15', name: 'Cesta 4 Piezas Pollo', category: 'Pollo Frito', priceUSD: 7.50 },
+  { id: 'hd_prod_16', name: 'Papas Fritas Regular', category: 'Acompañantes', priceUSD: 2.50 },
+  { id: 'hd_prod_17', name: '1/2 Kg Papas Fritas', category: 'Acompañantes', priceUSD: 4.50 },
+  { id: 'hd_prod_18', name: 'Ración de Tequeños (5 uds)', category: 'Acompañantes', priceUSD: 3.50 },
+  { id: 'hd_prod_19', name: 'Ensalada César', category: 'Acompañantes', priceUSD: 3.50 },
+  { id: 'hd_prod_20', name: 'Refresco Bombita', category: 'Bebidas', priceUSD: 1.00 },
+  { id: 'hd_prod_21', name: 'Refresco 1 Litro', category: 'Bebidas', priceUSD: 1.80 },
+  { id: 'hd_prod_22', name: 'Refresco 1.5 Litros', category: 'Bebidas', priceUSD: 2.20 },
+  { id: 'hd_prod_23', name: 'Refresco 2 Litros', category: 'Bebidas', priceUSD: 2.80 },
+  { id: 'hd_prod_24', name: 'Agua Mineral', category: 'Bebidas', priceUSD: 1.00 }
 ];
 
 let cachedProducts = null;
@@ -229,6 +241,12 @@ function createLocalServer() {
 
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+  // Servir activos de marca (logo e imágenes del menú) a las tablets en red local
+  const publicAssetsPath = fs.existsSync(path.join(__dirname, '../public'))
+    ? path.join(__dirname, '../public')
+    : path.join(__dirname, '../dist');
+  app.use(express.static(publicAssetsPath));
 
   // Socket.io instance
   io = new Server(httpServer, {
@@ -616,10 +634,11 @@ function renderWaiterView() {
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
     body { background: #f1f5f9; color: #0f172a; height: 100vh; display: flex; flex-direction: column; overflow: hidden; user-select: none; }
     
-    header { background: #0f172a; color: #ffffff; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); flex-shrink: 0; z-index: 50; }
+    header { background: #601718; color: #ffffff; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.15); flex-shrink: 0; z-index: 50; }
     .brand { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 1.05rem; }
+    .brand-logo-img { width: 30px; height: 30px; border-radius: 8px; background: #ffffff; object-fit: contain; padding: 1px; }
     .header-actions { display: flex; align-items: center; gap: 10px; }
-    .rate-badge { background: #1e293b; border: 1px solid #334155; color: #34d399; font-weight: 800; font-size: 0.78rem; padding: 5px 10px; border-radius: 10px; display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+    .rate-badge { background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.2); color: #86efac; font-weight: 800; font-size: 0.78rem; padding: 5px 10px; border-radius: 10px; display: flex; align-items: center; gap: 4px; white-space: nowrap; }
     .bell-btn { position: relative; background: #1e293b; border: 1px solid #334155; color: #ffffff; width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; cursor: pointer; transition: all 0.15s; }
     .bell-btn:active { transform: scale(0.92); background: #334155; }
     .notif-badge { position: absolute; top: -4px; right: -4px; background: #ef4444; color: #ffffff; font-size: 0.72rem; font-weight: 800; min-width: 19px; height: 19px; border-radius: 999px; display: flex; align-items: center; justify-content: center; padding: 0 4px; border: 2px solid #0f172a; box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4); animation: pulseBadge 1.8s infinite; }
@@ -637,10 +656,10 @@ function renderWaiterView() {
     @keyframes zoomIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
     .pin-dots { display: flex; justify-content: center; gap: 14px; margin: 18px 0 22px 0; }
     .pin-dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #cbd5e1; transition: all 0.15s; }
-    .pin-dot.filled { background: #2563eb; border-color: #2563eb; transform: scale(1.15); }
+    .pin-dot.filled { background: #D52829; border-color: #D52829; transform: scale(1.15); }
     .pin-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
     .pin-key { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px 0; font-size: 1.5rem; font-weight: 800; color: #1e293b; cursor: pointer; transition: all 0.1s; user-select: none; }
-    .pin-key:active { background: #2563eb; color: #ffffff; transform: scale(0.95); }
+    .pin-key:active { background: #D52829; color: #ffffff; transform: scale(0.95); }
     .pin-key.key-action { font-size: 1.1rem; background: #f1f5f9; color: #64748b; }
 
     /* Tables Grid */
@@ -705,7 +724,7 @@ function renderWaiterView() {
 
   <header>
     <div class="brand">
-      <span style="font-size: 1.25rem;">🍦</span>
+      <img src="/happydays/logo.png" class="brand-logo-img" alt="Logo" />
       <span id="headerTitle">Happy Days</span>
     </div>
     <div class="header-actions">

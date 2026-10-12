@@ -1,28 +1,36 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-  /* Warm Kiosk Design System (Clean, non-congested, high-contrast) */
-  --bg-app: #f4f5f7;
+  /* Happy Days Design System (Clean, appetizing, high-contrast) */
+  --bg-app: #f7f7f9;
   --bg-surface: #ffffff;
-  --bg-subtle: #f9fafb;
+  --bg-subtle: #fafafa;
   --border-subtle: #e5e7eb;
   --border-card: #eaedf2;
 
-  --text-primary: #111827;
+  --text-primary: #18181b;
   --text-secondary: #4b5563;
   --text-muted: #9ca3af;
 
-  /* Brand Accents (Friendly, appetizing, clear) */
-  --accent-gold: #f59e0b;
-  --accent-gold-hover: #d97706;
-  --accent-gold-soft: #fef3c7;
+  /* Paleta Oficial Happy Days */
+  --brand-primary: #D52829;       /* Rojo Principal */
+  --brand-primary-hover: #b81f20;
+  --brand-dark: #601718;          /* Granate Profundo */
+  --brand-warm: #D6862B;          /* Ámbar / Dorado Cálido */
+  --brand-peach: #E99065;         /* Melocotón Cálido */
+  --brand-green: #7CBE43;         /* Verde Fresco */
 
-  --accent-red: #dc2626;
-  --accent-red-hover: #b91c1c;
-  --accent-red-soft: #fee2e2;
+  /* Mapeo de Acentos para Interfaz */
+  --accent-gold: #D6862B;
+  --accent-gold-hover: #b97120;
+  --accent-gold-soft: #fef5ea;
 
-  --accent-green: #10b981;
-  --accent-green-soft: #d1fae5;
+  --accent-red: #D52829;
+  --accent-red-hover: #b81f20;
+  --accent-red-soft: #fef2f2;
+
+  --accent-green: #7CBE43;
+  --accent-green-soft: #f0fdf4;
 
   --accent-blue: #2563eb;
   --accent-blue-soft: #dbeafe;

@@ -67,6 +67,15 @@ const Login = () => {
       
       <div className={`login-card ${error ? 'shake-animation' : ''}`}>
         <div className="login-header">
+          {CLIENT_CONFIG.branding.logoImage && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
+              <img 
+                src={CLIENT_CONFIG.branding.logoImage} 
+                alt={CLIENT_CONFIG.branding.logoText} 
+                style={{ width: '80px', height: '80px', objectFit: 'contain', filter: 'drop-shadow(0 4px 12px rgba(213, 40, 41, 0.25))' }}
+              />
+            </div>
+          )}
           <div className="logo-container">
             <h1 className="logo-text glow-animation">{CLIENT_CONFIG.branding.logoText}</h1>
           </div>

@@ -28,21 +28,27 @@
 }
 
 .brand-icon {
-  font-size: 20px;
-  width: 36px;
-  height: 36px;
-  background: #fef3c7;
-  border: 1px solid #fde68a;
+  width: 40px;
+  height: 40px;
   border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.brand-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .brand-text {
   font-size: 1.15rem;
   font-weight: 800;
-  color: #111827;
+  color: var(--brand-dark, #601718);
   letter-spacing: -0.3px;
 }
 
@@ -73,8 +79,8 @@
 }
 
 .nav-item.active {
-  color: #b45309;
-  background: #fef3c7;
+  color: var(--brand-primary, #D52829);
+  background: #fef2f2;
   font-weight: 700;
 }
 
