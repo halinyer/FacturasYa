@@ -433,7 +433,21 @@ export const db = {
         }
       } catch (eLocal) {}
 
-      // 2. Consulta directa a DolarApi Oficial (BCV)
+      // 2. Consulta directa a API de respaldo (JustCarlux BCV)
+      if (!fetchedRate) {
+        try {
+          const res = await fetch('https://bcv.justcarlux.dev/api/v1/rates', { cache: 'no-cache' });
+          if (res.ok) {
+            const data = await res.json();
+            if (data?.rates?.usd && !isNaN(data.rates.usd)) {
+              fetchedRate = Number(data.rates.usd);
+              providerName = 'BCV en Vivo (JustCarlux)';
+            }
+          }
+        } catch (eCarlux) {}
+      }
+
+      // 3. Consulta a DolarApi Oficial (BCV)
       if (!fetchedRate) {
         try {
           const res = await fetch('https://ve.dolarapi.com/v1/dolares/oficial', { cache: 'no-cache' });

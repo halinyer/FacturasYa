@@ -151,33 +151,33 @@ async function fetchLiveBcvRate() {
   let rate = null;
   let provider = '';
 
-  // Proveedor 1: DolarApi Oficial (BCV)
+  // Proveedor 1: JustCarlux Rates en tiempo real (BCV directo 876.80)
   try {
     const controller = new AbortController();
     const tId = setTimeout(() => controller.abort(), 4500);
-    const res = await fetch('https://ve.dolarapi.com/v1/dolares/oficial', { signal: controller.signal });
+    const res = await fetch('https://bcv.justcarlux.dev/api/v1/rates', { signal: controller.signal });
     clearTimeout(tId);
     if (res.ok) {
       const data = await res.json();
-      if (data && data.promedio && !isNaN(data.promedio)) {
-        rate = Number(data.promedio);
-        provider = 'DolarApi Oficial (BCV)';
+      if (data?.rates?.usd && !isNaN(data.rates.usd)) {
+        rate = Number(data.rates.usd);
+        provider = 'BCV en Vivo (JustCarlux)';
       }
     }
   } catch (e) {}
 
-  // Proveedor 2: JustCarlux Rates (BCV)
+  // Proveedor 2: DolarApi Oficial (BCV Respaldo)
   if (!rate) {
     try {
       const controller = new AbortController();
       const tId = setTimeout(() => controller.abort(), 4500);
-      const res = await fetch('https://bcv.justcarlux.dev/api/v1/rates', { signal: controller.signal });
+      const res = await fetch('https://ve.dolarapi.com/v1/dolares/oficial', { signal: controller.signal });
       clearTimeout(tId);
       if (res.ok) {
         const data = await res.json();
-        if (data?.rates?.usd && !isNaN(data.rates.usd)) {
-          rate = Number(data.rates.usd);
-          provider = 'JustCarlux (BCV)';
+        if (data && data.promedio && !isNaN(data.promedio)) {
+          rate = Number(data.promedio);
+          provider = 'DolarApi Oficial (BCV)';
         }
       }
     } catch (e) {}
