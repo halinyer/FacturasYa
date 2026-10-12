@@ -589,8 +589,8 @@ function renderWaiterView() {
     .prods-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; padding-bottom: 150px; }
     .prod-card { background: #ffffff; border-radius: 14px; padding: 10px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; justify-content: space-between; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.03); transition: transform 0.1s; position: relative; overflow: hidden; }
     .prod-card:active { transform: scale(0.97); }
-    .prod-img-box { width: 100%; height: 105px; border-radius: 10px; overflow: hidden; background: #f8fafc; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; position: relative; }
-    .prod-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .prod-img-box { width: 100%; aspect-ratio: 1 / 1; max-height: 140px; border-radius: 10px; overflow: hidden; background: #ffffff; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; position: relative; padding: 4px; box-sizing: border-box; }
+    .prod-img { width: 100%; height: 100%; object-fit: contain; object-position: center; display: block; border-radius: 6px; }
     .prod-img-fallback { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 2.2rem; background: linear-gradient(135deg, #fef3c7, #fde68a); color: #d97706; }
     .prod-cart-badge { position: absolute; top: 6px; right: 6px; background: #f59e0b; color: #ffffff; font-weight: 800; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; box-shadow: 0 2px 6px rgba(0,0,0,0.25); z-index: 5; }
     .prod-cat-tag { display: inline-block; font-size: 0.7rem; font-weight: 700; color: #2563eb; background: #eff6ff; border: 1px solid #dbeafe; border-radius: 6px; padding: 2px 7px; margin-bottom: 5px; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1364,7 +1364,13 @@ function renderWaiterView() {
           '</div>' +
           '<div style="flex:1; overflow-y:auto; max-height:45vh;">' +
             currentCart.map(function(i, idx) {
+              const prod = (state.menu.products || []).find(function(p) { return p.id === i.id; });
+              const hasImg = prod && prod.image && typeof prod.image === 'string' && prod.image.trim().length > 5;
+              const safeImg = hasImg ? prod.image.replace(/"/g, '&quot;') : '';
               return '<div class="cart-item-row">' +
+                '<div style="width:38px; height:38px; border-radius:8px; overflow:hidden; background:#ffffff; border:1px solid #e2e8f0; margin-right:10px; flex-shrink:0; display:flex; align-items:center; justify-content:center; padding:2px; box-sizing:border-box;">' +
+                  (hasImg ? '<img src="' + safeImg + '" style="width:100%; height:100%; object-fit:contain; object-position:center; display:block;">' : '<span style="font-size:1.1rem;">🍨</span>') +
+                '</div>' +
                 '<div style="flex:1;">' +
                   '<div style="font-weight:700; font-size:0.92rem;">' + i.name + '</div>' +
                   '<div style="font-size:0.8rem; color:#059669; font-weight:700;">$' + (i.priceUSD * i.quantity).toFixed(2) + '</div>' +

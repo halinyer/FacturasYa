@@ -405,24 +405,34 @@ const POS = () => {
                     </span>
                   )}
 
-                  {/* Imagen del producto (Cuadrada 1:1) */}
+                  {/* Imagen del producto: Cuadrada, fija, responsive y centrada (sin cortes ni desplazamientos) */}
                   <div style={{
                     width: '100%',
                     aspectRatio: '1 / 1',
-                    background: '#f8fafc',
-                    borderBottom: '1px solid #f3f4f6',
+                    maxHeight: '200px',
+                    background: '#ffffff',
+                    borderBottom: '1px solid #f1f5f9',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     overflow: 'hidden',
-                    position: 'relative'
+                    position: 'relative',
+                    padding: '8px',
+                    boxSizing: 'border-box'
                   }}>
                     {product.image ? (
                       <img
                         src={product.image}
                         alt={product.name}
                         loading="lazy"
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'contain',
+                          objectPosition: 'center',
+                          display: 'block',
+                          borderRadius: '8px'
+                        }}
                       />
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', color: '#d97706' }}>
@@ -605,19 +615,21 @@ const POS = () => {
                     width: '42px',
                     height: '42px',
                     borderRadius: '8px',
-                    background: '#fef3c7',
-                    border: '1px solid #fde68a',
+                    background: '#ffffff',
+                    border: '1px solid #e2e8f0',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     overflow: 'hidden',
-                    flexShrink: 0
+                    flexShrink: 0,
+                    padding: '2px',
+                    boxSizing: 'border-box'
                   }}>
                     {itemImage ? (
                       <img
                         src={itemImage}
                         alt={item.name}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                        style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center', display: 'block' }}
                       />
                     ) : (
                       <IceCreamCone size={20} color="#d97706" />

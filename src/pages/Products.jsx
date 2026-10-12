@@ -185,11 +185,13 @@ const Products = () => {
               >
                 <td style={{ padding: '10px 16px' }}>
                   {p.image ? (
-                    <img 
-                      src={p.image} 
-                      alt={p.name} 
-                      style={{ width: '44px', height: '44px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #e5e7eb', display: 'block' }} 
-                    />
+                    <div style={{ width: '44px', height: '44px', borderRadius: '8px', border: '1px solid #e5e7eb', background: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '2px', boxSizing: 'border-box' }}>
+                      <img 
+                        src={p.image} 
+                        alt={p.name} 
+                        style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center', display: 'block' }} 
+                      />
+                    </div>
                   ) : (
                     <div style={{ width: '44px', height: '44px', borderRadius: '8px', background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <Package size={18} color="#9ca3af" />
@@ -267,13 +269,14 @@ const Products = () => {
                       cursor: 'pointer', overflow: 'hidden', background: '#f9fafb',
                       border: formData.image ? '1.5px solid #f59e0b' : '1.5px dashed #d1d5db',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      flexDirection: 'column', gap: '4px', color: '#6b7280', transition: 'border-color 0.2s'
+                      flexDirection: 'column', gap: '4px', color: '#6b7280', transition: 'border-color 0.2s',
+                      padding: '4px', boxSizing: 'border-box'
                     }}
                   >
                     {imageLoading ? (
                       <span style={{ fontSize: '0.75rem', color: '#d97706' }}>Cargando...</span>
                     ) : formData.image ? (
-                      <img src={formData.image} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <img src={formData.image} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center', display: 'block' }} />
                     ) : (
                       <>
                         <ImagePlus size={24} color="#9ca3af" />

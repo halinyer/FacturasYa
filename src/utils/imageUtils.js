@@ -21,23 +21,26 @@ export function compressImage(file, maxSize = 400, quality = 0.75) {
       const img = new Image();
       img.onerror = () => reject(new Error('Formato de imagen no soportado.'));
       img.onload = () => {
-        let { width, height } = img;
-        if (width > height && width > maxSize) {
-          height = Math.round((height * maxSize) / width);
-          width = maxSize;
-        } else if (height > maxSize) {
-          width = Math.round((width * maxSize) / height);
-          height = maxSize;
-        }
-
+        // Generar un lienzo cuadrado estándar 1:1 (maxSize x maxSize)
+        // para que todas las fotos queden perfectamente fijas, simétricas y responsive
+        const size = maxSize;
         const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
+        canvas.width = size;
+        canvas.height = size;
         const ctx = canvas.getContext('2d');
-        // Fondo blanco para imágenes PNG con transparencia (JPEG no soporta alfa)
+
+        // Fondo blanco limpio para transparencia y bordes de fotos rectangulares
         ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, width, height);
-        ctx.drawImage(img, 0, 0, width, height);
+        ctx.fillRect(0, 0, size, size);
+
+        // Escalar proporcionalmente sin recortar nada del producto
+        const scale = Math.min(size / img.width, size / img.height);
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const x = Math.round((size - w) / 2);
+        const y = Math.round((size - h) / 2);
+
+        ctx.drawImage(img, x, y, w, h);
 
         resolve(canvas.toDataURL('image/jpeg', quality));
       };
