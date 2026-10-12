@@ -121,6 +121,7 @@ const POS = () => {
         name: product.name || product.nombre || 'Producto',
         priceUSD: Number(product.priceUSD || product.price || 0),
         category: product.category,
+        image: product.image || '',
         quantity: 1 
       }];
     });
@@ -404,16 +405,17 @@ const POS = () => {
                     </span>
                   )}
 
-                  {/* Imagen del producto */}
+                  {/* Imagen del producto (Cuadrada 1:1) */}
                   <div style={{
                     width: '100%',
-                    height: '120px',
-                    background: '#fef3c7',
+                    aspectRatio: '1 / 1',
+                    background: '#f8fafc',
                     borderBottom: '1px solid #f3f4f6',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    overflow: 'hidden'
+                    overflow: 'hidden',
+                    position: 'relative'
                   }}>
                     {product.image ? (
                       <img
@@ -424,8 +426,8 @@ const POS = () => {
                       />
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', color: '#d97706' }}>
-                        <IceCreamCone size={32} />
-                        <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '700' }}>Helado</span>
+                        <IceCreamCone size={36} />
+                        <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '700' }}>Sin Foto</span>
                       </div>
                     )}
                   </div>
@@ -580,54 +582,88 @@ const POS = () => {
               <div style={{ fontSize: '0.78rem', marginTop: '2px' }}>Toca los helados a la izquierda para añadir</div>
             </div>
           ) : (
-            cart.map(item => (
-              <div
-                key={item.id}
-                style={{
-                  background: '#f9fafb',
-                  border: '1px solid #eaedf2',
-                  borderRadius: '12px',
-                  padding: '10px 12px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}
-              >
-                <div style={{ flex: 1, paddingRight: '8px' }}>
-                  <div style={{ fontWeight: '700', fontSize: '0.88rem', color: '#111827' }}>{item.name}</div>
-                  <div style={{ color: '#6b7280', fontSize: '0.78rem' }}>
-                    ${item.priceUSD.toFixed(2)} c/u • <span style={{ color: '#059669', fontWeight: '600' }}>Total: ${(item.priceUSD * item.quantity).toFixed(2)}</span>
+            cart.map(item => {
+              const itemImage = item.image || (products || []).find(p => p.id === item.id)?.image;
+              const unitPrice = Number(item.priceUSD || item.price || 0);
+
+              return (
+                <div
+                  key={item.id}
+                  style={{
+                    background: '#ffffff',
+                    border: '1px solid #eaedf2',
+                    borderRadius: '12px',
+                    padding: '8px 10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
+                  }}
+                >
+                  {/* Miniatura cuadrada intuitiva */}
+                  <div style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '8px',
+                    background: '#fef3c7',
+                    border: '1px solid #fde68a',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                    flexShrink: 0
+                  }}>
+                    {itemImage ? (
+                      <img
+                        src={itemImage}
+                        alt={item.name}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                      />
+                    ) : (
+                      <IceCreamCone size={20} color="#d97706" />
+                    )}
+                  </div>
+
+                  {/* Nombre y precio */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: '700', fontSize: '0.86rem', color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {item.name}
+                    </div>
+                    <div style={{ color: '#6b7280', fontSize: '0.76rem', marginTop: '1px' }}>
+                      ${unitPrice.toFixed(2)} c/u • <span style={{ color: '#059669', fontWeight: '700' }}>${(unitPrice * item.quantity).toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  {/* Controles de cantidad */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                    <button
+                      type="button"
+                      onClick={() => updateQuantity(item.id, -1)}
+                      style={{ background: '#f3f4f6', border: '1px solid #d1d5db', color: '#374151', width: '26px', height: '26px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <Minus size={12} />
+                    </button>
+                    <span style={{ fontWeight: '800', minWidth: '20px', textAlign: 'center', fontSize: '0.88rem', color: '#111827' }}>
+                      {item.quantity}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => updateQuantity(item.id, 1)}
+                      style={{ background: '#f3f4f6', border: '1px solid #d1d5db', color: '#374151', width: '26px', height: '26px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <Plus size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeFromCart(item.id)}
+                      style={{ background: '#fee2e2', border: '1px solid #fecaca', color: '#dc2626', width: '26px', height: '26px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: '2px' }}
+                    >
+                      <X size={13} />
+                    </button>
                   </div>
                 </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <button
-                    type="button"
-                    onClick={() => updateQuantity(item.id, -1)}
-                    style={{ background: '#ffffff', border: '1px solid #d1d5db', color: '#374151', width: '26px', height: '26px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  >
-                    <Minus size={12} />
-                  </button>
-                  <span style={{ fontWeight: '700', minWidth: '22px', textAlign: 'center', fontSize: '0.9rem', color: '#111827' }}>
-                    {item.quantity}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => updateQuantity(item.id, 1)}
-                    style={{ background: '#ffffff', border: '1px solid #d1d5db', color: '#374151', width: '26px', height: '26px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  >
-                    <Plus size={12} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => removeFromCart(item.id)}
-                    style={{ background: '#fee2e2', border: '1px solid #fecaca', color: '#dc2626', width: '26px', height: '26px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: '4px' }}
-                  >
-                    <X size={13} />
-                  </button>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 

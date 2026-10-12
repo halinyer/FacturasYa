@@ -106,30 +106,34 @@ export const db = {
   },
   
   createProduct: (data) => {
-    const products = getStorageItem('pos_products');
+    const products = getStorageItem('pos_products') || [];
     const newProduct = {
       id: generateId('prod'),
       ...data,
-      active: true,
+      active: data.active !== undefined ? data.active : true,
       createdAt: new Date().toISOString()
     };
-    products.push(newProduct);
-    setStorageItem('pos_products', products);
+    const updated = [...products, newProduct];
+    setStorageItem('pos_products', updated);
     return newProduct;
   },
   
   updateProduct: (id, updates) => {
-    const products = getStorageItem('pos_products');
+    const products = getStorageItem('pos_products') || [];
     const index = products.findIndex(p => p.id === id);
     if (index === -1) return null;
     
-    products[index] = { ...products[index], ...updates };
-    setStorageItem('pos_products', products);
-    return products[index];
+    const updated = [...products];
+    updated[index] = { ...updated[index], ...updates };
+    setStorageItem('pos_products', updated);
+    return updated[index];
   },
   
   deleteProduct: (id) => {
-    return db.updateProduct(id, { active: false });
+    const products = getStorageItem('pos_products') || [];
+    const updated = products.filter(p => p.id !== id);
+    setStorageItem('pos_products', updated);
+    return true;
   },
   
   getCategories: () => {

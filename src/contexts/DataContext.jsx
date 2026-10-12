@@ -25,12 +25,12 @@ export const DataProvider = ({ children }) => {
 
   const refreshData = useCallback(() => {
     try {
-      const prods = db.getProducts() || [];
+      const prods = [...(db.getProducts() || [])];
       setProducts(prods);
-      setClients(db.getClients() || []);
-      setInvoices(db.getInvoices() || []);
-      setPayments(db.getPayments() || []);
-      setCashCloses(db.getCashCloses() || []);
+      setClients([...(db.getClients() || [])]);
+      setInvoices([...(db.getInvoices() || [])]);
+      setPayments([...(db.getPayments() || [])]);
+      setCashCloses([...(db.getCashCloses() || [])]);
       setRestaurantMode(db.getRestaurantMode() || false);
 
       // Auto-sync products with local restaurant server for tablets
