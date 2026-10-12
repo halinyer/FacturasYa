@@ -638,6 +638,9 @@ function createLocalServer() {
 
   // Complete Mobile/Tablet Waiter App Interface
   app.get('/waiter', (req, res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     res.send(renderWaiterView());
   });
 
