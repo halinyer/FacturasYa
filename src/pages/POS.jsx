@@ -30,7 +30,7 @@ import InvoicePreview from '../components/InvoicePreview';
 const POS = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { products = [], createInvoice, exchangeRate = 36.5, loadExchangeRate, restaurantMode } = useData() || {};
+  const { products = [], createInvoice, exchangeRate = 36.5, loadExchangeRate, setManualRate, restaurantMode } = useData() || {};
 
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('Todos');
@@ -42,7 +42,27 @@ const POS = () => {
   const [lastInvoice, setLastInvoice] = useState(null);
   const [toast, setToast] = useState(null);
   const [customRate, setCustomRate] = useState('');
+  const [isRefreshingRate, setIsRefreshingRate] = useState(false);
   const [receivedAmount, setReceivedAmount] = useState('');
+
+  const handleRefreshRate = async () => {
+    setIsRefreshingRate(true);
+    try {
+      if (typeof loadExchangeRate === 'function') {
+        const rate = await loadExchangeRate(true);
+        if (rate && Number(rate) > 0) {
+          setCustomRate('');
+          showToast(`Tasa oficial BCV actualizada a Bs. ${Number(rate).toFixed(2)}`, 'success');
+        } else {
+          showToast('No se pudo conectar con el servidor, manteniendo tasa actual', 'error');
+        }
+      }
+    } catch (err) {
+      showToast('Error al actualizar la tasa', 'error');
+    } finally {
+      setIsRefreshingRate(false);
+    }
+  };
   
   const [isMixedPayment, setIsMixedPayment] = useState(false);
   const [mixedPayments, setMixedPayments] = useState({
@@ -317,6 +337,10 @@ const POS = () => {
             .hide-scrollbar::-webkit-scrollbar {
               display: none;
             }
+            @keyframes spin {
+              from { transform: rotate(0deg); }
+              to { transform: rotate(360deg); }
+            }
           `}
         </style>
         {/* Horizontal Category Navigation (Kiosk Style) */}
@@ -530,18 +554,32 @@ const POS = () => {
           alignItems: 'center',
           fontSize: '0.82rem'
         }}>
-          <span style={{ color: '#4b5563', fontWeight: '500' }}>
-            Tasa BCV del Día: <strong style={{ color: '#d97706' }}>{currentRate.toFixed(2)} Bs/$</strong>
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ color: '#4b5563', fontWeight: '500' }}>
+              Tasa BCV del Día: <strong style={{ color: '#d97706' }}>{currentRate.toFixed(2)} Bs/$</strong>
+            </span>
+            {customRate && (
+              <span style={{ fontSize: '0.68rem', fontWeight: '700', background: '#fef3c7', color: '#b45309', padding: '1px 5px', borderRadius: '4px' }}>
+                Manual
+              </span>
+            )}
+          </div>
           <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
             <input
               type="number"
-              step="0.1"
+              step="0.01"
               placeholder="Manual"
+              title="Escribir tasa manual si no hay conexión o deseas personalizarla"
               value={customRate}
-              onChange={e => setCustomRate(e.target.value)}
+              onChange={e => {
+                const val = e.target.value;
+                setCustomRate(val);
+                if (val && !isNaN(val) && parseFloat(val) > 0 && typeof setManualRate === 'function') {
+                  setManualRate(parseFloat(val));
+                }
+              }}
               style={{
-                width: '68px', padding: '4px 6px', fontSize: '0.75rem',
+                width: '74px', padding: '4px 6px', fontSize: '0.75rem',
                 background: '#ffffff', border: '1px solid #d1d5db',
                 borderRadius: '6px', color: '#111827'
               }}
@@ -549,11 +587,20 @@ const POS = () => {
             {typeof loadExchangeRate === 'function' && (
               <button 
                 type="button" 
-                onClick={loadExchangeRate} 
-                title="Actualizar tasa"
-                style={{ background: 'none', border: 'none', color: '#d97706', cursor: 'pointer', display: 'flex' }}
+                onClick={handleRefreshRate} 
+                disabled={isRefreshingRate}
+                title="Actualizar tasa oficial BCV por Internet"
+                style={{ 
+                  background: 'none', 
+                  border: 'none', 
+                  color: isRefreshingRate ? '#9ca3af' : '#d97706', 
+                  cursor: isRefreshingRate ? 'not-allowed' : 'pointer', 
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '2px'
+                }}
               >
-                <RefreshCw size={13} />
+                <RefreshCw size={14} style={{ animation: isRefreshingRate ? 'spin 0.8s linear infinite' : 'none' }} />
               </button>
             )}
           </div>

@@ -146,6 +146,75 @@ function getMenuData() {
   return { products: cachedProducts, categories, exchangeRate: cachedExchangeRate };
 }
 
+// Consultar tasa oficial de Venezuela (BCV) en tiempo real con fallback multi-proveedor
+async function fetchLiveBcvRate() {
+  let rate = null;
+  let provider = '';
+
+  // Proveedor 1: DolarApi Oficial (BCV)
+  try {
+    const controller = new AbortController();
+    const tId = setTimeout(() => controller.abort(), 4500);
+    const res = await fetch('https://ve.dolarapi.com/v1/dolares/oficial', { signal: controller.signal });
+    clearTimeout(tId);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.promedio && !isNaN(data.promedio)) {
+        rate = Number(data.promedio);
+        provider = 'DolarApi Oficial (BCV)';
+      }
+    }
+  } catch (e) {}
+
+  // Proveedor 2: JustCarlux Rates (BCV)
+  if (!rate) {
+    try {
+      const controller = new AbortController();
+      const tId = setTimeout(() => controller.abort(), 4500);
+      const res = await fetch('https://bcv.justcarlux.dev/api/v1/rates', { signal: controller.signal });
+      clearTimeout(tId);
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.rates?.usd && !isNaN(data.rates.usd)) {
+          rate = Number(data.rates.usd);
+          provider = 'JustCarlux (BCV)';
+        }
+      }
+    } catch (e) {}
+  }
+
+  // Proveedor 3: DolarApi lista completa
+  if (!rate) {
+    try {
+      const controller = new AbortController();
+      const tId = setTimeout(() => controller.abort(), 4500);
+      const res = await fetch('https://ve.dolarapi.com/v1/dolares', { signal: controller.signal });
+      clearTimeout(tId);
+      if (res.ok) {
+        const list = await res.json();
+        const oficial = Array.isArray(list) ? list.find(d => d.fuente === 'oficial') : null;
+        if (oficial && oficial.promedio && !isNaN(oficial.promedio)) {
+          rate = Number(oficial.promedio);
+          provider = 'DolarApi Lista (BCV)';
+        }
+      }
+    } catch (e) {}
+  }
+
+  if (rate && rate > 0) {
+    cachedExchangeRate = rate;
+    if (io) {
+      io.emit('tasa:actualizada', { exchangeRate: cachedExchangeRate });
+      io.emit('menu:actualizado', getMenuData());
+      io.emit('restaurante:sync', getFullRestaurantState());
+    }
+    console.log(`[LocalServer] Tasa BCV sincronizada (${provider}): Bs. ${cachedExchangeRate}`);
+    return { success: true, rate: cachedExchangeRate, provider };
+  }
+
+  return { success: false, rate: cachedExchangeRate || 36.5, cached: true };
+}
+
 function createLocalServer() {
   const app = express();
   httpServer = http.createServer(app);
@@ -201,6 +270,22 @@ function createLocalServer() {
 
   app.get('/api/restaurant/state', (req, res) => {
     res.json(getFullRestaurantState());
+  });
+
+  // Consultar tasa oficial de Venezuela (BCV) en tiempo real
+  app.get('/api/bcv/rate', async (req, res) => {
+    const force = req.query.force === 'true';
+    if (force || !cachedExchangeRate || cachedExchangeRate === 36.5) {
+      const result = await fetchLiveBcvRate();
+      return res.json(result);
+    }
+    res.json({ success: true, rate: cachedExchangeRate });
+  });
+
+  // Forzar actualización inmediata de la tasa BCV
+  app.post('/api/bcv/refresh', async (req, res) => {
+    const result = await fetchLiveBcvRate();
+    res.json(result);
   });
 
   // Sync exchange rate from desktop app
@@ -1478,6 +1563,12 @@ async function startServer(port = 3001, appDataPath = '') {
       } catch (err) {
         console.error('Error generando QR:', err);
       }
+
+      // Sincronizar tasa oficial BCV de Venezuela al iniciar y programar cada 30 min
+      fetchLiveBcvRate().catch(() => {});
+      setInterval(() => {
+        fetchLiveBcvRate().catch(() => {});
+      }, 30 * 60 * 1000);
 
       resolve(getServerInfo());
     }).on('error', (err) => {

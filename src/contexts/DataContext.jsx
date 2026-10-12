@@ -115,14 +115,27 @@ export const DataProvider = ({ children }) => {
     return db.getClientDebt(clientId);
   };
 
-  const loadExchangeRate = async () => {
-    const rate = await db.getExchangeRate();
-    if (rate) {
-      setExchangeRate(rate);
-      syncRateToServer(rate);
+  const loadExchangeRate = useCallback(async (force = false) => {
+    try {
+      const rate = await db.getExchangeRate(force);
+      if (rate && !isNaN(rate)) {
+        setExchangeRate(rate);
+        syncRateToServer(rate);
+        return rate;
+      }
+    } catch (e) {
+      console.warn('Error loading exchange rate:', e);
     }
-    return rate;
-  };
+    return db.getCurrentRate();
+  }, [syncRateToServer]);
+
+  // Auto-actualizar tasa oficial BCV cada 30 minutos
+  useEffect(() => {
+    const timer = setInterval(() => {
+      loadExchangeRate(false);
+    }, 30 * 60 * 1000);
+    return () => clearInterval(timer);
+  }, [loadExchangeRate]);
 
   const setManualRate = (rate) => {
     const numRate = Number(rate);

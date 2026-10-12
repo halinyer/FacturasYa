@@ -400,36 +400,81 @@ export const db = {
     return summary;
   },
 
-  // EXCHANGE RATE
-  getExchangeRate: async () => {
+  // EXCHANGE RATE (Tasa Oficial BCV Venezuela en vivo)
+  getExchangeRate: async (force = false) => {
     try {
-      const cached = localStorage.getItem('pos_exchange_rate_cache');
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        const now = new Date().getTime();
-        // Check if cache is less than 1 hour old (3600000 ms)
-        if (now - parsed.timestamp < 3600000) {
-          return parsed.rate;
+      if (!force) {
+        const cached = localStorage.getItem('pos_exchange_rate_cache');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          const now = new Date().getTime();
+          // Cache por 30 minutos (1800000 ms)
+          if (now - parsed.timestamp < 1800000 && parsed.rate > 0) {
+            return parsed.rate;
+          }
         }
       }
       
-      const response = await fetch('https://pydolarve.org/api/v2/dollar?monitor=bcv');
-      const data = await response.json();
-      
-      if (data && data.price) {
-        const rate = Number(data.price);
-        localStorage.setItem('pos_exchange_rate_cache', JSON.stringify({
-          rate,
-          timestamp: new Date().getTime()
-        }));
-        setStorageItem('pos_exchange_rate', rate);
-        return rate;
+      let fetchedRate = null;
+      let providerName = '';
+
+      // 1. Intentar servidor local (backend Node en puerto 3001 sin bloqueos de red)
+      try {
+        const controller = new AbortController();
+        const tId = setTimeout(() => controller.abort(), 3500);
+        const res = await fetch(`http://localhost:3001/api/bcv/rate${force ? '?force=true' : ''}`, { signal: controller.signal });
+        clearTimeout(tId);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.rate && !isNaN(data.rate)) {
+            fetchedRate = Number(data.rate);
+            providerName = data.provider || 'Servidor Local';
+          }
+        }
+      } catch (eLocal) {}
+
+      // 2. Consulta directa a DolarApi Oficial (BCV)
+      if (!fetchedRate) {
+        try {
+          const res = await fetch('https://ve.dolarapi.com/v1/dolares/oficial', { cache: 'no-cache' });
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.promedio && !isNaN(data.promedio)) {
+              fetchedRate = Number(data.promedio);
+              providerName = 'DolarApi Oficial (BCV)';
+            }
+          }
+        } catch (eApi) {}
+      }
+
+      // 3. Consulta de respaldo a DolarApi lista completa
+      if (!fetchedRate) {
+        try {
+          const res = await fetch('https://ve.dolarapi.com/v1/dolares', { cache: 'no-cache' });
+          if (res.ok) {
+            const list = await res.json();
+            const oficial = Array.isArray(list) ? list.find(d => d.fuente === 'oficial') : null;
+            if (oficial && oficial.promedio && !isNaN(oficial.promedio)) {
+              fetchedRate = Number(oficial.promedio);
+              providerName = 'DolarApi Lista (BCV)';
+            }
+          }
+        } catch (eList) {}
       }
       
-      // Fallback to manual if fetch fails but we don't throw
+      if (fetchedRate && fetchedRate > 0) {
+        localStorage.setItem('pos_exchange_rate_cache', JSON.stringify({
+          rate: fetchedRate,
+          provider: providerName,
+          timestamp: new Date().getTime()
+        }));
+        setStorageItem('pos_exchange_rate', fetchedRate);
+        return fetchedRate;
+      }
+      
       return db.getCurrentRate();
     } catch (error) {
-      console.error("Error fetching exchange rate:", error);
+      console.error("Error al consultar tasa oficial BCV:", error);
       return db.getCurrentRate();
     }
   },
