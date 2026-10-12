@@ -109,7 +109,7 @@ const InvoicePreview = ({ invoice, onClose }) => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Receipt size={18} color="#38bdf8" />
               <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '700' }}>
-                Factura {invoice.invoiceNumber || `FAC-${invoice.id}`}
+                Nota de Entrega {invoice.invoiceNumber || (invoice.isPreBill ? '(Pre-cuenta)' : `NE-${invoice.id}`)}
               </h3>
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
@@ -144,7 +144,8 @@ const InvoicePreview = ({ invoice, onClose }) => {
               
               {/* Business Header */}
               <div className="ticket-center">
-                <div className="ticket-bold" style={{ fontSize: '16px' }}>HELADERÍA & POS</div>
+                <div className="ticket-bold" style={{ fontSize: '16px' }}>HELADERÍA & RESTAURANT</div>
+                <div style={{ fontSize: '10px', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Documento de Control Interno (No Fiscal)</div>
                 <div style={{ fontSize: '11px' }}>RIF: J-50123456-7</div>
                 <div style={{ fontSize: '11px' }}>Caracas, Venezuela</div>
                 <div style={{ fontSize: '11px' }}>Teléfono: 0414-1234567</div>
@@ -152,10 +153,20 @@ const InvoicePreview = ({ invoice, onClose }) => {
 
               <div className="ticket-divider" />
 
+              {/* Title Badge */}
+              <div className="ticket-center ticket-bold" style={{ fontSize: '13px', letterSpacing: '0.5px', padding: '2px 0' }}>
+                {invoice.isPreBill ? '*** NOTA DE ENTREGA / PRE-CUENTA ***' : '*** NOTA DE ENTREGA ***'}
+              </div>
+
+              <div className="ticket-divider" />
+
               {/* Invoice Metadata */}
               <div style={{ fontSize: '12px' }}>
-                <div><strong>FACTURA Nº:</strong> {invoice.invoiceNumber || `FAC-${invoice.id}`}</div>
-                <div><strong>FECHA:</strong> {formatDate(invoice.date)}</div>
+                <div><strong>NOTA DE ENTREGA Nº:</strong> {invoice.invoiceNumber || (invoice.isPreBill ? 'PRE-CUENTA' : `NE-${invoice.id}`)}</div>
+                <div><strong>FECHA / HORA:</strong> {formatDate(invoice.date)}</div>
+                {invoice.tableName && (
+                  <div><strong>MESA:</strong> <span className="ticket-bold">{invoice.tableName}</span> {invoice.waiterName ? `(Mesero: ${invoice.waiterName})` : ''}</div>
+                )}
                 <div><strong>CLIENTE:</strong> {clientInfo.name}</div>
                 <div><strong>C.I / RIF:</strong> {clientInfo.cedula}</div>
                 {clientInfo.type === 'congelador' && (
@@ -242,7 +253,13 @@ const InvoicePreview = ({ invoice, onClose }) => {
                 <div style={{ marginTop: '2px' }}>
                   <strong>ESTADO:</strong>{' '}
                   <span className="ticket-bold" style={{ textDecoration: 'underline' }}>
-                    {status === 'voided' || status === 'anulada' ? '*** FACTURA ANULADA ***' : isPaid ? '*** PAGADO ***' : '*** PENDIENTE POR COBRAR (DEUDA) ***'}
+                    {status === 'voided' || status === 'anulada' 
+                      ? '*** ANULADA ***' 
+                      : invoice.isPreBill 
+                        ? '*** POR PAGAR (PRE-CUENTA / CUENTA) ***'
+                        : isPaid 
+                          ? '*** PAGADO / CANCELADO ***' 
+                          : '*** PENDIENTE POR COBRAR ***'}
                   </span>
                 </div>
                 {(status === 'voided' || status === 'anulada') && invoice.voidReason && (
@@ -250,9 +267,14 @@ const InvoicePreview = ({ invoice, onClose }) => {
                     Motivo de Anulación: {invoice.voidReason}
                   </div>
                 )}
-                {!isPaid && status !== 'voided' && status !== 'anulada' && (
+                {invoice.isPreBill && (
+                  <div style={{ fontSize: '11px', marginTop: '4px', fontStyle: 'italic', color: '#1e40af' }}>
+                    * Pre-cuenta emitida para revisión antes del pago.
+                  </div>
+                )}
+                {!invoice.isPreBill && !isPaid && status !== 'voided' && status !== 'anulada' && (
                   <div style={{ fontSize: '11px', marginTop: '4px', fontStyle: 'italic' }}>
-                    * Registrado en cuenta por cobrar de cliente congelador.
+                    * Registrado en cuenta por cobrar de cliente.
                   </div>
                 )}
               </div>
@@ -261,8 +283,8 @@ const InvoicePreview = ({ invoice, onClose }) => {
 
               {/* Footer */}
               <div className="ticket-center" style={{ fontSize: '11px', marginTop: '6px' }}>
-                <div>¡GRACIAS POR SU COMPRA!</div>
-                <div>FacturaPOS - Sistema de Facturación</div>
+                <div>¡GRACIAS POR SU VISITA!</div>
+                <div>FacturaPOS - Nota de Entrega</div>
                 <div style={{ fontSize: '9px', marginTop: '4px', color: '#555' }}>--------------------------------</div>
               </div>
 

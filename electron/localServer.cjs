@@ -203,18 +203,36 @@ function createLocalServer() {
     res.json(getFullRestaurantState());
   });
 
-  // Sync menu from desktop app
-  app.post('/api/restaurant/sync-menu', (req, res) => {
-    const { products, exchangeRate } = req.body;
-    if (Array.isArray(products) && products.length > 0) {
-      cachedProducts = products.filter(p => p.active !== false);
-      if (exchangeRate) cachedExchangeRate = exchangeRate;
+  // Sync exchange rate from desktop app
+  app.post('/api/restaurant/sync-rate', (req, res) => {
+    const { exchangeRate } = req.body;
+    if (exchangeRate && !isNaN(exchangeRate)) {
+      cachedExchangeRate = Number(exchangeRate);
       if (io) {
+        io.emit('tasa:actualizada', { exchangeRate: cachedExchangeRate });
         io.emit('menu:actualizado', getMenuData());
         io.emit('restaurante:sync', getFullRestaurantState());
       }
+      console.log(`[LocalServer] Tasa de cambio sincronizada: Bs. ${cachedExchangeRate}`);
     }
-    res.json({ success: true, count: (cachedProducts || []).length });
+    res.json({ success: true, exchangeRate: cachedExchangeRate });
+  });
+
+  // Sync menu from desktop app
+  app.post('/api/restaurant/sync-menu', (req, res) => {
+    const { products, exchangeRate } = req.body;
+    if (exchangeRate && !isNaN(exchangeRate)) {
+      cachedExchangeRate = Number(exchangeRate);
+    }
+    if (Array.isArray(products) && products.length > 0) {
+      cachedProducts = products.filter(p => p.active !== false);
+    }
+    if (io) {
+      io.emit('tasa:actualizada', { exchangeRate: cachedExchangeRate });
+      io.emit('menu:actualizado', getMenuData());
+      io.emit('restaurante:sync', getFullRestaurantState());
+    }
+    res.json({ success: true, count: (cachedProducts || []).length, exchangeRate: cachedExchangeRate });
   });
 
   // Send a new round from Waiter Tablet or PC
@@ -443,6 +461,7 @@ function renderWaiterView() {
     header { background: #0f172a; color: #ffffff; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); flex-shrink: 0; z-index: 50; }
     .brand { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 1.05rem; }
     .header-actions { display: flex; align-items: center; gap: 10px; }
+    .rate-badge { background: #1e293b; border: 1px solid #334155; color: #34d399; font-weight: 800; font-size: 0.78rem; padding: 5px 10px; border-radius: 10px; display: flex; align-items: center; gap: 4px; white-space: nowrap; }
     .bell-btn { position: relative; background: #1e293b; border: 1px solid #334155; color: #ffffff; width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; cursor: pointer; transition: all 0.15s; }
     .bell-btn:active { transform: scale(0.92); background: #334155; }
     .notif-badge { position: absolute; top: -4px; right: -4px; background: #ef4444; color: #ffffff; font-size: 0.72rem; font-weight: 800; min-width: 19px; height: 19px; border-radius: 999px; display: flex; align-items: center; justify-content: center; padding: 0 4px; border: 2px solid #0f172a; box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4); animation: pulseBadge 1.8s infinite; }
@@ -532,6 +551,7 @@ function renderWaiterView() {
       <span id="headerTitle">FacturaPOS</span>
     </div>
     <div class="header-actions">
+      <div id="tabletRateBadge" class="rate-badge" title="Tasa BCV del Día">💵 Bs. --</div>
       <button id="notifBellBtn" class="bell-btn" onclick="openNotifsModal()" title="Avisos de Cocina">
         <span>🔔</span>
         <span id="notifBadge" class="notif-badge" style="display: none;">0</span>
@@ -613,6 +633,14 @@ function renderWaiterView() {
       }
     }
 
+    function updateRateDisplay() {
+      const badge = document.getElementById('tabletRateBadge');
+      const rate = state && state.menu ? Number(state.menu.exchangeRate || 36.5) : 36.5;
+      if (badge) {
+        badge.innerText = '💵 Bs. ' + rate.toFixed(2);
+      }
+    }
+
     function playKitchenChime() {
       try {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -661,6 +689,7 @@ function renderWaiterView() {
     // Socket Handlers
     socket.on('restaurante:sync', function(data) {
       state = data;
+      updateRateDisplay();
       if (Array.isArray(state.activeOrders)) {
         state.activeOrders.forEach(function(o) {
           (o.rounds || []).forEach(function(r) {
@@ -697,7 +726,17 @@ function renderWaiterView() {
 
     socket.on('menu:actualizado', function(menu) {
       state.menu = menu;
+      updateRateDisplay();
       if (currentScreen === 'order') renderOrderScreen();
+    });
+
+    socket.on('tasa:actualizada', function(data) {
+      if (data && data.exchangeRate) {
+        if (!state.menu) state.menu = {};
+        state.menu.exchangeRate = Number(data.exchangeRate);
+        updateRateDisplay();
+        if (currentScreen === 'order') renderOrderScreen();
+      }
     });
 
     socket.on('comanda:lista', function(data) {
@@ -868,6 +907,7 @@ function renderWaiterView() {
           if (w) currentWaiter = w;
         }
         updateNotifBadge();
+        updateRateDisplay();
         renderCurrentScreen();
       })
       .catch(function(err) {

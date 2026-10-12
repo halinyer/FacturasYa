@@ -413,11 +413,12 @@ export const db = {
       const data = await response.json();
       
       if (data && data.price) {
-        const rate = data.price;
+        const rate = Number(data.price);
         localStorage.setItem('pos_exchange_rate_cache', JSON.stringify({
           rate,
           timestamp: new Date().getTime()
         }));
+        setStorageItem('pos_exchange_rate', rate);
         return rate;
       }
       
@@ -430,10 +431,14 @@ export const db = {
   },
   
   setManualRate: (rate) => {
-    localStorage.setItem('pos_exchange_rate', JSON.stringify(rate));
+    const numRate = Number(rate);
+    localStorage.setItem('pos_exchange_rate', JSON.stringify(numRate));
+    setStorageItem('pos_exchange_rate', numRate);
   },
   
   getCurrentRate: () => {
+    const fromStorage = getStorageItem('pos_exchange_rate');
+    if (fromStorage && typeof fromStorage === 'number') return fromStorage;
     const manual = localStorage.getItem('pos_exchange_rate');
     const cached = localStorage.getItem('pos_exchange_rate_cache');
     

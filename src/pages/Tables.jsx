@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
-import { Utensils, Clock, CheckCircle, AlertCircle, ShoppingCart, Users, Plus, Check, RefreshCw, QrCode, ArrowRight, X } from 'lucide-react';
+import { Utensils, Clock, CheckCircle, AlertCircle, ShoppingCart, Users, Plus, Check, RefreshCw, QrCode, ArrowRight, X, Printer } from 'lucide-react';
 import QRConnectModal from '../components/QRConnectModal';
+import InvoicePreview from '../components/InvoicePreview';
 
 export default function Tables() {
   const navigate = useNavigate();
@@ -12,6 +13,7 @@ export default function Tables() {
   const [selectedZone, setSelectedZone] = useState('Todos');
   const [selectedTable, setSelectedTable] = useState(null);
   const [showQRModal, setShowQRModal] = useState(false);
+  const [preBillInvoice, setPreBillInvoice] = useState(null);
   const [restaurantState, setRestaurantState] = useState({
     tables: [],
     waiters: [],
@@ -163,6 +165,53 @@ export default function Tables() {
 
     // Navigate directly to POS
     navigate('/pos');
+  };
+
+  // Action: Print Pre-Bill / Nota de Entrega before charging
+  const handlePrintPreBill = (table, order) => {
+    if (!order || !order.rounds || order.rounds.length === 0) {
+      showToast('Esta mesa no tiene consumos registrados.', 'error');
+      return;
+    }
+
+    const consolidatedItems = [];
+    order.rounds.forEach(rnd => {
+      rnd.items.forEach(item => {
+        const found = consolidatedItems.find(i => i.productName === item.name && i.note === item.note);
+        if (found) {
+          found.quantity += item.quantity;
+          found.subtotal += item.priceUSD * item.quantity;
+        } else {
+          consolidatedItems.push({
+            productName: item.name,
+            quantity: item.quantity,
+            unitPrice: item.priceUSD,
+            subtotal: Number((item.priceUSD * item.quantity).toFixed(2)),
+            note: item.note
+          });
+        }
+      });
+    });
+
+    const totalUSD = consolidatedItems.reduce((acc, i) => acc + i.subtotal, 0);
+
+    const ticket = {
+      id: order.id || Date.now(),
+      invoiceNumber: `NE-PRE-${table.name.replace(/\s+/g, '')}`,
+      date: new Date().toISOString(),
+      items: consolidatedItems,
+      totalUSD: Number(totalUSD.toFixed(2)),
+      totalBs: Number((totalUSD * exchangeRate).toFixed(2)),
+      exchangeRate,
+      paymentMethod: 'Por Cobrar',
+      status: 'pending',
+      isPreBill: true,
+      tableName: table.name,
+      waiterName: order.waiterName || 'Mesero',
+      client: { name: 'Mesa: ' + table.name, cedula: 'Consumidor Final' }
+    };
+
+    setPreBillInvoice(ticket);
   };
 
   // Add Table
@@ -663,6 +712,18 @@ export default function Tables() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <button
                     type="button"
+                    onClick={() => handlePrintPreBill(selectedTable.table, selectedTable.order)}
+                    style={{
+                      width: '100%', padding: '12px', background: '#eff6ff', color: '#1e40af',
+                      border: '1.5px solid #bfdbfe', borderRadius: '12px', fontWeight: '800', fontSize: '0.92rem',
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+                    }}
+                  >
+                    <Printer size={18} color="#2563eb" /> Imprimir Nota de Entrega (Pre-cuenta)
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => handleChargeInPOS(selectedTable.table, selectedTable.order)}
                     style={{
                       width: '100%', padding: '14px', background: '#dc2626', color: '#ffffff',
@@ -690,6 +751,14 @@ export default function Tables() {
 
           </div>
         </div>
+      )}
+
+      {/* Pre-bill Invoice Preview Modal */}
+      {preBillInvoice && (
+        <InvoicePreview
+          invoice={preBillInvoice}
+          onClose={() => setPreBillInvoice(null)}
+        />
       )}
 
       {/* QR Connect Modal */}

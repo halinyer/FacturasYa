@@ -14,6 +14,15 @@ export const DataProvider = ({ children }) => {
   const [restaurantMode, setRestaurantMode] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  const syncRateToServer = useCallback((rate) => {
+    if (!rate || isNaN(rate)) return;
+    fetch('http://localhost:3001/api/restaurant/sync-rate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ exchangeRate: Number(rate) })
+    }).catch(() => {});
+  }, []);
+
   const refreshData = useCallback(() => {
     try {
       const prods = db.getProducts() || [];
@@ -38,6 +47,10 @@ export const DataProvider = ({ children }) => {
   }, [exchangeRate]);
 
   useEffect(() => {
+    syncRateToServer(exchangeRate);
+  }, [exchangeRate, syncRateToServer]);
+
+  useEffect(() => {
     const init = async () => {
       setLoading(true);
       await initDB();
@@ -46,13 +59,16 @@ export const DataProvider = ({ children }) => {
       
       // Try to load exchange rate
       db.getExchangeRate().then(rate => {
-        if (rate) setExchangeRate(rate);
+        if (rate) {
+          setExchangeRate(rate);
+          syncRateToServer(rate);
+        }
       }).catch(() => {});
       
       setLoading(false);
     };
     init();
-  }, [refreshData]);
+  }, [refreshData, syncRateToServer]);
 
   const addProduct = (product) => {
     db.createProduct(product);
@@ -101,13 +117,18 @@ export const DataProvider = ({ children }) => {
 
   const loadExchangeRate = async () => {
     const rate = await db.getExchangeRate();
-    if (rate) setExchangeRate(rate);
+    if (rate) {
+      setExchangeRate(rate);
+      syncRateToServer(rate);
+    }
     return rate;
   };
 
   const setManualRate = (rate) => {
-    setExchangeRate(rate);
-    db.setManualRate(rate);
+    const numRate = Number(rate);
+    setExchangeRate(numRate);
+    db.setManualRate(numRate);
+    syncRateToServer(numRate);
   };
 
   const getFilteredInvoices = (filters) => {

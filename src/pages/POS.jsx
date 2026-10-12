@@ -18,7 +18,9 @@ import {
   Sparkles,
   IceCreamCone,
   Trash2,
-  Utensils
+  Utensils,
+  Printer,
+  FileText
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
@@ -668,6 +670,56 @@ const POS = () => {
           >
             <Receipt size={22} />
             <span>COBRAR (Enter)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (cart.length === 0) return;
+              const preBillInvoice = {
+                id: Date.now(),
+                invoiceNumber: `NE-PRE-${Math.floor(1000 + Math.random() * 9000)}`,
+                date: new Date().toISOString(),
+                items: cart.map(item => ({
+                  productName: item.name,
+                  quantity: item.quantity,
+                  unitPrice: item.priceUSD || 0,
+                  subtotal: Number(((item.priceUSD || 0) * item.quantity).toFixed(2))
+                })),
+                totalUSD: Number(cartTotalUSD.toFixed(2)),
+                totalBs: Number(cartTotalBs.toFixed(2)),
+                exchangeRate: currentRate,
+                paymentMethod: 'Por Definir',
+                status: 'pending',
+                isPreBill: true,
+                tableName: loadedTableOrder?.tableName || null,
+                waiterName: loadedTableOrder?.waiterName || null,
+                client: client
+              };
+              setLastInvoice(preBillInvoice);
+              setShowPreview(true);
+            }}
+            disabled={cart.length === 0}
+            style={{
+              width: '100%',
+              padding: '11px',
+              background: '#f8fafc',
+              color: cart.length === 0 ? '#9ca3af' : '#1e293b',
+              border: '1.5px solid #cbd5e1',
+              borderRadius: '12px',
+              fontWeight: '700',
+              fontSize: '0.86rem',
+              cursor: cart.length === 0 ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              marginTop: '8px'
+            }}
+            title="Imprimir Nota de Entrega / Pre-cuenta para el cliente antes de cobrar"
+          >
+            <Printer size={16} color="#d97706" />
+            <span>Nota de Entrega (Pre-cuenta)</span>
           </button>
 
         </div>
