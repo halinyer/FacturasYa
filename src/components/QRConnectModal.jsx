@@ -124,12 +124,12 @@ const QRConnectModal = ({ onClose }) => {
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Smartphone size={22} color="#2563eb" />
+            <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#fdf2f2', border: '1px solid #fecaca', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Smartphone size={22} color="#D52829" />
             </div>
             <div>
-              <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800' }}>Vincular Tablets</h2>
-              <div style={{ fontSize: '0.78rem', color: '#6b7280' }}>Red Wi-Fi Local (Sin Internet)</div>
+              <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '900', color: '#18181b' }}>Vincular Tablets</h2>
+              <div style={{ fontSize: '0.78rem', color: '#601718', fontWeight: '700' }}>Happy Days — Red Wi-Fi Local</div>
             </div>
           </div>
           <button
@@ -144,15 +144,15 @@ const QRConnectModal = ({ onClose }) => {
         {/* Status pill */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          background: serverInfo.isRunning ? '#ecfdf5' : '#fef2f2',
-          border: `1px solid ${serverInfo.isRunning ? '#a7f3d0' : '#fecaca'}`,
+          background: serverInfo.isRunning ? '#f0fdf4' : '#fef2f2',
+          border: `1.5px solid ${serverInfo.isRunning ? '#7CBE43' : '#fecaca'}`,
           borderRadius: '12px', padding: '10px 14px', marginBottom: '20px'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', fontWeight: '700', color: serverInfo.isRunning ? '#065f46' : '#991b1b' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', fontWeight: '800', color: serverInfo.isRunning ? '#15803d' : '#991b1b' }}>
             <Wifi size={16} />
             <span>{serverInfo.isRunning ? 'Servidor Local: EN LÍNEA' : 'Servidor Desconectado'}</span>
           </div>
-          <span style={{ fontSize: '0.78rem', fontWeight: '800', background: serverInfo.isRunning ? '#10b981' : '#ef4444', color: '#fff', padding: '3px 8px', borderRadius: '8px' }}>
+          <span style={{ fontSize: '0.78rem', fontWeight: '900', background: serverInfo.isRunning ? '#7CBE43' : '#ef4444', color: '#fff', padding: '3px 9px', borderRadius: '8px' }}>
             {serverInfo.connectedCount} {serverInfo.connectedCount === 1 ? 'tablet' : 'tablets'}
           </span>
         </div>
@@ -176,7 +176,7 @@ const QRConnectModal = ({ onClose }) => {
             </div>
           )}
 
-          <div style={{ marginTop: '12px', fontSize: '0.8rem', color: '#4b5563', textAlign: 'center', fontWeight: '500' }}>
+          <div style={{ marginTop: '12px', fontSize: '0.8rem', color: '#4b5563', textAlign: 'center', fontWeight: '600' }}>
             Apunta la cámara de la tablet o teléfono a este código QR para abrir el módulo de mesero.
           </div>
         </div>
@@ -187,17 +187,17 @@ const QRConnectModal = ({ onClose }) => {
             O escribe esta dirección en la tablet:
           </div>
           <div style={{
-            display: 'flex', alignItems: 'center', background: '#f1f5f9',
-            border: '1px solid #cbd5e1', borderRadius: '10px', padding: '8px 12px'
+            display: 'flex', alignItems: 'center', background: '#f8fafc',
+            border: '1.5px solid #e2e8f0', borderRadius: '10px', padding: '8px 12px'
           }}>
-            <span style={{ flex: 1, fontFamily: 'monospace', fontSize: '0.85rem', fontWeight: '700', color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span style={{ flex: 1, fontFamily: 'monospace', fontSize: '0.88rem', fontWeight: '800', color: '#601718', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {serverInfo.url}
             </span>
             <button
               type="button"
               onClick={handleCopy}
               style={{
-                background: copied ? '#10b981' : '#ffffff', border: '1px solid #cbd5e1',
+                background: copied ? '#7CBE43' : '#ffffff', border: '1px solid #cbd5e1',
                 color: copied ? '#ffffff' : '#475569', borderRadius: '6px', padding: '5px 9px',
                 cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem',
                 fontWeight: '700', transition: 'all 0.15s'
@@ -215,21 +215,21 @@ const QRConnectModal = ({ onClose }) => {
             type="button"
             onClick={handleRestart}
             style={{
-              background: '#f8fafc', border: '1px solid #cbd5e1', color: '#475569',
+              background: '#f8fafc', border: '1.5px solid #cbd5e1', color: '#334155',
               padding: '9px 14px', borderRadius: '10px', cursor: 'pointer', fontSize: '0.82rem',
-              fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px'
+              fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px'
             }}
           >
-            <RefreshCw size={14} /> Detectar nueva IP
+            <RefreshCw size={14} /> Reiniciar Servidor Local
           </button>
 
           <button
             type="button"
             onClick={onClose}
             style={{
-              background: '#0f172a', color: '#ffffff', border: 'none',
+              background: '#601718', color: '#ffffff', border: 'none',
               padding: '10px 22px', borderRadius: '10px', cursor: 'pointer',
-              fontSize: '0.9rem', fontWeight: '700'
+              fontSize: '0.9rem', fontWeight: '800', letterSpacing: '0.3px'
             }}
           >
             Cerrar

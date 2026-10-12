@@ -12,7 +12,12 @@ ipcMain.handle('get-server-info', async () => {
 
 ipcMain.handle('restart-server', async () => {
   localServer.stopServer();
-  return await localServer.startServer(3001);
+  try {
+    const serverPath = require.resolve('./localServer.cjs');
+    delete require.cache[serverPath];
+  } catch (e) {}
+  const freshServer = require('./localServer.cjs');
+  return await freshServer.startServer(3001, app.getPath('userData'));
 });
 
 // Helper paths for file-based database

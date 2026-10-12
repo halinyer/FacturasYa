@@ -8,7 +8,7 @@ export const seedProducts = [
     priceUSD: 5.99, 
     sku: 'CMB-001', 
     active: true, 
-    image: '/happydays/combo_2_burger_mini.png',
+    image: '/happydays/combo_2_burger_mini.jpg',
     description: '2 Mini Burgers + 1 Refresco Bombita'
   },
   { 
@@ -18,7 +18,7 @@ export const seedProducts = [
     priceUSD: 14.99, 
     sku: 'CMB-002', 
     active: true, 
-    image: '/happydays/combo_4_burger_pana.png',
+    image: '/happydays/combo_4_burger_pana.jpg',
     description: '4 Mini Burgers + 2 Papas Fritas'
   },
   { 
@@ -28,7 +28,7 @@ export const seedProducts = [
     priceUSD: 21.99, 
     sku: 'CMB-003', 
     active: true, 
-    image: '/happydays/combo_happy_panita.png',
+    image: '/happydays/combo_happy_panita.jpg',
     description: '4 Piezas de Pollo Frito + 2 Pollo Cheese + 2 Papas Fritas + 1 Refresco 1Lt'
   },
   { 
@@ -38,7 +38,7 @@ export const seedProducts = [
     priceUSD: 24.99, 
     sku: 'CMB-004', 
     active: true, 
-    image: '/happydays/combo_full_burger_happy.png',
+    image: '/happydays/combo_full_burger_happy.jpg',
     description: '4 Burger Gourmet (Carne o Pollo) + 1/2 Kg Papas Fritas + Tequeños + 1 Refresco 1Lt'
   },
   { 
@@ -48,7 +48,7 @@ export const seedProducts = [
     priceUSD: 24.99, 
     sku: 'CMB-005', 
     active: true, 
-    image: '/happydays/combo_full_pollo_happy.png',
+    image: '/happydays/combo_full_pollo_happy.jpg',
     description: '8 Piezas de Pollo + Tequeños + 2 Ensaladas + 4 Papas Fritas + 1 Refresco 1Lt'
   },
   { 
@@ -58,7 +58,7 @@ export const seedProducts = [
     priceUSD: 34.99, 
     sku: 'CMB-006', 
     active: true, 
-    image: '/happydays/combo_club_house_happy.png',
+    image: '/happydays/combo_club_house_happy.jpg',
     description: '4 Hamburguesas + 1 MEGA Club House + Ración de Tequeños + 1 Refresco 1.5Lt'
   },
   { 
@@ -68,7 +68,7 @@ export const seedProducts = [
     priceUSD: 49.99, 
     sku: 'CMB-007', 
     active: true, 
-    image: '/happydays/combo_happy_familiar.png',
+    image: '/happydays/combo_happy_familiar.jpg',
     description: '6 Hamburguesas + 6 Piezas de Pollo + Papas Fritas + Tequeños + 1 Ensalada César + 1 Refresco 2Lt'
   },
   { 
@@ -78,7 +78,7 @@ export const seedProducts = [
     priceUSD: 49.99, 
     sku: 'CMB-008', 
     active: true, 
-    image: '/happydays/combo_parrilla_happy.png',
+    image: '/happydays/combo_parrilla_happy.jpg',
     description: '4 Hamburguesas + 1 Parrilla Mixta + 1 Refresco 2Lt'
   },
 
