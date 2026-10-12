@@ -117,7 +117,7 @@ const defaultSeedProducts = [
 ];
 
 let cachedProducts = null;
-let cachedExchangeRate = 36.5;
+let cachedExchangeRate = 876.80;
 
 function getMenuData() {
   if (cachedProducts && cachedProducts.length > 0) {
@@ -131,7 +131,7 @@ function getMenuData() {
       const db = JSON.parse(fs.readFileSync(dbFile, 'utf-8'));
       if (Array.isArray(db.pos_products) && db.pos_products.length > 0) {
         cachedProducts = db.pos_products.filter(p => p.active !== false);
-        cachedExchangeRate = db.pos_exchange_rate || 36.5;
+        cachedExchangeRate = (db.pos_exchange_rate && Number(db.pos_exchange_rate) > 100) ? Number(db.pos_exchange_rate) : 876.80;
         const categories = ['Todos', ...new Set(cachedProducts.map(p => p.category || 'General'))];
         return { products: cachedProducts, categories, exchangeRate: cachedExchangeRate };
       }
@@ -212,7 +212,7 @@ async function fetchLiveBcvRate() {
     return { success: true, rate: cachedExchangeRate, provider };
   }
 
-  return { success: false, rate: cachedExchangeRate || 36.5, cached: true };
+  return { success: false, rate: (cachedExchangeRate && cachedExchangeRate > 100) ? cachedExchangeRate : 876.80, cached: true };
 }
 
 function createLocalServer() {
@@ -275,7 +275,7 @@ function createLocalServer() {
   // Consultar tasa oficial de Venezuela (BCV) en tiempo real
   app.get('/api/bcv/rate', async (req, res) => {
     const force = req.query.force === 'true';
-    if (force || !cachedExchangeRate || cachedExchangeRate === 36.5) {
+    if (force || !cachedExchangeRate || cachedExchangeRate < 100) {
       const result = await fetchLiveBcvRate();
       return res.json(result);
     }
@@ -291,7 +291,7 @@ function createLocalServer() {
   // Sync exchange rate from desktop app
   app.post('/api/restaurant/sync-rate', (req, res) => {
     const { exchangeRate } = req.body;
-    if (exchangeRate && !isNaN(exchangeRate)) {
+    if (exchangeRate && !isNaN(exchangeRate) && Number(exchangeRate) > 100) {
       cachedExchangeRate = Number(exchangeRate);
       if (io) {
         io.emit('tasa:actualizada', { exchangeRate: cachedExchangeRate });
@@ -306,7 +306,7 @@ function createLocalServer() {
   // Sync menu from desktop app
   app.post('/api/restaurant/sync-menu', (req, res) => {
     const { products, exchangeRate } = req.body;
-    if (exchangeRate && !isNaN(exchangeRate)) {
+    if (exchangeRate && !isNaN(exchangeRate) && Number(exchangeRate) > 100) {
       cachedExchangeRate = Number(exchangeRate);
     }
     if (Array.isArray(products) && products.length > 0) {
@@ -747,7 +747,7 @@ function renderWaiterView() {
       waiters: [],
       tables: [],
       activeOrders: [],
-      menu: { products: [], categories: ['Todos'], exchangeRate: 36.5 }
+      menu: { products: [], categories: ['Todos'], exchangeRate: 876.80 }
     };
 
     let currentWaiter = null;
@@ -793,7 +793,8 @@ function renderWaiterView() {
 
     function updateRateDisplay() {
       const badge = document.getElementById('tabletRateBadge');
-      const rate = state && state.menu ? Number(state.menu.exchangeRate || 36.5) : 36.5;
+      const raw = state && state.menu ? Number(state.menu.exchangeRate) : 876.80;
+      const rate = (!isNaN(raw) && raw > 100) ? raw : 876.80;
       if (badge) {
         badge.innerText = '💵 Bs. ' + rate.toFixed(2);
       }

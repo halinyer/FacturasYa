@@ -10,12 +10,28 @@ export const DataProvider = ({ children }) => {
   const [invoices, setInvoices] = useState([]);
   const [payments, setPayments] = useState([]);
   const [cashCloses, setCashCloses] = useState([]);
-  const [exchangeRate, setExchangeRate] = useState(36.5);
+  const [exchangeRate, setExchangeRate] = useState(() => {
+    const cached = localStorage.getItem('pos_exchange_rate_cache');
+    if (cached) {
+      try {
+        const p = JSON.parse(cached);
+        if (p?.rate && Number(p.rate) > 100) return Number(p.rate);
+      } catch (e) {}
+    }
+    const manual = localStorage.getItem('pos_exchange_rate');
+    if (manual) {
+      try {
+        const m = JSON.parse(manual);
+        if (m && Number(m) > 100) return Number(m);
+      } catch (e) {}
+    }
+    return 876.80;
+  });
   const [restaurantMode, setRestaurantMode] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const syncRateToServer = useCallback((rate) => {
-    if (!rate || isNaN(rate)) return;
+    if (!rate || isNaN(rate) || Number(rate) < 100) return;
     fetch('http://localhost:3001/api/restaurant/sync-rate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -35,10 +51,14 @@ export const DataProvider = ({ children }) => {
 
       // Auto-sync products with local restaurant server for tablets
       if (prods.length > 0) {
+        const payload = { products: prods };
+        if (exchangeRate && Number(exchangeRate) > 100) {
+          payload.exchangeRate = Number(exchangeRate);
+        }
         fetch('http://localhost:3001/api/restaurant/sync-menu', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ products: prods, exchangeRate })
+          body: JSON.stringify(payload)
         }).catch(() => {});
       }
     } catch (error) {
@@ -47,7 +67,9 @@ export const DataProvider = ({ children }) => {
   }, [exchangeRate]);
 
   useEffect(() => {
-    syncRateToServer(exchangeRate);
+    if (exchangeRate && Number(exchangeRate) > 100) {
+      syncRateToServer(exchangeRate);
+    }
   }, [exchangeRate, syncRateToServer]);
 
   useEffect(() => {
@@ -57,13 +79,14 @@ export const DataProvider = ({ children }) => {
       initializeSeedData();
       refreshData();
       
-      // Try to load exchange rate
-      db.getExchangeRate().then(rate => {
-        if (rate) {
+      // Auto-load live official BCV rate on startup
+      try {
+        const rate = await db.getExchangeRate(true);
+        if (rate && Number(rate) > 100) {
           setExchangeRate(rate);
           syncRateToServer(rate);
         }
-      }).catch(() => {});
+      } catch (e) {}
       
       setLoading(false);
     };
@@ -118,10 +141,10 @@ export const DataProvider = ({ children }) => {
   const loadExchangeRate = useCallback(async (force = false) => {
     try {
       const rate = await db.getExchangeRate(force);
-      if (rate && !isNaN(rate)) {
-        setExchangeRate(rate);
-        syncRateToServer(rate);
-        return rate;
+      if (rate && !isNaN(rate) && Number(rate) > 100) {
+        setExchangeRate(Number(rate));
+        syncRateToServer(Number(rate));
+        return Number(rate);
       }
     } catch (e) {
       console.warn('Error loading exchange rate:', e);

@@ -406,12 +406,14 @@ export const db = {
       if (!force) {
         const cached = localStorage.getItem('pos_exchange_rate_cache');
         if (cached) {
-          const parsed = JSON.parse(cached);
-          const now = new Date().getTime();
-          // Cache por 30 minutos (1800000 ms)
-          if (now - parsed.timestamp < 1800000 && parsed.rate > 0) {
-            return parsed.rate;
-          }
+          try {
+            const parsed = JSON.parse(cached);
+            const now = new Date().getTime();
+            // Cache por 10 minutos si la tasa es válida y superior a 100 Bs/$
+            if (now - parsed.timestamp < 600000 && parsed.rate && Number(parsed.rate) > 100) {
+              return Number(parsed.rate);
+            }
+          } catch (e) {}
         }
       }
       
@@ -426,7 +428,7 @@ export const db = {
         clearTimeout(tId);
         if (res.ok) {
           const data = await res.json();
-          if (data && data.rate && !isNaN(data.rate)) {
+          if (data && data.rate && !isNaN(data.rate) && Number(data.rate) > 100) {
             fetchedRate = Number(data.rate);
             providerName = data.provider || 'Servidor Local';
           }
@@ -439,7 +441,7 @@ export const db = {
           const res = await fetch('https://bcv.justcarlux.dev/api/v1/rates', { cache: 'no-cache' });
           if (res.ok) {
             const data = await res.json();
-            if (data?.rates?.usd && !isNaN(data.rates.usd)) {
+            if (data?.rates?.usd && !isNaN(data.rates.usd) && Number(data.rates.usd) > 100) {
               fetchedRate = Number(data.rates.usd);
               providerName = 'BCV en Vivo (JustCarlux)';
             }
@@ -453,7 +455,7 @@ export const db = {
           const res = await fetch('https://ve.dolarapi.com/v1/dolares/oficial', { cache: 'no-cache' });
           if (res.ok) {
             const data = await res.json();
-            if (data && data.promedio && !isNaN(data.promedio)) {
+            if (data && data.promedio && !isNaN(data.promedio) && Number(data.promedio) > 100) {
               fetchedRate = Number(data.promedio);
               providerName = 'DolarApi Oficial (BCV)';
             }
@@ -461,14 +463,14 @@ export const db = {
         } catch (eApi) {}
       }
 
-      // 3. Consulta de respaldo a DolarApi lista completa
+      // 4. Consulta de respaldo a DolarApi lista completa
       if (!fetchedRate) {
         try {
           const res = await fetch('https://ve.dolarapi.com/v1/dolares', { cache: 'no-cache' });
           if (res.ok) {
             const list = await res.json();
             const oficial = Array.isArray(list) ? list.find(d => d.fuente === 'oficial') : null;
-            if (oficial && oficial.promedio && !isNaN(oficial.promedio)) {
+            if (oficial && oficial.promedio && !isNaN(oficial.promedio) && Number(oficial.promedio) > 100) {
               fetchedRate = Number(oficial.promedio);
               providerName = 'DolarApi Lista (BCV)';
             }
@@ -476,7 +478,7 @@ export const db = {
         } catch (eList) {}
       }
       
-      if (fetchedRate && fetchedRate > 0) {
+      if (fetchedRate && fetchedRate > 100) {
         localStorage.setItem('pos_exchange_rate_cache', JSON.stringify({
           rate: fetchedRate,
           provider: providerName,
@@ -495,19 +497,31 @@ export const db = {
   
   setManualRate: (rate) => {
     const numRate = Number(rate);
-    localStorage.setItem('pos_exchange_rate', JSON.stringify(numRate));
-    setStorageItem('pos_exchange_rate', numRate);
+    if (!isNaN(numRate) && numRate > 0) {
+      localStorage.setItem('pos_exchange_rate', JSON.stringify(numRate));
+      setStorageItem('pos_exchange_rate', numRate);
+    }
   },
   
   getCurrentRate: () => {
     const fromStorage = getStorageItem('pos_exchange_rate');
-    if (fromStorage && typeof fromStorage === 'number') return fromStorage;
+    if (fromStorage && typeof fromStorage === 'number' && fromStorage > 100) return fromStorage;
     const manual = localStorage.getItem('pos_exchange_rate');
     const cached = localStorage.getItem('pos_exchange_rate_cache');
     
-    if (manual) return JSON.parse(manual);
-    if (cached) return JSON.parse(cached).rate;
-    return 36.5; // Final fallback
+    if (manual) {
+      try {
+        const val = JSON.parse(manual);
+        if (Number(val) > 100) return Number(val);
+      } catch (e) {}
+    }
+    if (cached) {
+      try {
+        const val = JSON.parse(cached);
+        if (val?.rate && Number(val.rate) > 100) return Number(val.rate);
+      } catch (e) {}
+    }
+    return 876.80; // Final active fallback
   },
 
   // BACKUP & RESTORE (100% Offline Data Protection)

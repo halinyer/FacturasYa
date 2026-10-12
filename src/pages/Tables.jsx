@@ -7,7 +7,7 @@ import InvoicePreview from '../components/InvoicePreview';
 
 export default function Tables() {
   const navigate = useNavigate();
-  const { exchangeRate = 36.5 } = useData() || {};
+  const { exchangeRate = 876.80 } = useData() || {};
 
   const [activeTab, setActiveTab] = useState('mesas'); // 'mesas' | 'comandas' | 'config'
   const [selectedZone, setSelectedZone] = useState('Todos');

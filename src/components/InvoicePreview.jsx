@@ -36,7 +36,7 @@ const InvoicePreview = ({ invoice, onClose }) => {
   const clientInfo = getClientData();
   const items = invoice.items || [];
   const totalUSD = Number(invoice.totalUSD || invoice.total || 0);
-  const exchangeRate = Number(invoice.exchangeRate || invoice.tasaCambio || 36.5);
+  const exchangeRate = Number(invoice.exchangeRate || invoice.tasaCambio || 876.80);
   const totalBs = Number(invoice.totalBs || totalUSD * exchangeRate);
   const paymentMethod = invoice.paymentMethod || invoice.metodoPago || 'efectivo_usd';
   const status = (invoice.status || invoice.estado || 'paid').toLowerCase();

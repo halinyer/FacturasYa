@@ -30,7 +30,7 @@ import InvoicePreview from '../components/InvoicePreview';
 const POS = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { products = [], createInvoice, exchangeRate = 36.5, loadExchangeRate, setManualRate, restaurantMode } = useData() || {};
+  const { products = [], createInvoice, exchangeRate = 876.80, loadExchangeRate, setManualRate, restaurantMode } = useData() || {};
 
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('Todos');
@@ -45,12 +45,19 @@ const POS = () => {
   const [isRefreshingRate, setIsRefreshingRate] = useState(false);
   const [receivedAmount, setReceivedAmount] = useState('');
 
+  // Auto-fetch fresh live BCV rate on mount
+  React.useEffect(() => {
+    if (typeof loadExchangeRate === 'function') {
+      loadExchangeRate(true);
+    }
+  }, [loadExchangeRate]);
+
   const handleRefreshRate = async () => {
     setIsRefreshingRate(true);
     try {
       if (typeof loadExchangeRate === 'function') {
         const rate = await loadExchangeRate(true);
-        if (rate && Number(rate) > 0) {
+        if (rate && Number(rate) > 100) {
           setCustomRate('');
           showToast(`Tasa oficial BCV actualizada a Bs. ${Number(rate).toFixed(2)}`, 'success');
         } else {
@@ -92,7 +99,9 @@ const POS = () => {
     }
   }, []);
 
-  const currentRate = customRate ? parseFloat(customRate) : exchangeRate;
+  const currentRate = customRate 
+    ? parseFloat(customRate) 
+    : (exchangeRate && Number(exchangeRate) > 100 ? Number(exchangeRate) : 876.80);
 
   // Listen for Enter to open payment modal
   React.useEffect(() => {
