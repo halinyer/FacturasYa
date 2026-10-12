@@ -405,6 +405,32 @@ function createLocalServer() {
     res.json(newWaiter);
   });
 
+  app.put('/api/restaurant/waiters/:id', (req, res) => {
+    const waiterId = req.params.id;
+    const { name, pin, active } = req.body;
+    const waiter = (restaurantData.waiters || []).find(w => w.id === waiterId);
+    if (!waiter) return res.status(404).json({ error: 'Mesero no encontrado' });
+
+    if (name !== undefined && name.trim()) waiter.name = name.trim();
+    if (pin !== undefined && pin.trim()) waiter.pin = pin.trim();
+    if (active !== undefined) waiter.active = !!active;
+
+    saveOrdersData(restaurantData);
+    io.emit('restaurante:sync', getFullRestaurantState());
+    res.json(waiter);
+  });
+
+  app.delete('/api/restaurant/waiters/:id', (req, res) => {
+    const waiterId = req.params.id;
+    const index = (restaurantData.waiters || []).findIndex(w => w.id === waiterId);
+    if (index === -1) return res.status(404).json({ error: 'Mesero no encontrado' });
+
+    restaurantData.waiters.splice(index, 1);
+    saveOrdersData(restaurantData);
+    io.emit('restaurante:sync', getFullRestaurantState());
+    res.json({ success: true, id: waiterId });
+  });
+
   // Tables management
   app.post('/api/restaurant/tables', (req, res) => {
     const { name, zone } = req.body;
@@ -418,8 +444,41 @@ function createLocalServer() {
     };
     restaurantData.tables.push(newTable);
     saveOrdersData(restaurantData);
+    io.emit('mesas:actualizadas', restaurantData.tables);
     io.emit('restaurante:sync', getFullRestaurantState());
     res.json(newTable);
+  });
+
+  app.put('/api/restaurant/tables/:id', (req, res) => {
+    const tableId = req.params.id;
+    const { name, zone } = req.body;
+    const table = (restaurantData.tables || []).find(t => t.id === tableId);
+    if (!table) return res.status(404).json({ error: 'Mesa no encontrada' });
+
+    if (name !== undefined && name.trim()) table.name = name.trim();
+    if (zone !== undefined && zone.trim()) table.zone = zone.trim();
+
+    saveOrdersData(restaurantData);
+    io.emit('mesas:actualizadas', restaurantData.tables);
+    io.emit('restaurante:sync', getFullRestaurantState());
+    res.json(table);
+  });
+
+  app.delete('/api/restaurant/tables/:id', (req, res) => {
+    const tableId = req.params.id;
+    const index = (restaurantData.tables || []).findIndex(t => t.id === tableId);
+    if (index === -1) return res.status(404).json({ error: 'Mesa no encontrada' });
+
+    const table = restaurantData.tables[index];
+    if (table.status === 'ocupada' || table.status === 'cuenta') {
+      return res.status(400).json({ error: 'No se puede eliminar una mesa que tiene pedidos activos' });
+    }
+
+    restaurantData.tables.splice(index, 1);
+    saveOrdersData(restaurantData);
+    io.emit('mesas:actualizadas', restaurantData.tables);
+    io.emit('restaurante:sync', getFullRestaurantState());
+    res.json({ success: true, id: tableId });
   });
 
   // Complete Mobile/Tablet Waiter App Interface
@@ -689,6 +748,15 @@ function renderWaiterView() {
     // Socket Handlers
     socket.on('restaurante:sync', function(data) {
       state = data;
+      if (currentWaiter && Array.isArray(state.waiters)) {
+        const stillValid = state.waiters.find(function(w) { return w.id === currentWaiter.id && w.active !== false; });
+        if (!stillValid) {
+          currentWaiter = null;
+          localStorage.removeItem('waiter_logged_id');
+        } else {
+          currentWaiter = stillValid;
+        }
+      }
       updateRateDisplay();
       if (Array.isArray(state.activeOrders)) {
         state.activeOrders.forEach(function(o) {
@@ -933,7 +1001,7 @@ function renderWaiterView() {
       document.getElementById('currentWaiterName').innerText = 'Seleccionar';
       
       const app = document.getElementById('appContent');
-      const waitersList = state.waiters || [];
+      const waitersList = (state.waiters || []).filter(function(w) { return w.active !== false; });
 
       if (waitersList.length === 0) {
         app.innerHTML = 

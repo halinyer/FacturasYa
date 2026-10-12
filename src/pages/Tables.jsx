@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
-import { Utensils, Clock, CheckCircle, AlertCircle, ShoppingCart, Users, Plus, Check, RefreshCw, QrCode, ArrowRight, X, Printer } from 'lucide-react';
+import { Utensils, Clock, CheckCircle, AlertCircle, ShoppingCart, Users, Plus, Check, RefreshCw, QrCode, ArrowRight, X, Printer, Edit2, Trash2 } from 'lucide-react';
 import QRConnectModal from '../components/QRConnectModal';
 import InvoicePreview from '../components/InvoicePreview';
 
@@ -25,6 +25,8 @@ export default function Tables() {
   // Form states for salon configuration
   const [newTable, setNewTable] = useState({ name: '', zone: 'Salón' });
   const [newWaiter, setNewWaiter] = useState({ name: '', pin: '' });
+  const [editingWaiter, setEditingWaiter] = useState(null);
+  const [editingTable, setEditingTable] = useState(null);
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type });
@@ -251,6 +253,98 @@ export default function Tables() {
       }
     } catch (err) {
       showToast('Error al registrar mesero', 'error');
+    }
+  };
+
+  // Update Waiter
+  const handleUpdateWaiter = async (e) => {
+    e.preventDefault();
+    if (!editingWaiter || !editingWaiter.name.trim()) return;
+    try {
+      const res = await fetch(`http://localhost:3001/api/restaurant/waiters/${editingWaiter.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editingWaiter.name,
+          pin: editingWaiter.pin,
+          active: editingWaiter.active
+        })
+      });
+      if (res.ok) {
+        showToast('Mesero actualizado correctamente');
+        setEditingWaiter(null);
+        fetchState();
+      } else {
+        showToast('Error al actualizar mesero', 'error');
+      }
+    } catch (err) {
+      showToast('Error al actualizar mesero', 'error');
+    }
+  };
+
+  // Delete Waiter
+  const handleDeleteWaiter = async (waiter) => {
+    if (!window.confirm(`¿Seguro que deseas eliminar al mesero "${waiter.name}"?`)) return;
+    try {
+      const res = await fetch(`http://localhost:3001/api/restaurant/waiters/${waiter.id}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        showToast(`Mesero "${waiter.name}" eliminado`);
+        fetchState();
+      } else {
+        showToast('Error al eliminar mesero', 'error');
+      }
+    } catch (err) {
+      showToast('Error al eliminar mesero', 'error');
+    }
+  };
+
+  // Update Table
+  const handleUpdateTable = async (e) => {
+    e.preventDefault();
+    if (!editingTable || !editingTable.name.trim()) return;
+    try {
+      const res = await fetch(`http://localhost:3001/api/restaurant/tables/${editingTable.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editingTable.name,
+          zone: editingTable.zone
+        })
+      });
+      if (res.ok) {
+        showToast('Mesa actualizada correctamente');
+        setEditingTable(null);
+        fetchState();
+      } else {
+        showToast('Error al actualizar mesa', 'error');
+      }
+    } catch (err) {
+      showToast('Error al actualizar mesa', 'error');
+    }
+  };
+
+  // Delete Table
+  const handleDeleteTable = async (table) => {
+    if (table.status === 'ocupada' || table.status === 'cuenta') {
+      showToast('No puedes eliminar una mesa con pedidos activos o en cuenta', 'error');
+      return;
+    }
+    if (!window.confirm(`¿Seguro que deseas eliminar la mesa "${table.name}"?`)) return;
+    try {
+      const res = await fetch(`http://localhost:3001/api/restaurant/tables/${table.id}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        showToast(`Mesa "${table.name}" eliminada`);
+        fetchState();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showToast(data.error || 'Error al eliminar mesa', 'error');
+      }
+    } catch (err) {
+      showToast('Error al eliminar mesa', 'error');
     }
   };
 
@@ -586,12 +680,108 @@ export default function Tables() {
             </form>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {(restaurantState.waiters || []).map(w => (
-                <div key={w.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.88rem' }}>
-                  <span style={{ fontWeight: '700' }}>👤 {w.name}</span>
-                  <span style={{ color: '#64748b', fontFamily: 'monospace' }}>PIN: ****</span>
+              {(restaurantState.waiters || []).length === 0 ? (
+                <div style={{ textAlign: 'center', color: '#94a3b8', padding: '20px 0', fontSize: '0.88rem' }}>
+                  No hay meseros registrados todavía.
                 </div>
-              ))}
+              ) : (
+                (restaurantState.waiters || []).map(w => (
+                  <div
+                    key={w.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '10px 14px',
+                      background: w.active === false ? '#f1f5f9' : '#f8fafc',
+                      borderRadius: '10px',
+                      border: '1px solid #e2e8f0',
+                      opacity: w.active === false ? 0.75 : 1
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div
+                        style={{
+                          width: '34px',
+                          height: '34px',
+                          borderRadius: '50%',
+                          background: w.active === false ? '#cbd5e1' : '#dbeafe',
+                          color: w.active === false ? '#64748b' : '#1e40af',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: '800',
+                          fontSize: '0.85rem'
+                        }}
+                      >
+                        {w.name ? w.name.charAt(0).toUpperCase() : 'M'}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: '700', fontSize: '0.9rem', color: '#0f172a' }}>
+                          {w.name}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                          <span style={{ fontSize: '0.72rem', color: '#64748b', fontFamily: 'monospace' }}>
+                            PIN: {w.pin || '****'}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: '0.68rem',
+                              fontWeight: '700',
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              background: w.active === false ? '#fee2e2' : '#dcfce7',
+                              color: w.active === false ? '#991b1b' : '#166534'
+                            }}
+                          >
+                            {w.active === false ? 'Inactivo' : 'Activo'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <button
+                        type="button"
+                        title="Editar mesero"
+                        onClick={() => setEditingWaiter({ ...w, pin: w.pin || '' })}
+                        style={{
+                          background: '#ffffff',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '8px',
+                          padding: '6px 10px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          color: '#2563eb',
+                          fontSize: '0.78rem',
+                          fontWeight: '700'
+                        }}
+                      >
+                        <Edit2 size={14} /> Editar
+                      </button>
+                      <button
+                        type="button"
+                        title="Eliminar mesero"
+                        onClick={() => handleDeleteWaiter(w)}
+                        style={{
+                          background: '#fff1f2',
+                          border: '1px solid #fecdd3',
+                          borderRadius: '8px',
+                          padding: '6px 8px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          color: '#e11d48'
+                        }}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
@@ -628,13 +818,87 @@ export default function Tables() {
               </button>
             </form>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-              {(restaurantState.tables || []).map(t => (
-                <div key={t.id} style={{ padding: '10px 12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.85rem' }}>
-                  <div style={{ fontWeight: '700' }}>{t.name}</div>
-                  <div style={{ fontSize: '0.72rem', color: '#64748b' }}>{t.zone}</div>
-                </div>
-              ))}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '10px' }}>
+              {(restaurantState.tables || []).map(t => {
+                const isOccupied = t.status === 'ocupada' || t.status === 'cuenta';
+                return (
+                  <div
+                    key={t.id}
+                    style={{
+                      padding: '12px',
+                      background: '#f8fafc',
+                      borderRadius: '10px',
+                      border: '1px solid #e2e8f0',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      gap: '8px'
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div style={{ fontWeight: '800', fontSize: '0.95rem', color: '#0f172a' }}>{t.name}</div>
+                        <span
+                          style={{
+                            fontSize: '0.68rem',
+                            fontWeight: '700',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            background: isOccupied ? '#ffedd5' : '#dcfce7',
+                            color: isOccupied ? '#9a3412' : '#166534'
+                          }}
+                        >
+                          {t.status || 'libre'}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>{t.zone}</div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '6px', borderTop: '1px solid #e2e8f0', paddingTop: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setEditingTable({ ...t })}
+                        style={{
+                          flex: 1,
+                          background: '#ffffff',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '6px',
+                          padding: '5px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '4px',
+                          color: '#2563eb',
+                          fontSize: '0.75rem',
+                          fontWeight: '700'
+                        }}
+                      >
+                        <Edit2 size={13} /> Editar
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isOccupied}
+                        title={isOccupied ? 'No se puede eliminar una mesa ocupada' : 'Eliminar mesa'}
+                        onClick={() => handleDeleteTable(t)}
+                        style={{
+                          background: isOccupied ? '#f1f5f9' : '#fff1f2',
+                          border: `1px solid ${isOccupied ? '#e2e8f0' : '#fecdd3'}`,
+                          borderRadius: '6px',
+                          padding: '5px 8px',
+                          cursor: isOccupied ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: isOccupied ? '#94a3b8' : '#e11d48'
+                        }}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -749,6 +1013,153 @@ export default function Tables() {
               </div>
             )}
 
+          </div>
+        </div>
+      )}
+
+      {/* Edit Waiter Modal */}
+      {editingWaiter && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1300, padding: '16px' }}>
+          <div style={{ background: '#ffffff', borderRadius: '16px', maxWidth: '400px', width: '100%', padding: '24px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+              <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Users size={20} color="#2563eb" /> Editar Mesero
+              </h3>
+              <button
+                type="button"
+                onClick={() => setEditingWaiter(null)}
+                style={{ background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateWaiter} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '700', color: '#475569', marginBottom: '6px' }}>
+                  Nombre del Mesero
+                </label>
+                <input
+                  required
+                  type="text"
+                  value={editingWaiter.name}
+                  onChange={e => setEditingWaiter({ ...editingWaiter, name: e.target.value })}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '0.9rem', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '700', color: '#475569', marginBottom: '6px' }}>
+                  PIN de Acceso (4 dígitos)
+                </label>
+                <input
+                  required
+                  type="text"
+                  maxLength="4"
+                  pattern="[0-9]{4}"
+                  value={editingWaiter.pin}
+                  onChange={e => setEditingWaiter({ ...editingWaiter, pin: e.target.value.replace(/\D/g, '') })}
+                  placeholder="Ej: 1234"
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '0.9rem', fontFamily: 'monospace', letterSpacing: '2px', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px' }}>
+                <input
+                  type="checkbox"
+                  id="waiterActiveCheck"
+                  checked={editingWaiter.active !== false}
+                  onChange={e => setEditingWaiter({ ...editingWaiter, active: e.target.checked })}
+                  style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                />
+                <label htmlFor="waiterActiveCheck" style={{ fontSize: '0.88rem', fontWeight: '700', color: '#1e293b', cursor: 'pointer' }}>
+                  Mesero activo (permite iniciar sesión en tablet)
+                </label>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => setEditingWaiter(null)}
+                  style={{ flex: 1, padding: '11px', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  style={{ flex: 1, padding: '11px', background: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}
+                >
+                  Guardar Cambios
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Table Modal */}
+      {editingTable && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1300, padding: '16px' }}>
+          <div style={{ background: '#ffffff', borderRadius: '16px', maxWidth: '400px', width: '100%', padding: '24px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+              <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Utensils size={20} color="#d97706" /> Editar Mesa / Área
+              </h3>
+              <button
+                type="button"
+                onClick={() => setEditingTable(null)}
+                style={{ background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateTable} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '700', color: '#475569', marginBottom: '6px' }}>
+                  Nombre de la Mesa
+                </label>
+                <input
+                  required
+                  type="text"
+                  value={editingTable.name}
+                  onChange={e => setEditingTable({ ...editingTable, name: e.target.value })}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '0.9rem', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '700', color: '#475569', marginBottom: '6px' }}>
+                  Zona o Área
+                </label>
+                <select
+                  value={editingTable.zone}
+                  onChange={e => setEditingTable({ ...editingTable, zone: e.target.value })}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '0.9rem', background: '#fff', boxSizing: 'border-box' }}
+                >
+                  <option value="Salón">Salón</option>
+                  <option value="Terraza">Terraza</option>
+                  <option value="Barra">Barra</option>
+                  <option value="Delivery">Delivery / Llevar</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => setEditingTable(null)}
+                  style={{ flex: 1, padding: '11px', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  style={{ flex: 1, padding: '11px', background: '#d97706', color: '#ffffff', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}
+                >
+                  Guardar Cambios
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
