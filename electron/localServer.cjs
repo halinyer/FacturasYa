@@ -667,7 +667,7 @@ function renderWaiterView() {
     delete require.cache[waiterViewPath];
   } catch (e) {}
   const { renderWaiterView: getView } = require('./waiterView.cjs');
-  return getView();
+  return getView(getFullRestaurantState());
 }
 
 async function startServer(port = 3001, appDataPath = '') {

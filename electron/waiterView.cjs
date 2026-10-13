@@ -1,5 +1,5 @@
-// Complete Toast/Square-inspired commercial tablet diner POS interface for Happy Days
-function renderWaiterView() {
+function renderWaiterView(initialState) {
+  const safeInitialState = initialState ? JSON.stringify(initialState).replace(/</g, '\\u003c') : 'null';
   return `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -214,7 +214,8 @@ function renderWaiterView() {
 
   <script>
     const socket = io();
-    let state = {
+    const serverInitialState = ${safeInitialState};
+    let state = serverInitialState || {
       waiters: [],
       tables: [],
       activeOrders: [],
@@ -555,7 +556,19 @@ function renderWaiterView() {
       }
     }
 
-    // Initial Load from Server
+    // Instant boot if server provided state directly (zero waiting / zero spinner freeze)
+    if (serverInitialState) {
+      const savedWaiterId = localStorage.getItem('waiter_logged_id');
+      if (savedWaiterId && Array.isArray(state.waiters)) {
+        const w = state.waiters.find(function(x) { return x.id === savedWaiterId; });
+        if (w) currentWaiter = w;
+      }
+      updateNotifBadge();
+      updateRateDisplay();
+      renderCurrentScreen();
+    }
+
+    // Secondary fetch to ensure real-time consistency
     fetch('/api/restaurant/state')
       .then(function(r) { return r.json(); })
       .then(function(data) {
@@ -571,7 +584,7 @@ function renderWaiterView() {
       })
       .catch(function(err) {
         console.error('Error cargando estado:', err);
-        renderLoginScreen();
+        if (!serverInitialState) renderLoginScreen();
       });
 
     function renderCurrentScreen() {
@@ -1035,14 +1048,14 @@ function renderWaiterView() {
               return '<div class="cart-item-row" id="cartRow_' + i.id + '">' +
                 '<div class="cart-thumb">' +
                   (hasImg 
-                    ? '<img src="' + i.image + '" style="width:100%; height:100%; object-fit:contain;" onerror="this.style.display=\'none\'">' 
+                    ? '<img src="' + i.image + '" style="width:100%; height:100%; object-fit:contain;" onerror="handleProdImgError(this)">' 
                     : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D6862B" stroke-width="2"><path d="M3 11c0-3.3 2.7-6 6-6h6c3.3 0 6 2.7 6 6v1H3v-1Z"/><path d="M3 16h18v2a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-2Z"/></svg>'
                   ) +
                 '</div>' +
                 '<div style="flex:1;">' +
                   '<div style="font-weight:800; font-size:0.9rem; color:#18181b;">' + i.name + '</div>' +
                   '<div class="cart-item-price-val" style="font-size:0.8rem; color:#D52829; font-weight:800;">$' + (i.priceUSD * i.quantity).toFixed(2) + ' <span style="font-size:0.7rem; color:#71717a; font-weight:600;">(Bs. ' + ((i.priceUSD * i.quantity) * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ')</span></div>' +
-                  '<input type="text" placeholder="Nota: ej. sin pepinillos, extra salsa..." value="' + (i.note || '').replace(/"/g, '&quot;') + '" onchange="updateItemNote(\'' + i.id + '\', this.value)" style="width:96%; padding:6px 9px; font-size:0.78rem; border:1px solid #e4e4e7; border-radius:6px; margin-top:4px; outline:none;">' +
+                  '<input type="text" placeholder="Nota: ej. sin pepinillos, extra salsa..." data-id="' + i.id + '" value="' + (i.note || '').replace(/"/g, '&quot;') + '" onchange="updateItemNote(this.dataset.id, this.value)" style="width:96%; padding:6px 9px; font-size:0.78rem; border:1px solid #e4e4e7; border-radius:6px; margin-top:4px; outline:none;">' +
                 '</div>' +
                 '<div style="display:flex; align-items:center; gap:6px;">' +
                   '<button class="qty-btn" data-id="' + i.id + '" onclick="changeQtyFromBtn(this, -1)">&minus;</button>' +
