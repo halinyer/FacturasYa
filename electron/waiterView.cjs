@@ -5,8 +5,8 @@ function renderWaiterView(initialState) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Happy Days — Comandero de Mesas</title>
-  <link rel="manifest" href="data:application/manifest+json;utf8,{'name':'Happy Days Comandero','short_name':'HD Comandas','display':'standalone','start_url':'/waiter'}">
+  <title>FacturaPOS — Comandero de Mesas</title>
+  <link rel="manifest" href="data:application/manifest+json;utf8,{'name':'FacturaPOS Comandero','short_name':'POS Comandas','display':'standalone','start_url':'/waiter'}">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#601718">
@@ -17,7 +17,7 @@ function renderWaiterView(initialState) {
     /* Header Diner */
     header { background: #601718; color: #ffffff; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #D52829; box-shadow: 0 4px 12px rgba(96,23,24,0.25); flex-shrink: 0; z-index: 50; }
     .brand { display: flex; align-items: center; gap: 9px; cursor: pointer; }
-    .brand-logo-img { width: 34px; height: 34px; border-radius: 9px; background: #ffffff; object-fit: contain; padding: 2px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+    .brand-logo-icon { width: 34px; height: 34px; border-radius: 9px; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
     .brand-text { display: flex; flex-direction: column; line-height: 1.1; }
     .brand-title { font-weight: 900; font-size: 1.05rem; letter-spacing: 0.5px; text-transform: uppercase; color: #ffffff; }
     .brand-sub { font-size: 0.68rem; font-weight: 700; color: #fca5a5; letter-spacing: 1px; text-transform: uppercase; }
@@ -163,9 +163,9 @@ function renderWaiterView(initialState) {
 
   <header>
     <div class="brand" onclick="location.reload()">
-      <img src="/happydays/logo.png" class="brand-logo-img" alt="Logo" onerror="this.onerror=null; this.src='/happydays/logo.jpg'">
+      <div class="brand-logo-icon">⚡</div>
       <div class="brand-text">
-        <span class="brand-title">Happy Days</span>
+        <span class="brand-title">FacturaPOS</span>
         <span class="brand-sub">Comandero</span>
       </div>
     </div>
@@ -189,8 +189,8 @@ function renderWaiterView(initialState) {
     <div style="margin: auto; text-align: center; color: #71717a; padding: 40px;">
       <div style="width: 44px; height: 44px; border: 3px solid #e4e4e7; border-top-color: #D52829; border-radius: 50%; margin: 0 auto 14px auto; animation: spin 0.8s linear infinite;"></div>
       <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
-      <div style="font-weight: 800; color: #18181b; font-size: 1rem; margin-bottom: 4px;">Conectando con Happy Days POS...</div>
-      <div style="font-size: 0.8rem;">Sincronizando comanda y catálogo oficial</div>
+      <div style="font-weight: 800; color: #18181b; font-size: 1rem; margin-bottom: 4px;">Conectando con FacturaPOS...</div>
+      <div style="font-size: 0.8rem;">Sincronizando comanda y catálogo</div>
     </div>
   </main>
 
@@ -903,11 +903,11 @@ function renderWaiterView(initialState) {
               ? '<img class="prod-img" src="' + safeImg + '" alt="' + safeName + '" loading="lazy" onerror="handleProdImgError(this)">' +
                 '<div class="prod-img-fallback" style="display:none;">' +
                   '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#D6862B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11c0-3.3 2.7-6 6-6h6c3.3 0 6 2.7 6 6v1H3v-1Z"/><path d="M3 16h18v2a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-2Z"/><line x1="2" y1="14" x2="22" y2="14"/></svg>' +
-                  '<span class="prod-img-fallback-text">' + (p.category || 'Happy Days') + '</span>' +
+                  '<span class="prod-img-fallback-text">' + (p.category || 'FacturaPOS') + '</span>' +
                 '</div>'
               : '<div class="prod-img-fallback">' +
                   '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#D6862B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11c0-3.3 2.7-6 6-6h6c3.3 0 6 2.7 6 6v1H3v-1Z"/><path d="M3 16h18v2a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-2Z"/><line x1="2" y1="14" x2="22" y2="14"/></svg>' +
-                  '<span class="prod-img-fallback-text">' + (p.category || 'Happy Days') + '</span>' +
+                  '<span class="prod-img-fallback-text">' + (p.category || 'FacturaPOS') + '</span>' +
                 '</div>'
             ) +
           '</div>' +

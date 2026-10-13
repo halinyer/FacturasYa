@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { QrCode, Wifi, Smartphone, RefreshCw, X, Check, Copy, ExternalLink, ShieldCheck } from 'lucide-react';
 import QRCode from 'qrcode';
+import { CLIENT_CONFIG } from '../config/clientConfig';
 
 const QRConnectModal = ({ onClose }) => {
   const [serverInfo, setServerInfo] = useState({
@@ -129,7 +130,7 @@ const QRConnectModal = ({ onClose }) => {
             </div>
             <div>
               <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '900', color: '#18181b' }}>Vincular Tablets</h2>
-              <div style={{ fontSize: '0.78rem', color: '#601718', fontWeight: '700' }}>Happy Days — Red Wi-Fi Local</div>
+              <div style={{ fontSize: '0.78rem', color: '#601718', fontWeight: '700' }}>{CLIENT_CONFIG.name} — Red Wi-Fi Local</div>
             </div>
           </div>
           <button

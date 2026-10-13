@@ -12,10 +12,10 @@
     "electron:build:happydays": "vite build && electron-builder --win portable"
   },
   "build": {
-    "appId": "com.happydays.pos",
-    "productName": "Happy Days POS",
+    "appId": "com.facturapos.app",
+    "productName": "FacturaPOS",
     "directories": {
-      "output": "dist-electron/happy-days"
+      "output": "dist-electron"
     },
     "files": [
       "dist/**/*",
@@ -24,7 +24,7 @@
     ],
     "win": {
       "target": "portable",
-      "artifactName": "HappyDays-POS-${version}.${ext}",
+      "artifactName": "FacturaPOS-${version}.${ext}",
       "signAndEditExecutable": false
     }
   },

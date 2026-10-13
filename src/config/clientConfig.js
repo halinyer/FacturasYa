@@ -1,21 +1,21 @@
-// Configuración centralizada de marca y franquicia para Happy Days
+// Configuración centralizada de marca del sistema FacturaPOS (Versión Base)
 export const CLIENT_CONFIG = {
-  id: 'happy-days',
-  name: 'Happy Days',
-  legalName: 'Happy Days C.A.',
-  subtitle: 'Burgers, Pollo Frito & Shakes',
-  tagline: 'Momentos felices, sabores inolvidables',
-  rif: 'J-50123456-7',
-  address: 'Caracas, Venezuela',
-  phone: '0414-1234567',
-  instagram: '@happydays_ve',
+  id: 'facturapos',
+  name: 'FacturaPOS',
+  legalName: 'FacturaPOS Venezuela C.A.',
+  subtitle: 'Sistema de Facturación & POS',
+  tagline: 'Control total de ventas, mesas y comandas',
+  rif: 'J-00000000-0',
+  address: 'Venezuela',
+  phone: '0412-0000000',
+  instagram: '@facturapos',
   
   // Identidad visual
   branding: {
-    logoText: 'Happy Days',
-    logoImage: '/happydays/logo.png',
-    logoIcon: '🍔',
-    badge: 'HD',
+    logoText: 'FacturaPOS',
+    logoImage: null, // Sin logo de franquicia en la versión base
+    logoIcon: '⚡',
+    badge: 'POS',
     colors: {
       primary: '#D52829',
       dark: '#601718',
@@ -27,17 +27,17 @@ export const CLIENT_CONFIG = {
 
   // Ticket Térmico (80mm / 58mm)
   receipt: {
-    headerTitle: 'HAPPY DAYS',
-    subtitle: 'Burgers, Pollo Frito & Shakes',
+    headerTitle: 'FACTURAPOS',
+    subtitle: 'Comprobante de Consumo',
     nonFiscalNotice: 'Documento de Control Interno (No Fiscal)',
-    footerGreeting: '¡Gracias por compartir tus momentos felices con nosotros!',
-    contactNotice: 'Síguenos en Instagram: @happydays_ve',
+    footerGreeting: '¡Gracias por su compra y preferencia!',
+    contactNotice: 'FacturaPOS - Sistema de Facturación',
   },
 
   // Comandero Tablet / PWA (/waiter)
   waiterApp: {
-    title: 'Happy Days Comandero',
-    shortName: 'HD Comandas',
+    title: 'FacturaPOS Comandero',
+    shortName: 'POS Comandas',
   }
 };
 
