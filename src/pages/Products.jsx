@@ -72,11 +72,11 @@ const Products = () => {
     e.preventDefault();
     try {
       const data = {
-        name: formData.name,
-        category: formData.category || 'General',
+        name: formData.name.trim(),
+        category: formData.category ? formData.category.trim() : 'General',
         priceUSD: parseFloat(formData.priceUSD) || 0,
-        sku: formData.sku,
-        active: formData.active,
+        sku: formData.sku ? formData.sku.trim() : '',
+        active: formData.active !== false,
         image: formData.image || ''
       };
       if (formData.id) {
@@ -85,6 +85,7 @@ const Products = () => {
       } else {
         addProduct(data);
         showToast('Producto creado exitosamente', 'success');
+        setSearch('');
       }
       setIsModalOpen(false);
     } catch (err) {
@@ -332,11 +333,17 @@ const Products = () => {
                 <label style={{ display: 'block', fontSize: '0.8rem', color: '#4b5563', marginBottom: '4px', fontWeight: '600' }}>Categoría</label>
                 <input 
                   type="text" 
-                  placeholder="Barquillas, Litros, Sundaes..."
+                  list="category-suggestions"
+                  placeholder="Combos, Hamburguesas, Bebidas..."
                   value={formData.category} 
                   onChange={e => setFormData({ ...formData, category: e.target.value })}
                   style={{ width: '100%', padding: '9px 12px', background: '#f9fafb', border: '1px solid #d1d5db', color: '#111827', borderRadius: '8px', boxSizing: 'border-box' }}
                 />
+                <datalist id="category-suggestions">
+                  {categories.map(cat => (
+                    <option key={cat} value={cat} />
+                  ))}
+                </datalist>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>

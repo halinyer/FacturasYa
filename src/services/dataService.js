@@ -113,7 +113,7 @@ export const db = {
       active: data.active !== undefined ? data.active : true,
       createdAt: new Date().toISOString()
     };
-    const updated = [...products, newProduct];
+    const updated = [newProduct, ...products];
     setStorageItem('pos_products', updated);
     return newProduct;
   },
@@ -137,7 +137,7 @@ export const db = {
   },
   
   getCategories: () => {
-    const products = getStorageItem('pos_products');
+    const products = getStorageItem('pos_products') || [];
     const categories = new Set(products.map(p => p.category));
     return Array.from(categories);
   },
@@ -146,41 +146,42 @@ export const db = {
   getClients: () => getStorageItem('pos_clients'),
   
   getClientById: (id) => {
-    const clients = getStorageItem('pos_clients');
+    const clients = getStorageItem('pos_clients') || [];
     return clients.find(c => c.id === id);
   },
   
   searchClients: (query) => {
-    const clients = getStorageItem('pos_clients');
+    const clients = getStorageItem('pos_clients') || [];
     if (!query) return clients;
     
     const lowerQuery = query.toLowerCase();
     return clients.filter(c => 
-      c.name.toLowerCase().includes(lowerQuery) || 
-      c.cedula.toLowerCase().includes(lowerQuery)
+      (c.name || '').toLowerCase().includes(lowerQuery) || 
+      (c.cedula || '').toLowerCase().includes(lowerQuery)
     );
   },
   
   createClient: (data) => {
-    const clients = getStorageItem('pos_clients');
+    const clients = getStorageItem('pos_clients') || [];
     const newClient = {
       id: generateId('cli'),
       ...data,
       createdAt: new Date().toISOString()
     };
-    clients.push(newClient);
-    setStorageItem('pos_clients', clients);
+    const updated = [newClient, ...clients];
+    setStorageItem('pos_clients', updated);
     return newClient;
   },
   
   updateClient: (id, updates) => {
-    const clients = getStorageItem('pos_clients');
+    const clients = getStorageItem('pos_clients') || [];
     const index = clients.findIndex(c => c.id === id);
     if (index === -1) return null;
     
-    clients[index] = { ...clients[index], ...updates };
-    setStorageItem('pos_clients', clients);
-    return clients[index];
+    const updated = [...clients];
+    updated[index] = { ...updated[index], ...updates };
+    setStorageItem('pos_clients', updated);
+    return updated[index];
   },
   
   getClientDebt: (clientId) => {

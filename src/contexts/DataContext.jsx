@@ -109,29 +109,42 @@ export const DataProvider = ({ children }) => {
   }, []);
 
   const addProduct = (product) => {
-    db.createProduct(product);
+    const newProd = db.createProduct(product);
+    const fresh = [...(db.getProducts() || [])];
+    setProducts(fresh);
     refreshData();
+    return newProd;
   };
 
   const updateProduct = (id, data) => {
-    db.updateProduct(id, data);
+    const updated = db.updateProduct(id, data);
+    const fresh = [...(db.getProducts() || [])];
+    setProducts(fresh);
     refreshData();
+    return updated;
   };
 
   const deleteProduct = (id) => {
     db.deleteProduct(id);
+    const fresh = [...(db.getProducts() || [])];
+    setProducts(fresh);
     refreshData();
   };
 
   const addClient = (client) => {
     const newClient = db.createClient(client);
+    const fresh = [...(db.getClients() || [])];
+    setClients(fresh);
     refreshData();
     return newClient;
   };
 
   const updateClient = (id, data) => {
-    db.updateClient(id, data);
+    const updated = db.updateClient(id, data);
+    const fresh = [...(db.getClients() || [])];
+    setClients(fresh);
     refreshData();
+    return updated;
   };
 
   const searchClients = (query) => {
