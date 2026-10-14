@@ -25,13 +25,22 @@ const InvoicePreview = ({ invoice, onClose }) => {
 
   // Resolve client info
   const getClientData = () => {
-    if (invoice.client && typeof invoice.client === 'object') return invoice.client;
+    if (invoice.client && typeof invoice.client === 'object') {
+      return {
+        name: invoice.client.name || invoice.clientName || 'Consumidor Final',
+        cedula: invoice.client.cedula || invoice.clientCedula || 'V-00000000',
+        type: invoice.client.type || invoice.clientType || 'normal',
+        phone: invoice.client.phone || invoice.clientPhone || (invoice.deliveryInfo?.phone || ''),
+        address: invoice.client.address || invoice.clientAddress || (invoice.deliveryInfo?.address || '')
+      };
+    }
     const found = clients.find(c => c.id === invoice.clientId);
     return {
       name: invoice.clientName || (found ? found.name : 'Consumidor Final'),
       cedula: invoice.clientCedula || (found ? found.cedula : 'V-00000000'),
       type: invoice.clientType || (found ? found.type : 'normal'),
-      phone: found ? found.phone : ''
+      phone: invoice.clientPhone || (found ? found.phone : (invoice.deliveryInfo?.phone || '')),
+      address: invoice.clientAddress || (found ? found.address : (invoice.deliveryInfo?.address || ''))
     };
   };
 
@@ -43,6 +52,28 @@ const InvoicePreview = ({ invoice, onClose }) => {
   const paymentMethod = invoice.paymentMethod || invoice.metodoPago || 'efectivo_usd';
   const status = (invoice.status || invoice.estado || 'paid').toLowerCase();
   const isPaid = status === 'paid' || status === 'pagada';
+
+  // Fiscal SENIAT Calculations (IVA 16% & IGTF 3%)
+  const subtotalItemsUSD = Number(invoice.subtotalUSD || (totalUSD - (Number(invoice.deliveryFee) || 0)));
+  const baseImponibleUSD = Number(invoice.baseImponibleUSD || (subtotalItemsUSD / 1.16).toFixed(2));
+  const ivaUSD = Number(invoice.ivaUSD || (subtotalItemsUSD - baseImponibleUSD).toFixed(2));
+  const baseImponibleBs = Number(invoice.baseImponibleBs || (baseImponibleUSD * exchangeRate).toFixed(2));
+  const ivaBs = Number(invoice.ivaBs || (ivaUSD * exchangeRate).toFixed(2));
+
+  // IGTF 3% calculation (only for foreign currency payments: efectivo_usd, zelle, or USD fraction of mixed)
+  let igtfBaseUSD = Number(invoice.igtfBaseUSD !== undefined ? invoice.igtfBaseUSD : 0);
+  if (invoice.igtfBaseUSD === undefined) {
+    if (paymentMethod === 'efectivo_usd' || paymentMethod === 'zelle') {
+      igtfBaseUSD = totalUSD;
+    } else if (paymentMethod === 'mixto' && invoice.mixedPayments) {
+      igtfBaseUSD = (parseFloat(invoice.mixedPayments.efectivo_usd) || 0) + (parseFloat(invoice.mixedPayments.zelle) || 0);
+    }
+  }
+  const igtfUSD = Number(invoice.igtfUSD !== undefined ? invoice.igtfUSD : (igtfBaseUSD * 0.03).toFixed(2));
+  const igtfBs = Number(invoice.igtfBs !== undefined ? invoice.igtfBs : (igtfUSD * exchangeRate).toFixed(2));
+  const isIgtfExempt = igtfBaseUSD === 0;
+
+  const controlNumber = invoice.fiscalControlNumber || `00-${String(invoice.id || '100001').padStart(6, '0').slice(-6)}`;
 
   const formatPaymentMethod = (m) => {
     if (m === 'pago_movil') return 'Pago Móvil (Bs)';
@@ -164,14 +195,17 @@ const InvoicePreview = ({ invoice, onClose }) => {
               <div className="ticket-divider" />
 
               {/* Invoice Metadata */}
-              <div style={{ fontSize: '12px' }}>
-                <div><strong>NOTA DE ENTREGA Nº:</strong> {invoice.invoiceNumber || (invoice.isPreBill ? 'PRE-CUENTA' : `NE-${invoice.id}`)}</div>
+              <div style={{ fontSize: '11px', lineHeight: '1.4' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span><strong>FACTURA Nº:</strong> {invoice.invoiceNumber || (invoice.isPreBill ? 'PRE-CUENTA' : `FAC-${invoice.id}`)}</span>
+                  <span><strong>Nº CONTROL:</strong> {controlNumber}</span>
+                </div>
                 <div><strong>FECHA / HORA:</strong> {formatDate(invoice.date)}</div>
                 
                 {/* Delivery / Takeout / Salon Mode */}
                 {invoice.orderType === 'delivery' && (
-                  <div style={{ background: '#f0f9ff', padding: '6px 8px', borderRadius: '4px', margin: '6px 0', border: '1px solid #bae6fd' }}>
-                    <div className="ticket-bold" style={{ fontSize: '13px', color: '#0369a1' }}>🛵 PEDIDO PARA DELIVERY</div>
+                  <div style={{ background: '#f0f9ff', padding: '6px 8px', borderRadius: '4px', margin: '4px 0', border: '1px solid #bae6fd' }}>
+                    <div className="ticket-bold" style={{ fontSize: '12px', color: '#0369a1' }}>🛵 PEDIDO PARA DELIVERY</div>
                     {invoice.deliveryInfo?.address && (
                       <div style={{ marginTop: '2px' }}><strong>DIRECCIÓN:</strong> <span className="ticket-bold">{invoice.deliveryInfo.address}</span></div>
                     )}
@@ -184,19 +218,27 @@ const InvoicePreview = ({ invoice, onClose }) => {
                   </div>
                 )}
                 {invoice.orderType === 'para_llevar' && (
-                  <div className="ticket-bold" style={{ fontSize: '12px', margin: '4px 0', color: '#7e22ce' }}>
+                  <div className="ticket-bold" style={{ fontSize: '11px', margin: '3px 0', color: '#7e22ce' }}>
                     🛍️ MODALIDAD: PARA LLEVAR (RETIRO EN MOSTRADOR)
                   </div>
                 )}
                 {invoice.tableName && (
                   <div><strong>MESA:</strong> <span className="ticket-bold">{invoice.tableName}</span> {invoice.waiterName ? `(Mesero: ${invoice.waiterName})` : ''}</div>
                 )}
+                <div className="ticket-divider" style={{ margin: '4px 0' }} />
                 <div><strong>CLIENTE:</strong> {clientInfo.name}</div>
-                <div><strong>C.I / RIF:</strong> {clientInfo.cedula}</div>
+                <div><strong>C.I / RIF:</strong> {clientInfo.cedula || 'V-00000000'}</div>
+                {clientInfo.address && (
+                  <div><strong>DIR. CLIENTE:</strong> {clientInfo.address}</div>
+                )}
+                {clientInfo.phone && (
+                  <div><strong>TELÉFONO:</strong> {clientInfo.phone}</div>
+                )}
+                <div><strong>CONDICIÓN:</strong> <span className="ticket-bold">{isPaid ? 'CONTADO' : 'CRÉDITO'}</span></div>
                 {clientInfo.type === 'congelador' && (
                   <div><strong>TIPO:</strong> <span className="ticket-bold">CLIENTE CONGELADOR (CRÉDITO)</span></div>
                 )}
-                <div><strong>TASA BCV DÍA:</strong> Bs. {exchangeRate.toFixed(4)} / USD</div>
+                <div style={{ color: '#0369a1' }}><strong>TASA OFICIAL BCV:</strong> Bs. {exchangeRate.toFixed(4)} / USD</div>
               </div>
 
               <div className="ticket-divider" />
@@ -220,7 +262,10 @@ const InvoicePreview = ({ invoice, onClose }) => {
                     return (
                       <tr key={idx}>
                         <td className="ticket-bold">{qty}x</td>
-                        <td>{item.productName || item.name || 'Producto'}</td>
+                        <td>
+                          <div>{item.productName || item.name || 'Producto'}</div>
+                          <div style={{ fontSize: '9px', color: '#64748b' }}>Alic. (G 16.00%)</div>
+                        </td>
                         <td className="ticket-right">${unitPrice.toFixed(2)}</td>
                         <td className="ticket-right ticket-bold">${subtotal.toFixed(2)}</td>
                       </tr>
@@ -231,24 +276,66 @@ const InvoicePreview = ({ invoice, onClose }) => {
 
               <div className="ticket-double-divider" />
 
-              {/* Financial Totals */}
-              <div style={{ fontSize: '13px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
-                  <span>SUBTOTAL ($):</span>
-                  <span>${(totalUSD - (Number(invoice.deliveryFee) || 0)).toFixed(2)}</span>
+              {/* Venezuelan SENIAT Fiscal Summary */}
+              <div style={{ fontSize: '11px', lineHeight: '1.4' }}>
+                <div className="ticket-bold ticket-center" style={{ fontSize: '11px', letterSpacing: '0.4px', marginBottom: '4px' }}>
+                  --- RESUMEN TRIBUTARIO (SENIAT) ---
                 </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
+                  <span>BASE IMPONIBLE (G 16.00%):</span>
+                  <span>${baseImponibleUSD.toFixed(2)} (Bs. {baseImponibleBs.toFixed(2)})</span>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
+                  <span>IVA (16.00%):</span>
+                  <span className="ticket-bold">${ivaUSD.toFixed(2)} (Bs. {ivaBs.toFixed(2)})</span>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0', color: '#64748b' }}>
+                  <span>MONTO EXENTO (0.00%):</span>
+                  <span>$0.00 (Bs. 0.00)</span>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', borderTop: '1px dashed #999', marginTop: '2px' }}>
+                  <span>SUBTOTAL BIENES/SERVICIOS:</span>
+                  <span>${subtotalItemsUSD.toFixed(2)}</span>
+                </div>
+
                 {invoice.deliveryFee > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
-                    <span>FLETE / ENVÍO DELIVERY ($):</span>
-                    <span className="ticket-bold">+${Number(invoice.deliveryFee).toFixed(2)}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0', color: '#0369a1' }}>
+                    <span>FLETE / ENVÍO DELIVERY:</span>
+                    <span className="ticket-bold">+${Number(invoice.deliveryFee).toFixed(2)} (Bs. {(Number(invoice.deliveryFee) * exchangeRate).toFixed(2)})</span>
                   </div>
                 )}
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: '15px' }} className="ticket-bold">
-                  <span>TOTAL USD:</span>
+
+                {/* IGTF 3% Divisas */}
+                {igtfUSD > 0 ? (
+                  <div style={{ background: '#f8fafc', padding: '4px 6px', borderRadius: '4px', margin: '4px 0', border: '1px dashed #cbd5e1' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px' }}>
+                      <span>BASE IGTF (PAGO EN DIVISAS):</span>
+                      <span>${igtfBaseUSD.toFixed(2)} (Bs. {(igtfBaseUSD * exchangeRate).toFixed(2)})</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 'bold' }}>
+                      <span>IGTF PERCIBIDO (3.00%):</span>
+                      <span>${igtfUSD.toFixed(2)} (Bs. {igtfBs.toFixed(2)})</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '9.5px', color: '#059669', fontStyle: 'italic', margin: '3px 0' }}>
+                    * IGTF (3.00%): EXENTO (Pago en Moneda Nacional / Bolívares)
+                  </div>
+                )}
+
+                <div className="ticket-divider" style={{ margin: '4px 0' }} />
+
+                {/* Total General */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: '14px' }} className="ticket-bold">
+                  <span>TOTAL GENERAL USD:</span>
                   <span>${totalUSD.toFixed(2)}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', fontSize: '14px' }} className="ticket-bold">
-                  <span>TOTAL Bs (Tasa {exchangeRate.toFixed(4)}):</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', fontSize: '13px', color: '#b45309' }} className="ticket-bold">
+                  <span>TOTAL OFICIAL Bs (BCV):</span>
                   <span>Bs. {totalBs.toFixed(2)}</span>
                 </div>
               </div>
@@ -322,10 +409,13 @@ const InvoicePreview = ({ invoice, onClose }) => {
 
               <div className="ticket-divider" />
 
-              {/* Footer */}
-              <div className="ticket-center" style={{ fontSize: '11px', marginTop: '6px' }}>
-                <div className="ticket-bold">{CLIENT_CONFIG.receipt.footerGreeting}</div>
-                <div style={{ fontSize: '10px', marginTop: '2px' }}>{CLIENT_CONFIG.receipt.contactNotice}</div>
+              {/* Legal Footer (SENIAT) */}
+              <div className="ticket-center" style={{ fontSize: '9.5px', marginTop: '6px', lineHeight: '1.3' }}>
+                <div className="ticket-bold">DOCUMENTO EMITIDO CONFORME A LAS PROVIDENCIAS ADMINISTRATIVAS DEL SENIAT</div>
+                <div>(SNAT/2011/00071 - SNAT/2022/000013 IGTF)</div>
+                <div className="ticket-bold" style={{ marginTop: '2px' }}>CONTRIBUYENTE ORDINARIO DEL IVA</div>
+                <div style={{ fontSize: '10px', marginTop: '4px', fontWeight: 'bold' }}>{CLIENT_CONFIG.receipt.footerGreeting}</div>
+                <div style={{ fontSize: '9px', marginTop: '2px' }}>{CLIENT_CONFIG.receipt.contactNotice}</div>
                 <div style={{ fontSize: '9px', marginTop: '4px', color: '#555' }}>--------------------------------</div>
               </div>
 

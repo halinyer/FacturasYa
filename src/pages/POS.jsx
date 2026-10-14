@@ -27,7 +27,8 @@ const POS = () => {
     openTabs = [],
     saveOpenTab,
     deleteOpenTab,
-    updateOpenTabStatus
+    updateOpenTabStatus,
+    updateClient
   } = useData() || {};
 
   const [search, setSearch] = useState('');
@@ -236,6 +237,41 @@ const POS = () => {
     setLoadedTableOrder(null);
   };
 
+  const handleSelectClient = (selectedClient) => {
+    setClient(selectedClient);
+    if (selectedClient && selectedClient.id !== 'generic') {
+      setDeliveryInfo(prev => ({
+        ...prev,
+        address: selectedClient.address || prev.address,
+        phone: selectedClient.phone || prev.phone
+      }));
+    }
+  };
+
+  const handleChangeOrderType = (newOrderType) => {
+    setOrderType(newOrderType);
+    if (newOrderType === 'delivery' && client && client.id !== 'generic') {
+      setDeliveryInfo(prev => ({
+        ...prev,
+        address: client.address || prev.address,
+        phone: client.phone || prev.phone
+      }));
+    }
+  };
+
+  const handleSaveClientAddress = (newAddress) => {
+    if (!client || !client.id || client.id === 'generic') return;
+    try {
+      if (typeof updateClient === 'function') {
+        updateClient(client.id, { ...client, address: newAddress });
+      }
+      setClient(prev => ({ ...prev, address: newAddress }));
+      showToast(`Dirección habitual de ${client.name} actualizada con éxito`, 'success');
+    } catch (e) {
+      showToast('Error al guardar la dirección del cliente', 'error');
+    }
+  };
+
   const handleChargeOpenTab = (tab) => {
     setCart(tab.items || []);
     setClient(tab.client || null);
@@ -341,11 +377,33 @@ const POS = () => {
       const changeUSD = totalReceivedUSD > cartTotalUSD ? Number((totalReceivedUSD - cartTotalUSD).toFixed(2)) : 0;
       const changeBs = Number((changeUSD * currentRate).toFixed(2));
 
+      // SENIAT Venezuelan Fiscal Calculations
+      const subtotalItemsUSD = itemsSubtotalUSD;
+      const baseImponibleUSD = Number((subtotalItemsUSD / 1.16).toFixed(2));
+      const ivaUSD = Number((subtotalItemsUSD - baseImponibleUSD).toFixed(2));
+      const baseImponibleBs = Number((baseImponibleUSD * currentRate).toFixed(2));
+      const ivaBs = Number((ivaUSD * currentRate).toFixed(2));
+
+      // IGTF 3% calculation: applies ONLY to foreign currency payments (efectivo_usd, zelle, or foreign fraction of mixed)
+      let igtfBaseUSD = 0;
+      if (finalPaymentMethod === 'efectivo_usd' || finalPaymentMethod === 'zelle') {
+        igtfBaseUSD = Number(cartTotalUSD.toFixed(2));
+      } else if (finalPaymentMethod === 'mixto' && finalMixedPayments) {
+        igtfBaseUSD = Number(((parseFloat(finalMixedPayments.efectivo_usd) || 0) + (parseFloat(finalMixedPayments.zelle) || 0)).toFixed(2));
+      }
+      const igtfUSD = Number((igtfBaseUSD * 0.03).toFixed(2));
+      const igtfBs = Number((igtfUSD * currentRate).toFixed(2));
+      const isIgtfExempt = igtfBaseUSD === 0; // Exento si se paga en Bolívares (Pago Móvil / Efectivo Bs)
+
+      const fiscalControlNumber = `00-${String(Date.now()).slice(-6)}`;
+
       const invoicePayload = {
         clientId: selectedClient.id,
         clientName: selectedClient.name,
         clientCedula: selectedClient.cedula,
         clientType: selectedClient.type || 'normal',
+        clientAddress: selectedClient.address || deliveryInfo?.address || null,
+        clientPhone: selectedClient.phone || deliveryInfo?.phone || null,
         orderType,
         deliveryInfo: orderType === 'delivery' ? deliveryInfo : null,
         deliveryFee: orderType === 'delivery' ? deliveryFee : 0,
@@ -354,8 +412,22 @@ const POS = () => {
           productName: item.name,
           quantity: item.quantity,
           unitPrice: Number(item.priceUSD || item.price || 0),
-          subtotal: Number(((Number(item.priceUSD || item.price || 0)) * item.quantity).toFixed(2))
+          subtotal: Number(((Number(item.priceUSD || item.price || 0)) * item.quantity).toFixed(2)),
+          taxRate: 0.16
         })),
+        subtotalUSD: Number(subtotalItemsUSD.toFixed(2)),
+        subtotalBs: Number((subtotalItemsUSD * currentRate).toFixed(2)),
+        baseImponibleUSD,
+        baseImponibleBs,
+        ivaRate: 0.16,
+        ivaUSD,
+        ivaBs,
+        igtfBaseUSD,
+        igtfRate: 0.03,
+        igtfUSD,
+        igtfBs,
+        isIgtfExempt,
+        fiscalControlNumber,
         totalUSD: Number(cartTotalUSD.toFixed(2)),
         totalBs: Number(cartTotalBs.toFixed(2)),
         exchangeRate: currentRate,
@@ -616,7 +688,8 @@ const POS = () => {
         onRemoveFromCart={removeFromCart}
         onClearCart={handleClearCart}
         client={client}
-        onSelectClient={setClient}
+        onSelectClient={handleSelectClient}
+        onSaveClientAddress={handleSaveClientAddress}
         currentRate={currentRate}
         customRate={customRate}
         onSetCustomRate={handleSetCustomRate}
@@ -643,7 +716,7 @@ const POS = () => {
         pagoMovilRef={pagoMovilRef}
         onChangePagoMovilRef={setPagoMovilRef}
         orderType={orderType}
-        onChangeOrderType={setOrderType}
+        onChangeOrderType={handleChangeOrderType}
         deliveryInfo={deliveryInfo}
         onChangeDeliveryInfo={setDeliveryInfo}
         onSaveOpenTab={handleSaveOpenTab}

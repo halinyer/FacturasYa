@@ -10,7 +10,7 @@ const ClientSearch = ({ onSelect, selected }) => {
   const [customName, setCustomName] = useState('');
   const [customCedula, setCustomCedula] = useState('');
   
-  const [newClient, setNewClient] = useState({ name: '', cedula: '', phone: '', type: 'normal' });
+  const [newClient, setNewClient] = useState({ name: '', cedula: '', phone: '', address: '', type: 'normal' });
   
   const { clients = [], addClient } = useData() || {};
   const wrapperRef = useRef(null);
@@ -65,7 +65,7 @@ const ClientSearch = ({ onSelect, selected }) => {
     if (onSelect) onSelect(created || { ...clientToCreate, id: Date.now().toString() });
     setShowNewForm(false);
     setIsOpen(false);
-    setNewClient({ name: '', cedula: '', phone: '', type: 'normal' });
+    setNewClient({ name: '', cedula: '', phone: '', address: '', type: 'normal' });
   };
 
   // If client is selected
@@ -90,8 +90,10 @@ const ClientSearch = ({ onSelect, selected }) => {
               <div style={{ fontWeight: '800', fontSize: '0.92rem', color: '#111827' }}>
                 {selected.name}
               </div>
-              <div style={{ fontSize: '0.76rem', color: '#6b7280', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ fontSize: '0.76rem', color: '#6b7280', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                 <span>{selected.cedula || 'V-00000000'}</span>
+                {selected.phone && <span>• 📞 {selected.phone}</span>}
+                {selected.address && <span title={selected.address}>• 📍 {selected.address.length > 25 ? selected.address.slice(0, 25) + '...' : selected.address}</span>}
                 <span>•</span>
                 <span style={{ 
                   color: selected.type === 'congelador' ? '#7c3aed' : '#059669', 
@@ -316,6 +318,12 @@ const ClientSearch = ({ onSelect, selected }) => {
               <div style={{ marginBottom: '10px' }}>
                 <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '4px', color: '#6b7280', fontWeight: '600' }}>Teléfono (Opcional)</label>
                 <input type="text" placeholder="Ej: 0414-1234567" value={newClient.phone} onChange={e => setNewClient({...newClient, phone: e.target.value})}
+                  style={{ width: '100%', padding: '8px 10px', background: '#f9fafb', border: '1px solid #d1d5db', borderRadius: '6px', color: '#111827', boxSizing: 'border-box', fontSize: '0.85rem' }} />
+              </div>
+
+              <div style={{ marginBottom: '10px' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '4px', color: '#6b7280', fontWeight: '600' }}>Dirección de Entrega / Domicilio</label>
+                <input type="text" placeholder="Urb, Calle, Casa/Apto, Punto de referencia..." value={newClient.address || ''} onChange={e => setNewClient({...newClient, address: e.target.value})}
                   style={{ width: '100%', padding: '8px 10px', background: '#f9fafb', border: '1px solid #d1d5db', borderRadius: '6px', color: '#111827', boxSizing: 'border-box', fontSize: '0.85rem' }} />
               </div>
 

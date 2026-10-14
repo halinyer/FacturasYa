@@ -66,7 +66,8 @@ const POSInvoiceSidebar = ({
   openTabsCount = 0,
   onOpenTabsModal,
   activeTabName = null,
-  onCancelActiveTab
+  onCancelActiveTab,
+  onSaveClientAddress
 }) => {
   // Calculations with Delivery Fee
   const totalItemsCount = cart.reduce((sum, item) => sum + (item.quantity || 0), 0);
@@ -80,6 +81,31 @@ const POSInvoiceSidebar = ({
 
   const bsFormatted = formatBs(cartTotalBs);
   const bsFontSize = getBsFontSize(bsFormatted);
+
+  const handleOpenWhatsApp = () => {
+    const rawPhone = (deliveryInfo?.phone || client?.phone || '').replace(/\D/g, '');
+    if (!rawPhone) return;
+    let intlPhone = rawPhone;
+    if (intlPhone.startsWith('0')) {
+      intlPhone = '58' + intlPhone.slice(1);
+    } else if (!intlPhone.startsWith('58') && intlPhone.length === 10) {
+      intlPhone = '58' + intlPhone;
+    }
+    
+    const clientName = client?.name || 'Cliente';
+    const itemsList = cart.map(i => `• ${i.quantity}x ${i.name} ($${(Number(i.priceUSD || i.price || 0) * i.quantity).toFixed(2)})`).join('\n');
+    const delFee = parseFloat(deliveryInfo?.deliveryFee) || 0;
+    const msg = `🛵 *PEDIDO DELIVERY - FACTURAPOS*\n` +
+      `Hola *${clientName}*, confirmamos los datos de tu pedido:\n\n` +
+      `📋 *Detalle:* \n${itemsList}\n` +
+      (delFee > 0 ? `🛵 Envío Delivery: $${delFee.toFixed(2)}\n` : '') +
+      `💰 *Total a Pagar:* $${cartTotalUSD.toFixed(2)} (Bs. ${cartTotalBs.toFixed(2)})\n` +
+      `📍 *Dirección de Entrega:* ${deliveryInfo?.address || 'Por confirmar'}\n` +
+      (deliveryInfo?.courier ? `🛵 *Repartidor:* ${deliveryInfo.courier}\n` : '') +
+      `\n¡Gracias por preferirnos!`;
+
+    window.open(`https://wa.me/${intlPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+  };
 
   return (
     <aside className="pos-invoice-sidebar">
@@ -191,45 +217,196 @@ const POSInvoiceSidebar = ({
         </button>
       </div>
 
-      {/* Delivery Form (Only visible when orderType === 'delivery') */}
-      {orderType === 'delivery' && (
-        <div className="pos-delivery-box">
-          <div className="pos-delivery-input-group">
-            <MapPin size={15} color="#0284c7" style={{ flexShrink: 0 }} />
-            <input
-              type="text"
-              placeholder="Dirección de entrega (Urb, Calle, Casa/Apto)..."
-              className="pos-delivery-input"
-              value={deliveryInfo?.address || ''}
-              onChange={(e) => onChangeDeliveryInfo && onChangeDeliveryInfo({ ...deliveryInfo, address: e.target.value })}
-            />
+      {/* Mode Specific: Delivery Form (Opción 1: Centrado en Contactos) vs Normal Client Section */}
+      {orderType === 'delivery' ? (
+        <div style={{
+          padding: '12px 18px',
+          background: '#f0f9ff',
+          borderBottom: '1.5px solid #bae6fd',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '10px',
+          flexShrink: 0
+        }}>
+          {/* Header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.74rem', fontWeight: '800', color: '#0369a1', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <Bike size={14} /> Datos de Envío & Destinatario
+            </span>
+            <span style={{ fontSize: '0.7rem', background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '6px', fontWeight: '700' }}>
+              Delivery
+            </span>
           </div>
 
-          <div className="pos-delivery-row">
-            <div className="pos-delivery-input-group" style={{ flex: 1.2 }}>
+          {/* 1. Client / Contact Selector (PROTAGONISTA) */}
+          <div>
+            <div style={{ fontSize: '0.72rem', fontWeight: '700', color: '#0284c7', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <User size={12} /> Contacto / Cliente Receptor:
+            </div>
+            <ClientSearch onSelect={onSelectClient} selected={client} />
+          </div>
+
+          {/* 2. Dirección de Entrega con botón de guardar como habitual */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <label style={{ fontSize: '0.72rem', fontWeight: '700', color: '#0369a1', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <MapPin size={12} /> Dirección de Entrega:
+              </label>
+              {client && client.id && client.id !== 'generic' && deliveryInfo?.address && deliveryInfo.address.trim() !== (client.address || '').trim() && (
+                <button
+                  type="button"
+                  onClick={() => onSaveClientAddress && onSaveClientAddress(deliveryInfo.address)}
+                  title="Guardar esta nueva dirección en la ficha del cliente"
+                  style={{
+                    background: '#0284c7',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '2px 8px',
+                    fontSize: '0.68rem',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <Bookmark size={11} /> Guardar en contacto
+                </button>
+              )}
+            </div>
+            <div className="pos-delivery-input-group" style={{ background: '#ffffff' }}>
+              <MapPin size={14} color="#0284c7" style={{ flexShrink: 0 }} />
+              <input
+                type="text"
+                placeholder="Urb, Calle, Casa/Apto, Punto de referencia..."
+                className="pos-delivery-input"
+                value={deliveryInfo?.address || ''}
+                onChange={(e) => onChangeDeliveryInfo && onChangeDeliveryInfo({ ...deliveryInfo, address: e.target.value })}
+              />
+            </div>
+          </div>
+
+          {/* 3. Teléfono de contacto con botón directo a WhatsApp */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <label style={{ fontSize: '0.72rem', fontWeight: '700', color: '#0369a1', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Phone size={12} /> Teléfono Contacto:
+              </label>
+              {(deliveryInfo?.phone || client?.phone) && (
+                <button
+                  type="button"
+                  onClick={handleOpenWhatsApp}
+                  title="Abrir chat de WhatsApp con el cliente y enviar detalle del pedido"
+                  style={{
+                    background: '#22c55e',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '2px 8px',
+                    fontSize: '0.68rem',
+                    fontWeight: '800',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <span>📲 WhatsApp</span>
+                </button>
+              )}
+            </div>
+            <div className="pos-delivery-input-group" style={{ background: '#ffffff' }}>
               <Phone size={14} color="#0284c7" style={{ flexShrink: 0 }} />
               <input
                 type="text"
-                placeholder="Teléfono contacto..."
+                placeholder="Ej: 0414-1234567..."
                 className="pos-delivery-input"
                 value={deliveryInfo?.phone || (client?.phone || '')}
                 onChange={(e) => onChangeDeliveryInfo && onChangeDeliveryInfo({ ...deliveryInfo, phone: e.target.value })}
               />
             </div>
+          </div>
 
-            <div className="pos-delivery-input-group" style={{ flex: 1 }}>
+          {/* 4. Repartidor con Chips Rápidos */}
+          <div>
+            <div style={{ fontSize: '0.72rem', fontWeight: '700', color: '#0369a1', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <Bike size={12} /> Repartidor:
+            </div>
+            <div style={{ display: 'flex', gap: '4px', marginBottom: '5px', flexWrap: 'wrap' }}>
+              {['Moto 1', 'Moto 2', 'Yummy', 'PedidosYa'].map(rep => {
+                const isSelected = deliveryInfo?.courier === rep;
+                return (
+                  <button
+                    key={rep}
+                    type="button"
+                    onClick={() => onChangeDeliveryInfo && onChangeDeliveryInfo({ ...deliveryInfo, courier: isSelected ? '' : rep })}
+                    style={{
+                      background: isSelected ? '#0284c7' : '#ffffff',
+                      color: isSelected ? '#ffffff' : '#0369a1',
+                      border: isSelected ? '1px solid #0284c7' : '1px solid #bae6fd',
+                      borderRadius: '6px',
+                      padding: '3px 8px',
+                      fontSize: '0.7rem',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      transition: 'all 0.1s ease'
+                    }}
+                  >
+                    {rep}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="pos-delivery-input-group" style={{ background: '#ffffff' }}>
               <Bike size={14} color="#0284c7" style={{ flexShrink: 0 }} />
               <input
                 type="text"
-                placeholder="Repartidor..."
+                placeholder="Nombre o empresa de repartidor..."
                 className="pos-delivery-input"
                 value={deliveryInfo?.courier || ''}
                 onChange={(e) => onChangeDeliveryInfo && onChangeDeliveryInfo({ ...deliveryInfo, courier: e.target.value })}
               />
             </div>
+          </div>
 
-            <div className="pos-delivery-input-group" style={{ width: '85px', flex: 'none' }} title="Costo de Envío / Delivery en $">
-              <span className="pos-delivery-fee-badge">$ Envío</span>
+          {/* 5. Costo de Envío / Delivery con Chips Rápidos */}
+          <div>
+            <div style={{ fontSize: '0.72rem', fontWeight: '700', color: '#0369a1', marginBottom: '4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <DollarSign size={12} /> Tarifa de Envío ($):
+              </span>
+              <span style={{ fontSize: '0.7rem', color: '#0369a1', fontWeight: '800' }}>
+                Bs. {((parseFloat(deliveryInfo?.deliveryFee) || 0) * currentRate).toFixed(2)}
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: '4px', marginBottom: '5px', flexWrap: 'wrap' }}>
+              {[0, 1, 2, 3, 4].map(fee => {
+                const isSelected = Number(deliveryInfo?.deliveryFee) === fee;
+                return (
+                  <button
+                    key={fee}
+                    type="button"
+                    onClick={() => onChangeDeliveryInfo && onChangeDeliveryInfo({ ...deliveryInfo, deliveryFee: fee })}
+                    style={{
+                      background: isSelected ? '#059669' : '#ffffff',
+                      color: isSelected ? '#ffffff' : '#065f46',
+                      border: isSelected ? '1px solid #059669' : '1px solid #a7f3d0',
+                      borderRadius: '6px',
+                      padding: '3px 8px',
+                      fontSize: '0.7rem',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      transition: 'all 0.1s ease'
+                    }}
+                  >
+                    {fee === 0 ? 'Gratis' : `$${fee}`}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="pos-delivery-input-group" style={{ background: '#ffffff' }}>
+              <span className="pos-delivery-fee-badge">$ Envío:</span>
               <input
                 type="number"
                 step="0.5"
@@ -242,15 +419,15 @@ const POSInvoiceSidebar = ({
             </div>
           </div>
         </div>
-      )}
-
-      {/* 3. Customer Selection */}
-      <div className="pos-client-section">
-        <div className="pos-client-label">
-          <User size={13} /> Cliente / Receptor:
+      ) : (
+        /* 3. Standard Customer Selection for Salón & Llevar */
+        <div className="pos-client-section">
+          <div className="pos-client-label">
+            <User size={13} /> Cliente / Receptor:
+          </div>
+          <ClientSearch onSelect={onSelectClient} selected={client} />
         </div>
-        <ClientSearch onSelect={onSelectClient} selected={client} />
-      </div>
+      )}
 
       {/* 4. Live Exchange Rate Bar */}
       <div className="pos-rate-bar">

@@ -351,11 +351,39 @@ export default function OpenTabsModal({
                               <span style={{ fontWeight: '600' }}>{tab.deliveryInfo.address}</span>
                             </div>
                           )}
-                          <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', color: '#0284c7', fontSize: '0.76rem' }}>
+                          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', color: '#0284c7', fontSize: '0.76rem' }}>
                             {tab.deliveryInfo.phone && (
                               <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 <Phone size={12} /> {tab.deliveryInfo.phone}
                               </span>
+                            )}
+                            {tab.deliveryInfo.phone && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const rawPhone = (tab.deliveryInfo.phone || '').replace(/\D/g, '');
+                                  let intlPhone = rawPhone;
+                                  if (intlPhone.startsWith('0')) intlPhone = '58' + intlPhone.slice(1);
+                                  else if (!intlPhone.startsWith('58') && intlPhone.length === 10) intlPhone = '58' + intlPhone;
+                                  const itemsList = (tab.items || []).map(i => `• ${i.quantity}x ${i.name}`).join('\n');
+                                  const msg = `🛵 *PEDIDO DELIVERY - FACTURAPOS*\n` +
+                                    `Hola *${tab.client?.name || tab.name}*, tu pedido está en preparación/despacho:\n\n` +
+                                    `📋 *Detalle:*\n${itemsList}\n` +
+                                    `💰 *Total:* $${totalUSD.toFixed(2)} (Bs. ${totalBs.toFixed(2)})\n` +
+                                    `📍 *Dirección:* ${tab.deliveryInfo.address || 'Por confirmar'}\n` +
+                                    (tab.deliveryInfo.courier ? `🛵 *Repartidor:* ${tab.deliveryInfo.courier}\n` : '');
+                                  window.open(`https://wa.me/${intlPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+                                }}
+                                title="Enviar comanda y estado por WhatsApp"
+                                style={{
+                                  background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '6px',
+                                  padding: '2px 8px', fontSize: '0.68rem', fontWeight: '800', cursor: 'pointer',
+                                  display: 'inline-flex', alignItems: 'center', gap: '4px'
+                                }}
+                              >
+                                <span>📲 WhatsApp</span>
+                              </button>
                             )}
                             {tab.deliveryInfo.courier && (
                               <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>

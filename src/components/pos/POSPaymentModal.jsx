@@ -41,6 +41,7 @@ const POSPaymentModal = ({
     zelle: ''
   });
   const [isPending, setIsPending] = useState(false);
+  const [refError, setRefError] = useState('');
 
   useEffect(() => {
     if (isOpen) {
@@ -49,6 +50,7 @@ const POSPaymentModal = ({
       setPaymentMethod(isMix ? 'efectivo_usd' : initialPaymentMethod);
       setPagoMovilBank(initialPagoMovilBank || '');
       setPagoMovilRef(initialPagoMovilRef || '');
+      setRefError('');
     }
   }, [isOpen, initialPaymentMethod, initialPagoMovilBank, initialPagoMovilRef]);
 
@@ -68,13 +70,27 @@ const POSPaymentModal = ({
   const isPagoMovilOnly = paymentMethod === 'pago_movil' && !isMixedPayment;
 
   const handleConfirm = () => {
+    const isPayingWithPagoMovil = (paymentMethod === 'pago_movil' || (isMixedPayment && (parseFloat(mixedPayments.pago_movil) || 0) > 0)) && !isPending;
+
+    if (isPayingWithPagoMovil) {
+      const cleanRef = (pagoMovilRef || '').trim();
+      if (cleanRef.length < 4) {
+        if (cleanRef.length === 0) {
+          setRefError('Debes ingresar los 4 dígitos de la referencia.');
+        } else {
+          setRefError(`La referencia debe tener exactamente 4 dígitos (ingresaste solo ${cleanRef.length}).`);
+        }
+        return;
+      }
+    }
+
     onConfirmPayment({
       paymentMethod: isMixedPayment ? 'mixto' : paymentMethod,
       isMixedPayment,
       mixedPayments: isMixedPayment ? mixedPayments : null,
       isPending,
       pagoMovilBank: (paymentMethod === 'pago_movil' || isMixedPayment) ? pagoMovilBank : '',
-      pagoMovilRef: (paymentMethod === 'pago_movil' || isMixedPayment) ? pagoMovilRef : ''
+      pagoMovilRef: (paymentMethod === 'pago_movil' || isMixedPayment) ? (pagoMovilRef || '').trim() : ''
     });
   };
 
@@ -263,34 +279,67 @@ const POSPaymentModal = ({
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span>🔢 Número de Referencia</span>
                 </span>
-                <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: '500' }}>(Opcional - últimos 4 dígitos)</span>
+                <span style={{ 
+                  fontSize: '0.72rem', 
+                  color: refError ? '#dc2626' : (pagoMovilRef.length === 4 ? '#059669' : '#2563eb'), 
+                  fontWeight: '700' 
+                }}>
+                  {pagoMovilRef.length === 4 ? '✓ 4 dígitos' : 'Exactamente 4 dígitos'}
+                </span>
               </label>
               <input
                 type="text"
-                maxLength={12}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={4}
                 placeholder="Ej: 4589"
                 value={pagoMovilRef}
-                onChange={(e) => setPagoMovilRef(e.target.value.replace(/[^0-9a-zA-Z]/g, ''))}
+                onChange={(e) => {
+                  const cleaned = e.target.value.replace(/\D/g, '').slice(0, 4);
+                  setPagoMovilRef(cleaned);
+                  if (refError) setRefError('');
+                }}
                 onKeyDown={handleKeyDown}
                 autoFocus
                 style={{
                   width: '100%',
                   padding: '11px 14px',
                   borderRadius: '12px',
-                  border: '1.5px solid #cbd5e1',
+                  border: refError 
+                    ? '2px solid #ef4444' 
+                    : (pagoMovilRef.length === 4 
+                        ? '2px solid #10b981' 
+                        : (pagoMovilRef.length > 0 ? '2px solid #f59e0b' : '1.5px solid #cbd5e1')),
+                  background: refError ? '#fef2f2' : (pagoMovilRef.length === 4 ? '#f0fdf4' : '#ffffff'),
                   boxSizing: 'border-box',
                   fontWeight: '800',
-                  fontSize: '1.05rem',
-                  letterSpacing: '1px',
+                  fontSize: '1.2rem',
+                  letterSpacing: '4px',
+                  textAlign: 'center',
                   outline: 'none',
-                  transition: 'border-color 0.15s ease'
+                  transition: 'all 0.15s ease'
                 }}
-                onFocus={(e) => e.target.style.borderColor = '#2563eb'}
-                onBlur={(e) => e.target.style.borderColor = '#cbd5e1'}
               />
-              <div style={{ fontSize: '0.73rem', color: '#64748b', marginTop: '4px' }}>
-                Coloca los últimos 4 dígitos del comprobante para verificarlo en Cierre de Caja.
-              </div>
+              {refError ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.76rem', color: '#dc2626', fontWeight: '700', marginTop: '6px' }}>
+                  <AlertTriangle size={14} />
+                  <span>{refError}</span>
+                </div>
+              ) : pagoMovilRef.length > 0 && pagoMovilRef.length < 4 ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: '#d97706', fontWeight: '700', marginTop: '6px' }}>
+                  <AlertTriangle size={14} />
+                  <span>Faltan {4 - pagoMovilRef.length} dígitos ({pagoMovilRef.length} de 4 ingresados)</span>
+                </div>
+              ) : pagoMovilRef.length === 4 ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: '#059669', fontWeight: '700', marginTop: '6px' }}>
+                  <CheckCircle2 size={14} />
+                  <span>Referencia completa (4 dígitos)</span>
+                </div>
+              ) : (
+                <div style={{ fontSize: '0.73rem', color: '#64748b', marginTop: '4px', textAlign: 'center' }}>
+                  Coloca los últimos 4 dígitos del comprobante para verificarlo en Cierre de Caja.
+                </div>
+              )}
             </div>
           </div>
         ) : (
@@ -422,26 +471,62 @@ const POSPaymentModal = ({
                   <label style={{ fontSize: '0.8rem', fontWeight: '800', color: '#1e40af', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span>🔢 Referencia Pago Móvil</span>
                   </label>
-                  <span style={{ fontSize: '0.72rem', color: '#64748b' }}>(Opcional)</span>
+                  <span style={{ 
+                    fontSize: '0.72rem', 
+                    color: refError ? '#dc2626' : (pagoMovilRef.length === 4 ? '#059669' : '#1e40af'), 
+                    fontWeight: '700' 
+                  }}>
+                    {pagoMovilRef.length === 4 ? '✓ 4 dígitos' : 'Exactamente 4 dígitos'}
+                  </span>
                 </div>
                 <input
                   type="text"
-                  maxLength={12}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={4}
                   placeholder="Ej: 4589"
                   value={pagoMovilRef}
-                  onChange={(e) => setPagoMovilRef(e.target.value.replace(/[^0-9a-zA-Z]/g, ''))}
+                  onChange={(e) => {
+                    const cleaned = e.target.value.replace(/\D/g, '').slice(0, 4);
+                    setPagoMovilRef(cleaned);
+                    if (refError) setRefError('');
+                  }}
                   onKeyDown={handleKeyDown}
                   style={{
                     width: '100%',
                     padding: '9px 12px',
                     borderRadius: '10px',
-                    border: '1.5px solid #cbd5e1',
+                    border: refError 
+                      ? '2px solid #ef4444' 
+                      : (pagoMovilRef.length === 4 
+                          ? '2px solid #10b981' 
+                          : (pagoMovilRef.length > 0 ? '2px solid #f59e0b' : '1.5px solid #cbd5e1')),
+                    background: refError ? '#fef2f2' : (pagoMovilRef.length === 4 ? '#f0fdf4' : '#ffffff'),
                     boxSizing: 'border-box',
-                    fontWeight: '700',
-                    fontSize: '0.92rem',
-                    letterSpacing: '1px'
+                    fontWeight: '800',
+                    fontSize: '1.05rem',
+                    letterSpacing: '3px',
+                    textAlign: 'center',
+                    outline: 'none',
+                    transition: 'all 0.15s ease'
                   }}
                 />
+                {refError ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: '#dc2626', fontWeight: '700', marginTop: '4px' }}>
+                    <AlertTriangle size={13} />
+                    <span>{refError}</span>
+                  </div>
+                ) : pagoMovilRef.length > 0 && pagoMovilRef.length < 4 ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.74rem', color: '#d97706', fontWeight: '700', marginTop: '4px' }}>
+                    <AlertTriangle size={13} />
+                    <span>Faltan {4 - pagoMovilRef.length} dígitos ({pagoMovilRef.length} de 4 ingresados)</span>
+                  </div>
+                ) : pagoMovilRef.length === 4 ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.74rem', color: '#059669', fontWeight: '700', marginTop: '4px' }}>
+                    <CheckCircle2 size={13} />
+                    <span>Referencia completa (4 dígitos)</span>
+                  </div>
+                ) : null}
               </div>
             )}
 
