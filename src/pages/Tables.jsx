@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useData } from '../contexts/DataContext';
 import { Utensils, Clock, CheckCircle, AlertCircle, ShoppingCart, Users, Plus, Check, RefreshCw, QrCode, ArrowRight, X, Printer, Edit2, Trash2, Bike, MapPin, Phone, Receipt } from 'lucide-react';
 import QRConnectModal from '../components/QRConnectModal';
 import InvoicePreview from '../components/InvoicePreview';
