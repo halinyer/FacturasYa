@@ -644,6 +644,19 @@ function createLocalServer() {
     res.send(renderWaiterView());
   });
 
+  app.get('/waiter-manifest.json', (req, res) => {
+    res.setHeader('Content-Type', 'application/manifest+json');
+    res.json({
+      name: "FacturaPOS — Comandero",
+      short_name: "Comandero",
+      start_url: "/waiter",
+      display: "standalone",
+      background_color: "#18181b",
+      theme_color: "#601718",
+      orientation: "any"
+    });
+  });
+
   return { app, httpServer, io };
 }
 

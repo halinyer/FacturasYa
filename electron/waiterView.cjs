@@ -6,13 +6,15 @@ function renderWaiterView(initialState) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>FacturaPOS — Comandero de Mesas</title>
-  <link rel="manifest" href="data:application/manifest+json;utf8,{'name':'FacturaPOS Comandero','short_name':'POS Comandas','display':'standalone','start_url':'/waiter'}">
+  <link rel="manifest" href="/waiter-manifest.json">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Comandero">
   <meta name="theme-color" content="#601718">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
-    body { background: #f4f4f7; color: #18181b; height: 100vh; display: flex; flex-direction: column; overflow: hidden; user-select: none; }
+    body { background: #f4f4f7; color: #18181b; height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; user-select: none; overscroll-behavior: none; }
     
     /* Header Diner */
     header { background: #601718; color: #ffffff; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #D52829; box-shadow: 0 4px 12px rgba(96,23,24,0.25); flex-shrink: 0; z-index: 50; }
@@ -174,6 +176,14 @@ function renderWaiterView(initialState) {
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
         <span>Bs. --</span>
       </div>
+      <button id="fullscreenBtn" class="icon-btn" onclick="toggleFullscreen()" title="Pantalla Completa">
+        <svg id="fsEnterIcon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+        </svg>
+        <svg id="fsExitIcon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+          <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
+        </svg>
+      </button>
       <button id="notifBellBtn" class="icon-btn" onclick="openNotifsModal()" title="Avisos de Cocina">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         <span id="notifBadge" class="notif-badge" style="display: none;">0</span>
@@ -275,6 +285,53 @@ function renderWaiterView(initialState) {
         badge.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg><span>Bs. ' + rate.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</span>';
       }
     }
+
+    function toggleFullscreen() {
+      try {
+        const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+        if (!isFs) {
+          const docEl = document.documentElement;
+          if (docEl.requestFullscreen) {
+            docEl.requestFullscreen().catch(function() {});
+          } else if (docEl.webkitRequestFullscreen) {
+            docEl.webkitRequestFullscreen();
+          } else if (docEl.mozRequestFullScreen) {
+            docEl.mozRequestFullScreen();
+          } else if (docEl.msRequestFullscreen) {
+            docEl.msRequestFullscreen();
+          }
+        } else {
+          if (document.exitFullscreen) {
+            document.exitFullscreen().catch(function() {});
+          } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+          } else if (document.mozCancelFullScreen) {
+            document.mozCancelFullScreen();
+          } else if (document.msExitFullscreen) {
+            document.msExitFullscreen();
+          }
+        }
+      } catch (err) {}
+    }
+
+    function updateFullscreenIcons() {
+      const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+      const enterIcon = document.getElementById('fsEnterIcon');
+      const exitIcon = document.getElementById('fsExitIcon');
+      const btn = document.getElementById('fullscreenBtn');
+      if (enterIcon && exitIcon) {
+        enterIcon.style.display = isFs ? 'none' : 'block';
+        exitIcon.style.display = isFs ? 'block' : 'none';
+      }
+      if (btn) {
+        btn.title = isFs ? 'Salir de Pantalla Completa' : 'Pantalla Completa';
+      }
+    }
+
+    document.addEventListener('fullscreenchange', updateFullscreenIcons);
+    document.addEventListener('webkitfullscreenchange', updateFullscreenIcons);
+    document.addEventListener('mozfullscreenchange', updateFullscreenIcons);
+    document.addEventListener('MSFullscreenChange', updateFullscreenIcons);
 
     function playKitchenChime() {
       try {
