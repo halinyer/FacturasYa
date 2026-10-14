@@ -2,6 +2,7 @@ import React from 'react';
 import { X, Printer, CheckCircle, AlertTriangle, Receipt } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { CLIENT_CONFIG } from '../config/clientConfig';
+import { BankLogo, findBank } from '../utils/venezuelaBanks';
 
 const InvoicePreview = ({ invoice, onClose }) => {
   const { clients = [] } = useData() || {};
@@ -231,12 +232,16 @@ const InvoicePreview = ({ invoice, onClose }) => {
               <div style={{ fontSize: '12px' }}>
                 <div><strong>FORMA DE PAGO:</strong> {formatPaymentMethod(paymentMethod)}</div>
                 
-                {(invoice.pagoMovilBank || invoice.pagoMovilRef) && (
-                  <div style={{ fontSize: '11px', marginTop: '2px', color: '#1e293b' }}>
-                    {invoice.pagoMovilBank && <span>Banco: <strong>{invoice.pagoMovilBank}</strong> </span>}
-                    {invoice.pagoMovilRef && <span>| Ref: <strong>#{invoice.pagoMovilRef}</strong></span>}
-                  </div>
-                )}
+                {(invoice.pagoMovilBank || invoice.pagoMovilRef) && (() => {
+                  const bInfo = findBank(invoice.pagoMovilBank);
+                  return (
+                    <div style={{ fontSize: '11px', marginTop: '3px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      {bInfo && <BankLogo code={bInfo.code} size={15} />}
+                      {invoice.pagoMovilBank && <span>Banco: <strong>{invoice.pagoMovilBank}</strong> </span>}
+                      {invoice.pagoMovilRef && <span>| Ref: <strong>#{invoice.pagoMovilRef}</strong></span>}
+                    </div>
+                  );
+                })()}
                 
                 {paymentMethod === 'mixto' && invoice.mixedPayments && (
                   <div style={{ paddingLeft: '8px', marginBottom: '4px', fontSize: '11px' }}>

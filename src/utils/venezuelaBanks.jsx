@@ -177,6 +177,15 @@ export const VZLA_BANKS = [
     borderColor: '#bae6fd'
   },
   {
+    code: '0156',
+    id: '0156',
+    name: '100% Banco',
+    shortName: '100% Banco',
+    color: '#005baa',
+    bg: '#eff6ff',
+    borderColor: '#93c5fd'
+  },
+  {
     code: '0157',
     id: '0157',
     name: 'DELSUR',
@@ -188,132 +197,107 @@ export const VZLA_BANKS = [
 ];
 
 /**
- * Logotipo vectorizado SVG de cada banco para máxima nitidez y rendimiento offline
+ * Logotipo oficial de cada banco (PNG real de alta definición con fondo transparente/blanco adaptativo)
+ * y fallback elegante en caso de código no registrado.
  */
-export const BankLogo = ({ code, size = 26 }) => {
+export const BankLogo = ({ code, size = 26, style = {}, className = '' }) => {
+  const [imgError, setImgError] = React.useState(false);
   const s = size;
 
-  switch (code) {
-    case '0102': // BDV - Banco de Venezuela (Rojo y Amarillo)
-      return (
-        <svg width={s} height={s} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ borderRadius: '7px', flexShrink: 0 }}>
-          <rect width="36" height="36" rx="7" fill="#C8102E" />
-          <path d="M18 7L24 18H12L18 7Z" fill="#FECB00" />
-          <path d="M18 29L12 18H24L18 29Z" fill="#FFFFFF" />
-          <circle cx="18" cy="18" r="3.5" fill="#C8102E" />
+  if (!code || imgError) {
+    return (
+      <span
+        className={className}
+        style={{
+          width: `${s}px`,
+          height: `${s}px`,
+          minWidth: `${s}px`,
+          minHeight: `${s}px`,
+          borderRadius: '6px',
+          background: '#f1f5f9',
+          border: '1px solid #e2e8f0',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#64748b',
+          flexShrink: 0,
+          boxSizing: 'border-box',
+          ...style
+        }}
+      >
+        <svg width={Math.round(s * 0.65)} height={Math.round(s * 0.65)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="3" y1="21" x2="21" y2="21" />
+          <line x1="3" y1="10" x2="21" y2="10" />
+          <polyline points="5 6 12 3 19 6" />
+          <line x1="4" y1="10" x2="4" y2="21" />
+          <line x1="20" y1="10" x2="20" y2="21" />
         </svg>
-      );
-
-    case '0134': // Banesco (Verde institucional con lazo característico)
-      return (
-        <svg width={s} height={s} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ borderRadius: '7px', flexShrink: 0 }}>
-          <rect width="36" height="36" rx="7" fill="#007A3D" />
-          <path d="M8 24C12 24 15 14 21 14C24 14 27 16 28 19C26 13 22 11 18 11C12 11 10 20 8 24Z" fill="#FFFFFF" />
-          <circle cx="24" cy="22" r="3.5" fill="#FECB00" />
-        </svg>
-      );
-
-    case '0105': // Mercantil (Azul oscuro y chispa naranja)
-      return (
-        <svg width={s} height={s} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ borderRadius: '7px', flexShrink: 0 }}>
-          <rect width="36" height="36" rx="7" fill="#002B66" />
-          <circle cx="18" cy="18" r="9" stroke="#FFFFFF" strokeWidth="2.5" fill="none" />
-          <path d="M18 10C22 10 25 13 25 17C22 15 19 14 18 10Z" fill="#FF7900" />
-          <circle cx="18" cy="18" r="3.5" fill="#FF7900" />
-        </svg>
-      );
-
-    case '0108': // BBVA Provincial (Azul BBVA y tipografía)
-      return (
-        <svg width={s} height={s} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ borderRadius: '7px', flexShrink: 0 }}>
-          <rect width="36" height="36" rx="7" fill="#004481" />
-          <text x="18" y="22" textAnchor="middle" fill="#FFFFFF" fontSize="9.5" fontWeight="900" fontFamily="sans-serif" letterSpacing="-0.5px">
-            BBVA
-          </text>
-        </svg>
-      );
-
-    case '0172': // Bancamiga (Verde azulado y lazo infinito amarillo)
-      return (
-        <svg width={s} height={s} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ borderRadius: '7px', flexShrink: 0 }}>
-          <rect width="36" height="36" rx="7" fill="#00A896" />
-          <path d="M11 18C11 15 14 13 16.5 15.5L19.5 18.5C22 21 25 19 25 16C25 13 22 11 19.5 13.5L16.5 16.5C14 19 11 17 11 18Z" stroke="#FECB00" strokeWidth="2.8" strokeLinecap="round" fill="none" />
-        </svg>
-      );
-
-    case '0191': // BNC - Banco Nacional de Crédito (Verde oscuro y naranja)
-      return (
-        <svg width={s} height={s} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ borderRadius: '7px', flexShrink: 0 }}>
-          <rect width="36" height="36" rx="7" fill="#0F5B47" />
-          <rect x="7" y="10" width="22" height="16" rx="3" fill="#EA580C" opacity="0.3" />
-          <text x="18" y="23" textAnchor="middle" fill="#FFFFFF" fontSize="10" fontWeight="900" fontFamily="sans-serif" letterSpacing="0.5px">
-            BNC
-          </text>
-        </svg>
-      );
-
-    case '0114': // Bancaribe (Turquesa con olas)
-      return (
-        <svg width={s} height={s} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ borderRadius: '7px', flexShrink: 0 }}>
-          <rect width="36" height="36" rx="7" fill="#008080" />
-          <path d="M9 16C13 12 17 20 21 16C24 13 27 15 28 17" stroke="#FFFFFF" strokeWidth="2.5" strokeLinecap="round" />
-          <path d="M9 21C13 17 17 25 21 21C24 18 27 20 28 22" stroke="#38BDF8" strokeWidth="2" strokeLinecap="round" />
-        </svg>
-      );
-
-    case '0163': // Banco del Tesoro
-      return (
-        <svg width={s} height={s} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ borderRadius: '7px', flexShrink: 0 }}>
-          <rect width="36" height="36" rx="7" fill="#881337" />
-          <circle cx="18" cy="18" r="8" fill="#F59E0B" opacity="0.9" />
-          <text x="18" y="22" textAnchor="middle" fill="#881337" fontSize="10" fontWeight="900" fontFamily="sans-serif">
-            BT
-          </text>
-        </svg>
-      );
-
-    case '0174': // Banplus
-      return (
-        <svg width={s} height={s} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ borderRadius: '7px', flexShrink: 0 }}>
-          <rect width="36" height="36" rx="7" fill="#0284C7" />
-          <path d="M14 18H22M18 14V22" stroke="#F97316" strokeWidth="3.5" strokeLinecap="round" />
-        </svg>
-      );
-
-    case '0175': // Bicentenario
-      return (
-        <svg width={s} height={s} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ borderRadius: '7px', flexShrink: 0 }}>
-          <rect width="36" height="36" rx="7" fill="#B91C1C" />
-          <text x="18" y="22" textAnchor="middle" fill="#FFFFFF" fontSize="9" fontWeight="900" fontFamily="sans-serif">
-            200
-          </text>
-        </svg>
-      );
-
-    default: // Genérico banco venezolano
-      return (
-        <svg width={s} height={s} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ borderRadius: '7px', flexShrink: 0 }}>
-          <rect width="36" height="36" rx="7" fill="#475569" />
-          <path d="M18 10L10 15V17H26V15L18 10Z" fill="#FFFFFF" />
-          <rect x="12" y="18" width="2.5" height="7" fill="#FFFFFF" />
-          <rect x="17" y="18" width="2.5" height="7" fill="#FFFFFF" />
-          <rect x="22" y="18" width="2.5" height="7" fill="#FFFFFF" />
-          <rect x="9" y="25" width="18" height="2" fill="#FFFFFF" />
-        </svg>
-      );
+      </span>
+    );
   }
+
+  // Soporte universal para dev (/) y Electron production (./)
+  const baseUrl = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.BASE_URL) ? import.meta.env.BASE_URL : './';
+  const cleanBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+  const logoSrc = `${cleanBase}banks/${code}.png`;
+
+  return (
+    <span
+      className={className}
+      style={{
+        width: `${s}px`,
+        height: `${s}px`,
+        minWidth: `${s}px`,
+        minHeight: `${s}px`,
+        borderRadius: '7px',
+        background: '#ffffff',
+        border: '1px solid rgba(0, 0, 0, 0.08)',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+        flexShrink: 0,
+        boxSizing: 'border-box',
+        padding: '2px',
+        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+        ...style
+      }}
+    >
+      <img
+        src={logoSrc}
+        alt={`Banco ${code}`}
+        onError={() => setImgError(true)}
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'contain',
+          display: 'block'
+        }}
+      />
+    </span>
+  );
 };
 
 /**
- * Busca un banco a partir de su código, nombre corto o id
+ * Busca un banco a partir de su código, nombre corto, id o texto compuesto (ej: "0134 - Banesco")
  */
 export function findBank(query) {
   if (!query) return null;
   const q = String(query).trim().toLowerCase();
-  return VZLA_BANKS.find(b => 
+
+  // 1. Coincidencia exacta por código, id o nombre corto
+  const exact = VZLA_BANKS.find(b => 
     b.code === q ||
     b.id.toLowerCase() === q ||
     b.shortName.toLowerCase() === q ||
-    b.name.toLowerCase().includes(q)
+    b.name.toLowerCase() === q
+  );
+  if (exact) return exact;
+
+  // 2. Coincidencia si contiene el código o nombre
+  return VZLA_BANKS.find(b => 
+    q.includes(b.code) ||
+    b.name.toLowerCase().includes(q) ||
+    q.includes(b.shortName.toLowerCase())
   ) || null;
 }

@@ -455,7 +455,7 @@ export default function CashClose() {
                                 fontWeight: '700',
                                 width: 'fit-content'
                               }}>
-                                {bInfo && <BankLogo code={bInfo.code} size={15} />}
+                                {bInfo && <BankLogo code={bInfo.code} size={18} />}
                                 {inv.pagoMovilBank && <span>{inv.pagoMovilBank}</span>}
                                 {inv.pagoMovilRef && <span>#{inv.pagoMovilRef}</span>}
                               </span>
