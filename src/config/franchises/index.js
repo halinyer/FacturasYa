@@ -17,10 +17,10 @@ export const FRANCHISES = {
  */
 export function getActiveFranchise() {
   const savedId = typeof window !== 'undefined' ? localStorage.getItem('pos_active_franchise') : null;
-  if (savedId && FRANCHISES[savedId]) {
+  if (savedId && FRANCHISES[savedId] && savedId !== 'facturapos') {
     return FRANCHISES[savedId];
   }
-  return FRANCHISES.facturapos;
+  return FRANCHISES.happydays;
 }
 
 /**

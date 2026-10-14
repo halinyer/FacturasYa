@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import ClientSearch from '../ClientSearch';
 import { formatUSD, formatBs, getBsFontSize } from '../../utils/currency';
+import { getAssetUrl } from '../../utils/assetHelper';
 import { VZLA_BANKS } from '../../utils/venezuelaBanks';
 import './POSInvoiceSidebar.css';
 
@@ -480,7 +481,7 @@ const POSInvoiceSidebar = ({
                 {/* Thumbnail */}
                 <div className="pos-item-thumb">
                   {itemImage ? (
-                    <img src={itemImage} alt={item.name} loading="lazy" />
+                    <img src={getAssetUrl(itemImage)} alt={item.name} loading="lazy" />
                   ) : (
                     <Receipt size={22} color="#94a3b8" />
                   )}

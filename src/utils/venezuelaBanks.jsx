@@ -1,4 +1,5 @@
 import React from 'react';
+import { getAssetUrl } from './assetHelper';
 
 /**
  * Catálogo oficial de Bancos de Venezuela con sus códigos oficiales de 4 dígitos (SUDEBAN/BCV),
@@ -237,9 +238,7 @@ export const BankLogo = ({ code, size = 26, style = {}, className = '' }) => {
   }
 
   // Soporte universal para dev (/) y Electron production (./)
-  const baseUrl = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.BASE_URL) ? import.meta.env.BASE_URL : './';
-  const cleanBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
-  const logoSrc = `${cleanBase}banks/${code}.png`;
+  const logoSrc = getAssetUrl(`banks/${code}.png`);
 
   return (
     <span

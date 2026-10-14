@@ -5,6 +5,7 @@ import { useData } from '../contexts/DataContext';
 import { ShoppingCart, LayoutDashboard, Users, Package, Calculator, LogOut, Database, Download, Upload, CheckCircle, AlertCircle, X, QrCode, Utensils, Sliders } from 'lucide-react';
 import QRConnectModal from './QRConnectModal';
 import { CLIENT_CONFIG } from '../config/clientConfig';
+import { getAssetUrl } from '../utils/assetHelper';
 import './Sidebar.css';
 
 const Sidebar = () => {
@@ -65,7 +66,7 @@ const Sidebar = () => {
         <div className="brand">
           <div className="brand-icon">
             {CLIENT_CONFIG.branding.logoImage ? (
-              <img src={CLIENT_CONFIG.branding.logoImage} alt="Logo" />
+              <img src={getAssetUrl(CLIENT_CONFIG.branding.logoImage)} alt="Logo" />
             ) : (
               <span>{CLIENT_CONFIG.branding.logoIcon}</span>
             )}

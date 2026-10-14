@@ -8,7 +8,7 @@ export const seedProducts = [
     priceUSD: 5.99, 
     sku: 'CMB-001', 
     active: true, 
-    image: '/happydays/combo_2_burger_mini.jpg',
+    image: './happydays/combo_2_burger_mini.jpg',
     description: '2 Mini Burgers + 1 Refresco Bombita'
   },
   { 
@@ -18,7 +18,7 @@ export const seedProducts = [
     priceUSD: 14.99, 
     sku: 'CMB-002', 
     active: true, 
-    image: '/happydays/combo_4_burger_pana.jpg',
+    image: './happydays/combo_4_burger_pana.jpg',
     description: '4 Mini Burgers + 2 Papas Fritas'
   },
   { 
@@ -28,7 +28,7 @@ export const seedProducts = [
     priceUSD: 21.99, 
     sku: 'CMB-003', 
     active: true, 
-    image: '/happydays/combo_happy_panita.jpg',
+    image: './happydays/combo_happy_panita.jpg',
     description: '4 Piezas de Pollo Frito + 2 Pollo Cheese + 2 Papas Fritas + 1 Refresco 1Lt'
   },
   { 
@@ -38,7 +38,7 @@ export const seedProducts = [
     priceUSD: 24.99, 
     sku: 'CMB-004', 
     active: true, 
-    image: '/happydays/combo_full_burger_happy.jpg',
+    image: './happydays/combo_full_burger_happy.jpg',
     description: '4 Burger Gourmet (Carne o Pollo) + 1/2 Kg Papas Fritas + Tequeños + 1 Refresco 1Lt'
   },
   { 
@@ -48,7 +48,7 @@ export const seedProducts = [
     priceUSD: 24.99, 
     sku: 'CMB-005', 
     active: true, 
-    image: '/happydays/combo_full_pollo_happy.jpg',
+    image: './happydays/combo_full_pollo_happy.jpg',
     description: '8 Piezas de Pollo + Tequeños + 2 Ensaladas + 4 Papas Fritas + 1 Refresco 1Lt'
   },
   { 
@@ -58,7 +58,7 @@ export const seedProducts = [
     priceUSD: 34.99, 
     sku: 'CMB-006', 
     active: true, 
-    image: '/happydays/combo_club_house_happy.jpg',
+    image: './happydays/combo_club_house_happy.jpg',
     description: '4 Hamburguesas + 1 MEGA Club House + Ración de Tequeños + 1 Refresco 1.5Lt'
   },
   { 
@@ -68,7 +68,7 @@ export const seedProducts = [
     priceUSD: 49.99, 
     sku: 'CMB-007', 
     active: true, 
-    image: '/happydays/combo_happy_familiar.jpg',
+    image: './happydays/combo_happy_familiar.jpg',
     description: '6 Hamburguesas + 6 Piezas de Pollo + Papas Fritas + Tequeños + 1 Ensalada César + 1 Refresco 2Lt'
   },
   { 
@@ -78,7 +78,7 @@ export const seedProducts = [
     priceUSD: 49.99, 
     sku: 'CMB-008', 
     active: true, 
-    image: '/happydays/combo_parrilla_happy.jpg',
+    image: './happydays/combo_parrilla_happy.jpg',
     description: '4 Hamburguesas + 1 Parrilla Mixta + 1 Refresco 2Lt'
   },
 
@@ -181,46 +181,251 @@ export const seedProducts = [
     active: true 
   },
 
-  // --- BEBIDAS ---
+  // --- REFRESCOS Y BEBIDAS (Catálogo Oficial con Imágenes Reales) ---
+  // Coca-Cola
   { 
-    id: 'hd_prod_20', 
-    name: 'Refresco Bombita', 
-    category: 'Bebidas', 
-    priceUSD: 1.00, 
-    sku: 'BEB-001', 
-    active: true 
+    id: 'hd_prod_coca_lata', 
+    name: 'Coca-Cola Original (Lata 355ml)', 
+    category: 'Refrescos y Bebidas', 
+    priceUSD: 1.50, 
+    sku: 'REF-CC-001', 
+    active: true,
+    image: './happydays/drinks/coca_cola_lata_355ml.jpg',
+    description: 'Refresco Coca-Cola Sabor Original en lata 355ml fría'
   },
   { 
-    id: 'hd_prod_21', 
-    name: 'Refresco 1 Litro', 
-    category: 'Bebidas', 
+    id: 'hd_prod_coca_500', 
+    name: 'Coca-Cola Botella 500ml', 
+    category: 'Refrescos y Bebidas', 
     priceUSD: 1.80, 
-    sku: 'BEB-002', 
-    active: true 
+    sku: 'REF-CC-002', 
+    active: true,
+    image: './happydays/drinks/coca_cola_botella_500ml.jpg',
+    description: 'Coca-Cola presentación personal 500ml PET'
   },
   { 
-    id: 'hd_prod_22', 
-    name: 'Refresco 1.5 Litros', 
-    category: 'Bebidas', 
-    priceUSD: 2.20, 
-    sku: 'BEB-003', 
-    active: true 
+    id: 'hd_prod_coca_15l', 
+    name: 'Coca-Cola Botella 1.5 Litros', 
+    category: 'Refrescos y Bebidas', 
+    priceUSD: 2.50, 
+    sku: 'REF-CC-003', 
+    active: true,
+    image: './happydays/drinks/coca_cola_botella_1.5l.jpg',
+    description: 'Coca-Cola tamaño mediano 1.5 Litros'
   },
   { 
-    id: 'hd_prod_23', 
-    name: 'Refresco 2 Litros', 
-    category: 'Bebidas', 
-    priceUSD: 2.80, 
-    sku: 'BEB-004', 
-    active: true 
+    id: 'hd_prod_coca_2l', 
+    name: 'Coca-Cola Botella 2 Litros', 
+    category: 'Refrescos y Bebidas', 
+    priceUSD: 3.00, 
+    sku: 'REF-CC-004', 
+    active: true,
+    image: './happydays/drinks/coca_cola_botella_2l.jpg',
+    description: 'Coca-Cola tamaño familiar 2 Litros'
   },
   { 
-    id: 'hd_prod_24', 
-    name: 'Agua Mineral', 
-    category: 'Bebidas', 
+    id: 'hd_prod_coca_zero', 
+    name: 'Coca-Cola Sin Azúcar (Lata 355ml)', 
+    category: 'Refrescos y Bebidas', 
+    priceUSD: 1.50, 
+    sku: 'REF-CC-005', 
+    active: true,
+    image: './happydays/drinks/coca_cola_zero_lata.jpg',
+    description: 'Coca-Cola Zero Sugar sin calorías en lata 355ml'
+  },
+
+  // 7Up
+  { 
+    id: 'hd_prod_7up_lata', 
+    name: '7Up (Lata 355ml)', 
+    category: 'Refrescos y Bebidas', 
+    priceUSD: 1.50, 
+    sku: 'REF-7UP-001', 
+    active: true,
+    image: './happydays/drinks/7up_lata_355ml.jpg',
+    description: 'Refresco 7Up lima-limón en lata 355ml'
+  },
+  { 
+    id: 'hd_prod_7up_15l', 
+    name: '7Up Botella 1.5 Litros', 
+    category: 'Refrescos y Bebidas', 
+    priceUSD: 2.50, 
+    sku: 'REF-7UP-002', 
+    active: true,
+    image: './happydays/drinks/7up_botella_1.5l.jpg',
+    description: '7Up lima-limón en botella 1.5 Litros'
+  },
+  { 
+    id: 'hd_prod_7up_2l', 
+    name: '7Up Botella 2 Litros', 
+    category: 'Refrescos y Bebidas', 
+    priceUSD: 3.00, 
+    sku: 'REF-7UP-003', 
+    active: true,
+    image: './happydays/drinks/7up_botella_2l.jpg',
+    description: '7Up lima-limón tamaño familiar 2 Litros'
+  },
+
+  // Pepsi
+  { 
+    id: 'hd_prod_pepsi_lata', 
+    name: 'Pepsi Cola (Lata 355ml)', 
+    category: 'Refrescos y Bebidas', 
+    priceUSD: 1.50, 
+    sku: 'REF-PEP-001', 
+    active: true,
+    image: './happydays/drinks/pepsi_lata_355ml.jpg',
+    description: 'Refresco Pepsi Cola en lata 355ml fría'
+  },
+  { 
+    id: 'hd_prod_pepsi_15l', 
+    name: 'Pepsi Botella 1.5 Litros', 
+    category: 'Refrescos y Bebidas', 
+    priceUSD: 2.50, 
+    sku: 'REF-PEP-002', 
+    active: true,
+    image: './happydays/drinks/pepsi_botella_1.5l.jpg',
+    description: 'Pepsi Cola en botella 1.5 Litros'
+  },
+  { 
+    id: 'hd_prod_pepsi_2l', 
+    name: 'Pepsi Botella 2 Litros', 
+    category: 'Refrescos y Bebidas', 
+    priceUSD: 3.00, 
+    sku: 'REF-PEP-003', 
+    active: true,
+    image: './happydays/drinks/pepsi_botella_2l.jpg',
+    description: 'Pepsi Cola tamaño familiar 2 Litros'
+  },
+
+  // Frescolita
+  { 
+    id: 'hd_prod_frescolita_lata', 
+    name: 'Frescolita (Lata 355ml)', 
+    category: 'Refrescos y Bebidas', 
+    priceUSD: 1.50, 
+    sku: 'REF-FRS-001', 
+    active: true,
+    image: './happydays/drinks/frescolita_lata_355ml.jpg',
+    description: 'Tradicional refresco Frescolita en lata 355ml'
+  },
+  { 
+    id: 'hd_prod_frescolita_15l', 
+    name: 'Frescolita Botella 1.5 Litros', 
+    category: 'Refrescos y Bebidas', 
+    priceUSD: 2.50, 
+    sku: 'REF-FRS-002', 
+    active: true,
+    image: './happydays/drinks/frescolita_botella_1.5l.jpg',
+    description: 'Frescolita tamaño 1.5 Litros'
+  },
+  { 
+    id: 'hd_prod_frescolita_2l', 
+    name: 'Frescolita Botella 2 Litros', 
+    category: 'Refrescos y Bebidas', 
+    priceUSD: 3.00, 
+    sku: 'REF-FRS-003', 
+    active: true,
+    image: './happydays/drinks/frescolita_botella_2l.jpg',
+    description: 'Frescolita tamaño familiar 2 Litros'
+  },
+
+  // Chinotto
+  { 
+    id: 'hd_prod_chinotto_lata', 
+    name: 'Chinotto (Lata 355ml)', 
+    category: 'Refrescos y Bebidas', 
+    priceUSD: 1.50, 
+    sku: 'REF-CHN-001', 
+    active: true,
+    image: './happydays/drinks/chinotto_lata_355ml.jpg',
+    description: 'Refresco Chinotto lima-limón en lata 355ml'
+  },
+  { 
+    id: 'hd_prod_chinotto_15l', 
+    name: 'Chinotto Botella 1.5 Litros', 
+    category: 'Refrescos y Bebidas', 
+    priceUSD: 2.50, 
+    sku: 'REF-CHN-002', 
+    active: true,
+    image: './happydays/drinks/chinotto_botella_1.5l.jpg',
+    description: 'Chinotto lima-limón botella 1.5 Litros'
+  },
+
+  // Hit
+  { 
+    id: 'hd_prod_hit_naranja_lata', 
+    name: 'Hit Naranja (Lata 355ml)', 
+    category: 'Refrescos y Bebidas', 
+    priceUSD: 1.50, 
+    sku: 'REF-HIT-001', 
+    active: true,
+    image: './happydays/drinks/hit_naranja_lata.jpg',
+    description: 'Refresco Hit sabor Naranja en lata 355ml'
+  },
+  { 
+    id: 'hd_prod_hit_naranja_15l', 
+    name: 'Hit Naranja Botella 1.5 Litros', 
+    category: 'Refrescos y Bebidas', 
+    priceUSD: 2.50, 
+    sku: 'REF-HIT-002', 
+    active: true,
+    image: './happydays/drinks/hit_naranja_botella_1.5l.jpg',
+    description: 'Refresco Hit sabor Naranja botella 1.5 Litros'
+  },
+  { 
+    id: 'hd_prod_hit_uva_lata', 
+    name: 'Hit Uva (Lata 355ml)', 
+    category: 'Refrescos y Bebidas', 
+    priceUSD: 1.50, 
+    sku: 'REF-HIT-003', 
+    active: true,
+    image: './happydays/drinks/hit_uva_lata.jpg',
+    description: 'Refresco Hit sabor Uva en lata 355ml'
+  },
+
+  // Maltín Polar
+  { 
+    id: 'hd_prod_maltin_lata', 
+    name: 'Maltín Polar (Lata 355ml)', 
+    category: 'Refrescos y Bebidas', 
+    priceUSD: 1.50, 
+    sku: 'REF-MAL-001', 
+    active: true,
+    image: './happydays/drinks/maltin_polar_lata.jpg',
+    description: 'Maltín Polar tradicional en lata 355ml'
+  },
+  { 
+    id: 'hd_prod_maltin_botella', 
+    name: 'Maltín Polar (Botella)', 
+    category: 'Refrescos y Bebidas', 
+    priceUSD: 1.50, 
+    sku: 'REF-MAL-002', 
+    active: true,
+    image: './happydays/drinks/maltin_polar_botella.jpg',
+    description: 'Maltín Polar en botella retornable/vidrio'
+  },
+
+  // Agua Mineral
+  { 
+    id: 'hd_prod_agua_600', 
+    name: 'Agua Mineral 600ml', 
+    category: 'Refrescos y Bebidas', 
     priceUSD: 1.00, 
-    sku: 'BEB-005', 
-    active: true 
+    sku: 'REF-AGU-001', 
+    active: true,
+    image: './happydays/drinks/agua_mineral_botella.jpg',
+    description: 'Agua mineral natural sin gas 600ml'
+  },
+  { 
+    id: 'hd_prod_agua_15l', 
+    name: 'Agua Mineral 1.5 Litros', 
+    category: 'Refrescos y Bebidas', 
+    priceUSD: 1.80, 
+    sku: 'REF-AGU-002', 
+    active: true,
+    image: './happydays/drinks/agua_mineral_botella.jpg',
+    description: 'Agua mineral natural sin gas botella 1.5 Litros'
   }
 ];
 
@@ -255,13 +460,27 @@ export function initializeSeedData() {
   // Detectar si la base de datos aún tiene datos viejos o de la heladería
   const hasOldData = existingProducts.some(p => p.sku === 'BAR-001' || p.id === 'prod_1' || p.category === 'Barquillas');
 
-  if (currentSeedVersion !== 'happydays_v1' || hasOldData || existingProducts.length === 0) {
-    db.rawSet('pos_client_brand', 'happydays_v1');
+  if (currentSeedVersion !== 'happydays_v2_drinks' || hasOldData || existingProducts.length === 0) {
+    db.rawSet('pos_client_brand', 'happydays_v2_drinks');
     db.rawSet('pos_products', seedProducts);
-    db.rawSet('pos_clients', seedClients);
-    db.rawSet('pos_invoices', seedInvoices);
-    db.rawSet('pos_payments', seedPayments);
-    db.rawSet('pos_cash_closes', seedCashCloses);
-    console.log('[HappyDays] Inicialización limpia de catálogo y base de datos de Happy Days.');
+    if (!existingProducts || existingProducts.length === 0) {
+      db.rawSet('pos_clients', seedClients);
+      db.rawSet('pos_invoices', seedInvoices);
+      db.rawSet('pos_payments', seedPayments);
+      db.rawSet('pos_cash_closes', seedCashCloses);
+    }
+    console.log('[HappyDays] Inicialización de catálogo Happy Days v2 con refrescos e imágenes universales.');
+  } else {
+    // Migración automática de URLs de imágenes para resolver el problema de rutas absolutas en file://
+    let modified = false;
+    existingProducts.forEach(p => {
+      if (p.image && typeof p.image === 'string' && p.image.startsWith('/')) {
+        p.image = `.${p.image}`;
+        modified = true;
+      }
+    });
+    if (modified) {
+      db.rawSet('pos_products', existingProducts);
+    }
   }
 }

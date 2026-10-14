@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef } from 'react';
 import { Search, Plus, Edit2, ToggleLeft, ToggleRight, CheckCircle, AlertCircle, Package, ImagePlus, Trash2, RefreshCw } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { compressImage } from '../utils/imageUtils';
+import { getAssetUrl } from '../utils/assetHelper';
 
 const Products = () => {
   const { products = [], addProduct, updateProduct } = useData() || {};
@@ -188,7 +189,7 @@ const Products = () => {
                   {p.image ? (
                     <div style={{ width: '44px', height: '44px', borderRadius: '8px', border: '1px solid #e5e7eb', background: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '2px', boxSizing: 'border-box' }}>
                       <img 
-                        src={p.image} 
+                        src={getAssetUrl(p.image)} 
                         alt={p.name} 
                         style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center', display: 'block' }} 
                       />
@@ -277,7 +278,7 @@ const Products = () => {
                     {imageLoading ? (
                       <span style={{ fontSize: '0.75rem', color: '#d97706' }}>Cargando...</span>
                     ) : formData.image ? (
-                      <img src={formData.image} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center', display: 'block' }} />
+                      <img src={getAssetUrl(formData.image)} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center', display: 'block' }} />
                     ) : (
                       <>
                         <ImagePlus size={24} color="#9ca3af" />

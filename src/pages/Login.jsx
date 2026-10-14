@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Shield, User, Lock, ArrowRight } from 'lucide-react';
 import { CLIENT_CONFIG } from '../config/clientConfig';
+import { getAssetUrl } from '../utils/assetHelper';
 
 const Login = () => {
   const [role, setRole] = useState('cajero');
@@ -70,7 +71,7 @@ const Login = () => {
           {CLIENT_CONFIG.branding.logoImage && (
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
               <img 
-                src={CLIENT_CONFIG.branding.logoImage} 
+                src={getAssetUrl(CLIENT_CONFIG.branding.logoImage)} 
                 alt={CLIENT_CONFIG.branding.logoText} 
                 style={{ width: '80px', height: '80px', objectFit: 'contain', filter: 'drop-shadow(0 4px 12px rgba(213, 40, 41, 0.25))' }}
               />

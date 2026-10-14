@@ -12,7 +12,7 @@ export const happydays = {
 
   branding: {
     logoText: 'Happy Days',
-    logoImage: '/happydays/logo.png',
+    logoImage: './happydays/logo.png',
     logoIcon: '🍔',
     badge: 'HD',
     colors: {

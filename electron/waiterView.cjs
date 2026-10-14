@@ -1669,7 +1669,8 @@ function renderWaiterView(initialState) {
 
       return prods.map(function(p) {
         const hasImg = p.image && typeof p.image === 'string' && p.image.trim().length > 4;
-        const safeImg = hasImg ? p.image.replace(/"/g, '&quot;') : '';
+        let safeImg = hasImg ? p.image.replace(/"/g, '&quot;') : '';
+        if (safeImg.startsWith('./')) safeImg = '/' + safeImg.substring(2);
         const safeName = (p.name || 'Producto').replace(/"/g, '&quot;');
         const inCartItem = currentCart.find(function(i) { return i.id === p.id; });
         const usdPrice = Number(p.priceUSD || 0);
@@ -1824,10 +1825,11 @@ function renderWaiterView(initialState) {
           '<div id="cartModalItemsList" style="flex:1; overflow-y:auto; max-height:48vh; padding-right:4px;">' +
             currentCart.map(function(i) {
               const hasImg = i.image && typeof i.image === 'string' && i.image.length > 4;
+              let itemImg = hasImg ? (i.image.startsWith('./') ? '/' + i.image.substring(2) : i.image) : '';
               return '<div class="cart-item-row" id="cartRow_' + i.id + '">' +
                 '<div class="cart-thumb">' +
                   (hasImg 
-                    ? '<img src="' + i.image + '" style="width:100%; height:100%; object-fit:contain;" onerror="handleProdImgError(this)">' 
+                    ? '<img src="' + itemImg + '" style="width:100%; height:100%; object-fit:contain;" onerror="handleProdImgError(this)">' 
                     : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D6862B" stroke-width="2"><path d="M3 11c0-3.3 2.7-6 6-6h6c3.3 0 6 2.7 6 6v1H3v-1Z"/><path d="M3 16h18v2a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-2Z"/></svg>'
                   ) +
                 '</div>' +

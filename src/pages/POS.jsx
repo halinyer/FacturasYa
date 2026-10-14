@@ -13,6 +13,7 @@ import POSInvoiceSidebar from '../components/pos/POSInvoiceSidebar';
 import POSPaymentModal from '../components/pos/POSPaymentModal';
 import InvoicePreview from '../components/InvoicePreview';
 import OpenTabsModal from '../components/pos/OpenTabsModal';
+import { getAssetUrl } from '../utils/assetHelper';
 
 const POS = () => {
   const navigate = useNavigate();
@@ -634,7 +635,7 @@ const POS = () => {
                   }}>
                     {product.image ? (
                       <img
-                        src={product.image}
+                        src={getAssetUrl(product.image)}
                         alt={product.name}
                         loading="lazy"
                         style={{
