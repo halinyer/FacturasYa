@@ -29,6 +29,9 @@ const POS = () => {
   const [activeCategory, setActiveCategory] = useState('Todos');
   const [cart, setCart] = useState([]);
   const [client, setClient] = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState('efectivo_usd');
+  const [pagoMovilBank, setPagoMovilBank] = useState('');
+  const [pagoMovilRef, setPagoMovilRef] = useState('');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [lastInvoice, setLastInvoice] = useState(null);
@@ -90,7 +93,7 @@ const POS = () => {
         const rate = await loadExchangeRate(true);
         if (rate && Number(rate) > 100) {
           setCustomRate('');
-          showToast(`Tasa oficial BCV actualizada a Bs. ${Number(rate).toFixed(2)}`, 'success');
+          showToast(`Tasa oficial BCV actualizada a Bs. ${Number(rate).toFixed(4)}`, 'success');
         } else {
           showToast('No se pudo conectar con el servidor, manteniendo tasa actual', 'error');
         }
@@ -174,7 +177,14 @@ const POS = () => {
   };
 
   // Payment Confirmation -> Emits Nota de Entrega
-  const handleConfirmPayment = ({ paymentMethod, isMixedPayment, mixedPayments, isPending }) => {
+  const handleConfirmPayment = ({ 
+    paymentMethod: methodFromModal, 
+    isMixedPayment, 
+    mixedPayments, 
+    isPending,
+    pagoMovilBank: bankFromModal,
+    pagoMovilRef: refFromModal
+  }) => {
     if (cart.length === 0) {
       showToast('El pedido está vacío. Agrega al menos un producto.', 'error');
       return;
@@ -185,9 +195,12 @@ const POS = () => {
       const isClientCongelador = selectedClient.type === 'congelador';
       const status = (isPending && isClientCongelador) ? 'pending' : 'paid';
 
-      let finalPaymentMethod = paymentMethod;
+      let finalPaymentMethod = methodFromModal || paymentMethod;
       let finalMixedPayments = null;
       let totalReceivedUSD = cartTotalUSD;
+
+      const finalBank = bankFromModal !== undefined ? bankFromModal : pagoMovilBank;
+      const finalRef = refFromModal !== undefined ? refFromModal : pagoMovilRef;
 
       if (isMixedPayment && mixedPayments) {
         finalPaymentMethod = 'mixto';
@@ -230,6 +243,8 @@ const POS = () => {
         exchangeRate: currentRate,
         paymentMethod: finalPaymentMethod,
         mixedPayments: finalMixedPayments,
+        pagoMovilBank: (finalPaymentMethod === 'pago_movil' || finalPaymentMethod === 'mixto') ? (finalBank || null) : null,
+        pagoMovilRef: (finalPaymentMethod === 'pago_movil' || finalPaymentMethod === 'mixto') ? (finalRef || null) : null,
         receivedAmount: status === 'pending' ? 0 : totalReceivedUSD,
         changeUSD,
         changeBs,
@@ -251,6 +266,9 @@ const POS = () => {
       setLastInvoice(created || invoicePayload);
       setCart([]);
       setClient(null);
+      setPagoMovilBank('');
+      setPagoMovilRef('');
+      setPaymentMethod('efectivo_usd');
       setShowPaymentModal(false);
       showToast('¡Nota de Entrega registrada con éxito!', 'success');
       setShowPreview(true);
@@ -487,6 +505,12 @@ const POS = () => {
         }}
         onGenerateNotaEntrega={() => setShowPaymentModal(true)}
         products={products}
+        paymentMethod={paymentMethod}
+        onSelectPaymentMethod={setPaymentMethod}
+        pagoMovilBank={pagoMovilBank}
+        onSelectPagoMovilBank={setPagoMovilBank}
+        pagoMovilRef={pagoMovilRef}
+        onChangePagoMovilRef={setPagoMovilRef}
       />
 
       {/* Payment Confirmation Modal */}
@@ -497,6 +521,9 @@ const POS = () => {
         currentRate={currentRate}
         client={client}
         onConfirmPayment={handleConfirmPayment}
+        initialPaymentMethod={paymentMethod}
+        initialPagoMovilBank={pagoMovilBank}
+        initialPagoMovilRef={pagoMovilRef}
       />
 
       {/* Printable Thermal Receipt Modal */}

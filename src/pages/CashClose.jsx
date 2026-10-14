@@ -13,13 +13,14 @@ import {
 import InvoicePreview from '../components/InvoicePreview';
 
 export default function CashClose() {
-  const { invoices = [], cashCloses = [], createCashClose, clients = [] } = useData() || {};
+  const { invoices = [], cashCloses = [], createCashClose, clients = [], exchangeRate = 876.80 } = useData() || {};
   const [activeTab, setActiveTab] = useState('cierre'); // 'cierre' or 'historial'
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [showConfirm, setShowConfirm] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [toast, setToast] = useState(null);
   const [physicalCountUSD, setPhysicalCountUSD] = useState('');
+  const [physicalCountBs, setPhysicalCountBs] = useState('');
 
   const getClientName = (inv) => {
     if (inv.clientName) return inv.clientName;
@@ -42,6 +43,7 @@ export default function CashClose() {
       const totalUSD = Number(inv.totalUSD) || 0;
       const totalBs = Number(inv.totalBs) || 0;
       const stat = (inv.status || '').toLowerCase();
+      const currentInvRate = Number(inv.exchangeRate) || exchangeRate || 876.80;
 
       acc.totalFacturado += totalUSD;
       acc.totalBs += totalBs;
@@ -50,11 +52,32 @@ export default function CashClose() {
       if (stat === 'paid' || stat === 'pagada') {
         acc.ingresoReal += totalUSD;
         const method = inv.paymentMethod || 'efectivo_usd';
-        if (!acc.breakdown[method]) {
-          acc.breakdown[method] = { count: 0, total: 0 };
+
+        if (method === 'mixto' && inv.mixedPayments) {
+          if (!acc.breakdown['mixto']) {
+            acc.breakdown['mixto'] = { count: 0, total: 0 };
+          }
+          acc.breakdown['mixto'].count += 1;
+          acc.breakdown['mixto'].total += totalUSD;
+
+          const mixedUsd = parseFloat(inv.mixedPayments.efectivo_usd) || 0;
+          const mixedBs = parseFloat(inv.mixedPayments.efectivo_bs) || 0;
+          acc.expectedCashUSD += mixedUsd;
+          acc.expectedCashBs += mixedBs;
+        } else {
+          if (!acc.breakdown[method]) {
+            acc.breakdown[method] = { count: 0, total: 0 };
+          }
+          acc.breakdown[method].count += 1;
+          acc.breakdown[method].total += totalUSD;
+
+          if (method === 'efectivo_usd') {
+            acc.expectedCashUSD += totalUSD;
+          } else if (method === 'efectivo_bs') {
+            const bsAmount = totalBs > 0 ? totalBs : (totalUSD * currentInvRate);
+            acc.expectedCashBs += bsAmount;
+          }
         }
-        acc.breakdown[method].count += 1;
-        acc.breakdown[method].total += totalUSD;
       } else if (stat === 'pending' || stat === 'pendiente') {
         acc.deudaNueva += totalUSD;
       } else if (stat === 'partial' || stat === 'parcial') {
@@ -70,18 +93,34 @@ export default function CashClose() {
       ingresoReal: 0,
       deudaNueva: 0,
       count: 0,
+      expectedCashUSD: 0,
+      expectedCashBs: 0,
       breakdown: {
         'efectivo_usd': { count: 0, total: 0 },
-        'efectivo_bs': { count: 0, total: 0 },
         'pago_movil': { count: 0, total: 0 },
-        'zelle': { count: 0, total: 0 }
+        'efectivo_bs': { count: 0, total: 0 },
+        'zelle': { count: 0, total: 0 },
+        'mixto': { count: 0, total: 0 }
       }
     });
-  }, [todaysInvoices]);
+  }, [todaysInvoices, exchangeRate]);
 
-  const expectedCashUSD = stats.breakdown['efectivo_usd']?.total || 0;
+  // Calculations for Arqueo Físico (Bimonetario)
+  const expectedCashUSD = Number((stats.expectedCashUSD || 0).toFixed(2));
+  const expectedCashBs = Number((stats.expectedCashBs || 0).toFixed(2));
+  const expectedCashBsInUSD = Number((expectedCashBs / exchangeRate).toFixed(2));
+
   const countedUSD = physicalCountUSD !== '' ? (parseFloat(physicalCountUSD) || 0) : expectedCashUSD;
+  const countedBs = physicalCountBs !== '' ? (parseFloat(physicalCountBs) || 0) : expectedCashBs;
+  const countedBsInUSD = Number((countedBs / exchangeRate).toFixed(2));
+
   const diffUSD = Number((countedUSD - expectedCashUSD).toFixed(2));
+  const diffBs = Number((countedBs - expectedCashBs).toFixed(2));
+
+  // Unified official Drawer Balance in USD
+  const totalExpectedUSD = Number((expectedCashUSD + expectedCashBsInUSD).toFixed(2));
+  const totalCountedUSD = Number((countedUSD + countedBsInUSD).toFixed(2));
+  const unifiedDiffUSD = Number((totalCountedUSD - totalExpectedUSD).toFixed(2));
 
   const handleCloseCash = () => {
     const newClose = {
@@ -90,9 +129,16 @@ export default function CashClose() {
       totalVentas: stats.totalFacturado,
       totalCobrado: stats.ingresoReal,
       totalPendiente: stats.deudaNueva,
+      exchangeRate,
       expectedCashUSD,
       countedCashUSD: countedUSD,
       differenceUSD: diffUSD,
+      expectedCashBs,
+      countedCashBs: countedBs,
+      differenceBs: diffBs,
+      totalExpectedUSD,
+      totalCountedUSD,
+      unifiedDiffUSD,
       breakdown: stats.breakdown,
       invoicesCount: stats.count,
       createdAt: new Date().toISOString()
@@ -104,12 +150,14 @@ export default function CashClose() {
   };
 
   const formatUSD = (val) => `$${(Number(val) || 0).toFixed(2)}`;
+  const formatBsNumber = (val) => `Bs. ${(Number(val) || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   const methodName = (k) => {
-    if (k === 'efectivo_usd') return 'Efectivo $';
-    if (k === 'efectivo_bs') return 'Efectivo Bs';
-    if (k === 'pago_movil') return 'Pago Móvil';
-    if (k === 'zelle') return 'Zelle';
+    if (k === 'efectivo_usd') return '💵 Efectivo $';
+    if (k === 'pago_movil') return '📱 Pago Móvil';
+    if (k === 'efectivo_bs') return '🇻🇪 Efectivo Bs';
+    if (k === 'zelle') return '💳 Zelle / Tarjeta';
+    if (k === 'mixto') return '🔀 Pago Dividido / Mixto';
     return k;
   };
 
@@ -230,55 +278,117 @@ export default function CashClose() {
             })}
           </div>
 
-          {/* Arqueo Físico de Gaveta (Conteo en Efectivo $) */}
+          {/* Arqueo Físico de Gaveta Bimonetario (Efectivo $ y Efectivo Bs) */}
           <div style={{
             background: '#ffffff',
             border: '1.5px solid #fde68a',
             borderRadius: '12px',
             padding: '14px',
             marginTop: '16px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
+            boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px'
           }}>
-            <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#b45309', marginBottom: '8px' }}>
-              💵 Conteo Físico en Gaveta (Efectivo $)
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#b45309' }}>
+                💵 Conteo Físico en Gaveta (Bimonetario)
+              </div>
+              <span style={{ fontSize: '0.7rem', background: '#fef3c7', color: '#92400e', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>
+                Tasa: {Number(exchangeRate).toFixed(4)}
+              </span>
             </div>
-            <div style={{ fontSize: '0.78rem', color: '#6b7280', marginBottom: '8px' }}>
-              Esperado según ventas: <strong style={{ color: '#111827' }}>${expectedCashUSD.toFixed(2)}</strong>
+
+            {/* Subsección 1: Efectivo en Dólares ($) */}
+            <div style={{ background: '#f9fafb', borderRadius: '10px', padding: '10px', border: '1px solid #e5e7eb' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#475569', marginBottom: '6px' }}>
+                <span style={{ fontWeight: '700', color: '#059669' }}>💵 Efectivo Dólares ($)</span>
+                <span>Esperado: <strong style={{ color: '#0f172a' }}>{formatUSD(expectedCashUSD)}</strong></span>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <span style={{ fontWeight: '800', color: '#059669' }}>$</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder={`Ej: ${expectedCashUSD.toFixed(2)}`}
+                  value={physicalCountUSD}
+                  onChange={e => setPhysicalCountUSD(e.target.value)}
+                  style={{
+                    flex: 1, padding: '7px 10px', background: '#ffffff',
+                    border: '1px solid #cbd5e1', borderRadius: '8px',
+                    fontWeight: '700', fontSize: '0.9rem', color: '#111827'
+                  }}
+                />
+              </div>
+              {physicalCountUSD !== '' && (
+                <div style={{
+                  marginTop: '6px', fontSize: '0.74rem', fontWeight: '700',
+                  color: diffUSD === 0 ? '#059669' : diffUSD > 0 ? '#b45309' : '#dc2626'
+                }}>
+                  {diffUSD === 0 ? '✓ Cuadrado exacto' : diffUSD > 0 ? `+${formatUSD(diffUSD)} sobrante` : `-${formatUSD(Math.abs(diffUSD))} faltante`}
+                </div>
+              )}
             </div>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: physicalCountUSD !== '' ? '8px' : '0' }}>
-              <span style={{ fontWeight: '700', color: '#6b7280' }}>$</span>
-              <input
-                type="number"
-                step="0.01"
-                placeholder={`Ej: ${expectedCashUSD.toFixed(2)}`}
-                value={physicalCountUSD}
-                onChange={e => setPhysicalCountUSD(e.target.value)}
-                style={{
-                  flex: 1, padding: '8px 10px', background: '#f9fafb',
-                  border: '1px solid #d1d5db', borderRadius: '8px',
-                  fontWeight: '700', fontSize: '0.95rem', color: '#111827'
-                }}
-              />
+
+            {/* Subsección 2: Efectivo en Bolívares (Bs) */}
+            <div style={{ background: '#f9fafb', borderRadius: '10px', padding: '10px', border: '1px solid #e5e7eb' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#475569', marginBottom: '6px' }}>
+                <span style={{ fontWeight: '700', color: '#d97706' }}>🇻🇪 Efectivo Bolívares (Bs)</span>
+                <span>Esperado: <strong style={{ color: '#0f172a' }}>{formatBsNumber(expectedCashBs)}</strong></span>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <span style={{ fontWeight: '800', color: '#d97706', fontSize: '0.82rem' }}>Bs</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder={`Ej: ${expectedCashBs.toFixed(2)}`}
+                  value={physicalCountBs}
+                  onChange={e => setPhysicalCountBs(e.target.value)}
+                  style={{
+                    flex: 1, padding: '7px 10px', background: '#ffffff',
+                    border: '1px solid #cbd5e1', borderRadius: '8px',
+                    fontWeight: '700', fontSize: '0.9rem', color: '#111827'
+                  }}
+                />
+              </div>
+              <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '4px' }}>
+                Equiv. oficial: {formatUSD(countedBsInUSD)} (Esperado: {formatUSD(expectedCashBsInUSD)})
+              </div>
+              {physicalCountBs !== '' && (
+                <div style={{
+                  marginTop: '4px', fontSize: '0.74rem', fontWeight: '700',
+                  color: diffBs === 0 ? '#059669' : diffBs > 0 ? '#b45309' : '#dc2626'
+                }}>
+                  {diffBs === 0 ? '✓ Cuadrado exacto' : diffBs > 0 ? `+${formatBsNumber(diffBs)} sobrante` : `-${formatBsNumber(Math.abs(diffBs))} faltante`}
+                </div>
+              )}
             </div>
-            {physicalCountUSD !== '' && (
-              <div style={{
-                padding: '8px 10px',
-                borderRadius: '8px',
-                fontSize: '0.8rem',
-                fontWeight: '700',
-                background: diffUSD === 0 ? '#ecfdf5' : diffUSD > 0 ? '#fef3c7' : '#fee2e2',
-                color: diffUSD === 0 ? '#065f46' : diffUSD > 0 ? '#92400e' : '#991b1b',
-                display: 'flex',
-                justifyContent: 'space-between'
-              }}>
+
+            {/* Total Unificado en Moneda Oficial Dólar ($) */}
+            <div style={{
+              padding: '10px 12px',
+              borderRadius: '10px',
+              fontSize: '0.82rem',
+              fontWeight: '700',
+              background: (physicalCountUSD === '' && physicalCountBs === '') || unifiedDiffUSD === 0 ? '#ecfdf5' : unifiedDiffUSD > 0 ? '#fef3c7' : '#fee2e2',
+              color: (physicalCountUSD === '' && physicalCountBs === '') || unifiedDiffUSD === 0 ? '#065f46' : unifiedDiffUSD > 0 ? '#92400e' : '#991b1b',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '3px'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>Total Físico en Gaveta ($ Oficial):</span>
+                <span style={{ fontSize: '1rem', fontWeight: '900' }}>{formatUSD(totalCountedUSD)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.74rem', opacity: 0.9 }}>
                 <span>
-                  {diffUSD === 0 ? '✅ Caja Cuadrada Exacta' : diffUSD > 0 ? '🟢 Sobrante en Caja:' : '🔴 Faltante en Caja:'}
+                  {unifiedDiffUSD === 0 ? '✅ Caja Total Cuadrada' : unifiedDiffUSD > 0 ? '🟢 Sobrante Neto Total:' : '🔴 Faltante Neto Total:'}
                 </span>
                 <span>
-                  {diffUSD > 0 ? `+$${diffUSD.toFixed(2)}` : diffUSD < 0 ? `-$${Math.abs(diffUSD).toFixed(2)}` : '$0.00'}
+                  {unifiedDiffUSD > 0 ? `+${formatUSD(unifiedDiffUSD)}` : unifiedDiffUSD < 0 ? `-${formatUSD(Math.abs(unifiedDiffUSD))}` : '$0.00'}
                 </span>
               </div>
-            )}
+            </div>
           </div>
 
           {/* Close Cash Button */}
@@ -325,7 +435,29 @@ export default function CashClose() {
                     <tr key={inv.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                       <td style={{ padding: '8px', color: '#38bdf8', fontWeight: '600' }}>{inv.invoiceNumber}</td>
                       <td style={{ padding: '8px' }}>{getClientName(inv)}</td>
-                      <td style={{ padding: '8px' }}>{methodName(inv.paymentMethod)}</td>
+                      <td style={{ padding: '8px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                          <span style={{ fontWeight: '600' }}>{methodName(inv.paymentMethod)}</span>
+                          {(inv.pagoMovilBank || inv.pagoMovilRef) && (
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontSize: '0.72rem',
+                              background: '#eff6ff',
+                              color: '#1d4ed8',
+                              border: '1px solid #bfdbfe',
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              fontWeight: '700',
+                              width: 'fit-content'
+                            }}>
+                              {inv.pagoMovilBank && <span>🏦 {inv.pagoMovilBank}</span>}
+                              {inv.pagoMovilRef && <span>#{inv.pagoMovilRef}</span>}
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td style={{ padding: '8px', fontWeight: '700' }}>{formatUSD(inv.totalUSD)}</td>
                       <td style={{ padding: '8px' }}>
                         <span style={{ 

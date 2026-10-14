@@ -220,7 +220,7 @@ const InvoicePreview = ({ invoice, onClose }) => {
                   <span>${totalUSD.toFixed(2)}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', fontSize: '14px' }} className="ticket-bold">
-                  <span>TOTAL Bs (Tasa {exchangeRate.toFixed(2)}):</span>
+                  <span>TOTAL Bs (Tasa {exchangeRate.toFixed(4)}):</span>
                   <span>Bs. {totalBs.toFixed(2)}</span>
                 </div>
               </div>
@@ -230,6 +230,13 @@ const InvoicePreview = ({ invoice, onClose }) => {
               {/* Payment Method & Status */}
               <div style={{ fontSize: '12px' }}>
                 <div><strong>FORMA DE PAGO:</strong> {formatPaymentMethod(paymentMethod)}</div>
+                
+                {(invoice.pagoMovilBank || invoice.pagoMovilRef) && (
+                  <div style={{ fontSize: '11px', marginTop: '2px', color: '#1e293b' }}>
+                    {invoice.pagoMovilBank && <span>Banco: <strong>{invoice.pagoMovilBank}</strong> </span>}
+                    {invoice.pagoMovilRef && <span>| Ref: <strong>#{invoice.pagoMovilRef}</strong></span>}
+                  </div>
+                )}
                 
                 {paymentMethod === 'mixto' && invoice.mixedPayments && (
                   <div style={{ paddingLeft: '8px', marginBottom: '4px', fontSize: '11px' }}>

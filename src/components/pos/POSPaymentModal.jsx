@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   DollarSign, 
@@ -10,6 +10,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { formatUSD, formatBs, getBsFontSize } from '../../utils/currency';
+import { VZLA_BANKS } from './POSInvoiceSidebar';
 
 const PAYMENT_OPTIONS = [
   { id: 'efectivo_usd', label: 'Efectivo ($)', icon: DollarSign, color: '#059669', bg: '#ecfdf5', border: '#a7f3d0' },
@@ -24,10 +25,15 @@ const POSPaymentModal = ({
   totalUSD = 0,
   currentRate = 876.80,
   client = null,
-  onConfirmPayment
+  onConfirmPayment,
+  initialPaymentMethod = 'efectivo_usd',
+  initialPagoMovilBank = '',
+  initialPagoMovilRef = ''
 }) => {
-  const [paymentMethod, setPaymentMethod] = useState('efectivo_usd');
-  const [isMixedPayment, setIsMixedPayment] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState(initialPaymentMethod);
+  const [isMixedPayment, setIsMixedPayment] = useState(initialPaymentMethod === 'mixto');
+  const [pagoMovilBank, setPagoMovilBank] = useState(initialPagoMovilBank);
+  const [pagoMovilRef, setPagoMovilRef] = useState(initialPagoMovilRef);
   const [mixedPayments, setMixedPayments] = useState({
     efectivo_usd: '',
     pago_movil: '',
@@ -35,6 +41,16 @@ const POSPaymentModal = ({
     zelle: ''
   });
   const [isPending, setIsPending] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      const isMix = initialPaymentMethod === 'mixto';
+      setIsMixedPayment(isMix);
+      setPaymentMethod(isMix ? 'efectivo_usd' : initialPaymentMethod);
+      setPagoMovilBank(initialPagoMovilBank || '');
+      setPagoMovilRef(initialPagoMovilRef || '');
+    }
+  }, [isOpen, initialPaymentMethod, initialPagoMovilBank, initialPagoMovilRef]);
 
   if (!isOpen) return null;
 
@@ -54,7 +70,9 @@ const POSPaymentModal = ({
       paymentMethod: isMixedPayment ? 'mixto' : paymentMethod,
       isMixedPayment,
       mixedPayments: isMixedPayment ? mixedPayments : null,
-      isPending
+      isPending,
+      pagoMovilBank: (paymentMethod === 'pago_movil' || isMixedPayment) ? pagoMovilBank : '',
+      pagoMovilRef: (paymentMethod === 'pago_movil' || isMixedPayment) ? pagoMovilRef : ''
     });
   };
 
@@ -137,7 +155,7 @@ const POSPaymentModal = ({
             gap: '2px'
           }}>
             <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>
-              Equivalente en Bolívares (Tasa: {Number(currentRate).toFixed(2)})
+              Equivalente en Bolívares (Tasa: {Number(currentRate).toFixed(4)})
             </div>
             <div style={{
               fontWeight: '900',
@@ -246,6 +264,76 @@ const POSPaymentModal = ({
                 ? `Falta: ${formatUSD(differenceUSD)} (${formatBs(differenceUSD * currentRate)})`
                 : `¡Pago cubierto! (Vuelto: ${formatUSD(Math.abs(differenceUSD))})`}
             </div>
+          </div>
+        )}
+
+        {/* Optional Pago Móvil Bank & Reference Section */}
+        {(!isMixedPayment ? paymentMethod === 'pago_movil' : (parseFloat(mixedPayments.pago_movil) || 0) > 0) && (
+          <div style={{
+            background: '#f8fafc',
+            border: '1px solid #bfdbfe',
+            borderRadius: '12px',
+            padding: '12px',
+            marginBottom: '16px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.74rem', fontWeight: '700', color: '#1e40af' }}>
+              <span>🏦 Banco Receptor Pago Móvil</span>
+              <span style={{ fontSize: '0.68rem', color: '#64748b' }}>(Opcional)</span>
+            </div>
+            
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              {VZLA_BANKS.map((b) => {
+                const isActive = pagoMovilBank === b.id || pagoMovilBank === b.name;
+                return (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => setPagoMovilBank(isActive ? '' : b.name)}
+                    style={{
+                      padding: '4px 9px',
+                      borderRadius: '6px',
+                      fontSize: '0.74rem',
+                      fontWeight: '800',
+                      border: isActive ? `1.5px solid ${b.color}` : '1px solid #cbd5e1',
+                      background: isActive ? b.bg : '#ffffff',
+                      color: isActive ? b.color : '#334155',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                    }}
+                  >
+                    <span>{b.badge}</span>
+                    <span>{b.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.74rem', fontWeight: '700', color: '#1e40af', marginTop: '2px' }}>
+              <span>🔢 Referencia Pago Móvil</span>
+              <span style={{ fontSize: '0.68rem', color: '#64748b' }}>(Opcional - últimos 4 dígitos)</span>
+            </div>
+            <input
+              type="text"
+              maxLength={8}
+              placeholder="Ej: 4589"
+              value={pagoMovilRef}
+              onChange={(e) => setPagoMovilRef(e.target.value.replace(/[^0-9a-zA-Z]/g, ''))}
+              style={{
+                width: '100%',
+                padding: '8px 10px',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1',
+                boxSizing: 'border-box',
+                fontWeight: '600',
+                fontSize: '0.85rem'
+              }}
+            />
           </div>
         )}
 

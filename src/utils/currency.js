@@ -46,3 +46,14 @@ export function getBsFontSize(amount) {
   if (len > 11) return '1.08rem';
   return '1.18rem';
 }
+
+/**
+ * Formatea la tasa oficial del BCV con precisión oficial de 4 decimales
+ * @param {number|string} rate
+ * @returns {string} Ej: "876.7976"
+ */
+export function formatRate(rate) {
+  const num = Number(rate) || 0;
+  return num.toFixed(4);
+}
+

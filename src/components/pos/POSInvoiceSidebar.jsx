@@ -9,11 +9,32 @@ import {
   Receipt, 
   User, 
   FileText,
-  UtensilsCrossed
+  UtensilsCrossed,
+  DollarSign,
+  Smartphone,
+  Banknote,
+  CreditCard
 } from 'lucide-react';
 import ClientSearch from '../ClientSearch';
 import { formatUSD, formatBs, getBsFontSize } from '../../utils/currency';
 import './POSInvoiceSidebar.css';
+
+export const VZLA_BANKS = [
+  { id: 'Banesco', name: 'Banesco', color: '#007a3d', bg: '#ecfdf5', badge: 'BAN' },
+  { id: 'BDV', name: 'Venezuela (BDV)', color: '#d32f2f', bg: '#fef2f2', badge: 'BDV' },
+  { id: 'Mercantil', name: 'Mercantil', color: '#002b66', bg: '#eff6ff', badge: 'MER' },
+  { id: 'Provincial', name: 'Provincial', color: '#004481', bg: '#eff6ff', badge: 'BBVA' },
+  { id: 'Bancamiga', name: 'Bancamiga', color: '#00a896', bg: '#f0fdfa', badge: 'BAM' },
+  { id: 'BNC', name: 'BNC', color: '#0f5b47', bg: '#f0fdf4', badge: 'BNC' }
+];
+
+const SIDEBAR_METHODS = [
+  { id: 'efectivo_usd', label: 'Efectivo $', icon: DollarSign, color: '#059669' },
+  { id: 'pago_movil', label: 'Pago Móvil', icon: Smartphone, color: '#2563eb' },
+  { id: 'efectivo_bs', label: 'Efectivo Bs', icon: Banknote, color: '#d97706' },
+  { id: 'zelle', label: 'Zelle / Tarjeta', icon: CreditCard, color: '#7c3aed' },
+  { id: 'mixto', label: '🔀 Pago Dividido / Mixto', icon: null, color: '#0f766e' }
+];
 
 const POSInvoiceSidebar = ({
   cart = [],
@@ -30,7 +51,13 @@ const POSInvoiceSidebar = ({
   loadedTableOrder = null,
   onUnlinkTableOrder,
   onGenerateNotaEntrega,
-  products = []
+  products = [],
+  paymentMethod = 'efectivo_usd',
+  onSelectPaymentMethod,
+  pagoMovilBank = '',
+  onSelectPagoMovilBank,
+  pagoMovilRef = '',
+  onChangePagoMovilRef
 }) => {
   // Calculations
   const totalItemsCount = cart.reduce((sum, item) => sum + (item.quantity || 0), 0);
@@ -100,13 +127,13 @@ const POSInvoiceSidebar = ({
         <div className="pos-rate-info">
           <span className="pos-rate-dot" />
           <span>Tasa BCV:</span>
-          <span className="pos-rate-badge">Bs. {Number(currentRate).toFixed(2)}</span>
+          <span className="pos-rate-badge">Bs. {Number(currentRate).toFixed(4)}</span>
         </div>
 
         <div className="pos-rate-controls">
           <input
             type="number"
-            step="0.01"
+            step="0.0001"
             placeholder="Manual"
             title="Modificar tasa para esta operación"
             value={customRate}
@@ -217,7 +244,7 @@ const POSInvoiceSidebar = ({
         <div className="pos-total-bs-row">
           <div className="pos-total-bs-header">
             <span>Equivalente Oficial (Bs)</span>
-            <span>Tasa {Number(currentRate).toFixed(2)}</span>
+            <span>Tasa {Number(currentRate).toFixed(4)}</span>
           </div>
           <span 
             className="pos-total-bs-amount"
@@ -228,7 +255,87 @@ const POSInvoiceSidebar = ({
         </div>
       </div>
 
-      {/* 7. Bottom Single Action: Generar Nota de Entrega */}
+      {/* 7. In-Cart Payment Method Selector */}
+      <div className="pos-cart-payment-section">
+        <div className="pos-cart-payment-header">
+          <span>Forma de Pago</span>
+        </div>
+
+        <div className="pos-cart-payment-grid">
+          {SIDEBAR_METHODS.map((m) => {
+            const isSelected = paymentMethod === m.id;
+            const Icon = m.icon;
+            return (
+              <button
+                key={m.id}
+                type="button"
+                className={`pos-cart-method-btn ${isSelected ? 'active' : ''} ${m.id === 'mixto' ? 'btn-mixto' : ''}`}
+                onClick={() => onSelectPaymentMethod && onSelectPaymentMethod(m.id)}
+              >
+                {Icon && <Icon size={15} color={isSelected ? m.color : '#64748b'} />}
+                <span>{m.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Optional Pago Móvil Details (Bancos de Venezuela y Referencia) */}
+        {paymentMethod === 'pago_movil' && (
+          <div className="pos-pm-details-box">
+            <div className="pos-pm-label">
+              <span>Banco Receptor</span>
+              <span className="pos-pm-optional">(Opcional)</span>
+            </div>
+
+            <div className="pos-bank-chips">
+              {VZLA_BANKS.map((b) => {
+                const isActive = pagoMovilBank === b.id || pagoMovilBank === b.name;
+                return (
+                  <button
+                    key={b.id}
+                    type="button"
+                    className={`pos-bank-chip ${isActive ? 'active' : ''}`}
+                    onClick={() => {
+                      if (isActive) {
+                        onSelectPagoMovilBank && onSelectPagoMovilBank('');
+                      } else {
+                        onSelectPagoMovilBank && onSelectPagoMovilBank(b.name);
+                      }
+                    }}
+                    style={{
+                      borderColor: isActive ? b.color : '#cbd5e1',
+                      background: isActive ? b.bg : '#ffffff',
+                      color: isActive ? b.color : '#334155'
+                    }}
+                    title={`Seleccionar ${b.name}`}
+                  >
+                    <span>{b.badge}</span>
+                    <span>{b.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="pos-pm-label">
+              <span>Referencia Pago Móvil</span>
+              <span className="pos-pm-optional">(Opcional - últimos 4 dígitos)</span>
+            </div>
+
+            <div className="pos-pm-ref-row">
+              <input
+                type="text"
+                maxLength={8}
+                placeholder="Ej: 4589"
+                value={pagoMovilRef}
+                onChange={(e) => onChangePagoMovilRef && onChangePagoMovilRef(e.target.value.replace(/[^0-9a-zA-Z]/g, ''))}
+                className="pos-pm-ref-input"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 8. Bottom Single Action: Generar Nota de Entrega */}
       <div className="pos-sidebar-footer">
         <button
           type="button"

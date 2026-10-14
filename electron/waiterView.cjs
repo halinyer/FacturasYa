@@ -895,9 +895,9 @@ function renderWaiterView(initialState) {
       if (badge) {
         const valSpan = badge.querySelector('.rate-pill-val');
         if (valSpan) {
-          valSpan.innerText = 'Bs. ' + rate.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          valSpan.innerText = 'Bs. ' + rate.toLocaleString('es-VE', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
         } else {
-          badge.innerHTML = '<span class="rate-pill-icon">💵</span><span class="rate-pill-label">BCV:</span><span class="rate-pill-val">Bs. ' + rate.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</span>';
+          badge.innerHTML = '<span class="rate-pill-icon">💵</span><span class="rate-pill-label">BCV:</span><span class="rate-pill-val">Bs. ' + rate.toLocaleString('es-VE', { minimumFractionDigits: 4, maximumFractionDigits: 4 }) + '</span>';
         }
       }
     }
