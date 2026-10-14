@@ -438,7 +438,7 @@ export const db = {
       // 2. Consulta directa a API de respaldo (JustCarlux BCV)
       if (!fetchedRate) {
         try {
-          const res = await fetch('https://bcv.justcarlux.dev/api/v1/rates', { cache: 'no-cache' });
+          const res = await fetch('https://bcv.justcarlux.dev/api/v1/rates', { cache: 'no-cache', signal: AbortSignal.timeout(3500) });
           if (res.ok) {
             const data = await res.json();
             if (data?.rates?.usd && !isNaN(data.rates.usd) && Number(data.rates.usd) > 100) {
@@ -452,7 +452,7 @@ export const db = {
       // 3. Consulta a DolarApi Oficial (BCV)
       if (!fetchedRate) {
         try {
-          const res = await fetch('https://ve.dolarapi.com/v1/dolares/oficial', { cache: 'no-cache' });
+          const res = await fetch('https://ve.dolarapi.com/v1/dolares/oficial', { cache: 'no-cache', signal: AbortSignal.timeout(3500) });
           if (res.ok) {
             const data = await res.json();
             if (data && data.promedio && !isNaN(data.promedio) && Number(data.promedio) > 100) {
@@ -466,7 +466,7 @@ export const db = {
       // 4. Consulta de respaldo a DolarApi lista completa
       if (!fetchedRate) {
         try {
-          const res = await fetch('https://ve.dolarapi.com/v1/dolares', { cache: 'no-cache' });
+          const res = await fetch('https://ve.dolarapi.com/v1/dolares', { cache: 'no-cache', signal: AbortSignal.timeout(3500) });
           if (res.ok) {
             const list = await res.json();
             const oficial = Array.isArray(list) ? list.find(d => d.fuente === 'oficial') : null;

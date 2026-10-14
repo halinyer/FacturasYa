@@ -92,9 +92,9 @@ function saveOrdersData(data) {
     fs.writeFileSync(tmp, str, 'utf-8');
     if (fs.existsSync(p)) {
       try { fs.copyFileSync(p, bkp); } catch (e) {}
-      try { fs.unlinkSync(p); } catch (e) {}
     }
-    fs.renameSync(tmp, p);
+    fs.copyFileSync(tmp, p);
+    try { fs.unlinkSync(tmp); } catch (e) {}
     return true;
   } catch (err) {
     console.error('[Orders] Error guardando facturapos_orders.json atómicamente:', err);

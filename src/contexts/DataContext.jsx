@@ -30,6 +30,11 @@ export const DataProvider = ({ children }) => {
   const [restaurantMode, setRestaurantMode] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  const exchangeRateRef = React.useRef(exchangeRate);
+  useEffect(() => {
+    exchangeRateRef.current = exchangeRate;
+  }, [exchangeRate]);
+
   const syncRateToServer = useCallback((rate) => {
     if (!rate || isNaN(rate) || Number(rate) < 100) return;
     fetch('http://localhost:3001/api/restaurant/sync-rate', {
@@ -51,9 +56,10 @@ export const DataProvider = ({ children }) => {
 
       // Auto-sync products with local restaurant server for tablets
       if (prods.length > 0) {
+        const currentRate = exchangeRateRef.current;
         const payload = { products: prods };
-        if (exchangeRate && Number(exchangeRate) > 100) {
-          payload.exchangeRate = Number(exchangeRate);
+        if (currentRate && Number(currentRate) > 100) {
+          payload.exchangeRate = Number(currentRate);
         }
         fetch('http://localhost:3001/api/restaurant/sync-menu', {
           method: 'POST',
@@ -64,7 +70,7 @@ export const DataProvider = ({ children }) => {
     } catch (error) {
       console.error("Error refreshing data:", error);
     }
-  }, [exchangeRate]);
+  }, []);
 
   useEffect(() => {
     if (exchangeRate && Number(exchangeRate) > 100) {
@@ -73,25 +79,34 @@ export const DataProvider = ({ children }) => {
   }, [exchangeRate, syncRateToServer]);
 
   useEffect(() => {
+    let isMounted = true;
     const init = async () => {
       setLoading(true);
       await initDB();
       initializeSeedData();
-      refreshData();
+      if (isMounted) {
+        refreshData();
+      }
       
       // Auto-load live official BCV rate on startup
       try {
         const rate = await db.getExchangeRate(true);
-        if (rate && Number(rate) > 100) {
+        if (isMounted && rate && Number(rate) > 100) {
           setExchangeRate(rate);
           syncRateToServer(rate);
         }
       } catch (e) {}
       
-      setLoading(false);
+      if (isMounted) {
+        setLoading(false);
+      }
     };
     init();
-  }, [refreshData, syncRateToServer]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const addProduct = (product) => {
     db.createProduct(product);

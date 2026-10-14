@@ -2,6 +2,29 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
+// Crucial: Single instance lock prevents two apps from running and locking files / ports
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+}
+
+// Crucial for Windows 10/11: Disable hardware acceleration and GPU flags
+// Prevents GPU process compositor crashes/hangs that stop clicks and keystrokes from working
+app.disableHardwareAcceleration();
+app.commandLine.appendSwitch('disable-gpu');
+app.commandLine.appendSwitch('disable-software-rasterizer');
+app.commandLine.appendSwitch('disable-gpu-compositing');
+app.commandLine.appendSwitch('disable-gpu-rasterization');
+app.commandLine.appendSwitch('disable-features', 'HardwareMediaKeyHandling');
+
+// Process guards to prevent silent crashes or freezes
+process.on('uncaughtException', (err) => {
+  console.error('[Main Process] Uncaught Exception:', err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Main Process] Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
 const isDev = !app.isPackaged;
 const localServer = require('./localServer.cjs');
 
@@ -69,28 +92,24 @@ ipcMain.handle('save-db', async (event, data) => {
 
     const jsonString = JSON.stringify(data, null, 2);
 
-    // Step A: Write to temporary file first
-    fs.writeFileSync(tempPath, jsonString, 'utf-8');
+    // Step A: Write to temporary file asynchronously (non-blocking)
+    await fs.promises.writeFile(tempPath, jsonString, 'utf-8');
 
     // Step B: Back up existing DB before replacing
     if (fs.existsSync(dbPath)) {
       try {
-        fs.copyFileSync(dbPath, backupPath);
+        await fs.promises.copyFile(dbPath, backupPath);
       } catch (bkpErr) {
         console.warn('Could not update .bak file:', bkpErr);
       }
     }
 
-    // Step C: Atomically replace main DB with temp file
+    // Step C: Safely replace main DB with temp file (Windows immune to lock issues)
     try {
-      if (fs.existsSync(dbPath)) {
-        fs.unlinkSync(dbPath);
-      }
-      fs.renameSync(tempPath, dbPath);
+      await fs.promises.copyFile(tempPath, dbPath);
+      await fs.promises.unlink(tempPath).catch(() => {});
     } catch (renameErr) {
-      // Fallback for Windows lock edge cases
-      fs.copyFileSync(tempPath, dbPath);
-      if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+      console.warn('Fallback copy error on Windows:', renameErr);
     }
 
     return { success: true };
@@ -99,6 +118,8 @@ ipcMain.handle('save-db', async (event, data) => {
     return { success: false, error: error.message };
   }
 });
+
+let mainWindowRef = null;
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
@@ -112,10 +133,13 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
+      backgroundThrottling: false, // Never pause timers or inputs when unfocused or occluded on Windows
     },
     autoHideMenuBar: true,
     backgroundColor: '#0a0e1a',
   });
+
+  mainWindowRef = mainWindow;
 
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
@@ -123,7 +147,19 @@ function createWindow() {
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
+
+  mainWindow.on('closed', () => {
+    mainWindowRef = null;
+  });
 }
+
+// Focus existing window if a second instance is started
+app.on('second-instance', () => {
+  if (mainWindowRef) {
+    if (mainWindowRef.isMinimized()) mainWindowRef.restore();
+    mainWindowRef.focus();
+  }
+});
 
 app.whenReady().then(async () => {
   try {
