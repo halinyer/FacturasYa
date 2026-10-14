@@ -14,7 +14,8 @@ export const initDB = async () => {
           pos_clients: localStorage.getItem('pos_clients') ? JSON.parse(localStorage.getItem('pos_clients')) : [],
           pos_invoices: localStorage.getItem('pos_invoices') ? JSON.parse(localStorage.getItem('pos_invoices')) : [],
           pos_payments: localStorage.getItem('pos_payments') ? JSON.parse(localStorage.getItem('pos_payments')) : [],
-          pos_cash_closes: localStorage.getItem('pos_cash_closes') ? JSON.parse(localStorage.getItem('pos_cash_closes')) : []
+          pos_cash_closes: localStorage.getItem('pos_cash_closes') ? JSON.parse(localStorage.getItem('pos_cash_closes')) : [],
+          pos_open_tabs: localStorage.getItem('pos_open_tabs') ? JSON.parse(localStorage.getItem('pos_open_tabs')) : []
         };
         await window.electronAPI.saveDb(memoryStore);
       } else {
@@ -31,7 +32,8 @@ export const initDB = async () => {
       pos_clients: localStorage.getItem('pos_clients') ? JSON.parse(localStorage.getItem('pos_clients')) : [],
       pos_invoices: localStorage.getItem('pos_invoices') ? JSON.parse(localStorage.getItem('pos_invoices')) : [],
       pos_payments: localStorage.getItem('pos_payments') ? JSON.parse(localStorage.getItem('pos_payments')) : [],
-      pos_cash_closes: localStorage.getItem('pos_cash_closes') ? JSON.parse(localStorage.getItem('pos_cash_closes')) : []
+      pos_cash_closes: localStorage.getItem('pos_cash_closes') ? JSON.parse(localStorage.getItem('pos_cash_closes')) : [],
+      pos_open_tabs: localStorage.getItem('pos_open_tabs') ? JSON.parse(localStorage.getItem('pos_open_tabs')) : []
     };
   }
 };
@@ -525,6 +527,68 @@ export const db = {
     return 876.80; // Final active fallback
   },
 
+  // OPEN TABS & DELIVERIES (Control de Cuentas Abiertas y Pedidos)
+  getOpenTabs: () => getStorageItem('pos_open_tabs') || [],
+
+  saveOpenTab: (tabData) => {
+    const tabs = getStorageItem('pos_open_tabs') || [];
+    const id = tabData.id || generateId('tab');
+    const existingIndex = tabs.findIndex(t => t.id === id);
+
+    const clientName = tabData.client?.name || tabData.clientName || '';
+    const defaultName = tabData.orderType === 'delivery'
+      ? (clientName ? `Delivery - ${clientName}` : `Delivery #${tabs.length + 1}`)
+      : tabData.orderType === 'para_llevar'
+        ? (clientName ? `Llevar - ${clientName}` : `Para Llevar #${tabs.length + 1}`)
+        : (clientName ? `Cuenta - ${clientName}` : `Cuenta #${tabs.length + 1}`);
+
+    const tabRecord = {
+      id,
+      name: (tabData.name && tabData.name.trim()) ? tabData.name.trim() : defaultName,
+      orderType: tabData.orderType || 'salon', // 'salon' | 'para_llevar' | 'delivery'
+      deliveryInfo: tabData.deliveryInfo || { address: '', phone: '', courier: '', deliveryFee: 0 },
+      client: tabData.client || null,
+      items: tabData.items || [],
+      tableName: tabData.tableName || null,
+      status: tabData.status || (tabData.orderType === 'delivery' ? 'cocina' : 'abierta'), // 'abierta' | 'cocina' | 'en_camino' | 'por_cobrar'
+      createdAt: tabData.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    let updated;
+    if (existingIndex >= 0) {
+      updated = [...tabs];
+      updated[existingIndex] = tabRecord;
+    } else {
+      updated = [tabRecord, ...tabs];
+    }
+
+    setStorageItem('pos_open_tabs', updated);
+    return tabRecord;
+  },
+
+  deleteOpenTab: (id) => {
+    const tabs = getStorageItem('pos_open_tabs') || [];
+    const updated = tabs.filter(t => t.id !== id);
+    setStorageItem('pos_open_tabs', updated);
+    return true;
+  },
+
+  updateOpenTabStatus: (id, status) => {
+    const tabs = getStorageItem('pos_open_tabs') || [];
+    const index = tabs.findIndex(t => t.id === id);
+    if (index === -1) return null;
+
+    const updated = [...tabs];
+    updated[index] = {
+      ...updated[index],
+      status,
+      updatedAt: new Date().toISOString()
+    };
+    setStorageItem('pos_open_tabs', updated);
+    return updated[index];
+  },
+
   // BACKUP & RESTORE (100% Offline Data Protection)
   exportBackupData: () => {
     const data = {
@@ -535,6 +599,7 @@ export const db = {
       invoices: getStorageItem('pos_invoices'),
       payments: getStorageItem('pos_payments'),
       cashCloses: getStorageItem('pos_cash_closes'),
+      openTabs: getStorageItem('pos_open_tabs'),
       exchangeRate: db.getCurrentRate()
     };
     return JSON.stringify(data, null, 2);
@@ -551,6 +616,7 @@ export const db = {
       setStorageItem('pos_invoices', data.invoices || []);
       setStorageItem('pos_payments', data.payments || []);
       setStorageItem('pos_cash_closes', data.cashCloses || []);
+      setStorageItem('pos_open_tabs', data.openTabs || []);
       if (data.exchangeRate) {
         db.setManualRate(data.exchangeRate);
       }

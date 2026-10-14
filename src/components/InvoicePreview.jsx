@@ -167,6 +167,27 @@ const InvoicePreview = ({ invoice, onClose }) => {
               <div style={{ fontSize: '12px' }}>
                 <div><strong>NOTA DE ENTREGA Nº:</strong> {invoice.invoiceNumber || (invoice.isPreBill ? 'PRE-CUENTA' : `NE-${invoice.id}`)}</div>
                 <div><strong>FECHA / HORA:</strong> {formatDate(invoice.date)}</div>
+                
+                {/* Delivery / Takeout / Salon Mode */}
+                {invoice.orderType === 'delivery' && (
+                  <div style={{ background: '#f0f9ff', padding: '6px 8px', borderRadius: '4px', margin: '6px 0', border: '1px solid #bae6fd' }}>
+                    <div className="ticket-bold" style={{ fontSize: '13px', color: '#0369a1' }}>🛵 PEDIDO PARA DELIVERY</div>
+                    {invoice.deliveryInfo?.address && (
+                      <div style={{ marginTop: '2px' }}><strong>DIRECCIÓN:</strong> <span className="ticket-bold">{invoice.deliveryInfo.address}</span></div>
+                    )}
+                    {invoice.deliveryInfo?.phone && (
+                      <div><strong>TELÉFONO:</strong> {invoice.deliveryInfo.phone}</div>
+                    )}
+                    {invoice.deliveryInfo?.courier && (
+                      <div><strong>REPARTIDOR:</strong> {invoice.deliveryInfo.courier}</div>
+                    )}
+                  </div>
+                )}
+                {invoice.orderType === 'para_llevar' && (
+                  <div className="ticket-bold" style={{ fontSize: '12px', margin: '4px 0', color: '#7e22ce' }}>
+                    🛍️ MODALIDAD: PARA LLEVAR (RETIRO EN MOSTRADOR)
+                  </div>
+                )}
                 {invoice.tableName && (
                   <div><strong>MESA:</strong> <span className="ticket-bold">{invoice.tableName}</span> {invoice.waiterName ? `(Mesero: ${invoice.waiterName})` : ''}</div>
                 )}
@@ -175,7 +196,7 @@ const InvoicePreview = ({ invoice, onClose }) => {
                 {clientInfo.type === 'congelador' && (
                   <div><strong>TIPO:</strong> <span className="ticket-bold">CLIENTE CONGELADOR (CRÉDITO)</span></div>
                 )}
-                <div><strong>TASA BCV DÍA:</strong> Bs. {exchangeRate.toFixed(2)} / USD</div>
+                <div><strong>TASA BCV DÍA:</strong> Bs. {exchangeRate.toFixed(4)} / USD</div>
               </div>
 
               <div className="ticket-divider" />
@@ -199,7 +220,7 @@ const InvoicePreview = ({ invoice, onClose }) => {
                     return (
                       <tr key={idx}>
                         <td className="ticket-bold">{qty}x</td>
-                        <td>{item.productName || item.name || 'Helado'}</td>
+                        <td>{item.productName || item.name || 'Producto'}</td>
                         <td className="ticket-right">${unitPrice.toFixed(2)}</td>
                         <td className="ticket-right ticket-bold">${subtotal.toFixed(2)}</td>
                       </tr>
@@ -214,8 +235,14 @@ const InvoicePreview = ({ invoice, onClose }) => {
               <div style={{ fontSize: '13px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
                   <span>SUBTOTAL ($):</span>
-                  <span className="ticket-bold">${totalUSD.toFixed(2)}</span>
+                  <span>${(totalUSD - (Number(invoice.deliveryFee) || 0)).toFixed(2)}</span>
                 </div>
+                {invoice.deliveryFee > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
+                    <span>FLETE / ENVÍO DELIVERY ($):</span>
+                    <span className="ticket-bold">+${Number(invoice.deliveryFee).toFixed(2)}</span>
+                  </div>
+                )}
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: '15px' }} className="ticket-bold">
                   <span>TOTAL USD:</span>
                   <span>${totalUSD.toFixed(2)}</span>

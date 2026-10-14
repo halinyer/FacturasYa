@@ -1,15 +1,19 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useData } from '../contexts/DataContext';
-import { Utensils, Clock, CheckCircle, AlertCircle, ShoppingCart, Users, Plus, Check, RefreshCw, QrCode, ArrowRight, X, Printer, Edit2, Trash2 } from 'lucide-react';
+import { Utensils, Clock, CheckCircle, AlertCircle, ShoppingCart, Users, Plus, Check, RefreshCw, QrCode, ArrowRight, X, Printer, Edit2, Trash2, Bike, MapPin, Phone, Receipt } from 'lucide-react';
 import QRConnectModal from '../components/QRConnectModal';
 import InvoicePreview from '../components/InvoicePreview';
 
 export default function Tables() {
   const navigate = useNavigate();
-  const { exchangeRate = 876.80 } = useData() || {};
+  const { 
+    exchangeRate = 876.80,
+    openTabs = [],
+    deleteOpenTab,
+    updateOpenTabStatus
+  } = useData() || {};
 
-  const [activeTab, setActiveTab] = useState('mesas'); // 'mesas' | 'comandas' | 'config'
+  const [activeTab, setActiveTab] = useState('mesas'); // 'mesas' | 'comandas' | 'delivery' | 'config'
   const [selectedZone, setSelectedZone] = useState('Todos');
   const [selectedTable, setSelectedTable] = useState(null);
   const [showQRModal, setShowQRModal] = useState(false);
@@ -83,6 +87,10 @@ export default function Tables() {
     // Sort oldest first
     return rounds.sort((a, b) => new Date(a.sentAt) - new Date(b.sentAt));
   }, [restaurantState.activeOrders]);
+
+  const deliveryTabs = useMemo(() => {
+    return (openTabs || []).filter(t => t.orderType === 'delivery');
+  }, [openTabs]);
 
   // Action: Mark round as ready (Vibrates Waiter Tablet)
   const handleMarkRoundReady = async (roundId) => {
@@ -260,6 +268,53 @@ export default function Tables() {
     };
 
     setPreBillInvoice(ticket);
+  };
+
+  const handleChargeDeliveryInPOS = (tab) => {
+    sessionStorage.setItem('pos_incoming_table_order', JSON.stringify({
+      tabId: tab.id,
+      tableName: tab.name,
+      orderType: 'delivery',
+      deliveryInfo: tab.deliveryInfo,
+      client: tab.client,
+      items: tab.items
+    }));
+    navigate('/pos');
+  };
+
+  const handlePrintDeliveryPreBill = (tab) => {
+    const itemsSub = (tab.items || []).reduce((s, i) => s + (Number(i.priceUSD || i.price || 0) * (i.quantity || 1)), 0);
+    const delFee = parseFloat(tab.deliveryInfo?.deliveryFee) || 0;
+    const totUSD = itemsSub + delFee;
+
+    const preBill = {
+      id: tab.id,
+      invoiceNumber: 'PRE-CUENTA',
+      isPreBill: true,
+      date: tab.createdAt || new Date().toISOString(),
+      client: tab.client,
+      clientName: tab.client?.name || 'Consumidor Final',
+      clientCedula: tab.client?.cedula || 'V-00000000',
+      clientType: tab.client?.type || 'normal',
+      orderType: 'delivery',
+      deliveryInfo: tab.deliveryInfo,
+      deliveryFee: delFee,
+      items: (tab.items || []).map(i => ({
+        productId: i.id || i.productId,
+        productName: i.name,
+        quantity: i.quantity,
+        unitPrice: Number(i.priceUSD || i.price || 0),
+        subtotal: Number(i.priceUSD || i.price || 0) * i.quantity
+      })),
+      totalUSD: totUSD,
+      totalBs: totUSD * exchangeRate,
+      exchangeRate: exchangeRate,
+      paymentMethod: 'Por Cobrar',
+      status: 'pending',
+      tableName: tab.name
+    };
+
+    setPreBillInvoice(preBill);
   };
 
   // Add Table
@@ -476,6 +531,26 @@ export default function Tables() {
 
         <button
           type="button"
+          onClick={() => setActiveTab('delivery')}
+          style={{
+            padding: '12px 20px', background: 'none', border: 'none',
+            borderBottom: activeTab === 'delivery' ? '3px solid #0284c7' : '3px solid transparent',
+            color: activeTab === 'delivery' ? '#0284c7' : '#6b7280',
+            fontWeight: '800', cursor: 'pointer', fontSize: '0.95rem',
+            display: 'flex', alignItems: 'center', gap: '8px'
+          }}
+        >
+          <Bike size={18} />
+          <span>Deliveries Activos</span>
+          {deliveryTabs.length > 0 && (
+            <span style={{ background: '#0284c7', color: '#fff', fontSize: '0.75rem', padding: '2px 7px', borderRadius: '999px', fontWeight: '800' }}>
+              {deliveryTabs.length}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
           onClick={() => setActiveTab('config')}
           style={{
             padding: '12px 20px', background: 'none', border: 'none',
@@ -681,6 +756,208 @@ export default function Tables() {
                         </div>
                       )}
                     </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB: DELIVERIES ACTIVOS */}
+      {activeTab === 'delivery' && (
+        <div>
+          {deliveryTabs.length === 0 ? (
+            <div style={{ background: '#ffffff', borderRadius: '16px', padding: '56px 20px', textAlign: 'center', color: '#9ca3af' }}>
+              <Bike size={52} color="#0284c7" style={{ marginBottom: '12px', opacity: 0.8 }} />
+              <h3 style={{ margin: 0, color: '#0f172a', fontSize: '1.25rem', fontWeight: '800' }}>
+                No hay pedidos de Delivery activos en este momento
+              </h3>
+              <p style={{ margin: '8px 0 16px 0', fontSize: '0.88rem', color: '#64748b' }}>
+                Los pedidos a domicilio registrados desde el POS aparecerán aquí para control de cocina, despacho y cobro.
+              </p>
+              <button
+                type="button"
+                onClick={() => navigate('/pos')}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 20px',
+                  background: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '10px',
+                  fontWeight: '700', fontSize: '0.88rem', cursor: 'pointer'
+                }}
+              >
+                <Plus size={16} /> Crear Pedido de Delivery en POS
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '18px' }}>
+              {deliveryTabs.map(tab => {
+                const elapsedMin = Math.round((Date.now() - new Date(tab.createdAt || Date.now()).getTime()) / 60000);
+                const itemsSub = (tab.items || []).reduce((s, i) => s + ((Number(i.priceUSD || i.price || 0)) * (i.quantity || 1)), 0);
+                const delFee = parseFloat(tab.deliveryInfo?.deliveryFee) || 0;
+                const totalUSD = itemsSub + delFee;
+                const totalBs = totalUSD * exchangeRate;
+                const isCocina = tab.status === 'cocina';
+                const isCamino = tab.status === 'en_camino';
+
+                return (
+                  <div
+                    key={tab.id}
+                    style={{
+                      background: '#ffffff',
+                      borderRadius: '16px',
+                      border: isCocina ? '2px solid #fde047' : isCamino ? '2px solid #38bdf8' : '2px solid #86efac',
+                      padding: '20px',
+                      boxShadow: '0 4px 16px rgba(0,0,0,0.04)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between'
+                    }}
+                  >
+                    <div>
+                      {/* Delivery Card Header */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{
+                              fontSize: '0.72rem', fontWeight: '800', textTransform: 'uppercase',
+                              padding: '3px 8px', borderRadius: '6px',
+                              background: isCocina ? '#fef9c3' : isCamino ? '#e0f2fe' : '#dcfce7',
+                              color: isCocina ? '#854d0e' : isCamino ? '#0369a1' : '#15803d'
+                            }}>
+                              {isCocina ? '👨‍🍳 En Preparación' : isCamino ? '🛵 En Camino' : '💵 Por Cobrar'}
+                            </span>
+                            <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
+                              <Clock size={11} style={{ verticalAlign: 'middle', marginRight: '2px' }} />
+                              {elapsedMin <= 1 ? 'Hace un momento' : `Hace ${elapsedMin} min`}
+                            </span>
+                          </div>
+
+                          <h3 style={{ margin: '8px 0 2px 0', fontSize: '1.2rem', fontWeight: '800', color: '#0f172a' }}>
+                            {tab.name}
+                          </h3>
+                        </div>
+
+                        {/* Status Switch Dropdown */}
+                        <select
+                          value={tab.status || 'cocina'}
+                          onChange={(e) => updateOpenTabStatus(tab.id, e.target.value)}
+                          style={{
+                            padding: '4px 8px', borderRadius: '8px', border: '1px solid #cbd5e1',
+                            fontSize: '0.75rem', fontWeight: '700', background: '#f8fafc', color: '#334155', cursor: 'pointer'
+                          }}
+                        >
+                          <option value="cocina">👨‍🍳 En Preparación</option>
+                          <option value="en_camino">🛵 En Camino</option>
+                          <option value="por_cobrar">💵 Por Cobrar</option>
+                        </select>
+                      </div>
+
+                      {/* Delivery Customer & Location Box */}
+                      {tab.deliveryInfo && (
+                        <div style={{
+                          background: '#f0f9ff', borderRadius: '12px', padding: '10px 12px',
+                          border: '1px solid #e0f2fe', marginBottom: '14px', fontSize: '0.82rem',
+                          display: 'flex', flexDirection: 'column', gap: '5px'
+                        }}>
+                          {tab.deliveryInfo.address && (
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', color: '#0369a1' }}>
+                              <MapPin size={15} style={{ marginTop: '2px', flexShrink: 0 }} />
+                              <span style={{ fontWeight: '700' }}>{tab.deliveryInfo.address}</span>
+                            </div>
+                          )}
+                          <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', color: '#0284c7', fontSize: '0.76rem' }}>
+                            {tab.deliveryInfo.phone && (
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <Phone size={12} /> {tab.deliveryInfo.phone}
+                              </span>
+                            )}
+                            {tab.deliveryInfo.courier && (
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <Bike size={12} /> Repartidor: <strong>{tab.deliveryInfo.courier}</strong>
+                              </span>
+                            )}
+                            {delFee > 0 && (
+                              <span>Flete: <strong>${delFee.toFixed(2)}</strong></span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Items List */}
+                      <div style={{ background: '#f8fafc', borderRadius: '10px', padding: '10px 12px', marginBottom: '14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {(tab.items || []).map((item, idx) => (
+                          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                            <span style={{ color: '#0f172a' }}>
+                              <strong style={{ color: '#0284c7' }}>{item.quantity}x</strong> {item.name}
+                            </span>
+                            <span style={{ fontWeight: '700', color: '#475569' }}>
+                              ${((Number(item.priceUSD || item.price || 0)) * item.quantity).toFixed(2)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Total & Action Buttons */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '14px', borderTop: '1px solid #f1f5f9', paddingTop: '10px' }}>
+                        <div>
+                          <div style={{ fontSize: '0.72rem', color: '#64748b' }}>Total a Cobrar:</div>
+                          <div style={{ fontSize: '0.8rem', color: '#059669', fontFamily: 'monospace', fontWeight: '700' }}>
+                            Bs. {totalBs.toFixed(2)}
+                          </div>
+                        </div>
+                        <div style={{ fontSize: '1.35rem', fontWeight: '900', color: '#0f172a' }}>
+                          ${totalUSD.toFixed(2)}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          type="button"
+                          onClick={() => handleChargeDeliveryInPOS(tab)}
+                          style={{
+                            flex: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                            padding: '11px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                            color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '800',
+                            fontSize: '0.88rem', cursor: 'pointer', boxShadow: '0 2px 6px rgba(16, 185, 129, 0.25)'
+                          }}
+                        >
+                          <ShoppingCart size={16} /> Cobrar en Caja
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handlePrintDeliveryPreBill(tab)}
+                          title="Imprimir comanda / ticket de delivery"
+                          style={{
+                            padding: '11px 14px', background: '#f8fafc', color: '#475569',
+                            border: '1px solid #cbd5e1', borderRadius: '10px', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                          }}
+                        >
+                          <Printer size={16} />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm(`¿Seguro que deseas descartar el delivery "${tab.name}"?`)) {
+                              deleteOpenTab(tab.id);
+                            }
+                          }}
+                          title="Cancelar pedido"
+                          style={{
+                            padding: '11px 14px', background: '#fff1f2', color: '#e11d48',
+                            border: '1px solid #fecdd3', borderRadius: '10px', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                          }}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+
                   </div>
                 );
               })}

@@ -10,6 +10,7 @@ export const DataProvider = ({ children }) => {
   const [invoices, setInvoices] = useState([]);
   const [payments, setPayments] = useState([]);
   const [cashCloses, setCashCloses] = useState([]);
+  const [openTabs, setOpenTabs] = useState([]);
   const [exchangeRate, setExchangeRate] = useState(() => {
     const cached = localStorage.getItem('pos_exchange_rate_cache');
     if (cached) {
@@ -52,6 +53,7 @@ export const DataProvider = ({ children }) => {
       setInvoices([...(db.getInvoices() || [])]);
       setPayments([...(db.getPayments() || [])]);
       setCashCloses([...(db.getCashCloses() || [])]);
+      setOpenTabs([...(db.getOpenTabs() || [])]);
       setRestaurantMode(db.getRestaurantMode() || false);
 
       // Auto-sync products with local restaurant server for tablets
@@ -259,6 +261,24 @@ export const DataProvider = ({ children }) => {
     return val;
   };
 
+  const saveOpenTab = (tabData) => {
+    const saved = db.saveOpenTab(tabData);
+    setOpenTabs([...(db.getOpenTabs() || [])]);
+    return saved;
+  };
+
+  const deleteOpenTab = (tabId) => {
+    const res = db.deleteOpenTab(tabId);
+    setOpenTabs([...(db.getOpenTabs() || [])]);
+    return res;
+  };
+
+  const updateOpenTabStatus = (tabId, status) => {
+    const res = db.updateOpenTabStatus(tabId, status);
+    setOpenTabs([...(db.getOpenTabs() || [])]);
+    return res;
+  };
+
   return (
     <DataContext.Provider value={{
       products,
@@ -266,6 +286,10 @@ export const DataProvider = ({ children }) => {
       invoices,
       payments,
       cashCloses,
+      openTabs,
+      saveOpenTab,
+      deleteOpenTab,
+      updateOpenTabStatus,
       exchangeRate,
       restaurantMode,
       toggleRestaurantMode,

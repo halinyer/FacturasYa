@@ -13,7 +13,13 @@ import {
   DollarSign,
   Smartphone,
   Banknote,
-  CreditCard
+  CreditCard,
+  Bike,
+  ShoppingBag,
+  MapPin,
+  Phone,
+  Clock,
+  Bookmark
 } from 'lucide-react';
 import ClientSearch from '../ClientSearch';
 import { formatUSD, formatBs, getBsFontSize } from '../../utils/currency';
@@ -51,14 +57,25 @@ const POSInvoiceSidebar = ({
   pagoMovilBank = '',
   onSelectPagoMovilBank,
   pagoMovilRef = '',
-  onChangePagoMovilRef
+  onChangePagoMovilRef,
+  orderType = 'salon',
+  onChangeOrderType,
+  deliveryInfo = { address: '', phone: '', courier: '', deliveryFee: 0 },
+  onChangeDeliveryInfo,
+  onSaveOpenTab,
+  openTabsCount = 0,
+  onOpenTabsModal,
+  activeTabName = null,
+  onCancelActiveTab
 }) => {
-  // Calculations
+  // Calculations with Delivery Fee
   const totalItemsCount = cart.reduce((sum, item) => sum + (item.quantity || 0), 0);
-  const cartTotalUSD = cart.reduce((sum, item) => {
+  const itemsSubtotalUSD = cart.reduce((sum, item) => {
     const price = Number(item.priceUSD || item.price || 0);
     return sum + (price * (item.quantity || 1));
   }, 0);
+  const deliveryFeeUSD = orderType === 'delivery' ? (parseFloat(deliveryInfo?.deliveryFee) || 0) : 0;
+  const cartTotalUSD = itemsSubtotalUSD + deliveryFeeUSD;
   const cartTotalBs = cartTotalUSD * currentRate;
 
   const bsFormatted = formatBs(cartTotalBs);
@@ -92,21 +109,140 @@ const POSInvoiceSidebar = ({
       <div className="pos-sidebar-header">
         <div className="pos-header-title-box">
           <FileText size={20} color="var(--brand-primary, #2563eb)" />
-          <h3 className="pos-header-title">Nota de Entrega</h3>
+          <h3 className="pos-header-title">Comanda</h3>
           <span className="pos-items-pill">{totalItemsCount} {totalItemsCount === 1 ? 'ítem' : 'ítems'}</span>
         </div>
 
-        {cart.length > 0 && (
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+          {/* Cuentas Abiertas / Deliveries Pill Button */}
           <button
             type="button"
-            className="pos-clear-cart-btn"
-            onClick={onClearCart}
-            title="Vaciar comanda"
+            className="pos-tabs-btn"
+            onClick={onOpenTabsModal}
+            title="Ver Cuentas Abiertas y Deliveries en curso"
           >
-            <Trash2 size={13} /> Vaciar
+            <Clock size={13} />
+            <span>Cuentas ({openTabsCount})</span>
           </button>
-        )}
+
+          {/* Poner en Espera / Guardar Cuenta Button */}
+          {cart.length > 0 && (
+            <button
+              type="button"
+              className="pos-hold-btn"
+              onClick={onSaveOpenTab}
+              title="Guardar comanda en cuentas abiertas para atender a otro cliente"
+            >
+              <Bookmark size={13} /> Espera
+            </button>
+          )}
+
+          {cart.length > 0 && (
+            <button
+              type="button"
+              className="pos-clear-cart-btn"
+              onClick={onClearCart}
+              title="Vaciar comanda"
+            >
+              <Trash2 size={13} />
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Active Tab Banner (if modifying a held tab) */}
+      {activeTabName && (
+        <div className="pos-editing-tab-banner">
+          <span>Editando cuenta: <strong>{activeTabName}</strong></span>
+          <button
+            type="button"
+            onClick={onCancelActiveTab}
+            style={{ background: 'none', border: 'none', color: '#a16207', cursor: 'pointer', fontSize: '0.72rem', textDecoration: 'underline', fontWeight: '700' }}
+          >
+            Descartar
+          </button>
+        </div>
+      )}
+
+      {/* Order Mode Selector (Salón / Llevar / Delivery) */}
+      <div className="pos-order-type-bar">
+        <button
+          type="button"
+          className={`pos-order-type-btn ${orderType === 'salon' ? 'active salon' : ''}`}
+          onClick={() => onChangeOrderType && onChangeOrderType('salon')}
+        >
+          <UtensilsCrossed size={14} /> Salón
+        </button>
+
+        <button
+          type="button"
+          className={`pos-order-type-btn ${orderType === 'para_llevar' ? 'active llevar' : ''}`}
+          onClick={() => onChangeOrderType && onChangeOrderType('para_llevar')}
+        >
+          <ShoppingBag size={14} /> Llevar
+        </button>
+
+        <button
+          type="button"
+          className={`pos-order-type-btn ${orderType === 'delivery' ? 'active delivery' : ''}`}
+          onClick={() => onChangeOrderType && onChangeOrderType('delivery')}
+        >
+          <Bike size={14} /> Delivery
+        </button>
+      </div>
+
+      {/* Delivery Form (Only visible when orderType === 'delivery') */}
+      {orderType === 'delivery' && (
+        <div className="pos-delivery-box">
+          <div className="pos-delivery-input-group">
+            <MapPin size={15} color="#0284c7" style={{ flexShrink: 0 }} />
+            <input
+              type="text"
+              placeholder="Dirección de entrega (Urb, Calle, Casa/Apto)..."
+              className="pos-delivery-input"
+              value={deliveryInfo?.address || ''}
+              onChange={(e) => onChangeDeliveryInfo && onChangeDeliveryInfo({ ...deliveryInfo, address: e.target.value })}
+            />
+          </div>
+
+          <div className="pos-delivery-row">
+            <div className="pos-delivery-input-group" style={{ flex: 1.2 }}>
+              <Phone size={14} color="#0284c7" style={{ flexShrink: 0 }} />
+              <input
+                type="text"
+                placeholder="Teléfono contacto..."
+                className="pos-delivery-input"
+                value={deliveryInfo?.phone || (client?.phone || '')}
+                onChange={(e) => onChangeDeliveryInfo && onChangeDeliveryInfo({ ...deliveryInfo, phone: e.target.value })}
+              />
+            </div>
+
+            <div className="pos-delivery-input-group" style={{ flex: 1 }}>
+              <Bike size={14} color="#0284c7" style={{ flexShrink: 0 }} />
+              <input
+                type="text"
+                placeholder="Repartidor..."
+                className="pos-delivery-input"
+                value={deliveryInfo?.courier || ''}
+                onChange={(e) => onChangeDeliveryInfo && onChangeDeliveryInfo({ ...deliveryInfo, courier: e.target.value })}
+              />
+            </div>
+
+            <div className="pos-delivery-input-group" style={{ width: '85px', flex: 'none' }} title="Costo de Envío / Delivery en $">
+              <span className="pos-delivery-fee-badge">$ Envío</span>
+              <input
+                type="number"
+                step="0.5"
+                min="0"
+                placeholder="0.00"
+                className="pos-delivery-input"
+                value={deliveryInfo?.deliveryFee === 0 ? '' : (deliveryInfo?.deliveryFee || '')}
+                onChange={(e) => onChangeDeliveryInfo && onChangeDeliveryInfo({ ...deliveryInfo, deliveryFee: parseFloat(e.target.value) || 0 })}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 3. Customer Selection */}
       <div className="pos-client-section">
@@ -222,9 +358,18 @@ const POSInvoiceSidebar = ({
       {/* 6. Payment Summary Card (Apple Style) */}
       <div className="pos-summary-card">
         <div className="pos-summary-row">
-          <span>Subtotal estimado</span>
-          <span style={{ fontWeight: '700', color: '#0f172a' }}>{formatUSD(cartTotalUSD)}</span>
+          <span>Subtotal productos</span>
+          <span style={{ fontWeight: '700', color: '#0f172a' }}>{formatUSD(itemsSubtotalUSD)}</span>
         </div>
+
+        {deliveryFeeUSD > 0 && (
+          <div className="pos-summary-row" style={{ color: '#0284c7', paddingTop: '2px' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <Bike size={14} /> Costo de Envío Delivery
+            </span>
+            <span style={{ fontWeight: '800' }}>+{formatUSD(deliveryFeeUSD)}</span>
+          </div>
+        )}
 
         <div className="pos-summary-divider" />
 

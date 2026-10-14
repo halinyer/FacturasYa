@@ -12,6 +12,7 @@ import { useData } from '../contexts/DataContext';
 import POSInvoiceSidebar from '../components/pos/POSInvoiceSidebar';
 import POSPaymentModal from '../components/pos/POSPaymentModal';
 import InvoicePreview from '../components/InvoicePreview';
+import OpenTabsModal from '../components/pos/OpenTabsModal';
 
 const POS = () => {
   const navigate = useNavigate();
@@ -22,7 +23,11 @@ const POS = () => {
     exchangeRate = 876.80, 
     loadExchangeRate, 
     setManualRate, 
-    restaurantMode 
+    restaurantMode,
+    openTabs = [],
+    saveOpenTab,
+    deleteOpenTab,
+    updateOpenTabStatus
   } = useData() || {};
 
   const [search, setSearch] = useState('');
@@ -40,6 +45,13 @@ const POS = () => {
   const [isRefreshingRate, setIsRefreshingRate] = useState(false);
   const [loadedTableOrder, setLoadedTableOrder] = useState(null);
 
+  // Delivery & Open Tabs States
+  const [orderType, setOrderType] = useState('salon'); // 'salon' | 'para_llevar' | 'delivery'
+  const [deliveryInfo, setDeliveryInfo] = useState({ address: '', phone: '', courier: '', deliveryFee: 0 });
+  const [activeTab, setActiveTab] = useState(null);
+  const [showOpenTabsModal, setShowOpenTabsModal] = useState(false);
+  const [preBillInvoice, setPreBillInvoice] = useState(null);
+
   // Auto-fetch fresh live BCV rate on mount
   useEffect(() => {
     if (typeof loadExchangeRate === 'function') {
@@ -55,11 +67,15 @@ const POS = () => {
         const parsed = JSON.parse(saved);
         if (parsed && parsed.items && parsed.items.length > 0) {
           setCart(parsed.items);
+          if (parsed.orderType) setOrderType(parsed.orderType);
+          if (parsed.deliveryInfo) setDeliveryInfo(parsed.deliveryInfo);
+          if (parsed.client) setClient(parsed.client);
+          if (parsed.tabId) setActiveTab({ id: parsed.tabId, name: parsed.tableName });
           setLoadedTableOrder(parsed);
           setShowPaymentModal(true); // Open payment modal directly
         }
       } catch (e) {
-        console.error('Error cargando orden de mesa:', e);
+        console.error('Error cargando orden de mesa o delivery:', e);
       }
       sessionStorage.removeItem('pos_incoming_table_order');
     }
@@ -132,10 +148,12 @@ const POS = () => {
       });
   }, [products, search, activeCategory]);
 
-  const cartTotalUSD = useMemo(() => {
+  const itemsSubtotalUSD = useMemo(() => {
     return cart.reduce((sum, item) => sum + ((Number(item.priceUSD || item.price || 0)) * (item.quantity || 1)), 0);
   }, [cart]);
 
+  const deliveryFee = orderType === 'delivery' ? (parseFloat(deliveryInfo.deliveryFee) || 0) : 0;
+  const cartTotalUSD = itemsSubtotalUSD + deliveryFee;
   const cartTotalBs = cartTotalUSD * currentRate;
 
   // Cart operations
@@ -173,7 +191,104 @@ const POS = () => {
   const handleClearCart = () => {
     if (window.confirm('¿Deseas vaciar todos los productos del pedido?')) {
       setCart([]);
+      setActiveTab(null);
     }
+  };
+
+  // Open Tabs / Delivery Management Handlers (Llevar la cuenta)
+  const handleSaveOpenTab = () => {
+    if (cart.length === 0) {
+      showToast('Agrega productos al pedido antes de ponerlo en espera', 'error');
+      return;
+    }
+
+    const clientName = client?.name && client.name !== 'Consumidor Final' ? client.name : '';
+    const suggestedName = activeTab?.name || (
+      orderType === 'delivery'
+        ? (clientName ? `Delivery - ${clientName}` : (deliveryInfo.phone ? `Delivery - ${deliveryInfo.phone}` : `Delivery #${(openTabs?.length || 0) + 1}`))
+        : orderType === 'para_llevar'
+          ? (clientName ? `Llevar - ${clientName}` : `Para Llevar #${(openTabs?.length || 0) + 1}`)
+          : (clientName ? `Cuenta - ${clientName}` : `Cuenta #${(openTabs?.length || 0) + 1}`)
+    );
+
+    const enteredName = window.prompt('Identificador o nombre de la cuenta en espera:', suggestedName);
+    if (enteredName === null) return; // user cancelled prompt
+
+    const finalName = enteredName.trim() || suggestedName;
+
+    saveOpenTab({
+      id: activeTab?.id,
+      name: finalName,
+      orderType,
+      deliveryInfo,
+      client,
+      items: cart,
+      tableName: loadedTableOrder?.tableName || null,
+      status: orderType === 'delivery' ? (activeTab?.status || 'cocina') : (activeTab?.status || 'abierta')
+    });
+
+    showToast(`Cuenta "${finalName}" guardada en espera`, 'success');
+    setCart([]);
+    setClient(null);
+    setActiveTab(null);
+    setOrderType('salon');
+    setDeliveryInfo({ address: '', phone: '', courier: '', deliveryFee: 0 });
+    setLoadedTableOrder(null);
+  };
+
+  const handleChargeOpenTab = (tab) => {
+    setCart(tab.items || []);
+    setClient(tab.client || null);
+    setOrderType(tab.orderType || 'salon');
+    setDeliveryInfo(tab.deliveryInfo || { address: '', phone: '', courier: '', deliveryFee: 0 });
+    setActiveTab(tab);
+    setShowOpenTabsModal(false);
+    setShowPaymentModal(true);
+  };
+
+  const handleEditOpenTab = (tab) => {
+    setCart(tab.items || []);
+    setClient(tab.client || null);
+    setOrderType(tab.orderType || 'salon');
+    setDeliveryInfo(tab.deliveryInfo || { address: '', phone: '', courier: '', deliveryFee: 0 });
+    setActiveTab(tab);
+    setShowOpenTabsModal(false);
+    showToast(`Cuenta "${tab.name}" cargada para editar o sumar productos`);
+  };
+
+  const handlePrintPreBill = (tab) => {
+    const itemsSub = (tab.items || []).reduce((s, i) => s + (Number(i.priceUSD || i.price || 0) * (i.quantity || 1)), 0);
+    const delFee = tab.orderType === 'delivery' ? (parseFloat(tab.deliveryInfo?.deliveryFee) || 0) : 0;
+    const totUSD = itemsSub + delFee;
+
+    const preBill = {
+      id: tab.id,
+      invoiceNumber: 'PRE-CUENTA',
+      isPreBill: true,
+      date: tab.createdAt || new Date().toISOString(),
+      client: tab.client,
+      clientName: tab.client?.name || 'Consumidor Final',
+      clientCedula: tab.client?.cedula || 'V-00000000',
+      clientType: tab.client?.type || 'normal',
+      orderType: tab.orderType,
+      deliveryInfo: tab.deliveryInfo,
+      deliveryFee: delFee,
+      items: (tab.items || []).map(i => ({
+        productId: i.id || i.productId,
+        productName: i.name,
+        quantity: i.quantity,
+        unitPrice: Number(i.priceUSD || i.price || 0),
+        subtotal: Number(i.priceUSD || i.price || 0) * i.quantity
+      })),
+      totalUSD: totUSD,
+      totalBs: totUSD * currentRate,
+      exchangeRate: currentRate,
+      paymentMethod: 'efectivo_usd',
+      status: 'pending',
+      tableName: tab.tableName || null
+    };
+
+    setPreBillInvoice(preBill);
   };
 
   // Payment Confirmation -> Emits Nota de Entrega
@@ -231,6 +346,9 @@ const POS = () => {
         clientName: selectedClient.name,
         clientCedula: selectedClient.cedula,
         clientType: selectedClient.type || 'normal',
+        orderType,
+        deliveryInfo: orderType === 'delivery' ? deliveryInfo : null,
+        deliveryFee: orderType === 'delivery' ? deliveryFee : 0,
         items: cart.map(item => ({
           productId: item.id,
           productName: item.name,
@@ -255,6 +373,12 @@ const POS = () => {
 
       const created = createInvoice(invoicePayload);
       
+      // If order was an open tab, delete it from open tabs
+      if (activeTab?.id) {
+        deleteOpenTab(activeTab.id);
+        setActiveTab(null);
+      }
+
       // If order was from a restaurant table, free the table in local server
       if (loadedTableOrder && loadedTableOrder.tableId) {
         fetch(`http://localhost:3001/api/restaurant/table/${loadedTableOrder.tableId}/free`, {
@@ -266,6 +390,8 @@ const POS = () => {
       setLastInvoice(created || invoicePayload);
       setCart([]);
       setClient(null);
+      setOrderType('salon');
+      setDeliveryInfo({ address: '', phone: '', courier: '', deliveryFee: 0 });
       setPagoMovilBank('');
       setPagoMovilRef('');
       setPaymentMethod('efectivo_usd');
@@ -516,6 +642,21 @@ const POS = () => {
         onSelectPagoMovilBank={setPagoMovilBank}
         pagoMovilRef={pagoMovilRef}
         onChangePagoMovilRef={setPagoMovilRef}
+        orderType={orderType}
+        onChangeOrderType={setOrderType}
+        deliveryInfo={deliveryInfo}
+        onChangeDeliveryInfo={setDeliveryInfo}
+        onSaveOpenTab={handleSaveOpenTab}
+        openTabsCount={openTabs.length}
+        onOpenTabsModal={() => setShowOpenTabsModal(true)}
+        activeTabName={activeTab?.name || null}
+        onCancelActiveTab={() => {
+          setActiveTab(null);
+          setCart([]);
+          setClient(null);
+          setOrderType('salon');
+          setDeliveryInfo({ address: '', phone: '', courier: '', deliveryFee: 0 });
+        }}
       />
 
       {/* Payment Confirmation Modal */}
@@ -531,11 +672,32 @@ const POS = () => {
         initialPagoMovilRef={pagoMovilRef}
       />
 
+      {/* Open Tabs & Delivery Drawer Modal (Llevar la cuenta) */}
+      <OpenTabsModal
+        isOpen={showOpenTabsModal}
+        onClose={() => setShowOpenTabsModal(false)}
+        openTabs={openTabs}
+        currentRate={currentRate}
+        onChargeTab={handleChargeOpenTab}
+        onEditTab={handleEditOpenTab}
+        onPrintPreBill={handlePrintPreBill}
+        onDeleteTab={deleteOpenTab}
+        onUpdateTabStatus={updateOpenTabStatus}
+      />
+
       {/* Printable Thermal Receipt Modal */}
       {showPreview && lastInvoice && (
         <InvoicePreview
           invoice={lastInvoice}
           onClose={() => setShowPreview(false)}
+        />
+      )}
+
+      {/* Pre-Bill / Cuenta Previa Modal */}
+      {preBillInvoice && (
+        <InvoicePreview
+          invoice={preBillInvoice}
+          onClose={() => setPreBillInvoice(null)}
         />
       )}
 

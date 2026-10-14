@@ -9,7 +9,7 @@ import './Sidebar.css';
 
 const Sidebar = () => {
   const { user, isAdmin, logout } = useAuth();
-  const { exportBackup, importBackup, restaurantMode, toggleRestaurantMode } = useData() || {};
+  const { exportBackup, importBackup, restaurantMode, toggleRestaurantMode, openTabs = [] } = useData() || {};
   const [showBackupModal, setShowBackupModal] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
   const [showConfigModal, setShowConfigModal] = useState(false);
@@ -78,6 +78,19 @@ const Sidebar = () => {
         <NavLink to="/pos" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
           <ShoppingCart size={22} />
           <span className="nav-text">Punto de Venta</span>
+          {openTabs.length > 0 && (
+            <span style={{
+              background: '#2563eb',
+              color: '#ffffff',
+              fontSize: '0.7rem',
+              fontWeight: '800',
+              padding: '2px 7px',
+              borderRadius: '999px',
+              marginLeft: 'auto'
+            }} title={`${openTabs.length} cuentas abiertas o deliveries`}>
+              {openTabs.length}
+            </span>
+          )}
         </NavLink>
 
         {restaurantMode && (
