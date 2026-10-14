@@ -17,16 +17,10 @@ import {
 } from 'lucide-react';
 import ClientSearch from '../ClientSearch';
 import { formatUSD, formatBs, getBsFontSize } from '../../utils/currency';
+import { VZLA_BANKS } from '../../utils/venezuelaBanks';
 import './POSInvoiceSidebar.css';
 
-export const VZLA_BANKS = [
-  { id: 'Banesco', name: 'Banesco', color: '#007a3d', bg: '#ecfdf5', badge: 'BAN' },
-  { id: 'BDV', name: 'Venezuela (BDV)', color: '#d32f2f', bg: '#fef2f2', badge: 'BDV' },
-  { id: 'Mercantil', name: 'Mercantil', color: '#002b66', bg: '#eff6ff', badge: 'MER' },
-  { id: 'Provincial', name: 'Provincial', color: '#004481', bg: '#eff6ff', badge: 'BBVA' },
-  { id: 'Bancamiga', name: 'Bancamiga', color: '#00a896', bg: '#f0fdfa', badge: 'BAM' },
-  { id: 'BNC', name: 'BNC', color: '#0f5b47', bg: '#f0fdf4', badge: 'BNC' }
-];
+export { VZLA_BANKS };
 
 const SIDEBAR_METHODS = [
   { id: 'efectivo_usd', label: 'Efectivo $', icon: DollarSign, color: '#059669' },
@@ -270,7 +264,12 @@ const POSInvoiceSidebar = ({
                 key={m.id}
                 type="button"
                 className={`pos-cart-method-btn ${isSelected ? 'active' : ''} ${m.id === 'mixto' ? 'btn-mixto' : ''}`}
-                onClick={() => onSelectPaymentMethod && onSelectPaymentMethod(m.id)}
+                onClick={() => {
+                  if (onSelectPaymentMethod) onSelectPaymentMethod(m.id);
+                  if (m.id === 'pago_movil' || m.id === 'mixto') {
+                    if (onGenerateNotaEntrega) onGenerateNotaEntrega();
+                  }
+                }}
               >
                 {Icon && <Icon size={15} color={isSelected ? m.color : '#64748b'} />}
                 <span>{m.label}</span>
@@ -278,61 +277,6 @@ const POSInvoiceSidebar = ({
             );
           })}
         </div>
-
-        {/* Optional Pago Móvil Details (Bancos de Venezuela y Referencia) */}
-        {paymentMethod === 'pago_movil' && (
-          <div className="pos-pm-details-box">
-            <div className="pos-pm-label">
-              <span>Banco Receptor</span>
-              <span className="pos-pm-optional">(Opcional)</span>
-            </div>
-
-            <div className="pos-bank-chips">
-              {VZLA_BANKS.map((b) => {
-                const isActive = pagoMovilBank === b.id || pagoMovilBank === b.name;
-                return (
-                  <button
-                    key={b.id}
-                    type="button"
-                    className={`pos-bank-chip ${isActive ? 'active' : ''}`}
-                    onClick={() => {
-                      if (isActive) {
-                        onSelectPagoMovilBank && onSelectPagoMovilBank('');
-                      } else {
-                        onSelectPagoMovilBank && onSelectPagoMovilBank(b.name);
-                      }
-                    }}
-                    style={{
-                      borderColor: isActive ? b.color : '#cbd5e1',
-                      background: isActive ? b.bg : '#ffffff',
-                      color: isActive ? b.color : '#334155'
-                    }}
-                    title={`Seleccionar ${b.name}`}
-                  >
-                    <span>{b.badge}</span>
-                    <span>{b.name}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="pos-pm-label">
-              <span>Referencia Pago Móvil</span>
-              <span className="pos-pm-optional">(Opcional - últimos 4 dígitos)</span>
-            </div>
-
-            <div className="pos-pm-ref-row">
-              <input
-                type="text"
-                maxLength={8}
-                placeholder="Ej: 4589"
-                value={pagoMovilRef}
-                onChange={(e) => onChangePagoMovilRef && onChangePagoMovilRef(e.target.value.replace(/[^0-9a-zA-Z]/g, ''))}
-                className="pos-pm-ref-input"
-              />
-            </div>
-          </div>
-        )}
       </div>
 
       {/* 8. Bottom Single Action: Generar Nota de Entrega */}

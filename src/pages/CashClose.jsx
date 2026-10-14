@@ -11,6 +11,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import InvoicePreview from '../components/InvoicePreview';
+import { BankLogo, findBank } from '../utils/venezuelaBanks';
 
 export default function CashClose() {
   const { invoices = [], cashCloses = [], createCashClose, clients = [], exchangeRate = 876.80 } = useData() || {};
@@ -438,24 +439,28 @@ export default function CashClose() {
                       <td style={{ padding: '8px' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                           <span style={{ fontWeight: '600' }}>{methodName(inv.paymentMethod)}</span>
-                          {(inv.pagoMovilBank || inv.pagoMovilRef) && (
-                            <span style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              fontSize: '0.72rem',
-                              background: '#eff6ff',
-                              color: '#1d4ed8',
-                              border: '1px solid #bfdbfe',
-                              padding: '1px 6px',
-                              borderRadius: '4px',
-                              fontWeight: '700',
-                              width: 'fit-content'
-                            }}>
-                              {inv.pagoMovilBank && <span>🏦 {inv.pagoMovilBank}</span>}
-                              {inv.pagoMovilRef && <span>#{inv.pagoMovilRef}</span>}
-                            </span>
-                          )}
+                          {(inv.pagoMovilBank || inv.pagoMovilRef) && (() => {
+                            const bInfo = findBank(inv.pagoMovilBank);
+                            return (
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                fontSize: '0.72rem',
+                                background: bInfo ? bInfo.bg : '#eff6ff',
+                                color: bInfo ? bInfo.color : '#1d4ed8',
+                                border: `1px solid ${bInfo ? bInfo.borderColor : '#bfdbfe'}`,
+                                padding: '2px 7px',
+                                borderRadius: '6px',
+                                fontWeight: '700',
+                                width: 'fit-content'
+                              }}>
+                                {bInfo && <BankLogo code={bInfo.code} size={15} />}
+                                {inv.pagoMovilBank && <span>{inv.pagoMovilBank}</span>}
+                                {inv.pagoMovilRef && <span>#{inv.pagoMovilRef}</span>}
+                              </span>
+                            );
+                          })()}
                         </div>
                       </td>
                       <td style={{ padding: '8px', fontWeight: '700' }}>{formatUSD(inv.totalUSD)}</td>

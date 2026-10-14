@@ -506,7 +506,12 @@ const POS = () => {
         onGenerateNotaEntrega={() => setShowPaymentModal(true)}
         products={products}
         paymentMethod={paymentMethod}
-        onSelectPaymentMethod={setPaymentMethod}
+        onSelectPaymentMethod={(methodId) => {
+          setPaymentMethod(methodId);
+          if (methodId === 'pago_movil' || methodId === 'mixto') {
+            setShowPaymentModal(true);
+          }
+        }}
         pagoMovilBank={pagoMovilBank}
         onSelectPagoMovilBank={setPagoMovilBank}
         pagoMovilRef={pagoMovilRef}

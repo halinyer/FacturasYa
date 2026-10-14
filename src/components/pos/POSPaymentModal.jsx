@@ -10,7 +10,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { formatUSD, formatBs, getBsFontSize } from '../../utils/currency';
-import { VZLA_BANKS } from './POSInvoiceSidebar';
+import BankSelector from './BankSelector';
 
 const PAYMENT_OPTIONS = [
   { id: 'efectivo_usd', label: 'Efectivo ($)', icon: DollarSign, color: '#059669', bg: '#ecfdf5', border: '#a7f3d0' },
@@ -93,7 +93,9 @@ const POSPaymentModal = ({
         background: '#ffffff',
         borderRadius: '20px',
         width: '100%',
-        maxWidth: '480px',
+        maxWidth: '500px',
+        maxHeight: '92vh',
+        overflowY: 'auto',
         padding: '24px',
         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
         border: '1px solid #eaedf2',
@@ -271,67 +273,49 @@ const POSPaymentModal = ({
         {(!isMixedPayment ? paymentMethod === 'pago_movil' : (parseFloat(mixedPayments.pago_movil) || 0) > 0) && (
           <div style={{
             background: '#f8fafc',
-            border: '1px solid #bfdbfe',
-            borderRadius: '12px',
-            padding: '12px',
+            border: '1.5px solid #bfdbfe',
+            borderRadius: '16px',
+            padding: '14px',
             marginBottom: '16px',
             display: 'flex',
             flexDirection: 'column',
-            gap: '8px'
+            gap: '10px'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.74rem', fontWeight: '700', color: '#1e40af' }}>
-              <span>🏦 Banco Receptor Pago Móvil</span>
-              <span style={{ fontSize: '0.68rem', color: '#64748b' }}>(Opcional)</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: '800', color: '#1e40af', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>🏦 Banco Receptor Pago Móvil</span>
+              </label>
+              <span style={{ fontSize: '0.72rem', color: '#64748b' }}>(Opcional)</span>
             </div>
             
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-              {VZLA_BANKS.map((b) => {
-                const isActive = pagoMovilBank === b.id || pagoMovilBank === b.name;
-                return (
-                  <button
-                    key={b.id}
-                    type="button"
-                    onClick={() => setPagoMovilBank(isActive ? '' : b.name)}
-                    style={{
-                      padding: '4px 9px',
-                      borderRadius: '6px',
-                      fontSize: '0.74rem',
-                      fontWeight: '800',
-                      border: isActive ? `1.5px solid ${b.color}` : '1px solid #cbd5e1',
-                      background: isActive ? b.bg : '#ffffff',
-                      color: isActive ? b.color : '#334155',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-                    }}
-                  >
-                    <span>{b.badge}</span>
-                    <span>{b.name}</span>
-                  </button>
-                );
-              })}
-            </div>
+            {/* Visual Bank Selector with Logos and 4-digit codes */}
+            <BankSelector
+              selectedBank={pagoMovilBank}
+              onSelectBank={setPagoMovilBank}
+              placeholder="Seleccionar banco receptor (ej: 0102 BDV, 0134 Banesco...)"
+            />
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.74rem', fontWeight: '700', color: '#1e40af', marginTop: '2px' }}>
-              <span>🔢 Referencia Pago Móvil</span>
-              <span style={{ fontSize: '0.68rem', color: '#64748b' }}>(Opcional - últimos 4 dígitos)</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px' }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: '800', color: '#1e40af', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>🔢 Referencia Pago Móvil</span>
+              </label>
+              <span style={{ fontSize: '0.72rem', color: '#64748b' }}>(Opcional - últimos 4 dígitos)</span>
             </div>
             <input
               type="text"
-              maxLength={8}
+              maxLength={12}
               placeholder="Ej: 4589"
               value={pagoMovilRef}
               onChange={(e) => setPagoMovilRef(e.target.value.replace(/[^0-9a-zA-Z]/g, ''))}
               style={{
                 width: '100%',
-                padding: '8px 10px',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
+                padding: '9px 12px',
+                borderRadius: '10px',
+                border: '1.5px solid #cbd5e1',
                 boxSizing: 'border-box',
-                fontWeight: '600',
-                fontSize: '0.85rem'
+                fontWeight: '700',
+                fontSize: '0.92rem',
+                letterSpacing: '1px'
               }}
             />
           </div>
