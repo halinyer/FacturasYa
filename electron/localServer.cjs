@@ -5,6 +5,7 @@ const qrcode = require('qrcode');
 const os = require('os');
 const path = require('path');
 const fs = require('fs');
+const { getFranchiseConfig } = require('./franchisesConfig.cjs');
 
 let httpServer = null;
 let io = null;
@@ -636,6 +637,26 @@ function createLocalServer() {
     res.json({ success: true, id: tableId });
   });
 
+  // Franchise Configuration & Synchronization
+  app.get('/api/franchise', (req, res) => {
+    if (!restaurantData) restaurantData = loadOrdersData();
+    const franchise = getFranchiseConfig(restaurantData.franchiseId || 'facturapos');
+    res.json(franchise);
+  });
+
+  app.post('/api/franchise', (req, res) => {
+    if (!restaurantData) restaurantData = loadOrdersData();
+    const { franchiseId } = req.body;
+    if (franchiseId) {
+      restaurantData.franchiseId = franchiseId;
+      saveOrdersData(restaurantData);
+      const franchise = getFranchiseConfig(franchiseId);
+      io.emit('franchise:actualizada', franchise);
+      io.emit('restaurante:sync', getFullRestaurantState());
+    }
+    res.json({ success: true, franchise: getFranchiseConfig(restaurantData.franchiseId || 'facturapos') });
+  });
+
   // Complete Mobile/Tablet Waiter App Interface
   app.get('/waiter', (req, res) => {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -645,14 +666,16 @@ function createLocalServer() {
   });
 
   app.get('/waiter-manifest.json', (req, res) => {
+    if (!restaurantData) restaurantData = loadOrdersData();
+    const franchise = getFranchiseConfig(restaurantData.franchiseId || 'facturapos');
     res.setHeader('Content-Type', 'application/manifest+json');
     res.json({
-      name: "FacturaPOS — Comandero",
-      short_name: "Comandero",
+      name: franchise.waiterApp ? franchise.waiterApp.title : franchise.name + " Comandero",
+      short_name: franchise.waiterApp ? franchise.waiterApp.shortName : franchise.name,
       start_url: "/waiter",
       display: "standalone",
-      background_color: "#18181b",
-      theme_color: "#601718",
+      background_color: "#0f172a",
+      theme_color: franchise.branding.colors.dark,
       orientation: "any"
     });
   });
@@ -664,12 +687,14 @@ function getFullRestaurantState() {
   if (!restaurantData) restaurantData = loadOrdersData();
   const menu = getMenuData();
   const activeOrders = (restaurantData.orders || []).filter(o => o.status === 'open');
+  const franchise = getFranchiseConfig(restaurantData.franchiseId || 'facturapos');
 
   return {
     tables: restaurantData.tables || [],
     waiters: restaurantData.waiters || [],
     activeOrders,
-    menu
+    menu,
+    franchise
   };
 }
 

@@ -125,12 +125,12 @@ const QRConnectModal = ({ onClose }) => {
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#fdf2f2', border: '1px solid #fecaca', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Smartphone size={22} color="#D52829" />
+            <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: CLIENT_CONFIG.branding?.colors?.accentSoft || '#eff6ff', border: `1px solid ${CLIENT_CONFIG.branding?.colors?.borderSubtle || '#e2e8f0'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Smartphone size={22} color={CLIENT_CONFIG.branding?.colors?.primary || '#2563eb'} />
             </div>
             <div>
               <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '900', color: '#18181b' }}>Vincular Tablets</h2>
-              <div style={{ fontSize: '0.78rem', color: '#601718', fontWeight: '700' }}>{CLIENT_CONFIG.name} — Red Wi-Fi Local</div>
+              <div style={{ fontSize: '0.78rem', color: CLIENT_CONFIG.branding?.colors?.dark || '#0f172a', fontWeight: '700' }}>{CLIENT_CONFIG.name} — Red Wi-Fi Local</div>
             </div>
           </div>
           <button
@@ -191,14 +191,14 @@ const QRConnectModal = ({ onClose }) => {
             display: 'flex', alignItems: 'center', background: '#f8fafc',
             border: '1.5px solid #e2e8f0', borderRadius: '10px', padding: '8px 12px'
           }}>
-            <span style={{ flex: 1, fontFamily: 'monospace', fontSize: '0.88rem', fontWeight: '800', color: '#601718', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span style={{ flex: 1, fontFamily: 'monospace', fontSize: '0.88rem', fontWeight: '800', color: CLIENT_CONFIG.branding?.colors?.dark || '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {serverInfo.url}
             </span>
             <button
               type="button"
               onClick={handleCopy}
               style={{
-                background: copied ? '#7CBE43' : '#ffffff', border: '1px solid #cbd5e1',
+                background: copied ? (CLIENT_CONFIG.branding?.colors?.green || '#10b981') : '#ffffff', border: '1px solid #cbd5e1',
                 color: copied ? '#ffffff' : '#475569', borderRadius: '6px', padding: '5px 9px',
                 cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem',
                 fontWeight: '700', transition: 'all 0.15s'
@@ -228,7 +228,7 @@ const QRConnectModal = ({ onClose }) => {
             type="button"
             onClick={onClose}
             style={{
-              background: '#601718', color: '#ffffff', border: 'none',
+              background: CLIENT_CONFIG.branding?.colors?.dark || '#0f172a', color: '#ffffff', border: 'none',
               padding: '10px 22px', borderRadius: '10px', cursor: 'pointer',
               fontSize: '0.9rem', fontWeight: '800', letterSpacing: '0.3px'
             }}

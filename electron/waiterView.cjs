@@ -1,196 +1,807 @@
 function renderWaiterView(initialState) {
   const safeInitialState = initialState ? JSON.stringify(initialState).replace(/</g, '\\u003c') : 'null';
+  const franchise = (initialState && initialState.franchise) ? initialState.franchise : {
+    name: 'FacturaPOS',
+    branding: {
+      logoText: 'FacturaPOS',
+      logoIcon: '⚡',
+      badge: 'POS',
+      colors: {
+        primary: '#2563eb',
+        primaryHover: '#1d4ed8',
+        dark: '#0f172a',
+        warm: '#d97706',
+        green: '#10b981',
+        accentSoft: '#eff6ff',
+        borderSubtle: '#e2e8f0'
+      }
+    },
+    waiterApp: {
+      title: 'FacturaPOS Comandero',
+      shortName: 'POS Comandas'
+    }
+  };
+  const colors = franchise.branding ? franchise.branding.colors : {
+    primary: '#2563eb',
+    primaryHover: '#1d4ed8',
+    dark: '#0f172a',
+    warm: '#d97706',
+    green: '#10b981',
+    accentSoft: '#eff6ff',
+    borderSubtle: '#e2e8f0'
+  };
   return `<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>FacturaPOS — Comandero de Mesas</title>
+  <title>${franchise.waiterApp ? franchise.waiterApp.title : franchise.name + ' — Comandero'}</title>
   <link rel="manifest" href="/waiter-manifest.json">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Comandero">
-  <meta name="theme-color" content="#601718">
+  <meta name="apple-mobile-web-app-title" content="${franchise.waiterApp ? franchise.waiterApp.shortName : 'Comandero'}">
+  <meta name="theme-color" content="${colors.dark}">
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
-    body { background: #f4f4f7; color: #18181b; height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; user-select: none; overscroll-behavior: none; }
-    
-    /* Header Diner */
-    header { background: #601718; color: #ffffff; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #D52829; box-shadow: 0 4px 12px rgba(96,23,24,0.25); flex-shrink: 0; z-index: 50; }
-    .brand { display: flex; align-items: center; gap: 9px; cursor: pointer; }
-    .brand-logo-icon { width: 34px; height: 34px; border-radius: 9px; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
-    .brand-text { display: flex; flex-direction: column; line-height: 1.1; }
-    .brand-title { font-weight: 900; font-size: 1.05rem; letter-spacing: 0.5px; text-transform: uppercase; color: #ffffff; }
-    .brand-sub { font-size: 0.68rem; font-weight: 700; color: #fca5a5; letter-spacing: 1px; text-transform: uppercase; }
-    
-    .header-actions { display: flex; align-items: center; gap: 8px; }
-    .rate-badge { background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.18); color: #fde047; font-weight: 800; font-size: 0.74rem; padding: 5px 9px; border-radius: 8px; display: flex; align-items: center; gap: 4px; white-space: nowrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-    
-    .icon-btn { position: relative; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); color: #ffffff; width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s; }
-    .icon-btn:active { transform: scale(0.92); background: rgba(255,255,255,0.25); }
-    .notif-badge { position: absolute; top: -5px; right: -5px; background: #D52829; color: #ffffff; font-size: 0.7rem; font-weight: 900; min-width: 19px; height: 19px; border-radius: 999px; display: flex; align-items: center; justify-content: center; padding: 0 4px; border: 2px solid #601718; box-shadow: 0 2px 6px rgba(213,40,41,0.6); animation: pulseBadge 1.8s infinite; }
-    @keyframes pulseBadge { 0% { transform: scale(1); } 50% { transform: scale(1.15); box-shadow: 0 0 10px rgba(213,40,41,0.9); } 100% { transform: scale(1); } }
-    
-    .waiter-badge { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); color: #ffffff; padding: 6px 11px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; display: flex; align-items: center; gap: 6px; cursor: pointer; transition: background 0.15s; max-width: 130px; }
-    .waiter-badge:active { background: rgba(255,255,255,0.3); }
-    .waiter-badge-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    :root {
+      --brand-primary: ${colors.primary};
+      --brand-primary-hover: ${colors.primaryHover || colors.primary};
+      --brand-dark: ${colors.dark};
+      --brand-warm: ${colors.warm || '#D6862B'};
+      --brand-green: ${colors.green || '#10b981'};
+      --brand-accent-soft: ${colors.accentSoft || '#eff6ff'};
+      --brand-border-subtle: ${colors.borderSubtle || '#e2e8f0'};
+      
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-left: env(safe-area-inset-left, 0px);
+      --safe-right: env(safe-area-inset-right, 0px);
+    }
 
-    main { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 0 16px 120px 16px; display: flex; flex-direction: column; position: relative; -webkit-overflow-scrolling: touch; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
+    body { background: #f8fafc; color: #0f172a; height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; user-select: none; overscroll-behavior: none; }
+    
+    /* Apple Elegant Translucent Header with Notch Safe-Area Protection */
+    header {
+      background: var(--brand-dark);
+      color: #ffffff;
+      padding-top: max(14px, calc(var(--safe-top) + 8px));
+      padding-bottom: 10px;
+      padding-left: max(14px, calc(var(--safe-left) + 8px));
+      padding-right: max(14px, calc(var(--safe-right) + 8px));
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.16);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex-shrink: 0;
+      z-index: 50;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+    .header-main-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      gap: 10px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .brand-logo-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 11px;
+      background: rgba(255, 255, 255, 0.16);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    .brand-text { display: flex; flex-direction: column; line-height: 1.15; }
+    .brand-title { font-weight: 900; font-size: 1.05rem; letter-spacing: -0.2px; text-transform: uppercase; color: #ffffff; }
+    .brand-sub { font-size: 0.65rem; font-weight: 800; color: rgba(255,255,255,0.7); letter-spacing: 0.8px; text-transform: uppercase; }
+    
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      flex-shrink: 0;
+    }
+
+    /* Prominent Apple-Style Waiter Chip */
+    .apple-waiter-chip {
+      background: rgba(255, 255, 255, 0.14);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      color: #ffffff;
+      padding: 4px 10px 4px 6px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      user-select: none;
+      max-width: 150px;
+    }
+    .apple-waiter-chip:active {
+      transform: scale(0.95);
+      background: rgba(255, 255, 255, 0.28);
+    }
+    .waiter-avatar {
+      width: 25px;
+      height: 25px;
+      border-radius: 50%;
+      background: var(--brand-primary);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.72rem;
+      font-weight: 900;
+      border: 1.5px solid rgba(255, 255, 255, 0.6);
+      flex-shrink: 0;
+    }
+    .waiter-chip-text {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.1;
+      text-align: left;
+      overflow: hidden;
+    }
+    .waiter-chip-role {
+      font-size: 0.54rem;
+      font-weight: 800;
+      letter-spacing: 0.6px;
+      opacity: 0.75;
+      text-transform: uppercase;
+    }
+    .waiter-chip-name {
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: #ffffff;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .waiter-chip-chevron {
+      opacity: 0.7;
+      flex-shrink: 0;
+    }
+
+    /* Icon Buttons (Bell & Fullscreen) */
+    .icon-btn {
+      position: relative;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #ffffff;
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+    .icon-btn:active {
+      transform: scale(0.92);
+      background: rgba(255, 255, 255, 0.25);
+    }
+    .notif-badge {
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      background: #ef4444;
+      color: #ffffff;
+      font-size: 0.68rem;
+      font-weight: 900;
+      min-width: 18px;
+      height: 18px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+      border: 2px solid var(--brand-dark);
+      box-shadow: 0 2px 6px rgba(239,68,68,0.6);
+      animation: pulseBadge 1.8s infinite;
+    }
+    @keyframes pulseBadge {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.15); box-shadow: 0 0 10px rgba(239,68,68,0.9); }
+      100% { transform: scale(1); }
+    }
+
+    /* Sub Row: Tasa BCV & Contextual Status (Completely Away from Camera Cutout) */
+    .header-sub-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      padding-top: 5px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .apple-rate-pill {
+      background: rgba(0, 0, 0, 0.32);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      color: #fde047;
+      font-weight: 800;
+      font-size: 0.76rem;
+      padding: 4px 10px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      white-space: nowrap;
+    }
+    .rate-pill-icon { font-size: 0.82rem; }
+    .rate-pill-label { color: #94a3b8; font-size: 0.65rem; letter-spacing: 0.4px; text-transform: uppercase; font-weight: 900; }
+    .rate-pill-val { color: #fde047; font-weight: 800; }
+
+    .apple-context-pill {
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 0.72rem;
+      padding: 4px 10px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+    .context-pill-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--brand-green);
+      box-shadow: 0 0 6px var(--brand-green);
+    }
+
+    main {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 0 16px 120px 16px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      -webkit-overflow-scrolling: touch;
+    }
 
     /* Screen 1: Login / Turno */
-    .login-container { margin: auto; max-width: 360px; width: 100%; text-align: center; padding-top: 24px; }
-    .login-header-icon { width: 56px; height: 56px; border-radius: 16px; background: #601718; color: #ffffff; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px auto; box-shadow: 0 6px 16px rgba(96,23,24,0.3); border: 2px solid #D52829; }
-    .waiter-card-btn { width: 100%; padding: 14px 16px; background: #ffffff; border: 1.5px solid #e4e4e7; border-radius: 14px; font-weight: 800; font-size: 0.96rem; color: #18181b; cursor: pointer; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 6px rgba(0,0,0,0.03); transition: all 0.15s; margin-bottom: 10px; }
-    .waiter-card-btn:active { transform: scale(0.98); background: #fafafa; border-color: #D52829; }
-    .waiter-card-enter { color: #D52829; font-weight: 900; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 4px; }
+    .login-container {
+      margin: auto;
+      max-width: 380px;
+      width: 100%;
+      text-align: center;
+      padding: 24px 8px;
+    }
+    .login-header-icon {
+      width: 58px;
+      height: 58px;
+      border-radius: 18px;
+      background: var(--brand-dark);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px auto;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+      border: 2px solid var(--brand-primary);
+    }
+    .waiter-card-btn {
+      width: 100%;
+      padding: 14px 16px;
+      background: #ffffff;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 16px;
+      font-weight: 800;
+      font-size: 0.98rem;
+      color: #0f172a;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.02);
+      transition: all 0.15s ease;
+      margin-bottom: 10px;
+    }
+    .waiter-card-btn:active {
+      transform: scale(0.98);
+      background: #f8fafc;
+      border-color: var(--brand-primary);
+    }
+    .waiter-card-enter {
+      color: var(--brand-primary);
+      font-weight: 900;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
 
-    /* PIN Modal */
-    .modal-overlay { position: fixed; inset: 0; background: rgba(24,24,27,0.7); display: flex; align-items: flex-end; z-index: 200; backdrop-filter: blur(4px); animation: fadeIn 0.2s ease; }
-    .modal-overlay.center { align-items: center; justify-content: center; padding: 16px; }
+    /* Apple PIN Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.65);
+      display: flex;
+      align-items: flex-end;
+      z-index: 200;
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      animation: fadeIn 0.2s ease;
+    }
+    .modal-overlay.center {
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-    .pin-modal-card { background: #ffffff; border-radius: 24px; padding: 22px; width: 100%; max-width: 320px; margin: auto; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.3); border: 1px solid #e4e4e7; animation: zoomIn 0.2s ease; }
+    .pin-modal-card {
+      background: #ffffff;
+      border-radius: 24px;
+      padding: 22px;
+      width: 100%;
+      max-width: 320px;
+      margin: auto;
+      text-align: center;
+      box-shadow: 0 24px 48px rgba(0,0,0,0.25);
+      border: 1px solid #e2e8f0;
+      animation: zoomIn 0.2s ease;
+    }
     @keyframes zoomIn { from { transform: scale(0.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
     .pin-dots { display: flex; justify-content: center; gap: 14px; margin: 16px 0 20px 0; }
-    .pin-dot { width: 15px; height: 15px; border-radius: 50%; border: 2px solid #cbd5e1; transition: all 0.15s; background: #ffffff; }
-    .pin-dot.filled { background: #D52829; border-color: #D52829; transform: scale(1.18); box-shadow: 0 0 8px rgba(213,40,41,0.5); }
+    .pin-dot {
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      border: 2px solid #cbd5e1;
+      transition: all 0.15s;
+      background: #ffffff;
+    }
+    .pin-dot.filled {
+      background: var(--brand-primary);
+      border-color: var(--brand-primary);
+      transform: scale(1.18);
+      box-shadow: 0 0 8px rgba(37,99,235,0.4);
+    }
     .pin-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-    .pin-key { background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 14px 0; font-size: 1.45rem; font-weight: 800; color: #0f172a; cursor: pointer; transition: all 0.1s; user-select: none; }
-    .pin-key:active { background: #D52829; color: #ffffff; border-color: #D52829; transform: scale(0.94); }
+    .pin-key {
+      background: #f8fafc;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 14px 0;
+      font-size: 1.45rem;
+      font-weight: 800;
+      color: #0f172a;
+      cursor: pointer;
+      transition: all 0.1s;
+      user-select: none;
+    }
+    .pin-key:active {
+      background: var(--brand-primary);
+      color: #ffffff;
+      border-color: var(--brand-primary);
+      transform: scale(0.94);
+    }
     .pin-key.key-action { font-size: 1rem; background: #f1f5f9; color: #64748b; font-weight: 700; }
 
     /* Sticky Top Bars for Tables and Ordering */
-    .tables-top-bar, .order-top-bar { position: sticky; top: 0; background: #f4f4f7; z-index: 30; margin-left: -16px; margin-right: -16px; padding: 10px 16px 8px 16px; border-bottom: 1.5px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.03); margin-bottom: 12px; }
+    .tables-top-bar, .order-top-bar {
+      position: sticky;
+      top: 0;
+      background: #f8fafc;
+      z-index: 30;
+      margin-left: -16px;
+      margin-right: -16px;
+      padding: 10px 16px 8px 16px;
+      border-bottom: 1.5px solid #e2e8f0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+      margin-bottom: 12px;
+    }
 
-    /* Segmented Zone / Category Bars */
-    .zones-bar { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 6px 0; margin-bottom: 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    /* Segmented Zone / Category Bars (Apple Style) */
+    .zones-bar {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 2px 0 6px 0;
+      margin-bottom: 4px;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
     .zones-bar::-webkit-scrollbar { display: none; }
-    .zone-pill, .cat-pill { flex-shrink: 0; height: 38px; padding: 0 16px; border-radius: 10px; background: #ffffff; color: #475569; font-weight: 800; font-size: 0.8rem; border: 1.5px solid #e2e8f0; white-space: nowrap; cursor: pointer; transition: all 0.12s ease; text-transform: uppercase; letter-spacing: 0.4px; display: inline-flex; align-items: center; justify-content: center; user-select: none; }
+    .zone-pill, .cat-pill {
+      flex-shrink: 0;
+      height: 38px;
+      padding: 0 16px;
+      border-radius: 999px;
+      background: #ffffff;
+      color: #475569;
+      font-weight: 800;
+      font-size: 0.8rem;
+      border: 1.5px solid #e2e8f0;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.12s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
     .zone-pill:active, .cat-pill:active { transform: scale(0.96); }
-    .zone-pill.active { background: #601718; color: #ffffff; border-color: #601718; box-shadow: 0 3px 10px rgba(96,23,24,0.3); }
-    .cat-pill.active { background: #D52829; color: #ffffff; border-color: #D52829; box-shadow: 0 3px 10px rgba(213,40,41,0.3); }
+    .zone-pill.active {
+      background: var(--brand-dark);
+      color: #ffffff;
+      border-color: var(--brand-dark);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+    }
+    .cat-pill.active {
+      background: var(--brand-primary);
+      color: #ffffff;
+      border-color: var(--brand-primary);
+      box-shadow: 0 4px 12px rgba(37,99,235,0.3);
+    }
 
     /* Tables Grid */
     .tables-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; padding-bottom: 40px; }
-    .table-card { background: #ffffff; border-radius: 16px; padding: 14px 12px; display: flex; flex-direction: column; justify-content: space-between; min-height: 120px; border: 2px solid #e2e8f0; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.03); transition: transform 0.12s; position: relative; }
+    .table-card {
+      background: #ffffff;
+      border-radius: 18px;
+      padding: 14px 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 120px;
+      border: 2px solid #e2e8f0;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+      transition: transform 0.12s, border-color 0.12s;
+      position: relative;
+    }
     .table-card:active { transform: scale(0.96); }
-    .table-card.libre { border-color: #7CBE43; background: #ffffff; }
-    .table-card.ocupada { border-color: #D6862B; background: #ffffff; }
-    .table-card.cuenta { border-color: #D52829; background: #fff5f5; animation: pulseRed 2s infinite; }
-    @keyframes pulseRed { 0% { box-shadow: 0 0 0 0 rgba(213,40,41,0.35); } 70% { box-shadow: 0 0 0 6px rgba(213,40,41,0); } 100% { box-shadow: 0 0 0 0 rgba(213,40,41,0); } }
-    .table-card.ready-dish { border-color: #D6862B; animation: pulseAmber 1.8s infinite; }
+    .table-card.libre { border-color: var(--brand-green); background: #ffffff; }
+    .table-card.ocupada { border-color: var(--brand-warm); background: #ffffff; }
+    .table-card.cuenta { border-color: #ef4444; background: #fef2f2; animation: pulseRed 2s infinite; }
+    @keyframes pulseRed { 0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.35); } 70% { box-shadow: 0 0 0 6px rgba(239,68,68,0); } 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); } }
+    .table-card.ready-dish { border-color: var(--brand-warm); animation: pulseAmber 1.8s infinite; }
     @keyframes pulseAmber { 0% { box-shadow: 0 0 0 0 rgba(214,134,43,0.45); } 70% { box-shadow: 0 0 0 8px rgba(214,134,43,0); } 100% { box-shadow: 0 0 0 0 rgba(214,134,43,0); } }
     
-    .table-name { font-weight: 900; font-size: 1.15rem; color: #18181b; }
-    .table-status { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; width: fit-content; margin-top: 4px; letter-spacing: 0.4px; }
+    .table-name { font-weight: 900; font-size: 1.15rem; color: #0f172a; }
+    .table-status { font-size: 0.68rem; font-weight: 800; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; width: fit-content; margin-top: 4px; letter-spacing: 0.4px; }
     .status-libre { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
     .status-ocupada { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
     .status-cuenta { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
-    .table-total { font-weight: 900; font-size: 1.05rem; color: #D52829; text-align: right; }
+    .table-total { font-weight: 900; font-size: 1.05rem; color: var(--brand-primary); text-align: right; }
 
     /* Ordering Screen Header Elements */
     .menu-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-shrink: 0; }
-    .table-badge-active { display: inline-flex; align-items: center; gap: 7px; background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 6px 14px; font-size: 0.92rem; font-weight: 900; color: #18181b; box-shadow: 0 1px 3px rgba(0,0,0,0.03); }
-    .table-badge-dot { width: 8px; height: 8px; border-radius: 50%; background: #7CBE43; }
+    .table-badge-active {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: #ffffff;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-size: 0.92rem;
+      font-weight: 900;
+      color: #0f172a;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    }
+    .table-badge-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--brand-green); box-shadow: 0 0 6px var(--brand-green); }
     .status-cuenta-badge { background: #fee2e2; color: #b91c1c; font-weight: 800; font-size: 0.76rem; padding: 6px 12px; border-radius: 8px; border: 1px solid #fca5a5; white-space: nowrap; }
     .back-btn { background: #ffffff; border: 1.5px solid #e2e8f0; padding: 7px 12px; border-radius: 10px; font-weight: 800; font-size: 0.82rem; color: #1e293b; cursor: pointer; display: flex; align-items: center; gap: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); }
-    .bill-btn { background: #601718; color: #ffffff; border: none; padding: 7px 12px; border-radius: 10px; font-weight: 800; font-size: 0.82rem; cursor: pointer; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 8px rgba(96,23,24,0.3); }
+    .bill-btn { background: var(--brand-dark); color: #ffffff; border: none; padding: 7px 12px; border-radius: 10px; font-weight: 800; font-size: 0.82rem; cursor: pointer; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
     
     .search-box { position: relative; margin-bottom: 8px; }
     .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none; }
-    .search-input { width: 100%; height: 42px; padding: 0 16px 0 40px; border-radius: 11px; border: 1.5px solid #e2e8f0; font-size: 0.9rem; background: #ffffff; outline: none; font-weight: 600; color: #18181b; box-shadow: 0 1px 2px rgba(0,0,0,0.03); transition: border-color 0.15s; }
-    .search-input:focus { border-color: #D52829; }
+    .search-input { width: 100%; height: 42px; padding: 0 16px 0 40px; border-radius: 12px; border: 1.5px solid #e2e8f0; font-size: 0.9rem; background: #ffffff; outline: none; font-weight: 600; color: #0f172a; box-shadow: 0 1px 2px rgba(0,0,0,0.02); transition: border-color 0.15s; }
+    .search-input:focus { border-color: var(--brand-primary); }
 
     /* Products Grid */
     .prods-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
-    .prod-card { background: #ffffff; border-radius: 15px; border: 1.5px solid #e2e8f0; display: flex; flex-direction: column; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.03); transition: transform 0.1s ease, border-color 0.12s ease, box-shadow 0.12s ease; position: relative; overflow: hidden; user-select: none; }
-    .prod-card:active { transform: scale(0.97); border-color: #D52829; }
-    .prod-card.tapped { border-color: #D52829; box-shadow: 0 0 0 3px rgba(213,40,41,0.22); }
+    .prod-card {
+      background: #ffffff;
+      border-radius: 18px;
+      border: 1.5px solid #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+      transition: transform 0.1s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+      position: relative;
+      overflow: hidden;
+      user-select: none;
+    }
+    .prod-card:active { transform: scale(0.97); border-color: var(--brand-primary); }
+    .prod-card.tapped { border-color: var(--brand-primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.2); }
     
     .prod-img-box { width: 100%; height: 122px; background: #ffffff; display: flex; align-items: center; justify-content: center; position: relative; padding: 6px; box-sizing: border-box; border-bottom: 1px solid #f1f5f9; }
-    .prod-img { width: 100%; height: 100%; object-fit: contain; object-position: center; display: block; border-radius: 8px; pointer-events: none; }
-    .prod-img-fallback { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #fffbeb; color: #D6862B; gap: 4px; border-radius: 8px; }
-    .prod-img-fallback-text { font-size: 0.65rem; font-weight: 800; color: #b45309; text-transform: uppercase; }
+    .prod-img { width: 100%; height: 100%; object-fit: contain; object-position: center; display: block; border-radius: 10px; pointer-events: none; }
+    .prod-img-fallback { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f8fafc; color: var(--brand-primary); gap: 4px; border-radius: 10px; }
+    .prod-img-fallback-text { font-size: 0.65rem; font-weight: 800; color: #64748b; text-transform: uppercase; }
     
-    .prod-cart-badge { position: absolute; top: 7px; right: 7px; background: #D52829; color: #ffffff; font-weight: 900; min-width: 25px; height: 25px; border-radius: 999px; display: flex; align-items: center; justify-content: center; font-size: 0.78rem; box-shadow: 0 2px 8px rgba(213,40,41,0.5); z-index: 5; padding: 0 5px; border: 2px solid #ffffff; pointer-events: none; }
+    .prod-cart-badge {
+      position: absolute;
+      top: 7px;
+      right: 7px;
+      background: var(--brand-primary);
+      color: #ffffff;
+      font-weight: 900;
+      min-width: 25px;
+      height: 25px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.78rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+      z-index: 5;
+      padding: 0 5px;
+      border: 2px solid #ffffff;
+      pointer-events: none;
+    }
     .prod-cart-badge.pop-badge { animation: popBadge 0.28s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
     @keyframes popBadge { 0% { transform: scale(0.6); } 50% { transform: scale(1.35); } 100% { transform: scale(1); } }
     
     .prod-body { padding: 10px; display: flex; flex-direction: column; justify-content: space-between; flex: 1; }
-    
-    /* Uniform tag and title alignment */
     .prod-top-info { display: flex; flex-direction: column; }
-    .prod-cat-tag { display: inline-flex; align-items: center; font-size: 0.62rem; font-weight: 800; color: #601718; background: #fdf2f2; border: 1px solid #fecaca; border-radius: 5px; padding: 2px 7px; width: fit-content; max-width: 100%; text-transform: uppercase; letter-spacing: 0.4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; height: 18px; box-sizing: border-box; margin-bottom: 4px; }
+    .prod-cat-tag {
+      display: inline-flex;
+      align-items: center;
+      font-size: 0.62rem;
+      font-weight: 800;
+      color: var(--brand-primary);
+      background: var(--brand-accent-soft);
+      border: 1px solid var(--brand-border-subtle);
+      border-radius: 6px;
+      padding: 2px 7px;
+      width: fit-content;
+      max-width: 100%;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      height: 18px;
+      box-sizing: border-box;
+      margin-bottom: 4px;
+    }
     .prod-name { font-weight: 800; font-size: 0.86rem; color: #0f172a; line-height: 1.25; height: 2.5em; max-height: 2.5em; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; margin-bottom: 8px; }
     
     .prod-bottom-info { display: flex; flex-direction: column; margin-top: auto; }
     .prod-prices-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
-    .prod-price-usd { font-weight: 900; color: #D52829; font-size: 1.05rem; line-height: 1; }
+    .prod-price-usd { font-weight: 900; color: var(--brand-primary); font-size: 1.05rem; line-height: 1; }
     .prod-price-bs { font-size: 0.7rem; color: #64748b; font-weight: 700; font-family: ui-monospace, SFMono-Regular, monospace; }
     
     .prod-add-btn { width: 100%; height: 32px; background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.76rem; font-weight: 800; color: #334155; text-transform: uppercase; letter-spacing: 0.4px; display: flex; align-items: center; justify-content: center; gap: 4px; cursor: pointer; transition: all 0.1s ease; }
-    .prod-card:active .prod-add-btn { background: #D52829; color: #ffffff; border-color: #D52829; }
+    .prod-card:active .prod-add-btn { background: var(--brand-primary); color: #ffffff; border-color: var(--brand-primary); }
 
-    /* Bottom Cart Bar */
-    .cart-bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(24, 24, 27, 0.98); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); color: #fff; padding: 12px 20px; padding-bottom: max(14px, env(safe-area-inset-bottom)); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -4px 25px rgba(0,0,0,0.35); z-index: 100; border-top: 2px solid #D52829; }
+    /* Bottom Floating Cart Bar (Apple Dynamic Island Style with Safe-Area) */
+    .cart-bottom-bar {
+      position: fixed;
+      bottom: max(10px, calc(var(--safe-bottom) + 6px));
+      left: max(12px, calc(var(--safe-left) + 6px));
+      right: max(12px, calc(var(--safe-right) + 6px));
+      background: rgba(15, 23, 42, 0.94);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      color: #fff;
+      padding: 12px 18px;
+      border-radius: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      z-index: 100;
+      border: 1px solid rgba(255,255,255,0.15);
+    }
     .cart-totals { display: flex; flex-direction: column; }
-    .cart-count-pill { font-size: 0.72rem; color: #fca5a5; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+    .cart-count-pill { font-size: 0.7rem; color: #94a3b8; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
     .cart-total-usd { font-size: 1.35rem; font-weight: 900; color: #ffffff; line-height: 1.1; margin-top: 1px; }
     .cart-total-bs { font-size: 0.76rem; color: #fde047; font-weight: 800; font-family: ui-monospace, SFMono-Regular, monospace; }
     
     .cart-actions { display: flex; gap: 10px; align-items: center; }
-    .cart-detail-btn { background: rgba(255,255,255,0.12); border: 1.5px solid rgba(255,255,255,0.25); color: #ffffff; height: 44px; padding: 0 16px; border-radius: 12px; font-weight: 800; font-size: 0.86rem; cursor: pointer; white-space: nowrap; transition: background 0.15s; }
+    .cart-detail-btn { background: rgba(255,255,255,0.12); border: 1.5px solid rgba(255,255,255,0.22); color: #ffffff; height: 42px; padding: 0 15px; border-radius: 12px; font-weight: 800; font-size: 0.84rem; cursor: pointer; white-space: nowrap; transition: background 0.15s; }
     .cart-detail-btn:active { background: rgba(255,255,255,0.25); }
-    .cart-send-btn { background: #D52829; color: #ffffff; border: none; height: 44px; padding: 0 20px; border-radius: 12px; font-weight: 900; font-size: 0.92rem; cursor: pointer; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 4px 14px rgba(213,40,41,0.5); display: flex; align-items: center; gap: 6px; transition: transform 0.1s; }
+    .cart-send-btn { background: var(--brand-primary); color: #ffffff; border: none; height: 42px; padding: 0 18px; border-radius: 12px; font-weight: 900; font-size: 0.9rem; cursor: pointer; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 4px 14px rgba(0,0,0,0.25); display: flex; align-items: center; gap: 6px; transition: transform 0.1s; }
     .cart-send-btn:active { transform: scale(0.97); }
 
+    /* Apple Action Sheet for Waiter Switching & Logout */
+    .apple-action-sheet {
+      background: #ffffff;
+      width: 100%;
+      max-width: 420px;
+      margin: 0 auto;
+      border-radius: 26px 26px 0 0;
+      padding: 16px 20px 24px 20px;
+      padding-bottom: max(24px, calc(var(--safe-bottom) + 16px));
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 -12px 36px rgba(0,0,0,0.3);
+      animation: slideUp 0.22s ease;
+    }
+    .apple-sheet-handle {
+      width: 36px;
+      height: 4px;
+      background: #cbd5e1;
+      border-radius: 999px;
+      margin: 0 auto 14px auto;
+    }
+    .apple-sheet-header {
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    .apple-sheet-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: var(--brand-dark);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      font-weight: 900;
+      margin: 0 auto 6px auto;
+      border: 2px solid var(--brand-primary);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .apple-sheet-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .apple-sheet-btn {
+      width: 100%;
+      height: 48px;
+      border-radius: 14px;
+      font-weight: 800;
+      font-size: 0.94rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      border: none;
+      transition: all 0.12s ease;
+    }
+    .apple-sheet-btn.primary {
+      background: var(--brand-primary);
+      color: #ffffff;
+      box-shadow: 0 4px 12px rgba(37,99,235,0.3);
+    }
+    .apple-sheet-btn.primary:active {
+      transform: scale(0.97);
+      background: var(--brand-primary-hover);
+    }
+    .apple-sheet-btn.danger {
+      background: #fee2e2;
+      color: #b91c1c;
+      border: 1px solid #fecaca;
+    }
+    .apple-sheet-btn.danger:active {
+      background: #fecaca;
+      transform: scale(0.97);
+    }
+    .apple-sheet-btn.cancel {
+      background: #f1f5f9;
+      color: #475569;
+    }
+    .apple-sheet-btn.cancel:active {
+      background: #e2e8f0;
+      transform: scale(0.97);
+    }
+
     /* Modals / Drawers */
-    .modal-sheet { background: #ffffff; width: 100%; border-radius: 24px 24px 0 0; padding: 18px; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 -10px 30px rgba(0,0,0,0.3); animation: slideUp 0.22s ease; border-top: 1px solid #e4e4e7; }
+    .modal-sheet {
+      background: #ffffff;
+      width: 100%;
+      border-radius: 26px 26px 0 0;
+      padding: 18px;
+      padding-bottom: max(20px, calc(var(--safe-bottom) + 16px));
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 -10px 30px rgba(0,0,0,0.3);
+      animation: slideUp 0.22s ease;
+      border-top: 1px solid #e2e8f0;
+    }
     @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #e4e4e7; }
-    .modal-title { font-size: 1.15rem; font-weight: 900; color: #18181b; display: flex; align-items: center; gap: 6px; }
-    .modal-close-btn { border: none; background: #f4f4f7; width: 32px; height: 32px; border-radius: 50%; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #71717a; font-weight: 700; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #e2e8f0; }
+    .modal-title { font-size: 1.15rem; font-weight: 900; color: #0f172a; display: flex; align-items: center; gap: 6px; }
+    .modal-close-btn { border: none; background: #f1f5f9; width: 32px; height: 32px; border-radius: 50%; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #64748b; font-weight: 700; }
     
-    .cart-item-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f4f4f7; }
-    .cart-thumb { width: 44px; height: 44px; border-radius: 8px; background: #ffffff; border: 1px solid #e4e4e7; margin-right: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; padding: 2px; }
-    .qty-btn { width: 34px; height: 34px; border-radius: 8px; border: 1.5px solid #e4e4e7; background: #f8fafc; font-weight: 900; font-size: 1.15rem; display: flex; align-items: center; justify-content: center; color: #18181b; cursor: pointer; }
+    .cart-item-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+    .cart-thumb { width: 44px; height: 44px; border-radius: 8px; background: #ffffff; border: 1px solid #e2e8f0; margin-right: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; padding: 2px; }
+    .qty-btn { width: 34px; height: 34px; border-radius: 8px; border: 1.5px solid #e2e8f0; background: #f8fafc; font-weight: 900; font-size: 1.15rem; display: flex; align-items: center; justify-content: center; color: #0f172a; cursor: pointer; }
     .qty-btn:active { background: #e2e8f0; }
 
-    .alert-banner { position: fixed; top: 12px; left: 12px; right: 12px; background: #15803d; color: #ffffff; padding: 12px 14px; border-radius: 12px; font-weight: 800; font-size: 0.88rem; display: flex; align-items: center; justify-content: space-between; z-index: 1000; box-shadow: 0 10px 25px rgba(0,0,0,0.25); animation: slideDown 0.25s ease; border: 1px solid rgba(255,255,255,0.2); }
+    .alert-banner { position: fixed; top: max(14px, calc(var(--safe-top) + 8px)); left: 12px; right: 12px; background: #15803d; color: #ffffff; padding: 12px 14px; border-radius: 14px; font-weight: 800; font-size: 0.88rem; display: flex; align-items: center; justify-content: space-between; z-index: 1000; box-shadow: 0 10px 25px rgba(0,0,0,0.25); animation: slideDown 0.25s ease; border: 1px solid rgba(255,255,255,0.2); }
     @keyframes slideDown { from { transform: translateY(-40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
   </style>
   <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
 
+  <!-- Dynamic Header with Dual Rows (Safe from Camera Cutouts) -->
   <header>
-    <div class="brand" onclick="location.reload()">
-      <div class="brand-logo-icon">⚡</div>
-      <div class="brand-text">
-        <span class="brand-title">FacturaPOS</span>
-        <span class="brand-sub">Comandero</span>
+    <!-- Row 1: Brand & Actions -->
+    <div class="header-main-row">
+      <div class="brand" onclick="goHome()">
+        <div class="brand-logo-icon">
+          ${franchise.branding && franchise.branding.logoImage 
+            ? `<img src="${franchise.branding.logoImage}" alt="${franchise.branding.logoText}" style="width:100%; height:100%; object-fit:contain;">` 
+            : `<span>${franchise.branding ? franchise.branding.logoIcon : '⚡'}</span>`}
+        </div>
+        <div class="brand-text">
+          <span class="brand-title">${franchise.branding ? franchise.branding.logoText : 'FacturaPOS'}</span>
+          <span class="brand-sub">${franchise.waiterApp ? franchise.waiterApp.shortName : 'Comandero'}</span>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- Prominent Waiter Profile Chip -->
+        <div id="waiterBtn" class="apple-waiter-chip" onclick="handleWaiterChipClick()" title="Sesión de Mesero">
+          <div class="waiter-avatar" id="waiterAvatar">👤</div>
+          <div class="waiter-chip-text">
+            <span class="waiter-chip-role">MESERO</span>
+            <span id="currentWaiterName" class="waiter-chip-name">Seleccionar</span>
+          </div>
+          <svg class="waiter-chip-chevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+
+        <!-- Kitchen Bell -->
+        <button id="notifBellBtn" class="icon-btn" onclick="openNotifsModal()" title="Avisos de Cocina">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span id="notifBadge" class="notif-badge" style="display: none;">0</span>
+        </button>
+
+        <!-- Fullscreen Button -->
+        <button id="fullscreenBtn" class="icon-btn" onclick="toggleFullscreen()" title="Pantalla Completa">
+          <svg id="fsEnterIcon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+          </svg>
+          <svg id="fsExitIcon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+            <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
+          </svg>
+        </button>
       </div>
     </div>
-    <div class="header-actions">
-      <div id="tabletRateBadge" class="rate-badge" title="Tasa BCV del Día">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-        <span>Bs. --</span>
+
+    <!-- Row 2: Tasa BCV & Contextual Status Strip (Safe from Camera Notch) -->
+    <div class="header-sub-row">
+      <div id="tabletRateBadge" class="apple-rate-pill" title="Tasa BCV del Día">
+        <span class="rate-pill-icon">💵</span>
+        <span class="rate-pill-label">BCV:</span>
+        <span class="rate-pill-val">Bs. --</span>
       </div>
-      <button id="fullscreenBtn" class="icon-btn" onclick="toggleFullscreen()" title="Pantalla Completa">
-        <svg id="fsEnterIcon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
-        </svg>
-        <svg id="fsExitIcon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
-          <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
-        </svg>
-      </button>
-      <button id="notifBellBtn" class="icon-btn" onclick="openNotifsModal()" title="Avisos de Cocina">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-        <span id="notifBadge" class="notif-badge" style="display: none;">0</span>
-      </button>
-      <div id="waiterBtn" class="waiter-badge" onclick="logoutWaiter()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        <span id="currentWaiterName" class="waiter-badge-name">Mesero</span>
+      <div id="headerContextPill" class="apple-context-pill">
+        <span class="context-pill-dot"></span>
+        <span id="headerContextText">Turno de Meseros</span>
       </div>
     </div>
   </header>
@@ -282,8 +893,100 @@ function renderWaiterView(initialState) {
       const badge = document.getElementById('tabletRateBadge');
       const rate = getLiveExchangeRate();
       if (badge) {
-        badge.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg><span>Bs. ' + rate.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</span>';
+        const valSpan = badge.querySelector('.rate-pill-val');
+        if (valSpan) {
+          valSpan.innerText = 'Bs. ' + rate.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        } else {
+          badge.innerHTML = '<span class="rate-pill-icon">💵</span><span class="rate-pill-label">BCV:</span><span class="rate-pill-val">Bs. ' + rate.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</span>';
+        }
       }
+    }
+
+    function updateContextBadge(text) {
+      const el = document.getElementById('headerContextText');
+      if (el) el.innerText = text;
+    }
+
+    function updateWaiterUI() {
+      const nameEl = document.getElementById('currentWaiterName');
+      const avatarEl = document.getElementById('waiterAvatar');
+      const chip = document.getElementById('waiterBtn');
+      if (!currentWaiter) {
+        if (nameEl) nameEl.innerText = 'Seleccionar';
+        if (avatarEl) avatarEl.innerText = '👤';
+      } else {
+        const nameParts = (currentWaiter.name || 'Mesero').trim().split(' ');
+        const displayName = nameParts.length > 1 ? nameParts[0] + ' ' + nameParts[1].charAt(0) + '.' : nameParts[0];
+        if (nameEl) nameEl.innerText = displayName;
+        if (avatarEl) avatarEl.innerText = (currentWaiter.name.charAt(0) || 'M').toUpperCase();
+      }
+    }
+
+    function goHome() {
+      if (selectedTable) {
+        if (currentCart.length > 0) {
+          if (!confirm('¿Deseas volver al mapa de mesas? Los productos agregados se conservarán.')) return;
+        }
+        renderTablesScreen();
+      }
+    }
+
+    // Waiter Action Sheet
+    function handleWaiterChipClick() {
+      if (!currentWaiter) {
+        renderLoginScreen();
+        return;
+      }
+      openWaiterSheet();
+    }
+
+    function openWaiterSheet() {
+      closeWaiterSheet();
+      const sheet = document.createElement('div');
+      sheet.className = 'modal-overlay';
+      sheet.id = 'waiterSheet';
+      sheet.innerHTML = 
+        '<div class="apple-action-sheet">' +
+          '<div class="apple-sheet-handle"></div>' +
+          '<div class="apple-sheet-header">' +
+            '<div class="apple-sheet-avatar">' + (currentWaiter.name ? currentWaiter.name.charAt(0).toUpperCase() : '👤') + '</div>' +
+            '<div style="font-size:1.15rem; font-weight:900; color:#0f172a; margin-top:6px;">' + currentWaiter.name + '</div>' +
+            '<div style="font-size:0.78rem; color:#64748b; font-weight:700; margin-top:2px;">Turno de Salón Activo</div>' +
+          '</div>' +
+          '<div class="apple-sheet-actions">' +
+            '<button class="apple-sheet-btn primary" onclick="switchWaiterAction()">' +
+              '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>' +
+              '<span>Cambiar de Mesero</span>' +
+            '</button>' +
+            '<button class="apple-sheet-btn danger" onclick="confirmLogoutWaiter()">' +
+              '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>' +
+              '<span>Cerrar Sesión</span>' +
+            '</button>' +
+            '<button class="apple-sheet-btn cancel" onclick="closeWaiterSheet()">Cancelar</button>' +
+          '</div>' +
+        '</div>';
+      sheet.onclick = function(e) { if (e.target === sheet) closeWaiterSheet(); };
+      document.body.appendChild(sheet);
+    }
+
+    function closeWaiterSheet() {
+      const s = document.getElementById('waiterSheet');
+      if (s) s.remove();
+    }
+
+    function switchWaiterAction() {
+      closeWaiterSheet();
+      renderLoginScreen();
+    }
+
+    function confirmLogoutWaiter() {
+      closeWaiterSheet();
+      currentWaiter = null;
+      localStorage.removeItem('waiter_logged_id');
+      selectedTable = null;
+      currentCart = [];
+      updateWaiterUI();
+      renderLoginScreen();
     }
 
     function toggleFullscreen() {
@@ -452,6 +1155,25 @@ function renderWaiterView(initialState) {
       }
     });
 
+    socket.on('franchise:actualizada', function(f) {
+      if (f) applyFranchiseThemeToDoc(f);
+    });
+
+    function applyFranchiseThemeToDoc(f) {
+      if (!f || !f.branding || !f.branding.colors) return;
+      const c = f.branding.colors;
+      const root = document.documentElement;
+      if (c.primary) root.style.setProperty('--brand-primary', c.primary);
+      if (c.primaryHover) root.style.setProperty('--brand-primary-hover', c.primaryHover);
+      if (c.dark) root.style.setProperty('--brand-dark', c.dark);
+      if (c.warm) root.style.setProperty('--brand-warm', c.warm);
+      if (c.green) root.style.setProperty('--brand-green', c.green);
+      if (c.accentSoft) root.style.setProperty('--brand-accent-soft', c.accentSoft);
+      if (c.borderSubtle) root.style.setProperty('--brand-border-subtle', c.borderSubtle);
+      const themeMeta = document.querySelector('meta[name="theme-color"]');
+      if (themeMeta && c.dark) themeMeta.setAttribute('content', c.dark);
+    }
+
     socket.on('comanda:lista', function(data) {
       playKitchenChime();
       if (navigator.vibrate) navigator.vibrate([350, 150, 350, 150, 500]);
@@ -477,7 +1199,7 @@ function renderWaiterView(initialState) {
       }
       persistNotifs();
 
-      showAlertWithAction('Plato listo en ' + data.tableName + '!', 'Ver Avisos', openNotifsModal, '#D6862B');
+      showAlertWithAction('¡Plato listo en ' + data.tableName + '!', 'Ver Avisos', openNotifsModal, 'var(--brand-warm)');
       if (currentScreen === 'tables') renderTablesScreen();
     });
 
@@ -646,6 +1368,7 @@ function renderWaiterView(initialState) {
 
     function renderCurrentScreen() {
       updateNotifBadge();
+      updateWaiterUI();
       if (!currentWaiter) {
         renderLoginScreen();
       } else if (selectedTable) {
@@ -661,7 +1384,8 @@ function renderWaiterView(initialState) {
     function renderLoginScreen() {
       currentScreen = 'login';
       document.getElementById('cartBar').style.display = 'none';
-      document.getElementById('currentWaiterName').innerText = 'Seleccionar';
+      updateContextBadge('Turno de Meseros');
+      updateWaiterUI();
       
       const app = document.getElementById('appContent');
       const waitersList = (state.waiters || []).filter(function(w) { return w.active !== false; });
@@ -672,9 +1396,9 @@ function renderWaiterView(initialState) {
             '<div class="login-header-icon">' +
               '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>' +
             '</div>' +
-            '<h2 style="font-size: 1.25rem; font-weight: 900; margin-bottom: 6px; color:#18181b;">Meseros de Salón</h2>' +
-            '<p style="color: #71717a; font-size: 0.86rem; margin-bottom: 16px;">No hay meseros activos configurados en la PC.</p>' +
-            '<button onclick="location.reload()" style="padding:11px 20px; border-radius:10px; background:#601718; color:#fff; border:none; font-weight:900; font-size:0.86rem; cursor:pointer; text-transform:uppercase;">Reintentar Conexión</button>' +
+            '<h2 style="font-size: 1.25rem; font-weight: 900; margin-bottom: 6px; color:#0f172a;">Meseros de Salón</h2>' +
+            '<p style="color: #64748b; font-size: 0.86rem; margin-bottom: 16px;">No hay meseros activos configurados en la PC.</p>' +
+            '<button onclick="location.reload()" style="padding:11px 20px; border-radius:12px; background:var(--brand-dark); color:#fff; border:none; font-weight:900; font-size:0.86rem; cursor:pointer; text-transform:uppercase;">Reintentar Conexión</button>' +
           '</div>';
         return;
       }
@@ -684,16 +1408,17 @@ function renderWaiterView(initialState) {
           '<div class="login-header-icon">' +
             '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>' +
           '</div>' +
-          '<h2 style="font-size: 1.35rem; font-weight: 900; margin-bottom: 4px; color:#18181b;">Turno de Meseros</h2>' +
-          '<p style="color: #71717a; font-size: 0.86rem; margin-bottom: 20px;">Toca tu nombre para iniciar tu sesión de comanda:</p>' +
+          '<h2 style="font-size: 1.35rem; font-weight: 900; margin-bottom: 4px; color:#0f172a;">Turno de Meseros</h2>' +
+          '<p style="color: #64748b; font-size: 0.86rem; margin-bottom: 20px;">Toca tu nombre para acceder al comandero:</p>' +
           '<div style="display: flex; flex-direction: column; gap: 4px;">' +
             waitersList.map(function(w) {
+              const initial = (w.name.charAt(0) || 'M').toUpperCase();
               return '<button class="waiter-card-btn" data-id="' + w.id + '" onclick="selectWaiterFromBtn(this)">' +
                 '<span style="display:flex; align-items:center; gap:12px;">' +
-                  '<span style="width:36px; height:36px; border-radius:10px; background:#f4f4f7; display:flex; align-items:center; justify-content:center; color:#601718;">' +
-                    '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>' +
+                  '<span style="width:38px; height:38px; border-radius:12px; background:#f1f5f9; display:flex; align-items:center; justify-content:center; color:var(--brand-primary); font-weight:900; font-size:1.1rem; border:1px solid #e2e8f0;">' +
+                    initial +
                   '</span>' +
-                  '<span style="font-size:1rem; font-weight:800; color:#18181b;">' + w.name + '</span>' +
+                  '<span style="font-size:1rem; font-weight:800; color:#0f172a;">' + w.name + '</span>' +
                 '</span>' +
                 '<span class="waiter-card-enter">' +
                   '<span>Ingresar</span>' +
@@ -776,7 +1501,7 @@ function renderWaiterView(initialState) {
             currentWaiter = pinTargetWaiter;
             localStorage.setItem('waiter_logged_id', currentWaiter.id);
             closePinModal();
-            document.getElementById('currentWaiterName').innerText = currentWaiter.name;
+            updateWaiterUI();
             renderTablesScreen();
           } else {
             if (navigator.vibrate) navigator.vibrate([150, 100, 150]);
@@ -802,13 +1527,7 @@ function renderWaiterView(initialState) {
     }
 
     function logoutWaiter() {
-      if (confirm('¿Cerrar turno de ' + (currentWaiter ? currentWaiter.name : '') + '?')) {
-        currentWaiter = null;
-        localStorage.removeItem('waiter_logged_id');
-        selectedTable = null;
-        currentCart = [];
-        renderLoginScreen();
-      }
+      openWaiterSheet();
     }
 
     // SCREEN 2: TABLES MAP
@@ -816,7 +1535,8 @@ function renderWaiterView(initialState) {
       currentScreen = 'tables';
       selectedTable = null;
       document.getElementById('cartBar').style.display = 'none';
-      if (currentWaiter) document.getElementById('currentWaiterName').innerText = currentWaiter.name;
+      updateWaiterUI();
+      updateContextBadge('Mapa de Mesas');
 
       const zones = ['Todos'].concat(Array.from(new Set(state.tables.map(function(t) { return t.zone || 'Salón'; }))));
       const filteredTables = selectedZone === 'Todos' ? state.tables : state.tables.filter(function(t) { return t.zone === selectedZone; });
@@ -885,6 +1605,8 @@ function renderWaiterView(initialState) {
       currentScreen = 'order';
       document.getElementById('cartBar').style.display = 'flex';
       updateCartBar();
+      updateWaiterUI();
+      updateContextBadge(selectedTable ? selectedTable.name : 'Comanda');
 
       const cats = state.menu.categories || ['Todos'];
       const q = prodSearchQuery.toLowerCase().trim();
@@ -915,7 +1637,7 @@ function renderWaiterView(initialState) {
 
           '<div class="search-box">' +
             '<svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="2" x2="16.65" y2="16.65"/></svg>' +
-            '<input type="text" id="prodSearchInput" class="search-input" placeholder="Buscar combo o hamburguesa..." value="' + prodSearchQuery.replace(/"/g, '&quot;') + '" oninput="onProductSearch(this.value)">' +
+            '<input type="text" id="prodSearchInput" class="search-input" placeholder="Buscar producto o combo..." value="' + prodSearchQuery.replace(/"/g, '&quot;') + '" oninput="onProductSearch(this.value)">' +
           '</div>' +
 
           '<div class="zones-bar">' +

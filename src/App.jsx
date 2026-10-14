@@ -15,6 +15,8 @@ import Products from './pages/Products';
 import CashClose from './pages/CashClose';
 import Tables from './pages/Tables';
 
+import { CLIENT_CONFIG } from './config/clientConfig';
+
 // Protected Route Component for Admin
 const ProtectedRoute = ({ children }) => {
   const { isAdmin } = useAuth();
@@ -28,6 +30,17 @@ const ProtectedRoute = ({ children }) => {
 
 function App() {
   const { user, isAdmin } = useAuth();
+
+  React.useEffect(() => {
+    // Sincronizar franquicia activa con el servidor local para tablets
+    if (CLIENT_CONFIG && CLIENT_CONFIG.id) {
+      fetch('http://localhost:3001/api/franchise', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ franchiseId: CLIENT_CONFIG.id })
+      }).catch(() => {});
+    }
+  }, []);
 
   if (!user) {
     return <Login />;
