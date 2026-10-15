@@ -111,17 +111,6 @@ const defaultSeedProducts = [
   { id: 'hd_prod_6', name: 'Club House Happy!', category: 'Combos', priceUSD: 34.99, image: './happydays/combo_club_house_happy.jpg' },
   { id: 'hd_prod_7', name: 'Happy Familiar!', category: 'Combos', priceUSD: 49.99, image: './happydays/combo_happy_familiar.jpg' },
   { id: 'hd_prod_8', name: 'Parrilla Happy!', category: 'Combos', priceUSD: 49.99, image: './happydays/combo_parrilla_happy.jpg' },
-  { id: 'hd_prod_9', name: 'Mini Burger Individual', category: 'Hamburguesas', priceUSD: 2.50 },
-  { id: 'hd_prod_10', name: 'Burger Gourmet Carne', category: 'Hamburguesas', priceUSD: 4.50 },
-  { id: 'hd_prod_11', name: 'Burger Pollo Cheese', category: 'Hamburguesas', priceUSD: 4.50 },
-  { id: 'hd_prod_12', name: 'MEGA Club House', category: 'Especialidades', priceUSD: 9.00 },
-  { id: 'hd_prod_13', name: 'Parrilla Mixta', category: 'Especialidades', priceUSD: 14.00 },
-  { id: 'hd_prod_14', name: 'Pieza de Pollo Crispy', category: 'Pollo Frito', priceUSD: 2.00 },
-  { id: 'hd_prod_15', name: 'Cesta 4 Piezas Pollo', category: 'Pollo Frito', priceUSD: 7.50 },
-  { id: 'hd_prod_16', name: 'Papas Fritas Regular', category: 'Acompañantes', priceUSD: 2.50 },
-  { id: 'hd_prod_17', name: '1/2 Kg Papas Fritas', category: 'Acompañantes', priceUSD: 4.50 },
-  { id: 'hd_prod_18', name: 'Ración de Tequeños (5 uds)', category: 'Acompañantes', priceUSD: 3.50 },
-  { id: 'hd_prod_19', name: 'Ensalada César', category: 'Acompañantes', priceUSD: 3.50 },
   // Refrescos y Bebidas
   { id: 'hd_prod_coca_lata', name: 'Coca-Cola Original (Lata 355ml)', category: 'Refrescos y Bebidas', priceUSD: 1.50, image: './happydays/drinks/coca_cola_lata_355ml.jpg' },
   { id: 'hd_prod_coca_500', name: 'Coca-Cola Botella 500ml', category: 'Refrescos y Bebidas', priceUSD: 1.80, image: './happydays/drinks/coca_cola_botella_500ml.jpg' },
@@ -150,26 +139,31 @@ const defaultSeedProducts = [
 
 let cachedProducts = null;
 let cachedExchangeRate = 876.80;
+let lastDbMtime = 0;
 
 function getMenuData() {
-  if (cachedProducts && cachedProducts.length > 0) {
-    const categories = ['Todos', ...new Set(cachedProducts.map(p => p.category || 'General'))];
-    return { products: cachedProducts, categories, exchangeRate: cachedExchangeRate };
-  }
-
   const dbFile = path.join(userDataDir || process.cwd(), 'facturapos_db.json');
   if (fs.existsSync(dbFile)) {
     try {
-      const db = JSON.parse(fs.readFileSync(dbFile, 'utf-8'));
-      if (Array.isArray(db.pos_products) && db.pos_products.length > 0) {
-        cachedProducts = db.pos_products.filter(p => p.active !== false);
-        cachedExchangeRate = (db.pos_exchange_rate && Number(db.pos_exchange_rate) > 100) ? Number(db.pos_exchange_rate) : 876.80;
-        const categories = ['Todos', ...new Set(cachedProducts.map(p => p.category || 'General'))];
-        return { products: cachedProducts, categories, exchangeRate: cachedExchangeRate };
+      const stat = fs.statSync(dbFile);
+      if (stat.mtimeMs !== lastDbMtime || !cachedProducts) {
+        const db = JSON.parse(fs.readFileSync(dbFile, 'utf-8'));
+        if (Array.isArray(db.pos_products) && db.pos_products.length > 0) {
+          cachedProducts = db.pos_products.filter(p => p.active !== false && p.image && p.image.trim());
+          if (db.pos_exchange_rate && Number(db.pos_exchange_rate) > 100) {
+            cachedExchangeRate = Number(db.pos_exchange_rate);
+          }
+          lastDbMtime = stat.mtimeMs;
+        }
       }
     } catch (e) {
-      console.error('Error leyendo productos:', e);
+      console.error('Error leyendo facturapos_db.json:', e);
     }
+  }
+
+  if (cachedProducts && cachedProducts.length > 0) {
+    const categories = ['Todos', ...new Set(cachedProducts.map(p => p.category || 'General'))];
+    return { products: cachedProducts, categories, exchangeRate: cachedExchangeRate };
   }
 
   // Guaranteed fallback so tablet is NEVER empty
@@ -386,7 +380,7 @@ function createLocalServer() {
       cachedExchangeRate = Number(exchangeRate);
     }
     if (Array.isArray(products) && products.length > 0) {
-      cachedProducts = products.filter(p => p.active !== false);
+      cachedProducts = products.filter(p => p.active !== false && p.image && p.image.trim());
     }
     if (io) {
       io.emit('tasa:actualizada', { exchangeRate: cachedExchangeRate });
@@ -446,8 +440,9 @@ function createLocalServer() {
     // Broadcast in real-time
     io.emit('comanda:nueva', { order, round, table });
     io.emit('mesas:actualizadas', restaurantData.tables);
+    io.emit('restaurante:sync', getFullRestaurantState());
 
-    res.json({ success: true, orderId: order.id, roundId: round.id });
+    res.json({ success: true, orderId: order.id, roundId: round.id, order });
   });
 
   // Request bill for table
@@ -491,6 +486,7 @@ function createLocalServer() {
 
     saveOrdersData(restaurantData);
     io.emit('mesas:actualizadas', restaurantData.tables);
+    io.emit('restaurante:sync', getFullRestaurantState());
     res.json({ success: true });
   });
 
@@ -526,6 +522,7 @@ function createLocalServer() {
       sentAt: foundRound.sentAt,
       items: foundRound.items || []
     });
+    io.emit('restaurante:sync', getFullRestaurantState());
 
     res.json({ success: true });
   });

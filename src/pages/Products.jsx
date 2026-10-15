@@ -104,7 +104,7 @@ const Products = () => {
             Gestión de Productos
           </h1>
           <p style={{ margin: '4px 0 0 0', color: '#6b7280', fontSize: '0.88rem' }}>
-            Catálogo de helados, precios en USD y fotos para la caja
+            Catálogo de productos, precios en USD y fotos para la caja
           </p>
         </div>
         <button

@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Search, 
-  IceCreamCone, 
+  UtensilsCrossed, 
   Utensils, 
   CheckCircle, 
   AlertCircle 
@@ -634,23 +634,38 @@ const POS = () => {
                     boxSizing: 'border-box'
                   }}>
                     {product.image ? (
-                      <img
-                        src={getAssetUrl(product.image)}
-                        alt={product.name}
-                        loading="lazy"
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'contain',
-                          objectPosition: 'center',
-                          display: 'block',
-                          borderRadius: '8px'
-                        }}
-                      />
+                      <>
+                        <img
+                          src={getAssetUrl(product.image)}
+                          alt={product.name}
+                          loading="lazy"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            const fb = e.currentTarget.parentElement && e.currentTarget.parentElement.querySelector('.pos-prod-fallback');
+                            if (fb) fb.style.display = 'flex';
+                          }}
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'contain',
+                            objectPosition: 'center',
+                            display: 'block',
+                            borderRadius: '8px'
+                          }}
+                        />
+                        <div className="pos-prod-fallback" style={{ display: 'none', flexDirection: 'column', alignItems: 'center', gap: '4px', color: 'var(--brand-primary, #D6862B)' }}>
+                          <UtensilsCrossed size={32} strokeWidth={1.8} />
+                          <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', fontWeight: '800', color: '#64748b' }}>
+                            {product.category || 'Happy Days'}
+                          </span>
+                        </div>
+                      </>
                     ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', color: '#94a3b8' }}>
-                        <IceCreamCone size={34} />
-                        <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', fontWeight: '700' }}>Sin Foto</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', color: 'var(--brand-primary, #D6862B)' }}>
+                        <UtensilsCrossed size={32} strokeWidth={1.8} />
+                        <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', fontWeight: '800', color: '#64748b' }}>
+                          {product.category || 'Happy Days'}
+                        </span>
                       </div>
                     )}
                   </div>

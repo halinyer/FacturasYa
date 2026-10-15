@@ -82,104 +82,7 @@ export const seedProducts = [
     description: '4 Hamburguesas + 1 Parrilla Mixta + 1 Refresco 2Lt'
   },
 
-  // --- HAMBURGUESAS & ESPECIALIDADES ---
-  { 
-    id: 'hd_prod_9', 
-    name: 'Mini Burger Individual', 
-    category: 'Hamburguesas', 
-    priceUSD: 2.50, 
-    sku: 'HAM-001', 
-    active: true,
-    description: 'Carne o Pollo Crispy con vegetales y queso'
-  },
-  { 
-    id: 'hd_prod_10', 
-    name: 'Burger Gourmet Carne', 
-    category: 'Hamburguesas', 
-    priceUSD: 4.50, 
-    sku: 'HAM-002', 
-    active: true,
-    description: 'Carne artesanal, queso cheddar y salsa especial'
-  },
-  { 
-    id: 'hd_prod_11', 
-    name: 'Burger Pollo Cheese', 
-    category: 'Hamburguesas', 
-    priceUSD: 4.50, 
-    sku: 'HAM-003', 
-    active: true,
-    description: 'Pollo crispy, tocineta, queso fundido y vegetales'
-  },
-  { 
-    id: 'hd_prod_12', 
-    name: 'MEGA Club House', 
-    category: 'Especialidades', 
-    priceUSD: 9.00, 
-    sku: 'ESP-001', 
-    active: true,
-    description: 'Mega sándwich 4 pisos con papas y queso gratinado'
-  },
-  { 
-    id: 'hd_prod_13', 
-    name: 'Parrilla Mixta', 
-    category: 'Especialidades', 
-    priceUSD: 14.00, 
-    sku: 'ESP-002', 
-    active: true,
-    description: 'Carne, pollo, chorizo, aguacate y acompañante'
-  },
 
-  // --- POLLO FRITO ---
-  { 
-    id: 'hd_prod_14', 
-    name: 'Pieza de Pollo Crispy', 
-    category: 'Pollo Frito', 
-    priceUSD: 2.00, 
-    sku: 'POL-001', 
-    active: true 
-  },
-  { 
-    id: 'hd_prod_15', 
-    name: 'Cesta 4 Piezas Pollo', 
-    category: 'Pollo Frito', 
-    priceUSD: 7.50, 
-    sku: 'POL-002', 
-    active: true 
-  },
-
-  // --- ACOMPAÑANTES ---
-  { 
-    id: 'hd_prod_16', 
-    name: 'Papas Fritas Regular', 
-    category: 'Acompañantes', 
-    priceUSD: 2.50, 
-    sku: 'ACO-001', 
-    active: true 
-  },
-  { 
-    id: 'hd_prod_17', 
-    name: '1/2 Kg Papas Fritas', 
-    category: 'Acompañantes', 
-    priceUSD: 4.50, 
-    sku: 'ACO-002', 
-    active: true 
-  },
-  { 
-    id: 'hd_prod_18', 
-    name: 'Ración de Tequeños (5 uds)', 
-    category: 'Acompañantes', 
-    priceUSD: 3.50, 
-    sku: 'ACO-003', 
-    active: true 
-  },
-  { 
-    id: 'hd_prod_19', 
-    name: 'Ensalada César', 
-    category: 'Acompañantes', 
-    priceUSD: 3.50, 
-    sku: 'ACO-004', 
-    active: true 
-  },
 
   // --- REFRESCOS Y BEBIDAS (Catálogo Oficial con Imágenes Reales) ---
   // Coca-Cola
@@ -459,9 +362,10 @@ export function initializeSeedData() {
 
   // Detectar si la base de datos aún tiene datos viejos o de la heladería
   const hasOldData = existingProducts.some(p => p.sku === 'BAR-001' || p.id === 'prod_1' || p.category === 'Barquillas');
+  const hasProductsWithoutImages = existingProducts.some(p => !p.image || !p.image.trim());
 
-  if (currentSeedVersion !== 'happydays_v2_drinks' || hasOldData || existingProducts.length === 0) {
-    db.rawSet('pos_client_brand', 'happydays_v2_drinks');
+  if (currentSeedVersion !== 'happydays_v3_clean_only_photos' || hasOldData || hasProductsWithoutImages || existingProducts.length === 0) {
+    db.rawSet('pos_client_brand', 'happydays_v3_clean_only_photos');
     db.rawSet('pos_products', seedProducts);
     if (!existingProducts || existingProducts.length === 0) {
       db.rawSet('pos_clients', seedClients);
@@ -469,7 +373,7 @@ export function initializeSeedData() {
       db.rawSet('pos_payments', seedPayments);
       db.rawSet('pos_cash_closes', seedCashCloses);
     }
-    console.log('[HappyDays] Inicialización de catálogo Happy Days v2 con refrescos e imágenes universales.');
+    console.log('[HappyDays] Catálogo depurado: solo productos con fotos de alta resolución oficiales.');
   } else {
     // Migración automática de URLs de imágenes para resolver el problema de rutas absolutas en file://
     let modified = false;

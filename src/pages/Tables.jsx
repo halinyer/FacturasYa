@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { io } from 'socket.io-client';
 import { useData } from '../contexts/DataContext';
 import { Utensils, Clock, CheckCircle, AlertCircle, ShoppingCart, Users, Plus, Check, RefreshCw, QrCode, ArrowRight, X, Printer, Edit2, Trash2, Bike, MapPin, Phone, Receipt } from 'lucide-react';
 import QRConnectModal from '../components/QRConnectModal';
@@ -54,8 +55,26 @@ export default function Tables() {
 
   useEffect(() => {
     fetchState();
-    const interval = setInterval(fetchState, 3000); // Polling every 3s
-    return () => clearInterval(interval);
+    let socket;
+    try {
+      socket = io('http://localhost:3001', { reconnectionDelay: 1000 });
+      socket.on('restaurante:sync', (data) => {
+        if (data) setRestaurantState(data);
+      });
+      socket.on('comanda:nueva', () => fetchState());
+      socket.on('comanda:lista', () => fetchState());
+      socket.on('comanda:servida', () => fetchState());
+      socket.on('mesas:actualizadas', (tables) => {
+        setRestaurantState(prev => ({ ...prev, tables }));
+      });
+    } catch (e) {
+      console.warn('Socket connection error in Tables.jsx:', e);
+    }
+    const interval = setInterval(fetchState, 5000); // Polling heartbeat fallback
+    return () => {
+      clearInterval(interval);
+      if (socket) socket.disconnect();
+    };
   }, []);
 
   // Zones list

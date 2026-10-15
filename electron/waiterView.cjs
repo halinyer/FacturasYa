@@ -522,7 +522,11 @@ function renderWaiterView(initialState) {
     .search-input:focus { border-color: var(--brand-primary); }
 
     /* Products Grid */
-    .prods-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+    .prods-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 12px; }
+    @media (orientation: landscape) and (min-width: 768px) {
+      .prods-grid { grid-template-columns: repeat(auto-fill, minmax(185px, 1fr)); gap: 14px; }
+      .prod-img-box { height: 135px; }
+    }
     .prod-card {
       background: #ffffff;
       border-radius: 18px;
@@ -592,10 +596,22 @@ function renderWaiterView(initialState) {
     }
     .prod-name { font-weight: 800; font-size: 0.86rem; color: #0f172a; line-height: 1.25; height: 2.5em; max-height: 2.5em; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; margin-bottom: 8px; }
     
-    .prod-bottom-info { display: flex; flex-direction: column; margin-top: auto; }
-    .prod-prices-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
-    .prod-price-usd { font-weight: 900; color: var(--brand-primary); font-size: 1.05rem; line-height: 1; }
-    .prod-price-bs { font-size: 0.7rem; color: #64748b; font-weight: 700; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .prod-bottom-info { display: flex; flex-direction: column; margin-top: auto; gap: 6px; }
+    .prod-prices-row {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+      margin-bottom: 2px;
+      background: #f8fafc;
+      padding: 6px 9px;
+      border-radius: 9px;
+      border: 1px solid #f1f5f9;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .prod-price-usd { font-weight: 900; color: var(--brand-primary); font-size: 1.15rem; line-height: 1.1; letter-spacing: -0.2px; }
+    .prod-price-bs { font-size: 0.74rem; color: #64748b; font-weight: 700; font-family: ui-monospace, SFMono-Regular, monospace; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
     
     .prod-add-btn { width: 100%; height: 32px; background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.76rem; font-weight: 800; color: #334155; text-transform: uppercase; letter-spacing: 0.4px; display: flex; align-items: center; justify-content: center; gap: 4px; cursor: pointer; transition: all 0.1s ease; }
     .prod-card:active .prod-add-btn { background: var(--brand-primary); color: #ffffff; border-color: var(--brand-primary); }
@@ -1132,18 +1148,34 @@ function renderWaiterView(initialState) {
         });
         persistNotifs();
       }
-      renderCurrentScreen();
+      updateNotifBadge();
+      updateWaiterUI();
+
+      if (currentScreen === 'tables') {
+        renderTablesScreen();
+      } else if (currentScreen === 'order') {
+        refreshOrderMenuOnly();
+      } else if (!currentWaiter) {
+        renderLoginScreen();
+      }
     });
 
     socket.on('mesas:actualizadas', function(tables) {
       state.tables = tables;
-      if (currentScreen === 'tables') renderTablesScreen();
+      if (currentScreen === 'tables') {
+        renderTablesScreen();
+      } else if (selectedTable) {
+        const liveT = tables.find(function(t) { return t.id === selectedTable.id; });
+        if (liveT) selectedTable = liveT;
+      }
     });
 
     socket.on('menu:actualizado', function(menu) {
       state.menu = menu;
       updateRateDisplay();
-      if (currentScreen === 'order') renderOrderScreen();
+      if (currentScreen === 'order') {
+        refreshOrderMenuOnly();
+      }
     });
 
     socket.on('tasa:actualizada', function(data) {
@@ -1151,7 +1183,11 @@ function renderWaiterView(initialState) {
         if (!state.menu) state.menu = {};
         state.menu.exchangeRate = Number(data.exchangeRate);
         updateRateDisplay();
-        if (currentScreen === 'order') renderOrderScreen();
+        if (currentScreen === 'order') {
+          refreshOrderMenuOnly();
+        } else if (currentScreen === 'tables') {
+          renderTablesScreen();
+        }
       }
     });
 
@@ -1175,8 +1211,36 @@ function renderWaiterView(initialState) {
     }
 
     socket.on('comanda:lista', function(data) {
-      playKitchenChime();
-      if (navigator.vibrate) navigator.vibrate([350, 150, 350, 150, 500]);
+      // 1. Immediately mutate local activeOrders round status so table badge updates in 0ms!
+      if (Array.isArray(state.activeOrders)) {
+        state.activeOrders.forEach(function(o) {
+          if (o.id === data.orderId || o.tableId === data.tableId) {
+            (o.rounds || []).forEach(function(r) {
+              if (r.id === data.roundId) {
+                r.status = 'lista';
+                r.readyAt = new Date().toISOString();
+              }
+            });
+          }
+        });
+      }
+
+      // 2. Multi-waiter industry standard:
+      // High-priority audible chime & vibration only for the waiter who took the order.
+      // Other peer waiters receive silent visual updates (food runner support without audio fatigue).
+      const isMyOrder = currentWaiter && (
+        (data.waiterId && currentWaiter.id === data.waiterId) ||
+        (data.waiterName && currentWaiter.name.trim().toLowerCase() === data.waiterName.trim().toLowerCase())
+      );
+
+      if (isMyOrder) {
+        playKitchenChime();
+        if (navigator.vibrate) navigator.vibrate([350, 150, 350, 150, 500]);
+        showAlertWithAction('🔔 ¡Tu comanda en ' + data.tableName + ' está lista para servir!', 'Ver Avisos', openNotifsModal, 'var(--brand-warm)');
+      } else {
+        // Silent peer notification: subtle banner without ringing audio so 10 tablets don't alarm at once
+        showAlertWithAction('🍽️ Plato listo en ' + data.tableName + ' (' + (data.waiterName || 'Mesero') + ')', 'Ver', openNotifsModal, '#475569');
+      }
 
       const notifObj = {
         id: 'notif_' + (data.roundId || Date.now()),
@@ -1198,14 +1262,27 @@ function renderWaiterView(initialState) {
         savedNotifs.unshift(notifObj);
       }
       persistNotifs();
+      updateNotifBadge();
 
-      showAlertWithAction('¡Plato listo en ' + data.tableName + '!', 'Ver Avisos', openNotifsModal, 'var(--brand-warm)');
       if (currentScreen === 'tables') renderTablesScreen();
     });
 
     socket.on('comanda:servida', function(data) {
+      if (Array.isArray(state.activeOrders)) {
+        state.activeOrders.forEach(function(o) {
+          if (o.id === data.orderId || o.tableId === data.tableId) {
+            (o.rounds || []).forEach(function(r) {
+              if (r.id === data.roundId) {
+                r.status = 'servida';
+                r.servedAt = data.servedAt || new Date().toISOString();
+              }
+            });
+          }
+        });
+      }
       savedNotifs = savedNotifs.filter(function(n) { return n.roundId !== data.roundId; });
       persistNotifs();
+      updateNotifBadge();
       if (currentScreen === 'tables') renderTablesScreen();
       if (document.getElementById('notifsModal')) openNotifsModal();
     });
@@ -1317,8 +1394,16 @@ function renderWaiterView(initialState) {
 
     function markNotificationServed(roundId) {
       fetch('/api/restaurant/round/' + roundId + '/served', { method: 'POST' }).catch(function() {});
+      if (Array.isArray(state.activeOrders)) {
+        state.activeOrders.forEach(function(o) {
+          (o.rounds || []).forEach(function(r) {
+            if (r.id === roundId) r.status = 'servida';
+          });
+        });
+      }
       savedNotifs = savedNotifs.filter(function(n) { return n.roundId !== roundId; });
       persistNotifs();
+      updateNotifBadge();
       openNotifsModal();
       if (currentScreen === 'tables') renderTablesScreen();
     }
@@ -1328,8 +1413,16 @@ function renderWaiterView(initialState) {
         savedNotifs.forEach(function(n) {
           fetch('/api/restaurant/round/' + n.roundId + '/served', { method: 'POST' }).catch(function() {});
         });
+        if (Array.isArray(state.activeOrders)) {
+          state.activeOrders.forEach(function(o) {
+            (o.rounds || []).forEach(function(r) {
+              r.status = 'servida';
+            });
+          });
+        }
         savedNotifs = [];
         persistNotifs();
+        updateNotifBadge();
         closeNotifsModal();
         if (currentScreen === 'tables') renderTablesScreen();
       }
@@ -1374,6 +1467,8 @@ function renderWaiterView(initialState) {
       } else if (selectedTable) {
         if (currentScreen !== 'order') {
           renderOrderScreen();
+        } else {
+          refreshOrderMenuOnly();
         }
       } else {
         renderTablesScreen();
@@ -1730,6 +1825,28 @@ function renderWaiterView(initialState) {
       }
     }
 
+    function refreshOrderMenuOnly() {
+      if (currentScreen !== 'order' || !selectedTable) return;
+      updateCartBar();
+      updateWaiterUI();
+      updateRateDisplay();
+
+      const liveT = (state.tables || []).find(function(t) { return t.id === selectedTable.id; });
+      if (liveT) selectedTable = liveT;
+
+      const q = prodSearchQuery.toLowerCase().trim();
+      const prods = (state.menu && state.menu.products || []).filter(function(p) {
+        const matchesCat = selectedCategory === 'Todos' || p.category === selectedCategory;
+        const matchesQuery = !q || (p.name || '').toLowerCase().indexOf(q) !== -1 || (p.sku || '').toLowerCase().indexOf(q) !== -1;
+        return matchesCat && matchesQuery;
+      });
+
+      const grid = document.querySelector('.prods-grid');
+      if (grid) {
+        grid.innerHTML = renderProductsGrid(prods);
+      }
+    }
+
     function filterCategory(c) {
       selectedCategory = c;
       renderOrderScreen();
@@ -1940,6 +2057,16 @@ function renderWaiterView(initialState) {
         if (res.success) {
           showAlert('Comanda enviada a Caja y Cocina con éxito');
           currentCart = [];
+          if (res.order && Array.isArray(state.activeOrders)) {
+            const idx = state.activeOrders.findIndex(function(o) { return o.id === res.order.id; });
+            if (idx >= 0) state.activeOrders[idx] = res.order;
+            else state.activeOrders.push(res.order);
+          }
+          if (selectedTable) {
+            selectedTable.status = 'ocupada';
+            const tblInState = (state.tables || []).find(function(t) { return t.id === selectedTable.id; });
+            if (tblInState) tblInState.status = 'ocupada';
+          }
           renderTablesScreen();
         } else {
           alert('Error: ' + res.error);
