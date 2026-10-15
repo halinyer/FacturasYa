@@ -364,15 +364,31 @@ export function initializeSeedData() {
   const hasOldData = existingProducts.some(p => p.sku === 'BAR-001' || p.id === 'prod_1' || p.category === 'Barquillas');
   const hasProductsWithoutImages = existingProducts.some(p => !p.image || !p.image.trim());
 
+  // Purga definitiva de facturas y ventas para entrega en limpio a Happy Days
+  const currentInvoiceCleanVer = db.rawGet('pos_invoices_clean_version') || '';
+  if (currentInvoiceCleanVer !== 'happydays_entrega_limpia_v1') {
+    db.rawSet('pos_invoices_clean_version', 'happydays_entrega_limpia_v1');
+    db.rawSet('pos_invoices', []);
+    db.rawSet('pos_payments', []);
+    db.rawSet('pos_cash_closes', []);
+    db.rawSet('pos_open_tabs', []);
+    try {
+      localStorage.setItem('pos_invoices', JSON.stringify([]));
+      localStorage.setItem('pos_payments', JSON.stringify([]));
+      localStorage.setItem('pos_cash_closes', JSON.stringify([]));
+      localStorage.setItem('pos_open_tabs', JSON.stringify([]));
+    } catch (e) {}
+    console.log('[HappyDays] Facturas y ventas purgadas en limpio para entrega.');
+  }
+
   if (currentSeedVersion !== 'happydays_v3_clean_only_photos' || hasOldData || hasProductsWithoutImages || existingProducts.length === 0) {
     db.rawSet('pos_client_brand', 'happydays_v3_clean_only_photos');
     db.rawSet('pos_products', seedProducts);
-    if (!existingProducts || existingProducts.length === 0) {
-      db.rawSet('pos_clients', seedClients);
-      db.rawSet('pos_invoices', seedInvoices);
-      db.rawSet('pos_payments', seedPayments);
-      db.rawSet('pos_cash_closes', seedCashCloses);
-    }
+    db.rawSet('pos_clients', seedClients);
+    db.rawSet('pos_invoices', []);
+    db.rawSet('pos_payments', []);
+    db.rawSet('pos_cash_closes', []);
+    db.rawSet('pos_open_tabs', []);
     console.log('[HappyDays] Catálogo depurado: solo productos con fotos de alta resolución oficiales.');
   } else {
     // Migración automática de URLs de imágenes para resolver el problema de rutas absolutas en file://
