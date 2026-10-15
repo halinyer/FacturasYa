@@ -39,13 +39,11 @@ export const happydays = {
   },
 
   receipt: {
-    headerTop: 'SENIAT',
+    headerTop: 'HAPPY DAYS',
     headerTitle: 'INVERSIONES HAPPY DAYS 1 C.A',
-    subtitle: 'HAPPY DAYS',
-    nonFiscalNotice: '',
-    fiscalMachineCode: 'MH',
-    fiscalSerial: 'Z7C7011149',
-    footerGreeting: '¡Gracias por su compra!',
+    subtitle: 'Burgers, Pollo Frito & Shakes',
+    nonFiscalNotice: 'DOCUMENTO DE CONTROL INTERNO - PRE-ORDEN',
+    footerGreeting: '¡Gracias por su visita!',
     contactNotice: 'Síguenos en Instagram: @happydays_ve',
   },
 
