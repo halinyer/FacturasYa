@@ -30,6 +30,19 @@ const localServer = require('./localServer.cjs');
 
 // IPC Handlers for Local Restaurant Server (WiFi Tablets)
 ipcMain.handle('get-server-info', async () => {
+  if (typeof localServer.getServerInfoAsync === 'function') {
+    return await localServer.getServerInfoAsync();
+  }
+  return localServer.getServerInfo();
+});
+
+ipcMain.handle('refresh-server-ip', async (event, manualIp) => {
+  if (typeof localServer.refreshServerIp === 'function') {
+    await localServer.refreshServerIp(manualIp);
+    return typeof localServer.getServerInfoAsync === 'function'
+      ? await localServer.getServerInfoAsync()
+      : localServer.getServerInfo();
+  }
   return localServer.getServerInfo();
 });
 

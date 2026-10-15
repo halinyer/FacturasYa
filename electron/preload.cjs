@@ -6,5 +6,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   loadDb: () => ipcRenderer.invoke('load-db'),
   saveDb: (data) => ipcRenderer.invoke('save-db', data),
   getServerInfo: () => ipcRenderer.invoke('get-server-info'),
+  refreshServerIp: (manualIp) => ipcRenderer.invoke('refresh-server-ip', manualIp),
   restartServer: () => ipcRenderer.invoke('restart-server'),
 });

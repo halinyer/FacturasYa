@@ -18,16 +18,62 @@ let userDataDir = '';
 // In-memory restaurant data cache
 let restaurantData = null;
 
-function detectLocalIp() {
+function getAllLocalIps() {
   const interfaces = os.networkInterfaces();
+  const list = [];
   for (const name of Object.keys(interfaces)) {
     for (const iface of interfaces[name]) {
-      if (iface.family === 'IPv4' && !iface.internal) {
-        return iface.address;
+      // IPv4, not internal, and ignore Windows link-local APIPA (169.254.x.x)
+      if (iface.family === 'IPv4' && !iface.internal && !iface.address.startsWith('169.254.')) {
+        list.push({
+          name,
+          address: iface.address
+        });
       }
     }
   }
-  return '127.0.0.1';
+  return list;
+}
+
+function detectLocalIp() {
+  const ips = getAllLocalIps();
+  if (ips.length === 0) return '127.0.0.1';
+
+  // Priority 1: Wi-Fi / Hotspot / Wireless
+  const wifi = ips.find(i => /wi-fi|wlan|wireless/i.test(i.name) && !/virtual|vethernet|docker|bluetooth/i.test(i.name));
+  if (wifi) return wifi.address;
+
+  // Priority 2: Physical Ethernet / LAN
+  const ethernet = ips.find(i => /ethernet|local area|en0|eth0/i.test(i.name) && !/virtual|vethernet|docker|bluetooth/i.test(i.name));
+  if (ethernet) return ethernet.address;
+
+  // Priority 3: First non-virtual adapter
+  const nonVirtual = ips.find(i => !/virtual|vethernet|docker|bluetooth/i.test(i.name));
+  if (nonVirtual) return nonVirtual.address;
+
+  return ips[0].address;
+}
+
+async function refreshServerIp(manualIp = null) {
+  const targetIp = manualIp && typeof manualIp === 'string' && manualIp.trim() 
+    ? manualIp.trim() 
+    : detectLocalIp();
+
+  if (targetIp !== currentIp || !qrDataUrl) {
+    console.log(`[LocalServer] Actualizando IP de red: ${currentIp} -> ${targetIp}`);
+    currentIp = targetIp;
+    const waiterUrl = `http://${currentIp}:${currentPort}/waiter`;
+    try {
+      qrDataUrl = await qrcode.toDataURL(waiterUrl, {
+        width: 320,
+        margin: 2,
+        color: { dark: '#0f172a', light: '#ffffff' }
+      });
+    } catch (err) {
+      console.error('Error generando QR al actualizar IP:', err);
+    }
+  }
+  return currentIp;
 }
 
 function getOrdersPath() {
@@ -323,7 +369,10 @@ function createLocalServer() {
   });
 
   // REST API Endpoints
-  app.get('/api/status', (req, res) => {
+  app.get('/api/status', async (req, res) => {
+    try {
+      await refreshServerIp();
+    } catch (e) {}
     const waiterUrl = `http://${currentIp}:${currentPort}/waiter`;
     res.json({
       status: 'online',
@@ -332,10 +381,21 @@ function createLocalServer() {
       port: currentPort,
       url: waiterUrl,
       qrCode: qrDataUrl,
+      allIps: getAllLocalIps(),
       connectedDevices: connectedSockets.size,
       connectedCount: connectedSockets.size,
       time: new Date().toISOString()
     });
+  });
+
+  app.post('/api/server/refresh-ip', async (req, res) => {
+    try {
+      const manualIp = req.body && req.body.ip;
+      await refreshServerIp(manualIp);
+      res.json(await getServerInfoAsync());
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
   });
 
   app.get('/api/restaurant/state', (req, res) => {
@@ -771,6 +831,21 @@ function stopServer() {
   }
 }
 
+async function getServerInfoAsync() {
+  await refreshServerIp();
+  const waiterUrl = `http://${currentIp}:${currentPort}/waiter`;
+  return {
+    isRunning: !!httpServer,
+    ip: currentIp,
+    port: currentPort,
+    url: waiterUrl,
+    qrCode: qrDataUrl,
+    allIps: getAllLocalIps(),
+    connectedDevices: connectedSockets.size,
+    connectedCount: connectedSockets.size
+  };
+}
+
 function getServerInfo() {
   const waiterUrl = `http://${currentIp}:${currentPort}/waiter`;
   return {
@@ -779,6 +854,7 @@ function getServerInfo() {
     port: currentPort,
     url: waiterUrl,
     qrCode: qrDataUrl,
+    allIps: getAllLocalIps(),
     connectedDevices: connectedSockets.size,
     connectedCount: connectedSockets.size
   };
@@ -794,5 +870,8 @@ module.exports = {
   startServer,
   stopServer,
   getServerInfo,
+  getServerInfoAsync,
+  refreshServerIp,
+  getAllLocalIps,
   broadcastEvent
 };
