@@ -170,7 +170,7 @@ const QRConnectModal = ({ onClose }) => {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           background: serverInfo.isRunning ? '#f0fdf4' : '#fef2f2',
           border: `1.5px solid ${serverInfo.isRunning ? '#7CBE43' : '#fecaca'}`,
-          borderRadius: '12px', padding: '10px 14px', marginBottom: '14px'
+          borderRadius: '12px', padding: '10px 14px', marginBottom: '20px'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', fontWeight: '800', color: serverInfo.isRunning ? '#15803d' : '#991b1b' }}>
             <Wifi size={16} />
@@ -181,85 +181,34 @@ const QRConnectModal = ({ onClose }) => {
           </span>
         </div>
 
-        {/* Current IP & Multi-Network Selector */}
-        <div style={{
-          background: '#f1f5f9', borderRadius: '12px', padding: '10px 14px', marginBottom: '16px',
-          display: 'flex', flexDirection: 'column', gap: '8px'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontSize: '0.78rem', color: '#475569', fontWeight: '700' }}>
-              IP de Red Activa: <strong style={{ color: '#0f172a', fontSize: '0.84rem' }}>{serverInfo.ip}</strong>
-            </div>
-            <button
-              type="button"
-              onClick={() => handleRefreshIp()}
-              disabled={refreshing}
-              style={{
-                background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px',
-                padding: '4px 9px', fontSize: '0.72rem', fontWeight: '800', color: '#2563eb',
-                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px'
-              }}
-              title="Detectar IP actual de la red o zona Wi-Fi compartida"
-            >
-              <RefreshCw size={12} style={{ animation: refreshing ? 'spin 0.8s linear infinite' : 'none' }} />
-              <span>{refreshing ? 'Detectando...' : 'Detectar IP'}</span>
-            </button>
-          </div>
-
-          {serverInfo.allIps && serverInfo.allIps.length > 1 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: '700' }}>Redes disponibles:</span>
-              {serverInfo.allIps.map(iface => {
-                const isSelected = serverInfo.ip === iface.address;
-                return (
-                  <button
-                    key={iface.address}
-                    type="button"
-                    onClick={() => handleRefreshIp(iface.address)}
-                    style={{
-                      background: isSelected ? '#2563eb' : '#ffffff',
-                      color: isSelected ? '#ffffff' : '#334155',
-                      border: isSelected ? '1px solid #1d4ed8' : '1px solid #cbd5e1',
-                      borderRadius: '6px', padding: '2px 8px', fontSize: '0.7rem',
-                      fontWeight: '700', cursor: 'pointer'
-                    }}
-                  >
-                    {iface.name}: {iface.address}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
         {/* QR Code Canvas */}
         <div style={{
           background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px',
-          padding: '16px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center',
-          justifyContent: 'center', marginBottom: '16px'
+          padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center',
+          justifyContent: 'center', marginBottom: '20px'
         }}>
           {serverInfo.qrCode ? (
             <img
               src={serverInfo.qrCode}
               alt="Código QR de Conexión"
-              style={{ width: '210px', height: '210px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }}
+              style={{ width: '220px', height: '220px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }}
             />
           ) : (
-            <div style={{ height: '210px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontSize: '0.9rem' }}>
+            <div style={{ height: '220px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontSize: '0.9rem' }}>
               <RefreshCw size={24} style={{ animation: 'spin 1s linear infinite', marginBottom: '8px' }} />
               <div style={{ fontSize: '0.82rem' }}>Cargando código QR...</div>
             </div>
           )}
 
-          <div style={{ marginTop: '10px', fontSize: '0.8rem', color: '#4b5563', textAlign: 'center', fontWeight: '600' }}>
+          <div style={{ marginTop: '12px', fontSize: '0.8rem', color: '#4b5563', textAlign: 'center', fontWeight: '600' }}>
             Apunta la cámara de la tablet o teléfono a este código QR para abrir el módulo de mesero.
           </div>
         </div>
 
         {/* Manual URL box */}
-        <div style={{ marginBottom: '16px' }}>
-          <div style={{ fontSize: '0.74rem', fontWeight: '800', color: '#6b7280', textTransform: 'uppercase', marginBottom: '6px' }}>
-            O escribe esta dirección en el navegador del teléfono:
+        <div style={{ marginBottom: '20px' }}>
+          <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#6b7280', textTransform: 'uppercase', marginBottom: '6px' }}>
+            O escribe esta dirección en la tablet:
           </div>
           <div style={{
             display: 'flex', alignItems: 'center', background: '#f8fafc',
@@ -284,14 +233,6 @@ const QRConnectModal = ({ onClose }) => {
           </div>
         </div>
 
-        {/* Hotspot Tip Note */}
-        <div style={{
-          background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '10px',
-          padding: '8px 12px', marginBottom: '16px', fontSize: '0.74rem', color: '#1e40af', lineHeight: 1.35
-        }}>
-          💡 <strong>Zona Wi-Fi / Hotspot del teléfono:</strong> Tu laptop debe estar conectada a la red Wi-Fi emitida por tu teléfono. La IP del QR arriba debe ser la de tu laptop en esa red (ej: <code>{serverInfo.ip}</code>).
-        </div>
-
         {/* Actions / Refresh */}
         <div style={{ display: 'flex', gap: '10px', justifyContent: 'space-between', alignItems: 'center' }}>
           <button
@@ -303,7 +244,7 @@ const QRConnectModal = ({ onClose }) => {
               fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px'
             }}
           >
-            <RefreshCw size={14} /> Reiniciar Servidor
+            <RefreshCw size={14} /> Reiniciar Servidor Local
           </button>
 
           <button
