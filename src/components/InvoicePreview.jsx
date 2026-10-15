@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Printer, Receipt, FileText, Utensils } from 'lucide-react';
+import { X, Printer, Receipt, FileText } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { CLIENT_CONFIG } from '../config/clientConfig';
 import { BankLogo, findBank } from '../utils/venezuelaBanks';
@@ -230,15 +230,13 @@ const InvoicePreview = ({ invoice, onClose }) => {
       <div className="invoice-overlay" onClick={onClose}>
         <div className="invoice-modal" onClick={e => e.stopPropagation()}>
           
-          {/* Header Action Bar con Selector: Factura Fiscal SENIAT | Nota de Entrega | Comanda */}
+          {/* Header Action Bar con Selector: Factura Fiscal SENIAT | Nota de Entrega */}
           <div className="invoice-header-bar">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Receipt size={18} color="#38bdf8" />
                 <h3 style={{ margin: 0, fontSize: '0.92rem', fontWeight: '800' }}>
-                  {formatType === 'seniat' && `Factura Fiscal SENIAT: ${docNumber}`}
-                  {formatType === 'nota_entrega' && `Nota de Entrega: #${docNumber}`}
-                  {formatType === 'comanda' && `Comanda de Cocina / Barra`}
+                  {formatType === 'seniat' ? `Factura Fiscal SENIAT: ${docNumber}` : `Nota de Entrega: #${docNumber}`}
                 </h3>
               </div>
               <button 
@@ -254,47 +252,34 @@ const InvoicePreview = ({ invoice, onClose }) => {
               </button>
             </div>
 
-            {/* Pestañas de Selección Rápida */}
+            {/* Pestañas de Selección Rápida: Solo SENIAT Fiscal y Nota de Entrega */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', background: 'rgba(0,0,0,0.3)', borderRadius: '8px', padding: '3px', gap: '3px' }}>
+              <div style={{ display: 'flex', background: 'rgba(0,0,0,0.3)', borderRadius: '8px', padding: '3px', gap: '4px' }}>
                 <button
                   type="button"
                   onClick={() => setFormatType('seniat')}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: '4px',
-                    padding: '5px 9px', borderRadius: '6px', fontSize: '0.76rem', fontWeight: '800',
+                    display: 'flex', alignItems: 'center', gap: '5px',
+                    padding: '6px 12px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: '800',
                     border: 'none', cursor: 'pointer',
                     background: formatType === 'seniat' ? '#38bdf8' : 'transparent',
                     color: formatType === 'seniat' ? '#0f172a' : '#cbd5e1'
                   }}
                 >
-                  <Receipt size={13} /> SENIAT Fiscal
+                  <Receipt size={14} /> SENIAT Fiscal
                 </button>
                 <button
                   type="button"
                   onClick={() => setFormatType('nota_entrega')}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: '4px',
-                    padding: '5px 9px', borderRadius: '6px', fontSize: '0.76rem', fontWeight: '800',
+                    display: 'flex', alignItems: 'center', gap: '5px',
+                    padding: '6px 12px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: '800',
                     border: 'none', cursor: 'pointer',
                     background: formatType === 'nota_entrega' ? '#D52829' : 'transparent',
                     color: '#ffffff'
                   }}
                 >
-                  <FileText size={13} /> Nota de Entrega
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormatType('comanda')}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '4px',
-                    padding: '5px 9px', borderRadius: '6px', fontSize: '0.76rem', fontWeight: '800',
-                    border: 'none', cursor: 'pointer',
-                    background: formatType === 'comanda' ? '#eab308' : 'transparent',
-                    color: formatType === 'comanda' ? '#000' : '#cbd5e1'
-                  }}
-                >
-                  <Utensils size={13} /> Comanda
+                  <FileText size={14} /> Nota de Entrega
                 </button>
               </div>
 
@@ -607,79 +592,6 @@ const InvoicePreview = ({ invoice, onClose }) => {
                   <div className="ticket-center" style={{ fontSize: '10px' }}>
                     <div className="ticket-bold">{CLIENT_CONFIG.receipt?.footerGreeting || '¡Gracias por su visita!'}</div>
                     <div style={{ fontSize: '9.5px', marginTop: '2px' }}>{CLIENT_CONFIG.receipt?.contactNotice || 'Instagram: @happydays_ve'}</div>
-                  </div>
-                </div>
-              )}
-
-              {/* OPCIÓN 3: COMANDA DE COCINA PURA */}
-              {formatType === 'comanda' && (
-                <div>
-                  <div className="ticket-center">
-                    <div className="ticket-bold" style={{ fontSize: '16px', letterSpacing: '1px' }}>
-                      *** COMANDA DE COCINA ***
-                    </div>
-                    <div style={{ fontSize: '11px', fontWeight: 'bold', marginTop: '2px' }}>
-                      HAPPY DAYS - SERVICIO RÁPIDO
-                    </div>
-                  </div>
-
-                  <div className="ticket-double-divider" />
-
-                  <div style={{ background: '#f1f5f9', padding: '6px 8px', borderRadius: '4px', border: '1px solid #cbd5e1' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span className="ticket-bold" style={{ fontSize: '14px' }}>
-                        {tableName ? `MESA: ${tableName}` : (invoice.orderType === 'delivery' ? '🛵 DELIVERY' : '🛍️ PARA LLEVAR')}
-                      </span>
-                      <span className="ticket-bold" style={{ fontSize: '12px' }}>
-                        ORDEN: #{docNumber}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginTop: '3px' }}>
-                      <span><strong>Mesero:</strong> {cashierIdentifier}</span>
-                      <span><strong>Hora:</strong> {timeStr}</span>
-                    </div>
-                    <div style={{ fontSize: '10.5px' }}>
-                      <strong>Fecha:</strong> {dateStr}
-                    </div>
-                  </div>
-
-                  <div className="ticket-divider" />
-
-                  <div style={{ margin: '8px 0' }}>
-                    {items.map((item, idx) => {
-                      const qty = Number(item.quantity || item.cantidad || 1);
-                      const noteText = item.note || item.notes;
-
-                      return (
-                        <div key={idx} style={{ marginBottom: '8px', paddingBottom: '4px', borderBottom: idx < items.length - 1 ? '1px dotted #ccc' : 'none' }}>
-                          <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-                            <span className="ticket-bold" style={{ fontSize: '14px', minWidth: '34px', background: '#e2e8f0', padding: '1px 5px', borderRadius: '4px', textAlign: 'center' }}>
-                              [{qty}]
-                            </span>
-                            <span className="ticket-bold" style={{ fontSize: '13px', textTransform: 'uppercase' }}>
-                              {item.productName || item.name || 'PRODUCTO'}
-                            </span>
-                          </div>
-
-                          {noteText && (
-                            <div style={{ paddingLeft: '40px', marginTop: '2px', fontSize: '11.5px', fontWeight: 'bold', color: '#b91c1c' }}>
-                              &gt;&gt; NOTA: {noteText}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="ticket-double-divider" />
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }} className="ticket-bold">
-                    <span>TOTAL PLATOS / ÍTEMS:</span>
-                    <span>{totalItemsCount}</span>
-                  </div>
-
-                  <div className="ticket-center" style={{ fontSize: '10px', marginTop: '14px' }}>
-                    <div className="ticket-bold">¡DESPACHAR CON CALIDAD Y RAPIDEZ!</div>
                   </div>
                 </div>
               )}
