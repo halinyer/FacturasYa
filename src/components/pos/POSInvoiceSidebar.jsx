@@ -195,35 +195,21 @@ const POSInvoiceSidebar = ({
 
       {/* 2. Delivery Info Sub-Panel (Only if orderType === 'delivery') */}
       {orderType === 'delivery' && (
-        <div className="pos-delivery-panel">
-          {/* Fila 1: Dirección completa */}
-          <div className="pos-delivery-row">
-            <div className="pos-delivery-input-group full-width">
-              <MapPin size={15} color="#0284c7" className="pos-deliv-icon" />
-              <input
-                type="text"
-                placeholder="Dirección de entrega (Urb, Calle, Casa/Edif)..."
-                className="pos-delivery-input"
-                value={deliveryInfo?.address || ''}
-                onChange={(e) => onChangeDeliveryInfo && onChangeDeliveryInfo({ ...deliveryInfo, address: e.target.value })}
-              />
-              {client?.address && !deliveryInfo?.address && (
-                <button
-                  type="button"
-                  className="pos-deliv-quick-addr-btn"
-                  onClick={() => onChangeDeliveryInfo && onChangeDeliveryInfo({ ...deliveryInfo, address: client.address })}
-                  title={`Usar dirección registrada del cliente: ${client.address}`}
-                >
-                  Usar cliente
-                </button>
-              )}
-            </div>
+        <div className="pos-delivery-box">
+          <div className="pos-delivery-input-group">
+            <MapPin size={15} color="#0284c7" style={{ flexShrink: 0 }} />
+            <input
+              type="text"
+              placeholder="Dirección de entrega (Urb, Calle, Casa/Apto)..."
+              className="pos-delivery-input"
+              value={deliveryInfo?.address || ''}
+              onChange={(e) => onChangeDeliveryInfo && onChangeDeliveryInfo({ ...deliveryInfo, address: e.target.value })}
+            />
           </div>
 
-          {/* Fila 2: Teléfono + Costo Envío ($) */}
           <div className="pos-delivery-row">
             <div className="pos-delivery-input-group" style={{ flex: 1.2 }}>
-              <Phone size={14} color="#0284c7" className="pos-deliv-icon" />
+              <Phone size={14} color="#0284c7" style={{ flexShrink: 0 }} />
               <input
                 type="text"
                 placeholder="Teléfono contacto..."
@@ -233,31 +219,27 @@ const POSInvoiceSidebar = ({
               />
             </div>
 
-            <div className="pos-delivery-input-group fee-group" style={{ width: '105px', flex: 'none' }} title="Costo de Envío / Delivery en $">
+            <div className="pos-delivery-input-group" style={{ flex: 1 }}>
+              <Bike size={14} color="#0284c7" style={{ flexShrink: 0 }} />
+              <input
+                type="text"
+                placeholder="Repartidor..."
+                className="pos-delivery-input"
+                value={deliveryInfo?.courier || ''}
+                onChange={(e) => onChangeDeliveryInfo && onChangeDeliveryInfo({ ...deliveryInfo, courier: e.target.value })}
+              />
+            </div>
+
+            <div className="pos-delivery-input-group" style={{ width: '85px', flex: 'none' }} title="Costo de Envío / Delivery en $">
               <span className="pos-delivery-fee-badge">$ Envío</span>
               <input
                 type="number"
                 step="0.5"
                 min="0"
                 placeholder="0.00"
-                className="pos-delivery-input fee-input"
-                style={{ textAlign: 'right', fontWeight: '800', color: '#0369a1' }}
+                className="pos-delivery-input"
                 value={deliveryInfo?.deliveryFee === 0 ? '' : (deliveryInfo?.deliveryFee || '')}
                 onChange={(e) => onChangeDeliveryInfo && onChangeDeliveryInfo({ ...deliveryInfo, deliveryFee: parseFloat(e.target.value) || 0 })}
-              />
-            </div>
-          </div>
-
-          {/* Fila 3: Repartidor */}
-          <div className="pos-delivery-row">
-            <div className="pos-delivery-input-group full-width">
-              <Bike size={14} color="#0284c7" className="pos-deliv-icon" />
-              <input
-                type="text"
-                placeholder="Repartidor (ej: Moto 1, Pedro, Propio)..."
-                className="pos-delivery-input"
-                value={deliveryInfo?.courier || ''}
-                onChange={(e) => onChangeDeliveryInfo && onChangeDeliveryInfo({ ...deliveryInfo, courier: e.target.value })}
               />
             </div>
           </div>
