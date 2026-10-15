@@ -1,14 +1,25 @@
-// Perfil de Franquicia: Happy Days
+// Perfil de Franquicia: Happy Days (Datos Fiscales SENIAT Oficiales)
 export const happydays = {
   id: 'happy-days',
   name: 'Happy Days',
-  legalName: 'Happy Days C.A.',
+  legalName: 'INVERSIONES HAPPY DAYS 1 C.A',
   subtitle: 'Burgers, Pollo Frito & Shakes',
   tagline: 'Momentos felices, sabores inolvidables',
-  rif: 'J-50123456-7',
-  address: 'Caracas, Venezuela',
-  phone: '0414-1234567',
+  rif: 'J-500195923',
+  address: 'AV FRANCISCO DE MIRANDA FRENTE EL MARQUEZ C.C UNICENTRO EL MARQUEZ LOCAL NR0126 URB EL MARQUEZ CARACAS PETARE MIRANDA ZONA POSTAL 1070',
+  addressLines: [
+    'AV FRANCISCO DE MIRANDA FRENTE EL MARQUEZ',
+    'C.C UNICENTRO EL MARQUEZ LOCAL NR0126',
+    'URB EL MARQUEZ CARACAS PETARE MIRANDA',
+    'ZONA POSTAL 1070'
+  ],
+  phone: '0412-4444929',
   instagram: '@happydays_ve',
+
+  fiscalMachine: {
+    type: 'MH',
+    serial: 'Z7C7011149'
+  },
 
   branding: {
     logoText: 'Happy Days',
@@ -28,10 +39,13 @@ export const happydays = {
   },
 
   receipt: {
-    headerTitle: 'HAPPY DAYS',
-    subtitle: 'Burgers, Pollo Frito & Shakes',
-    nonFiscalNotice: 'Documento de Control Interno (No Fiscal)',
-    footerGreeting: '¡Gracias por compartir tus momentos felices con nosotros!',
+    headerTop: 'SENIAT',
+    headerTitle: 'INVERSIONES HAPPY DAYS 1 C.A',
+    subtitle: 'HAPPY DAYS',
+    nonFiscalNotice: '',
+    fiscalMachineCode: 'MH',
+    fiscalSerial: 'Z7C7011149',
+    footerGreeting: '¡Gracias por su compra!',
     contactNotice: 'Síguenos en Instagram: @happydays_ve',
   },
 

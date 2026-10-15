@@ -1,8 +1,63 @@
 import React from 'react';
-import { X, Printer, CheckCircle, AlertTriangle, Receipt } from 'lucide-react';
+import { X, Printer, Receipt } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { CLIENT_CONFIG } from '../config/clientConfig';
 import { BankLogo, findBank } from '../utils/venezuelaBanks';
+
+// Formateador de montos en Bolívares con estándar venezolano (punto miles, coma decimales)
+export const formatVE = (num, decimals = 2) => {
+  const val = Number(num) || 0;
+  return val.toLocaleString('de-DE', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals
+  });
+};
+
+// Formato de fecha fiscal DD-MM-YYYY
+export const getFiscalDate = (dateVal) => {
+  const d = dateVal ? new Date(dateVal) : new Date();
+  if (isNaN(d.getTime())) return new Date().toLocaleDateString('es-VE');
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}-${month}-${year}`;
+};
+
+// Formato de hora fiscal HH:MM
+export const getFiscalTime = (dateVal) => {
+  const d = dateVal ? new Date(dateVal) : new Date();
+  if (isNaN(d.getTime())) {
+    return new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
+  }
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+};
+
+// Formato de número de factura fiscal SENIAT a 8 dígitos (ej. 00011898)
+export const getFiscalInvoiceNumber = (invoice) => {
+  if (invoice.isPreBill) return 'PRE-ORDEN';
+  if (invoice.fiscalInvoiceNumber) return String(invoice.fiscalInvoiceNumber).padStart(8, '0');
+  if (invoice.invoiceNumber) {
+    const digits = String(invoice.invoiceNumber).replace(/\D/g, '');
+    if (digits) return digits.padStart(8, '0').slice(-8);
+    return String(invoice.invoiceNumber);
+  }
+  const idDigits = String(invoice.id || '1').replace(/\D/g, '') || '1';
+  return idDigits.padStart(8, '0').slice(-8);
+};
+
+// Etiqueta fiscal de método de pago SENIAT
+export const getFiscalPaymentLabel = (method) => {
+  const m = String(method || '').toLowerCase();
+  if (m.includes('tarjeta') || m.includes('debito') || m.includes('punto')) return 'TARJETA 1';
+  if (m === 'pago_movil') return 'PAGO MÓVIL';
+  if (m === 'efectivo_usd') return 'EFECTIVO DIVISAS (USD)';
+  if (m === 'efectivo_bs') return 'EFECTIVO BOLÍVARES';
+  if (m === 'zelle') return 'ZELLE / DIVISAS';
+  if (m === 'mixto') return 'PAGO MIXTO';
+  return (method || 'TARJETA 1').toUpperCase();
+};
 
 const InvoicePreview = ({ invoice, onClose }) => {
   const { clients = [] } = useData() || {};
@@ -12,35 +67,22 @@ const InvoicePreview = ({ invoice, onClose }) => {
     window.print();
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return new Date().toLocaleDateString('es-VE') + ' ' + new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
-    const d = new Date(dateString);
-    return isNaN(d.getTime()) 
-      ? dateString 
-      : d.toLocaleDateString('es-VE', { 
-          year: 'numeric', month: '2-digit', day: '2-digit', 
-          hour: '2-digit', minute: '2-digit' 
-        });
-  };
-
-  // Resolve client info
+  // Resuelve los datos del cliente
   const getClientData = () => {
     if (invoice.client && typeof invoice.client === 'object') {
       return {
         name: invoice.client.name || invoice.clientName || 'Consumidor Final',
         cedula: invoice.client.cedula || invoice.clientCedula || 'V-00000000',
-        type: invoice.client.type || invoice.clientType || 'normal',
         phone: invoice.client.phone || invoice.clientPhone || (invoice.deliveryInfo?.phone || ''),
-        address: invoice.client.address || invoice.clientAddress || (invoice.deliveryInfo?.address || '')
+        address: invoice.client.address || invoice.clientAddress || (invoice.deliveryInfo?.address || 'CARACAS')
       };
     }
     const found = clients.find(c => c.id === invoice.clientId);
     return {
       name: invoice.clientName || (found ? found.name : 'Consumidor Final'),
       cedula: invoice.clientCedula || (found ? found.cedula : 'V-00000000'),
-      type: invoice.clientType || (found ? found.type : 'normal'),
       phone: invoice.clientPhone || (found ? found.phone : (invoice.deliveryInfo?.phone || '')),
-      address: invoice.clientAddress || (found ? found.address : (invoice.deliveryInfo?.address || ''))
+      address: invoice.clientAddress || (found ? found.address : (invoice.deliveryInfo?.address || 'CARACAS'))
     };
   };
 
@@ -48,41 +90,38 @@ const InvoicePreview = ({ invoice, onClose }) => {
   const items = invoice.items || [];
   const totalUSD = Number(invoice.totalUSD || invoice.total || 0);
   const exchangeRate = Number(invoice.exchangeRate || invoice.tasaCambio || 876.80);
-  const totalBs = Number(invoice.totalBs || totalUSD * exchangeRate);
-  const paymentMethod = invoice.paymentMethod || invoice.metodoPago || 'efectivo_usd';
+  const totalBs = Number(invoice.totalBs || (totalUSD * exchangeRate));
+  const paymentMethod = invoice.paymentMethod || invoice.metodoPago || 'tarjeta';
   const status = (invoice.status || invoice.estado || 'paid').toLowerCase();
   const isPaid = status === 'paid' || status === 'pagada';
 
-  // Fiscal SENIAT Calculations (IVA 16% & IGTF 3%)
-  const subtotalItemsUSD = Number(invoice.subtotalUSD || (totalUSD - (Number(invoice.deliveryFee) || 0)));
-  const baseImponibleUSD = Number(invoice.baseImponibleUSD || (subtotalItemsUSD / 1.16).toFixed(2));
-  const ivaUSD = Number(invoice.ivaUSD || (subtotalItemsUSD - baseImponibleUSD).toFixed(2));
-  const baseImponibleBs = Number(invoice.baseImponibleBs || (baseImponibleUSD * exchangeRate).toFixed(2));
-  const ivaBs = Number(invoice.ivaBs || (ivaUSD * exchangeRate).toFixed(2));
+  // Desglose Tributario Fiscal SENIAT (IVA 16% alícuota general G)
+  // En gastronomía y POS comercial, los precios de venta al público ya incluyen el IVA
+  const baseImponibleBs = Number((totalBs / 1.16).toFixed(2));
+  const ivaBs = Number((totalBs - baseImponibleBs).toFixed(2));
 
-  // IGTF 3% calculation (only for foreign currency payments: efectivo_usd, zelle, or USD fraction of mixed)
-  let igtfBaseUSD = Number(invoice.igtfBaseUSD !== undefined ? invoice.igtfBaseUSD : 0);
-  if (invoice.igtfBaseUSD === undefined) {
-    if (paymentMethod === 'efectivo_usd' || paymentMethod === 'zelle') {
-      igtfBaseUSD = totalUSD;
-    } else if (paymentMethod === 'mixto' && invoice.mixedPayments) {
-      igtfBaseUSD = (parseFloat(invoice.mixedPayments.efectivo_usd) || 0) + (parseFloat(invoice.mixedPayments.zelle) || 0);
-    }
-  }
-  const igtfUSD = Number(invoice.igtfUSD !== undefined ? invoice.igtfUSD : (igtfBaseUSD * 0.03).toFixed(2));
-  const igtfBs = Number(invoice.igtfBs !== undefined ? invoice.igtfBs : (igtfUSD * exchangeRate).toFixed(2));
-  const isIgtfExempt = igtfBaseUSD === 0;
+  // Número fiscal formateado
+  const invoiceNumFormatted = getFiscalInvoiceNumber(invoice);
+  const fiscalDate = getFiscalDate(invoice.date || invoice.createdAt);
+  const fiscalTime = getFiscalTime(invoice.date || invoice.createdAt);
 
-  const controlNumber = invoice.fiscalControlNumber || `00-${String(invoice.id || '100001').padStart(6, '0').slice(-6)}`;
+  // Datos fiscales de la empresa
+  const legalName = CLIENT_CONFIG.legalName || 'INVERSIONES HAPPY DAYS 1 C.A';
+  const rif = CLIENT_CONFIG.rif || 'J-500195923';
+  const phone = CLIENT_CONFIG.phone || '0412-4444929';
+  const addressLines = CLIENT_CONFIG.addressLines || [
+    'AV FRANCISCO DE MIRANDA FRENTE EL MARQUEZ',
+    'C.C UNICENTRO EL MARQUEZ LOCAL NR0126',
+    'URB EL MARQUEZ CARACAS PETARE MIRANDA',
+    'ZONA POSTAL 1070'
+  ];
 
-  const formatPaymentMethod = (m) => {
-    if (m === 'pago_movil') return 'Pago Móvil (Bs)';
-    if (m === 'efectivo_usd') return 'Efectivo en Dólares ($)';
-    if (m === 'efectivo_bs') return 'Efectivo en Bolívares (Bs)';
-    if (m === 'zelle') return 'Zelle (USD)';
-    if (m === 'mixto') return 'Pago Mixto / Dividido';
-    return m;
-  };
+  // Serial y modelo fiscal (Memoria de Auditoría Fiscal)
+  const fiscalMachineCode = CLIENT_CONFIG.fiscalMachine?.type || CLIENT_CONFIG.receipt?.fiscalMachineCode || 'MH';
+  const fiscalSerial = CLIENT_CONFIG.fiscalMachine?.serial || CLIENT_CONFIG.receipt?.fiscalSerial || 'Z7C7011149';
+
+  // Identificador de cajero o mesero
+  const cashierIdentifier = invoice.waiterName || invoice.cashierName || invoice.serverName || invoice.seller || '001';
 
   return (
     <>
@@ -90,47 +129,93 @@ const InvoicePreview = ({ invoice, onClose }) => {
         {`
           .invoice-overlay {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(8px);
+            background: rgba(0, 0, 0, 0.82); backdrop-filter: blur(6px);
             display: flex; align-items: center; justify-content: center;
             z-index: 1000; padding: 16px;
           }
           .invoice-modal {
-            background: #11131a; width: 100%; max-width: 440px;
-            border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
-            border: 1px solid rgba(255, 255, 255, 0.1); display: flex; flex-direction: column;
-            max-height: 94vh; color: #0f172a; overflow: hidden;
+            background: #0f172a; width: 100%; max-width: 440px;
+            border-radius: 14px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.12); display: flex; flex-direction: column;
+            max-height: 94vh; overflow: hidden;
           }
           .invoice-header-bar {
             display: flex; justify-content: space-between; align-items: center;
-            padding: 14px 18px; border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            background: #161922; color: #f8fafc;
+            padding: 12px 18px; border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            background: #1e293b; color: #f8fafc;
           }
           .invoice-content {
-            padding: 24px 20px; overflow-y: auto; background: #ffffff; color: #000000;
+            padding: 22px 20px; overflow-y: auto; background: #ffffff; color: #000000;
           }
-          .thermal-ticket {
+          .fiscal-ticket {
             font-family: 'Courier New', Courier, monospace;
-            font-size: 13px;
-            line-height: 1.4;
-            color: #000;
+            font-size: 11.5px;
+            line-height: 1.35;
+            color: #000000;
+            background: #ffffff;
+            margin: 0 auto;
           }
-          .ticket-center { text-align: center; }
-          .ticket-bold { font-weight: bold; }
-          .ticket-divider { border-top: 1px dashed #000; margin: 8px 0; }
-          .ticket-double-divider { border-top: 2px dashed #000; margin: 10px 0; }
-          .ticket-table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 8px 0; }
-          .ticket-table th { text-align: left; border-bottom: 1px solid #000; padding: 4px 2px; }
-          .ticket-table td { padding: 4px 2px; }
-          .ticket-right { text-align: right; }
+          .fiscal-center { text-align: center; }
+          .fiscal-right { text-align: right; }
+          .fiscal-bold { font-weight: bold; }
+          .fiscal-divider {
+            border-top: 1px dashed #000000;
+            margin: 6px 0;
+          }
+          .fiscal-double-divider {
+            border-top: 2px dashed #000000;
+            margin: 8px 0;
+          }
           
           @media print {
-            @page { size: auto; margin: 0; }
-            body * { visibility: hidden !important; }
-            .invoice-overlay { background: transparent !important; padding: 0 !important; position: absolute !important; top: 0 !important; left: 0 !important; }
-            .invoice-modal { box-shadow: none !important; border: none !important; width: 80mm !important; max-width: 80mm !important; border-radius: 0 !important; page-break-inside: avoid !important; break-inside: avoid !important; }
-            .invoice-header-bar { display: none !important; }
-            .invoice-content, .invoice-content * { visibility: visible !important; }
-            .invoice-content { position: absolute !important; left: 0 !important; top: 0 !important; width: 80mm !important; padding: 4mm !important; page-break-inside: avoid !important; break-inside: avoid !important; }
+            @page {
+              size: 80mm auto;
+              margin: 0mm;
+            }
+            html, body {
+              width: 80mm !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              background: #fff !important;
+            }
+            body * {
+              visibility: hidden !important;
+            }
+            .invoice-overlay {
+              background: transparent !important;
+              padding: 0 !important;
+              position: absolute !important;
+              top: 0 !important;
+              left: 0 !important;
+              width: 80mm !important;
+            }
+            .invoice-modal {
+              box-shadow: none !important;
+              border: none !important;
+              width: 80mm !important;
+              max-width: 80mm !important;
+              border-radius: 0 !important;
+              background: transparent !important;
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
+            }
+            .invoice-header-bar {
+              display: none !important;
+            }
+            .invoice-content, .invoice-content * {
+              visibility: visible !important;
+            }
+            .invoice-content {
+              position: absolute !important;
+              left: 0 !important;
+              top: 0 !important;
+              width: 80mm !important;
+              max-width: 80mm !important;
+              padding: 4mm 3mm !important;
+              margin: 0 !important;
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
+            }
           }
         `}
       </style>
@@ -142,8 +227,8 @@ const InvoicePreview = ({ invoice, onClose }) => {
           <div className="invoice-header-bar">
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Receipt size={18} color="#38bdf8" />
-              <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '700' }}>
-                Nota de Entrega {invoice.invoiceNumber || (invoice.isPreBill ? '(Pre-orden)' : `NE-${invoice.id}`)}
+              <h3 style={{ margin: 0, fontSize: '0.92rem', fontWeight: '700' }}>
+                {invoice.isPreBill ? 'Pre-orden / Consumo' : `Factura Fiscal SENIAT: ${invoiceNumFormatted}`}
               </h3>
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
@@ -172,252 +257,192 @@ const InvoicePreview = ({ invoice, onClose }) => {
             </div>
           </div>
 
-          {/* Thermal POS Receipt Layout (Ready for physical POS ticket printer 80mm / 58mm) */}
+          {/* Formato Fiscal Oficial SENIAT (Copia Fiel del Ticket Fiscal Happy Days) */}
           <div className="invoice-content">
-            <div className="thermal-ticket">
+            <div className="fiscal-ticket">
               
-              {/* Business Header */}
-              <div className="ticket-center">
-                <div className="ticket-bold" style={{ fontSize: '17px', letterSpacing: '0.5px' }}>{CLIENT_CONFIG.receipt.headerTitle}</div>
-                <div style={{ fontSize: '11px', fontWeight: '600' }}>{CLIENT_CONFIG.receipt.subtitle}</div>
-                <div style={{ fontSize: '10px', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{CLIENT_CONFIG.receipt.nonFiscalNotice}</div>
-                <div style={{ fontSize: '11px' }}>RIF: {CLIENT_CONFIG.rif}</div>
-                <div style={{ fontSize: '11px' }}>{CLIENT_CONFIG.address}</div>
-                <div style={{ fontSize: '11px' }}>Teléfono: {CLIENT_CONFIG.phone}</div>
-              </div>
-
-              <div className="ticket-divider" />
-
-              {/* Title Badge */}
-              <div className="ticket-center ticket-bold" style={{ fontSize: '13px', letterSpacing: '0.5px', padding: '2px 0' }}>
-                {invoice.isPreBill ? '*** PRE-ORDEN / NOTA DE ENTREGA ***' : '*** NOTA DE ENTREGA ***'}
-              </div>
-
-              <div className="ticket-divider" />
-
-              {/* Invoice Metadata */}
-              <div style={{ fontSize: '11px', lineHeight: '1.4' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span><strong>NOTA DE ENTREGA Nº:</strong> {invoice.invoiceNumber || (invoice.isPreBill ? 'PRE-ORDEN' : `NE-${invoice.id}`)}</span>
-                  <span><strong>Nº CONTROL:</strong> {controlNumber}</span>
+              {/* Encabezado Fiscal SENIAT */}
+              <div className="fiscal-center">
+                <div className="fiscal-bold" style={{ fontSize: '14px', letterSpacing: '1px' }}>
+                  {CLIENT_CONFIG.receipt?.headerTop || 'SENIAT'}
                 </div>
-                <div><strong>FECHA / HORA:</strong> {formatDate(invoice.date)}</div>
-                
-                {/* Delivery / Takeout / Salon Mode */}
+                <div className="fiscal-bold" style={{ fontSize: '12px', marginTop: '1px' }}>
+                  {rif}
+                </div>
+                <div className="fiscal-bold" style={{ fontSize: '12px', marginTop: '1px', textTransform: 'uppercase' }}>
+                  {legalName}
+                </div>
+                {addressLines.map((line, idx) => (
+                  <div key={idx} style={{ fontSize: '10.5px', lineHeight: '1.25' }}>
+                    {line}
+                  </div>
+                ))}
+                <div style={{ fontSize: '10.5px', marginTop: '1px' }}>
+                  Tel.: {phone}
+                </div>
+              </div>
+
+              <div className="fiscal-divider" />
+
+              {/* Bloque de Datos del Cliente */}
+              <div style={{ fontSize: '11px', lineHeight: '1.35' }}>
+                <div><strong>Cliente:</strong> {clientInfo.name}</div>
+                <div><strong>Rif/Ced:</strong> {clientInfo.cedula || 'V-00000000'}</div>
+                {clientInfo.address && <div><strong>Dir.:</strong> {clientInfo.address}</div>}
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span><strong>Tel.:</strong> {clientInfo.phone || phone}</span>
+                  <span><strong>Cajero:</strong> {cashierIdentifier}</span>
+                </div>
+              </div>
+
+              <div className="fiscal-divider" />
+
+              {/* Título del Documento y Numeración Fiscal */}
+              <div className="fiscal-center">
+                <div className="fiscal-bold" style={{ fontSize: '13px', letterSpacing: '1px' }}>
+                  {invoice.isPreBill ? '*** NOTA DE ENTREGA / PRE-ORDEN ***' : 'FACTURA'}
+                </div>
+                <div className="fiscal-bold" style={{ fontSize: '12px', marginTop: '2px' }}>
+                  {invoice.isPreBill ? `PRE-ORDEN Nº: ${invoiceNumFormatted}` : `FACTURA: ${invoiceNumFormatted}`}
+                </div>
+                <div style={{ fontSize: '11px', marginTop: '2px' }}>
+                  FECHA: {fiscalDate}&nbsp;&nbsp;&nbsp;HORA: {fiscalTime}
+                </div>
+                {invoice.tableName && (
+                  <div className="fiscal-bold" style={{ fontSize: '11px', marginTop: '2px' }}>
+                    MESA: {invoice.tableName} {invoice.waiterName ? `(Mesero: ${invoice.waiterName})` : ''}
+                  </div>
+                )}
                 {invoice.orderType === 'delivery' && (
-                  <div style={{ background: '#f0f9ff', padding: '6px 8px', borderRadius: '4px', margin: '4px 0', border: '1px solid #bae6fd' }}>
-                    <div className="ticket-bold" style={{ fontSize: '12px', color: '#0369a1' }}>🛵 PEDIDO PARA DELIVERY</div>
-                    {invoice.deliveryInfo?.address && (
-                      <div style={{ marginTop: '2px' }}><strong>DIRECCIÓN:</strong> <span className="ticket-bold">{invoice.deliveryInfo.address}</span></div>
-                    )}
-                    {invoice.deliveryInfo?.phone && (
-                      <div><strong>TELÉFONO:</strong> {invoice.deliveryInfo.phone}</div>
-                    )}
-                    {invoice.deliveryInfo?.courier && (
-                      <div><strong>REPARTIDOR:</strong> {invoice.deliveryInfo.courier}</div>
-                    )}
+                  <div style={{ fontSize: '10.5px', marginTop: '2px', fontStyle: 'italic' }}>
+                    🛵 MODALIDAD: DELIVERY {invoice.deliveryInfo?.courier ? `(${invoice.deliveryInfo.courier})` : ''}
                   </div>
                 )}
                 {invoice.orderType === 'para_llevar' && (
-                  <div className="ticket-bold" style={{ fontSize: '11px', margin: '3px 0', color: '#7e22ce' }}>
-                    🛍️ MODALIDAD: PARA LLEVAR (RETIRO EN MOSTRADOR)
+                  <div style={{ fontSize: '10.5px', marginTop: '2px', fontStyle: 'italic' }}>
+                    🛍️ MODALIDAD: PARA LLEVAR
                   </div>
                 )}
-                {invoice.tableName && (
-                  <div><strong>MESA:</strong> <span className="ticket-bold">{invoice.tableName}</span> {invoice.waiterName ? `(Mesero: ${invoice.waiterName})` : ''}</div>
-                )}
-                <div className="ticket-divider" style={{ margin: '4px 0' }} />
-                <div><strong>CLIENTE:</strong> {clientInfo.name}</div>
-                <div><strong>C.I / RIF:</strong> {clientInfo.cedula || 'V-00000000'}</div>
-                {clientInfo.address && (
-                  <div><strong>DIR. CLIENTE:</strong> {clientInfo.address}</div>
-                )}
-                {clientInfo.phone && (
-                  <div><strong>TELÉFONO:</strong> {clientInfo.phone}</div>
-                )}
-                <div><strong>CONDICIÓN:</strong> <span className="ticket-bold">{isPaid ? 'CONTADO' : 'CRÉDITO'}</span></div>
-                {clientInfo.type === 'congelador' && (
-                  <div><strong>TIPO:</strong> <span className="ticket-bold">CLIENTE CONGELADOR (CRÉDITO)</span></div>
-                )}
-                <div style={{ color: '#0369a1' }}><strong>TASA OFICIAL BCV:</strong> Bs. {exchangeRate.toFixed(4)} / USD</div>
               </div>
 
-              <div className="ticket-divider" />
+              <div className="fiscal-divider" />
 
-              {/* Items Table */}
-              <table className="ticket-table">
-                <thead>
-                  <tr>
-                    <th>CANT</th>
-                    <th>DESCRIPCIÓN</th>
-                    <th className="ticket-right">P.UNIT</th>
-                    <th className="ticket-right">TOTAL</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((item, idx) => {
-                    const qty = Number(item.quantity || item.cantidad || 1);
-                    const unitPrice = Number(item.unitPrice || item.priceUSD || item.price || 0);
-                    const subtotal = Number(item.subtotal || qty * unitPrice);
+              {/* Listado de Productos Fiscales */}
+              <div style={{ margin: '6px 0' }}>
+                {items.map((item, idx) => {
+                  const qty = Number(item.quantity || item.cantidad || 1);
+                  const unitPriceUSD = Number(item.unitPrice || item.priceUSD || item.price || 0);
+                  const unitPriceBs = Number(item.priceBs || (unitPriceUSD * exchangeRate));
+                  const subtotalBs = Number(item.subtotalBs || (qty * unitPriceBs));
+                  const qtyFormatted = Number(qty).toLocaleString('de-DE', {
+                    minimumFractionDigits: 3,
+                    maximumFractionDigits: 3
+                  });
 
-                    return (
-                      <tr key={idx}>
-                        <td className="ticket-bold">{qty}x</td>
-                        <td>
-                          <div>{item.productName || item.name || 'Producto'}</div>
-                          <div style={{ fontSize: '9px', color: '#64748b' }}>Alic. (G 16.00%)</div>
-                        </td>
-                        <td className="ticket-right">${unitPrice.toFixed(2)}</td>
-                        <td className="ticket-right ticket-bold">${subtotal.toFixed(2)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-
-              <div className="ticket-double-divider" />
-
-              {/* Venezuelan SENIAT Fiscal Summary */}
-              <div style={{ fontSize: '11px', lineHeight: '1.4' }}>
-                <div className="ticket-bold ticket-center" style={{ fontSize: '11px', letterSpacing: '0.4px', marginBottom: '4px' }}>
-                  --- RESUMEN TRIBUTARIO (SENIAT) ---
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
-                  <span>BASE IMPONIBLE (G 16.00%):</span>
-                  <span>${baseImponibleUSD.toFixed(2)} (Bs. {baseImponibleBs.toFixed(2)})</span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
-                  <span>IVA (16.00%):</span>
-                  <span className="ticket-bold">${ivaUSD.toFixed(2)} (Bs. {ivaBs.toFixed(2)})</span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0', color: '#64748b' }}>
-                  <span>MONTO EXENTO (0.00%):</span>
-                  <span>$0.00 (Bs. 0.00)</span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', borderTop: '1px dashed #999', marginTop: '2px' }}>
-                  <span>SUBTOTAL BIENES/SERVICIOS:</span>
-                  <span>${subtotalItemsUSD.toFixed(2)}</span>
-                </div>
-
-                {invoice.deliveryFee > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0', color: '#0369a1' }}>
-                    <span>FLETE / ENVÍO DELIVERY:</span>
-                    <span className="ticket-bold">+${Number(invoice.deliveryFee).toFixed(2)} (Bs. {(Number(invoice.deliveryFee) * exchangeRate).toFixed(2)})</span>
-                  </div>
-                )}
-
-                {/* IGTF 3% Divisas */}
-                {igtfUSD > 0 ? (
-                  <div style={{ background: '#f8fafc', padding: '4px 6px', borderRadius: '4px', margin: '4px 0', border: '1px dashed #cbd5e1' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px' }}>
-                      <span>BASE IGTF (PAGO EN DIVISAS):</span>
-                      <span>${igtfBaseUSD.toFixed(2)} (Bs. {(igtfBaseUSD * exchangeRate).toFixed(2)})</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 'bold' }}>
-                      <span>IGTF PERCIBIDO (3.00%):</span>
-                      <span>${igtfUSD.toFixed(2)} (Bs. {igtfBs.toFixed(2)})</span>
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ fontSize: '9.5px', color: '#059669', fontStyle: 'italic', margin: '3px 0' }}>
-                    * IGTF (3.00%): EXENTO (Pago en Moneda Nacional / Bolívares)
-                  </div>
-                )}
-
-                <div className="ticket-divider" style={{ margin: '4px 0' }} />
-
-                {/* Total General */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: '14px' }} className="ticket-bold">
-                  <span>TOTAL GENERAL USD:</span>
-                  <span>${totalUSD.toFixed(2)}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', fontSize: '13px', color: '#b45309' }} className="ticket-bold">
-                  <span>TOTAL OFICIAL Bs (BCV):</span>
-                  <span>Bs. {totalBs.toFixed(2)}</span>
-                </div>
-              </div>
-
-              <div className="ticket-divider" />
-
-              {/* Payment Method & Status */}
-              <div style={{ fontSize: '12px' }}>
-                <div><strong>FORMA DE PAGO:</strong> {formatPaymentMethod(paymentMethod)}</div>
-                
-                {(invoice.pagoMovilBank || invoice.pagoMovilRef) && (() => {
-                  const bInfo = findBank(invoice.pagoMovilBank);
                   return (
-                    <div style={{ fontSize: '11px', marginTop: '3px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                      {bInfo && <BankLogo code={bInfo.code} size={15} />}
-                      {invoice.pagoMovilBank && <span>Banco: <strong>{invoice.pagoMovilBank}</strong> </span>}
-                      {invoice.pagoMovilRef && <span>| Ref: <strong>#{invoice.pagoMovilRef}</strong></span>}
+                    <div key={idx} style={{ marginBottom: '6px' }}>
+                      <div className="fiscal-bold" style={{ textTransform: 'uppercase', fontSize: '11.5px' }}>
+                        {item.productName || item.name || 'PRODUCTO'}
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
+                        <span>{qtyFormatted} X {formatVE(unitPriceBs)}</span>
+                        <span className="fiscal-bold">{formatVE(subtotalBs)} (G)</span>
+                      </div>
+                      {item.notes && (
+                        <div style={{ fontSize: '9.5px', fontStyle: 'italic', color: '#333', paddingLeft: '4px' }}>
+                          * {item.notes}
+                        </div>
+                      )}
                     </div>
                   );
-                })()}
-                
-                {paymentMethod === 'mixto' && invoice.mixedPayments && (
-                  <div style={{ paddingLeft: '8px', marginBottom: '4px', fontSize: '11px' }}>
-                    {invoice.mixedPayments.efectivo_usd > 0 && <div>- Efectivo $: {invoice.mixedPayments.efectivo_usd.toFixed(2)}</div>}
-                    {invoice.mixedPayments.zelle > 0 && <div>- Zelle $: {invoice.mixedPayments.zelle.toFixed(2)}</div>}
-                    {invoice.mixedPayments.pago_movil > 0 && <div>- Pago Móvil: Bs. {invoice.mixedPayments.pago_movil.toFixed(2)}</div>}
-                    {invoice.mixedPayments.efectivo_bs > 0 && <div>- Efectivo Bs: Bs. {invoice.mixedPayments.efectivo_bs.toFixed(2)}</div>}
-                  </div>
-                )}
-
-                {invoice.receivedAmount > 0 && Number(invoice.receivedAmount) > totalUSD && paymentMethod !== 'mixto' && (
-                  <div style={{ margin: '3px 0' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>RECIBIDO:</span>
-                      <span>${Number(invoice.receivedAmount).toFixed(2)}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }} className="ticket-bold">
-                      <span>VUELTO:</span>
-                      <span>${Number(invoice.changeUSD || 0).toFixed(2)} (Bs. {Number(invoice.changeBs || 0).toFixed(2)})</span>
-                    </div>
-                  </div>
-                )}
-                <div style={{ marginTop: '2px' }}>
-                  <strong>ESTADO:</strong>{' '}
-                  <span className="ticket-bold" style={{ textDecoration: 'underline' }}>
-                    {status === 'voided' || status === 'anulada' 
-                      ? '*** ANULADA ***' 
-                      : invoice.isPreBill 
-                        ? '*** POR PAGAR (PRE-ORDEN) ***'
-                        : isPaid 
-                          ? '*** PAGADO / CANCELADO ***' 
-                          : '*** PENDIENTE POR COBRAR ***'}
-                  </span>
-                </div>
-                {(status === 'voided' || status === 'anulada') && invoice.voidReason && (
-                  <div style={{ fontSize: '11px', marginTop: '4px', fontStyle: 'italic', color: '#dc2626' }}>
-                    Motivo de Anulación: {invoice.voidReason}
-                  </div>
-                )}
-                {invoice.isPreBill && (
-                  <div style={{ fontSize: '11px', marginTop: '4px', fontStyle: 'italic', color: '#1e40af' }}>
-                    * Pre-orden emitida para revisión antes del pago.
-                  </div>
-                )}
-                {!invoice.isPreBill && !isPaid && status !== 'voided' && status !== 'anulada' && (
-                  <div style={{ fontSize: '11px', marginTop: '4px', fontStyle: 'italic' }}>
-                    * Registrado en cuenta por cobrar de cliente.
-                  </div>
-                )}
+                })}
               </div>
 
-              <div className="ticket-divider" />
+              {/* Flete o Delivery si aplica */}
+              {invoice.deliveryFee > 0 && (
+                <div style={{ marginBottom: '6px' }}>
+                  <div className="fiscal-bold" style={{ textTransform: 'uppercase', fontSize: '11px' }}>
+                    SERVICIO DE FLETE / ENVÍO
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
+                    <span>1,000 X {formatVE(Number(invoice.deliveryFee) * exchangeRate)}</span>
+                    <span className="fiscal-bold">{formatVE(Number(invoice.deliveryFee) * exchangeRate)} (G)</span>
+                  </div>
+                </div>
+              )}
 
-              {/* Legal Footer (SENIAT) */}
-              <div className="ticket-center" style={{ fontSize: '9.5px', marginTop: '6px', lineHeight: '1.3' }}>
-                <div className="ticket-bold">DOCUMENTO EMITIDO CONFORME A LAS PROVIDENCIAS ADMINISTRATIVAS DEL SENIAT</div>
-                <div>(SNAT/2011/00071 - SNAT/2022/000013 IGTF)</div>
-                <div className="ticket-bold" style={{ marginTop: '2px' }}>CONTRIBUYENTE ORDINARIO DEL IVA</div>
-                <div style={{ fontSize: '10px', marginTop: '4px', fontWeight: 'bold' }}>{CLIENT_CONFIG.receipt.footerGreeting}</div>
-                <div style={{ fontSize: '9px', marginTop: '2px' }}>{CLIENT_CONFIG.receipt.contactNotice}</div>
-                <div style={{ fontSize: '9px', marginTop: '4px', color: '#555' }}>--------------------------------</div>
+              {/* Desglose de Base Imponible e IVA 16% */}
+              <div className="fiscal-divider" />
+              <div style={{ fontSize: '11px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}>
+                <span>BI G16,00%&nbsp;&nbsp;{formatVE(baseImponibleBs)}</span>
+                <span>IVA G16,00%&nbsp;&nbsp;{formatVE(ivaBs)}</span>
+              </div>
+              <div className="fiscal-divider" />
+
+              {/* Total en Bolívares */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', margin: '4px 0' }} className="fiscal-bold">
+                <span>TOTAL</span>
+                <span>{formatVE(totalBs)}</span>
+              </div>
+
+              {/* Referencia en Divisas (USD) y Tasa Oficial */}
+              <div style={{ fontSize: '10.5px', color: '#222', marginBottom: '8px' }}>
+                (Ref. ${totalUSD.toFixed(2)} - Tasa BCV: Bs. {formatVE(exchangeRate, 2)})
+              </div>
+
+              {/* Forma de Pago */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', margin: '4px 0' }} className="fiscal-bold">
+                <span>{getFiscalPaymentLabel(paymentMethod)}</span>
+                <span>{formatVE(totalBs)}</span>
+              </div>
+
+              {/* Detalle Pago Móvil / Banco si existe */}
+              {(invoice.pagoMovilBank || invoice.pagoMovilRef) && (() => {
+                const bInfo = findBank(invoice.pagoMovilBank);
+                return (
+                  <div style={{ fontSize: '10.5px', margin: '2px 0 4px 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    {bInfo && <BankLogo code={bInfo.code} size={13} />}
+                    {invoice.pagoMovilBank && <span>Banco: <strong>{invoice.pagoMovilBank}</strong> </span>}
+                    {invoice.pagoMovilRef && <span>| Ref: <strong>#{invoice.pagoMovilRef}</strong></span>}
+                  </div>
+                );
+              })()}
+
+              {/* Detalle de Pago Mixto */}
+              {paymentMethod === 'mixto' && invoice.mixedPayments && (
+                <div style={{ fontSize: '10.5px', paddingLeft: '6px', margin: '3px 0' }}>
+                  {invoice.mixedPayments.efectivo_usd > 0 && <div>- Efectivo Divisas: ${Number(invoice.mixedPayments.efectivo_usd).toFixed(2)}</div>}
+                  {invoice.mixedPayments.zelle > 0 && <div>- Zelle / Divisas: ${Number(invoice.mixedPayments.zelle).toFixed(2)}</div>}
+                  {invoice.mixedPayments.pago_movil > 0 && <div>- Pago Móvil: Bs. {formatVE(invoice.mixedPayments.pago_movil)}</div>}
+                  {invoice.mixedPayments.efectivo_bs > 0 && <div>- Efectivo Bs: Bs. {formatVE(invoice.mixedPayments.efectivo_bs)}</div>}
+                </div>
+              )}
+
+              {/* Vuelto / Cambio si aplica */}
+              {invoice.receivedAmount > 0 && Number(invoice.receivedAmount) > totalUSD && (
+                <div style={{ fontSize: '10.5px', margin: '3px 0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>RECIBIDO:</span>
+                    <span>${Number(invoice.receivedAmount).toFixed(2)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}>
+                    <span>CAMBIO / VUELTO:</span>
+                    <span>Bs. {formatVE(Number(invoice.changeBs || (invoice.changeUSD * exchangeRate) || 0))} (${Number(invoice.changeUSD || 0).toFixed(2)})</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Pie Fiscal: Memoria y Serial de Impresora Fiscal SENIAT */}
+              <div style={{ borderTop: '1px dashed #000', margin: '14px 0 6px 0' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', letterSpacing: '1px' }} className="fiscal-bold">
+                <span>{fiscalMachineCode}</span>
+                <span>{fiscalSerial}</span>
+              </div>
+
+              {/* Saludo y Redes de Happy Days */}
+              <div className="fiscal-center" style={{ fontSize: '10px', marginTop: '10px', lineHeight: '1.3' }}>
+                <div className="fiscal-bold">{CLIENT_CONFIG.receipt?.footerGreeting || '¡Gracias por su compra!'}</div>
+                <div style={{ fontSize: '9.5px', marginTop: '2px' }}>{CLIENT_CONFIG.receipt?.contactNotice || 'Instagram: @happydays_ve'}</div>
               </div>
 
             </div>
