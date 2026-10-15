@@ -375,7 +375,7 @@ export default function OpenTabsModal({
                                     (tab.deliveryInfo.courier ? `🛵 *Repartidor:* ${tab.deliveryInfo.courier}\n` : '');
                                   window.open(`https://wa.me/${intlPhone}?text=${encodeURIComponent(msg)}`, '_blank');
                                 }}
-                                title="Enviar comanda y estado por WhatsApp"
+                                title="Enviar pedido y estado por WhatsApp"
                                 style={{
                                   background: '#22c55e', color: '#ffffff', border: 'none', borderRadius: '6px',
                                   padding: '2px 8px', fontSize: '0.68rem', fontWeight: '800', cursor: 'pointer',
@@ -476,7 +476,7 @@ export default function OpenTabsModal({
                         <button
                           type="button"
                           onClick={() => onEditTab && onEditTab(tab)}
-                          title="Cargar comanda al POS para agregar más productos"
+                          title="Cargar pedido al POS para agregar más productos"
                           style={{
                             flex: 1,
                             display: 'flex',
@@ -496,11 +496,11 @@ export default function OpenTabsModal({
                           <PlusCircle size={14} /> + Productos
                         </button>
 
-                        {/* 3. Pre-cuenta Ticket */}
+                        {/* 3. Pre-orden Ticket */}
                         <button
                           type="button"
                           onClick={() => onPrintPreBill && onPrintPreBill(tab)}
-                          title="Ver / Imprimir Pre-cuenta para el cliente o bolsa"
+                          title="Ver / Imprimir ticket de pre-orden para el cliente o bolsa"
                           style={{
                             padding: '10px',
                             background: '#f8fafc',

@@ -111,7 +111,7 @@ const POSInvoiceSidebar = ({
       <div className="pos-sidebar-header">
         <div className="pos-header-title-box">
           <FileText size={20} color="var(--brand-primary, #2563eb)" />
-          <h3 className="pos-header-title">Comanda</h3>
+          <h3 className="pos-header-title">Nota de Entrega</h3>
           <span className="pos-items-pill">{totalItemsCount} {totalItemsCount === 1 ? 'ítem' : 'ítems'}</span>
         </div>
 
@@ -133,7 +133,7 @@ const POSInvoiceSidebar = ({
               type="button"
               className="pos-hold-btn"
               onClick={onSaveOpenTab}
-              title="Guardar comanda en cuentas abiertas para atender a otro cliente"
+              title="Guardar orden en cuentas abiertas para atender a otro cliente"
             >
               <Bookmark size={13} /> Espera
             </button>
@@ -144,7 +144,7 @@ const POSInvoiceSidebar = ({
               type="button"
               className="pos-clear-cart-btn"
               onClick={onClearCart}
-              title="Vaciar comanda"
+              title="Vaciar orden"
             >
               <Trash2 size={13} />
             </button>
@@ -309,7 +309,7 @@ const POSInvoiceSidebar = ({
         {cart.length === 0 ? (
           <div className="pos-cart-empty">
             <ShoppingCart size={42} strokeWidth={1.5} />
-            <div className="pos-cart-empty-title">Comanda Vacía</div>
+            <div className="pos-cart-empty-title">Orden Vacía</div>
             <div className="pos-cart-empty-sub">Selecciona productos del catálogo a la izquierda</div>
           </div>
         ) : (

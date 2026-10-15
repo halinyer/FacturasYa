@@ -124,12 +124,13 @@ const InvoicePreview = ({ invoice, onClose }) => {
           .ticket-right { text-align: right; }
           
           @media print {
+            @page { size: auto; margin: 0; }
             body * { visibility: hidden !important; }
             .invoice-overlay { background: transparent !important; padding: 0 !important; position: absolute !important; top: 0 !important; left: 0 !important; }
-            .invoice-modal { box-shadow: none !important; border: none !important; width: 80mm !important; max-width: 80mm !important; border-radius: 0 !important; }
+            .invoice-modal { box-shadow: none !important; border: none !important; width: 80mm !important; max-width: 80mm !important; border-radius: 0 !important; page-break-inside: avoid !important; break-inside: avoid !important; }
             .invoice-header-bar { display: none !important; }
             .invoice-content, .invoice-content * { visibility: visible !important; }
-            .invoice-content { position: absolute !important; left: 0 !important; top: 0 !important; width: 80mm !important; padding: 4mm !important; }
+            .invoice-content { position: absolute !important; left: 0 !important; top: 0 !important; width: 80mm !important; padding: 4mm !important; page-break-inside: avoid !important; break-inside: avoid !important; }
           }
         `}
       </style>
@@ -142,7 +143,7 @@ const InvoicePreview = ({ invoice, onClose }) => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Receipt size={18} color="#38bdf8" />
               <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '700' }}>
-                Nota de Entrega {invoice.invoiceNumber || (invoice.isPreBill ? '(Pre-cuenta)' : `NE-${invoice.id}`)}
+                Nota de Entrega {invoice.invoiceNumber || (invoice.isPreBill ? '(Pre-orden)' : `NE-${invoice.id}`)}
               </h3>
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
@@ -189,7 +190,7 @@ const InvoicePreview = ({ invoice, onClose }) => {
 
               {/* Title Badge */}
               <div className="ticket-center ticket-bold" style={{ fontSize: '13px', letterSpacing: '0.5px', padding: '2px 0' }}>
-                {invoice.isPreBill ? '*** NOTA DE ENTREGA / PRE-CUENTA ***' : '*** NOTA DE ENTREGA ***'}
+                {invoice.isPreBill ? '*** PRE-ORDEN / NOTA DE ENTREGA ***' : '*** NOTA DE ENTREGA ***'}
               </div>
 
               <div className="ticket-divider" />
@@ -197,7 +198,7 @@ const InvoicePreview = ({ invoice, onClose }) => {
               {/* Invoice Metadata */}
               <div style={{ fontSize: '11px', lineHeight: '1.4' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span><strong>FACTURA Nº:</strong> {invoice.invoiceNumber || (invoice.isPreBill ? 'PRE-CUENTA' : `FAC-${invoice.id}`)}</span>
+                  <span><strong>NOTA DE ENTREGA Nº:</strong> {invoice.invoiceNumber || (invoice.isPreBill ? 'PRE-ORDEN' : `NE-${invoice.id}`)}</span>
                   <span><strong>Nº CONTROL:</strong> {controlNumber}</span>
                 </div>
                 <div><strong>FECHA / HORA:</strong> {formatDate(invoice.date)}</div>
@@ -384,7 +385,7 @@ const InvoicePreview = ({ invoice, onClose }) => {
                     {status === 'voided' || status === 'anulada' 
                       ? '*** ANULADA ***' 
                       : invoice.isPreBill 
-                        ? '*** POR PAGAR (PRE-CUENTA / CUENTA) ***'
+                        ? '*** POR PAGAR (PRE-ORDEN) ***'
                         : isPaid 
                           ? '*** PAGADO / CANCELADO ***' 
                           : '*** PENDIENTE POR COBRAR ***'}
@@ -397,7 +398,7 @@ const InvoicePreview = ({ invoice, onClose }) => {
                 )}
                 {invoice.isPreBill && (
                   <div style={{ fontSize: '11px', marginTop: '4px', fontStyle: 'italic', color: '#1e40af' }}>
-                    * Pre-cuenta emitida para revisión antes del pago.
+                    * Pre-orden emitida para revisión antes del pago.
                   </div>
                 )}
                 {!invoice.isPreBill && !isPaid && status !== 'voided' && status !== 'anulada' && (

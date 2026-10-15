@@ -159,15 +159,14 @@ export default function Tables() {
     }
   };
 
-  // Action: Request bill from PC and generate pre-bill
-  const handleRequestBill = async (table, order) => {
+  // Action: Request bill from PC
+  const handleRequestBill = async (table) => {
     try {
       const res = await fetch(`http://localhost:3001/api/restaurant/table/${table.id}/bill`, {
         method: 'POST'
       });
       if (res.ok) {
-        showToast(`🔔 Pre-cuenta solicitada para ${table.name}.`);
-        handlePrintPreBill(table, order);
+        showToast(`🔔 Cuenta solicitada para ${table.name}. Lista para cobrar.`);
         fetchState();
       } else {
         showToast('Error al solicitar cuenta', 'error');
@@ -202,11 +201,6 @@ export default function Tables() {
     }
 
     if (table.status !== 'cuenta') {
-      const confirmCharge = window.confirm(
-        `La mesa "${table.name}" aún no ha pedido la cuenta formalmente (sigue en consumo).\n\n¿Deseas solicitar la pre-cuenta y pasar directamente a cobrar a caja?`
-      );
-      if (!confirmCharge) return;
-
       try {
         await fetch(`http://localhost:3001/api/restaurant/table/${table.id}/bill`, { method: 'POST' });
       } catch (err) {}
@@ -949,7 +943,7 @@ export default function Tables() {
                         <button
                           type="button"
                           onClick={() => handlePrintDeliveryPreBill(tab)}
-                          title="Imprimir comanda / ticket de delivery"
+                          title="Imprimir ticket de delivery"
                           style={{
                             padding: '11px 14px', background: '#f8fafc', color: '#475569',
                             border: '1px solid #cbd5e1', borderRadius: '10px', cursor: 'pointer',
@@ -1339,34 +1333,49 @@ export default function Tables() {
                         <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '12px', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <Clock size={20} color="#d97706" style={{ flexShrink: 0 }} />
                           <div style={{ fontSize: '0.82rem', color: '#92400e', lineHeight: 1.35 }}>
-                            <strong>Mesa comiendo.</strong> Los comensales aún no han solicitado la cuenta. Solicita la pre-cuenta para habilitar el cobro en caja.
+                            <strong>Mesa en consumo.</strong> Pasa directamente a cobrar en caja para emitir el ticket de venta.
                           </div>
                         </div>
 
                         <button
                           type="button"
-                          onClick={() => handleRequestBill(currentTable, currentOrder)}
-                          style={{
-                            width: '100%', padding: '13px', background: '#2563eb', color: '#ffffff',
-                            border: 'none', borderRadius: '12px', fontWeight: '800', fontSize: '0.95rem',
-                            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                            boxShadow: '0 4px 12px rgba(37,99,235,0.25)'
-                          }}
-                        >
-                          <Printer size={18} /> Solicitar Pre-cuenta (Pide Cuenta)
-                        </button>
-
-                        <button
-                          type="button"
                           onClick={() => handleChargeInPOS(currentTable, currentOrder)}
                           style={{
-                            width: '100%', padding: '10px', background: '#f8fafc', color: '#475569',
-                            border: '1px solid #cbd5e1', borderRadius: '10px', fontWeight: '700', fontSize: '0.82rem',
-                            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
+                            width: '100%', padding: '14px', background: '#2563eb', color: '#ffffff',
+                            border: 'none', borderRadius: '12px', fontWeight: '800', fontSize: '1rem',
+                            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                            boxShadow: '0 4px 14px rgba(37,99,235,0.25)'
                           }}
                         >
-                          <ShoppingCart size={15} /> Cobrar directo en POS (Confirmar)
+                          <ShoppingCart size={18} /> COBRAR EN CAJA (POS) &rarr;
                         </button>
+
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleRequestBill(currentTable)}
+                            style={{
+                              flex: 1, padding: '10px', background: '#f8fafc', color: '#475569',
+                              border: '1px solid #cbd5e1', borderRadius: '10px', fontWeight: '700', fontSize: '0.82rem',
+                              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
+                            }}
+                          >
+                            <Clock size={14} /> Marcar "Pide Cuenta"
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handlePrintPreBill(currentTable, currentOrder)}
+                            style={{
+                              padding: '10px 14px', background: '#f8fafc', color: '#475569',
+                              border: '1px solid #cbd5e1', borderRadius: '10px', fontWeight: '700', fontSize: '0.82rem',
+                              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
+                            }}
+                            title="Ver Pre-orden antes del cobro"
+                          >
+                            <Printer size={15} /> Ver Pre-orden
+                          </button>
+                        </div>
                       </>
                     )}
 
@@ -1407,12 +1416,12 @@ export default function Tables() {
                           type="button"
                           onClick={() => handlePrintPreBill(currentTable, currentOrder)}
                           style={{
-                            width: '100%', padding: '10px', background: '#eff6ff', color: '#1e40af',
-                            border: '1px solid #bfdbfe', borderRadius: '10px', fontWeight: '700', fontSize: '0.85rem',
+                            width: '100%', padding: '9px', background: '#eff6ff', color: '#1e40af',
+                            border: '1px solid #bfdbfe', borderRadius: '10px', fontWeight: '700', fontSize: '0.82rem',
                             cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
                           }}
                         >
-                          <Printer size={16} /> Re-imprimir Nota de Entrega (Pre-cuenta)
+                          <Printer size={15} /> Ver Ticket Pre-orden
                         </button>
                       </>
                     )}
