@@ -2247,7 +2247,7 @@ function renderWaiterView(initialState) {
     }
 
     function renderProductsGrid(prods) {
-      if (prods.length === 0) {
+      if (!prods || prods.length === 0) {
         return '<div style="grid-column: 1 / -1; text-align:center; padding:48px 16px; color:#71717a;">' +
           '<div style="font-size:2rem; margin-bottom:10px;">🔍</div>' +
           '<div style="font-weight:800; color:#18181b; font-size:1rem;">No se encontraron productos</div>' +
@@ -2255,9 +2255,16 @@ function renderWaiterView(initialState) {
         '</div>';
       }
 
+      // Dejar los que no tienen foto de último
+      const sortedProds = prods.slice().sort(function(a, b) {
+        const aHas = (a.image && typeof a.image === 'string' && a.image.trim().length > 4) ? 1 : 0;
+        const bHas = (b.image && typeof b.image === 'string' && b.image.trim().length > 4) ? 1 : 0;
+        return bHas - aHas;
+      });
+
       const rate = getLiveExchangeRate();
 
-      return prods.map(function(p) {
+      return sortedProds.map(function(p) {
         const hasImg = p.image && typeof p.image === 'string' && p.image.trim().length > 4;
         let safeImg = hasImg ? p.image.replace(/"/g, '&quot;') : '';
         if (safeImg.startsWith('./')) safeImg = '/' + safeImg.substring(2);

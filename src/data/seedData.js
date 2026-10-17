@@ -732,6 +732,766 @@ export const seedProducts = [
     active: true,
     image: './happydays/drinks/agua_mineral_botella.jpg',
     description: 'Agua mineral natural sin gas botella 1.5 Litros'
+  },
+  {
+    id: "hd_menu_hbg_carne_cheese",
+    name: "Carne Cheese",
+    category: "Hamburguesas",
+    priceUSD: 6.00,
+    sku: "HBG-MNU-001",
+    active: true,
+    image: "",
+    description: "Camada de lechuga, tomate, cebolla, carne de hamburguesa, lágrimas de papas, queso, salsas tradicionales + salsa de la casa."
+  },
+  {
+    id: "hd_menu_hbg_especial",
+    name: "Especial",
+    category: "Hamburguesas",
+    priceUSD: 7.00,
+    sku: "HBG-MNU-002",
+    active: true,
+    image: "",
+    description: "Lechuga, tomate, cebolla, carne o proteína de pollo, huevo, jamón, queso amarillo, queso cheddar, aguacate, salsa tradicional + salsa de la casa."
+  },
+  {
+    id: "hd_menu_hbg_gourmet",
+    name: "Gourmet",
+    category: "Hamburguesas",
+    priceUSD: 7.00,
+    sku: "HBG-MNU-003",
+    active: true,
+    image: "",
+    description: "Lechuga, tomate, cebolla, carne o proteína de pollo, jamón, doble queso cheddar, tocineta, aguacate, salsa tradicional + salsa de la casa."
+  },
+  {
+    id: "hd_menu_hbg_bacon",
+    name: "Bacon",
+    category: "Hamburguesas",
+    priceUSD: 9.00,
+    sku: "HBG-MNU-004",
+    active: true,
+    image: "",
+    description: "Lechuga, tomate, cebolla, doble de carne o doble de pollo, jamón, doble queso cheddar, tocineta, cebolla caramelizada + salsa tradicional + salsa de la casa."
+  },
+  {
+    id: "hd_menu_hbg_pollo_cheese",
+    name: "Pollo Cheese",
+    category: "Hamburguesas",
+    priceUSD: 9.00,
+    sku: "HBG-MNU-005",
+    active: true,
+    image: "",
+    description: "Lechuga, tomate, cebolla, doble de pollo crispy con mostaza miel, jamón + doble queso cheddar, tocineta, salsa de queso, salsa tradicional + salsa de la casa."
+  },
+  {
+    id: "hd_menu_hbg_deluxe",
+    name: "Deluxe",
+    category: "Hamburguesas",
+    priceUSD: 10.00,
+    sku: "HBG-MNU-006",
+    active: true,
+    image: "",
+    description: "Lechuga, tomate, cebolla, doble de pollo crispy con mostaza miel, jamón, doble queso cheddar, tocineta, salsa de queso, salsa tradicional + salsa de la casa."
+  },
+  {
+    id: "hd_menu_hbg_mixta",
+    name: "Mixta",
+    category: "Hamburguesas",
+    priceUSD: 9.00,
+    sku: "HBG-MNU-007",
+    active: true,
+    image: "",
+    description: "Lechuga, tomate, cebolla, carne y pollo, jamón, doble queso cheddar, huevo, aguacate, tocineta, salsa tradicional + salsa de la casa."
+  },
+  {
+    id: "hd_menu_hbg_mix_chuleta",
+    name: "Mix Chuleta",
+    category: "Hamburguesas",
+    priceUSD: 10.00,
+    sku: "HBG-MNU-008",
+    active: true,
+    image: "",
+    description: "Lechuga, tomate, cebolla, carne o pollo y chuleta ahumada, jamón, aguacate, huevo, doble queso cheddar, tocineta, salsa tradicional + salsa de la casa."
+  },
+  {
+    id: "hd_menu_hbg_llanera",
+    name: "Llanera",
+    category: "Hamburguesas",
+    priceUSD: 11.00,
+    sku: "HBG-MNU-009",
+    active: true,
+    image: "",
+    description: "Lechuga, tomate, cebolla, carne y solomo a la parrilla, jamón, queso llanero a la plancha, queso cheddar, huevo frito, aguacate, tocineta, salsa tradicional + salsa de la casa."
+  },
+  {
+    id: "hd_menu_hbg_triple_carne",
+    name: "Triple Carne",
+    category: "Hamburguesas",
+    priceUSD: 12.00,
+    sku: "HBG-MNU-010",
+    active: true,
+    image: "",
+    description: "Lechuga, tomate, cebolla, triple de carne, tocineta, huevo, jamón, triple queso cheddar, aguacate, salsa tradicional + salsa de la casa."
+  },
+  {
+    id: "hd_menu_hbg_full_pork",
+    name: "Full Pork",
+    category: "Hamburguesas",
+    priceUSD: 10.00,
+    sku: "HBG-MNU-011",
+    active: true,
+    image: "",
+    description: "Lechuga, tomate, cebolla, carne y solomo a la parrilla o chuleta, jamón, queso cheddar, huevo frito, aguacate, tocineta, salsa tradicional + salsa de la casa."
+  },
+  {
+    id: "hd_menu_hbg_power_happy",
+    name: "Power Happy",
+    category: "Hamburguesas",
+    priceUSD: 14.00,
+    sku: "HBG-MNU-012",
+    active: true,
+    image: "",
+    description: "Camada de lechuga, tomate, cebolla, 4 proteínas: carne, pollo, chuleta y tocineta, huevo, jamón, triple queso cheddar, aguacate, salsa tradicional + salsa de la casa."
+  },
+  {
+    id: "hd_menu_hbg_monster_happy",
+    name: "Monster Happy",
+    category: "Hamburguesas",
+    priceUSD: 16.00,
+    sku: "HBG-MNU-013",
+    active: true,
+    image: "",
+    description: "Lechuga, tomate, cebolla, 6 proteínas: carne, pollo, chuleta, pernil, polaca y tocineta, huevo, jamón, triple queso cheddar, aguacate, salsa tradicional + salsa de la casa."
+  },
+  {
+    id: "hd_menu_hbg_felices_los_4",
+    name: "Felices los 4",
+    category: "Hamburguesas",
+    priceUSD: 25.00,
+    sku: "HBG-MNU-014",
+    active: true,
+    image: "",
+    description: "Lechuga, tomate, cebolla, 4 proteínas: 4 carne, 4 pollo, 4 chuleta, 4 tocineta, 4 huevo, 4 jamón, cuátruple queso cheddar, aguacate, salsa tradicional, salsa de la casa (para 2, 3 o 4 personas)."
+  },
+  {
+    id: "hd_menu_hbg_4_deseos",
+    name: "4 Deseos de la Nona",
+    category: "Hamburguesas",
+    priceUSD: 10.00,
+    sku: "HBG-MNU-015",
+    active: true,
+    image: "",
+    description: "Carne, pollo, jamón, queso cheddar, queso mozzarella, gratinada sobre el pan, jamón, pimentón, cebolla, pepperoni y aceitunas."
+  },
+  {
+    id: "hd_menu_shw_carne",
+    name: "Shawarma Carne",
+    category: "Shawarmas",
+    priceUSD: 8.00,
+    sku: "SHW-MNU-001",
+    active: true,
+    image: "",
+    description: "Carne, lechuga, tomate, cebolla, lágrimas de papa, salsa de ajo, mostaza, BBQ."
+  },
+  {
+    id: "hd_menu_shw_pollo",
+    name: "Shawarma Pollo",
+    category: "Shawarmas",
+    priceUSD: 8.00,
+    sku: "SHW-MNU-002",
+    active: true,
+    image: "",
+    description: "Pollo, lechuga, tomate, cebolla, lágrimas de papa, salsa de ajo, mostaza, BBQ."
+  },
+  {
+    id: "hd_menu_shw_mixto",
+    name: "Shawarma Mixto",
+    category: "Shawarmas",
+    priceUSD: 9.00,
+    sku: "SHW-MNU-003",
+    active: true,
+    image: "",
+    description: "Pollo y carne, lechuga, tomate, cebolla, lágrimas de papa, salsa de ajo, mostaza, BBQ."
+  },
+  {
+    id: "hd_menu_shw_pernil",
+    name: "Shawarma Pernil",
+    category: "Shawarmas",
+    priceUSD: 11.00,
+    sku: "SHW-MNU-004",
+    active: true,
+    image: "",
+    description: "Pernil, lechuga, tomate, cebolla, lágrimas de papa, salsa de ajo, mostaza, BBQ."
+  },
+  {
+    id: "hd_menu_shw_salvaje",
+    name: "Shawarma Salvaje",
+    category: "Shawarmas",
+    priceUSD: 12.00,
+    sku: "SHW-MNU-005",
+    active: true,
+    image: "",
+    description: "Carne, pollo, chuleta ahumada, maíz, tocineta, queso cheddar, salsa de ajo, pepinillo, BBQ, mostaza."
+  },
+  {
+    id: "hd_menu_hd_normal",
+    name: "Hot Dog Normal",
+    category: "Perros Calientes",
+    priceUSD: 2.00,
+    sku: "HDG-MNU-001",
+    active: true,
+    image: "",
+    description: "Pan con salchicha, papas, repollo y queso."
+  },
+  {
+    id: "hd_menu_hd_especial",
+    name: "Hot Dog Especial",
+    category: "Perros Calientes",
+    priceUSD: 3.00,
+    sku: "HDG-MNU-002",
+    active: true,
+    image: "",
+    description: "Pan con salchicha, papas, repollo, jamón, queso, tocineta, aguacate."
+  },
+  {
+    id: "hd_menu_hd_sifrino",
+    name: "Hot Dog Sifrino",
+    category: "Perros Calientes",
+    priceUSD: 4.00,
+    sku: "HDG-MNU-003",
+    active: true,
+    image: "",
+    description: "Pan con salchicha, papas, repollo, jamón, queso, tocineta, aguacate."
+  },
+  {
+    id: "hd_menu_hd_parrillero",
+    name: "Hot Dog Parrillero",
+    category: "Perros Calientes",
+    priceUSD: 5.00,
+    sku: "HDG-MNU-004",
+    active: true,
+    image: "",
+    description: "Pan con salchicha, papas, repollo, carne de solomo, pollo, jamón, queso, tocineta, aguacate."
+  },
+  {
+    id: "hd_menu_hd_happy",
+    name: "Hot Dog Happy",
+    category: "Perros Calientes",
+    priceUSD: 6.00,
+    sku: "HDG-MNU-005",
+    active: true,
+    image: "",
+    description: "Pan con salchicha polaca cocida al horno, papas, pollo, carne, jamón, aguacate."
+  },
+  {
+    id: "hd_menu_parr_individual",
+    name: "Parrilla Individual",
+    category: "Platos & Parrillas",
+    priceUSD: 12.00,
+    sku: "PAR-MNU-001",
+    active: true,
+    image: "",
+    description: "Papas fritas, carne, pollo, chorizo."
+  },
+  {
+    id: "hd_menu_parr_2pers",
+    name: "Parrilla 2 Personas",
+    category: "Platos & Parrillas",
+    priceUSD: 25.00,
+    sku: "PAR-MNU-002",
+    active: true,
+    image: "",
+    description: "Carne de solomo, chorizo, papas fritas, queso, aguacate y ensalada."
+  },
+  {
+    id: "hd_menu_parr_3pers",
+    name: "Parrilla 3 Personas",
+    category: "Platos & Parrillas",
+    priceUSD: 40.00,
+    sku: "PAR-MNU-003",
+    active: true,
+    image: "",
+    description: "Carne de solomo, chorizo, papas fritas, queso, aguacate, ensalada."
+  },
+  {
+    id: "hd_menu_parr_grande",
+    name: "Parrilla Grande",
+    category: "Platos & Parrillas",
+    priceUSD: 50.00,
+    sku: "PAR-MNU-004",
+    active: true,
+    image: "",
+    description: "Carne de solomo, chorizo, papas fritas, queso, aguacate, ensalada."
+  },
+  {
+    id: "hd_menu_parr_combo_dos",
+    name: "Combo Parrilla para Dos",
+    category: "Platos & Parrillas",
+    priceUSD: 29.00,
+    sku: "PAR-MNU-005",
+    active: true,
+    image: "",
+    description: "Carne de solomo, pollo, papas fritas, ensalada César, 2 hamburguesas."
+  },
+  {
+    id: "hd_menu_sub_parrillero",
+    name: "Submarino Parrillero (40 cm)",
+    category: "Pepitos",
+    priceUSD: 15.00,
+    sku: "SUB-MNU-001",
+    active: true,
+    image: "",
+    description: "Un pan completo de 40 cm con lechuga, tomate, cebolla, lágrimas de papa, carne a la parrilla, jamón de pierna, queso cheddar + tocineta."
+  },
+  {
+    id: "hd_menu_sub_pollo_sifrino",
+    name: "Submarino Pollo Sifrino (40 cm)",
+    category: "Pepitos",
+    priceUSD: 15.00,
+    sku: "SUB-MNU-002",
+    active: true,
+    image: "",
+    description: "Un pan completo de 40 cm con lechuga, tomate, cebolla, lágrimas de papa, pollo a la parrilla, jamón de pierna, queso cheddar, tocineta y aguacate."
+  },
+  {
+    id: "hd_menu_sub_gallotoro",
+    name: "Submarino Gallotoro (40 cm)",
+    category: "Pepitos",
+    priceUSD: 16.00,
+    sku: "SUB-MNU-003",
+    active: true,
+    image: "",
+    description: "Un pan completo de 40 cm con camada de lechuga, tomate, cebolla, lágrimas de papa, pollo y carne a la parrilla, jamón de pierna, queso cheddar, tocineta, aguacate."
+  },
+  {
+    id: "hd_menu_sub_argentino",
+    name: "Submarino Argentino",
+    category: "Pepitos",
+    priceUSD: 17.00,
+    sku: "SUB-MNU-004",
+    active: true,
+    image: "",
+    description: "Lechuga, tomate, cebolla, carne y solomo a la parrilla, jamón, queso llanero a la plancha, queso cheddar, huevo frito, aguacate, tocineta, salsa tradicional, salsa de la casa."
+  },
+  {
+    id: "hd_menu_sub_super_happy",
+    name: "Submarino Super Happy",
+    category: "Pepitos",
+    priceUSD: 28.00,
+    sku: "SUB-MNU-005",
+    active: true,
+    image: "",
+    description: "Lechuga, tomate, cebolla, carne y solomo a la parrilla, jamón, queso llanero a la plancha, queso cheddar, huevo frito, aguacate, tocineta, salsa tradicional + salsa de la casa."
+  },
+  {
+    id: "hd_menu_sub_explosivo",
+    name: "Submarino Explosivo (1.20 mts)",
+    category: "Pepitos",
+    priceUSD: 25.00,
+    sku: "SUB-MNU-006",
+    active: true,
+    image: "",
+    description: "Pan de 1.20 mts con camada de lechuga, tomate, cebolla, carne, pollo, chorizo, chuleta ahumada, jamón, queso amarillo y salsa de queso. (Ideal para 5 personas)."
+  },
+  {
+    id: "hd_menu_sub_cometealgo",
+    name: "Submarino Cometealgo (2 mts)",
+    category: "Pepitos",
+    priceUSD: 80.00,
+    sku: "SUB-MNU-007",
+    active: true,
+    image: "",
+    description: "Pan de 2 mts con camada de lechuga, tomate, cebolla, lágrimas de papa, pollo, carne, pollo, chorizo, chuleta ahumada, jamón, queso llanero a la plancha, queso cheddar, huevo frito, aguacate. (Ideal para 10 personas)."
+  },
+  {
+    id: "hd_menu_salch_happy_cheese",
+    name: "Salchipapa Happy Cheese",
+    category: "Salchipapas y Entradas",
+    priceUSD: 6.00,
+    sku: "SLP-MNU-001",
+    active: true,
+    image: "",
+    description: "Papas fritas, salchicha, queso y salsas tradicionales + salsas de la casa."
+  },
+  {
+    id: "hd_menu_salch_especial",
+    name: "Salchipapa Especial",
+    category: "Salchipapas y Entradas",
+    priceUSD: 7.00,
+    sku: "SLP-MNU-002",
+    active: true,
+    image: "",
+    description: "Papas fritas, salchicha, ensalada César, queso, salsas tradicionales + salsas de la casa."
+  },
+  {
+    id: "hd_menu_salch_super_happy",
+    name: "Salchipapa Super Happy",
+    category: "Salchipapas y Entradas",
+    priceUSD: 9.00,
+    sku: "SLP-MNU-003",
+    active: true,
+    image: "",
+    description: "Papas fritas, salchicha, ensalada César y jamón de pierna, queso cheddar, salsa tradicionales + de la casa."
+  },
+  {
+    id: "hd_menu_salch_happy_polaca",
+    name: "Salchipapa Happy Polaca",
+    category: "Salchipapas y Entradas",
+    priceUSD: 11.00,
+    sku: "SLP-MNU-004",
+    active: true,
+    image: "",
+    description: "Papas fritas, salchicha, ensalada César y jamón de pierna, queso cheddar, salsa tradicionales + de la casa."
+  },
+  {
+    id: "hd_menu_salch_tazmania",
+    name: "Salchipapa Tazmania",
+    category: "Salchipapas y Entradas",
+    priceUSD: 16.00,
+    sku: "SLP-MNU-005",
+    active: true,
+    image: "",
+    description: "Papas fritas, salchicha, milanesa de pollo, tocineta, aguacate, ensalada César y jamón de pierna, queso cheddar, salsa tradicional + de la casa."
+  },
+  {
+    id: "hd_menu_cach_queso_mano",
+    name: "Cachapa Queso de Mano",
+    category: "Cachapas",
+    priceUSD: 7.00,
+    sku: "CPH-MNU-001",
+    active: true,
+    image: "",
+    description: "Cachapa con queso de mano y mantequilla."
+  },
+  {
+    id: "hd_menu_cach_queso_jamon",
+    name: "Cachapa Queso y Jamón",
+    category: "Cachapas",
+    priceUSD: 8.00,
+    sku: "CPH-MNU-002",
+    active: true,
+    image: "",
+    description: "Cachapa con queso de mano, jamón y mantequilla."
+  },
+  {
+    id: "hd_menu_cach_pollo_parrilla",
+    name: "Cachapa Pollo a la Parrilla",
+    category: "Cachapas",
+    priceUSD: 10.00,
+    sku: "CPH-MNU-003",
+    active: true,
+    image: "",
+    description: "Cachapa con queso de mano, solomo o pollo a la parrilla y mantequilla."
+  },
+  {
+    id: "hd_menu_cach_queso_pernil",
+    name: "Cachapa Queso y Pernil",
+    category: "Cachapas",
+    priceUSD: 12.00,
+    sku: "CPH-MNU-004",
+    active: true,
+    image: "",
+    description: "Cachapa con queso de mano, pernil y mantequilla."
+  },
+  {
+    id: "hd_menu_cach_full_happy",
+    name: "Cachapa Full Happy",
+    category: "Cachapas",
+    priceUSD: 15.00,
+    sku: "CPH-MNU-005",
+    active: true,
+    image: "",
+    description: "Cachapa con carne, pollo, pernil, jamón, queso y aguacate."
+  },
+  {
+    id: "hd_menu_ch_mini_carne",
+    name: "Mini Club House Carne",
+    category: "Club House",
+    priceUSD: 9.00,
+    sku: "CLB-MNU-001",
+    active: true,
+    image: "",
+    description: "Sándwich de jamón y queso, carne, lechuga, tomate, cebolla, jamón, huevo y papas fritas."
+  },
+  {
+    id: "hd_menu_ch_mini_pollo",
+    name: "Mini Club House Pollo",
+    category: "Club House",
+    priceUSD: 10.00,
+    sku: "CLB-MNU-002",
+    active: true,
+    image: "",
+    description: "Sándwich de jamón y queso, pollo, lechuga, tomate, cebolla, jamón, huevo y papas fritas."
+  },
+  {
+    id: "hd_menu_ch_mega",
+    name: "Mega Club House",
+    category: "Club House",
+    priceUSD: 15.00,
+    sku: "CLB-MNU-003",
+    active: true,
+    image: "",
+    description: "Capas de pan con carne, pollo, lechuga, tomate, cebolla, jamón, queso, huevo, tocineta y ración de papas fritas grande (Ideal para 2 personas)."
+  },
+  {
+    id: "hd_menu_ch_familiar",
+    name: "Club House Familiar",
+    category: "Club House",
+    priceUSD: 20.00,
+    sku: "CLB-MNU-004",
+    active: true,
+    image: "",
+    description: "8 piezas sándwich de jamón y queso, carne, pollo, doble tocineta, doble huevo, doble jamón, doble queso, lechuga, tomate, cebolla, mega ración de papas fritas y ensalada César (Ideal para 4 personas)."
+  },
+  {
+    id: "hd_menu_ch_monsters",
+    name: "Monsters Club House",
+    category: "Club House",
+    priceUSD: 25.00,
+    sku: "CLB-MNU-005",
+    active: true,
+    image: "",
+    description: "12 piezas sándwich de jamón y queso, carne, pollo, chuleta ahumada, triple tocineta, triple huevo, triple jamón, lechuga, tomate, cebolla, 800 gr de papas y ración de ensalada César (Ideal para 6 personas)."
+  },
+  {
+    id: "hd_menu_alm_promo_1",
+    name: "Almuerzo Promoción #1",
+    category: "Almuerzos",
+    priceUSD: 8.00,
+    sku: "ALM-MNU-001",
+    active: true,
+    image: "",
+    description: "1 Principal + 1 Contorno + Bebida (Malta o Agua)."
+  },
+  {
+    id: "hd_menu_alm_promo_2",
+    name: "Almuerzo Promoción #2",
+    category: "Almuerzos",
+    priceUSD: 9.00,
+    sku: "ALM-MNU-002",
+    active: true,
+    image: "",
+    description: "1 Principal + 2 Contornos + Bebida (Malta o Agua)."
+  },
+  {
+    id: "hd_menu_alm_promo_3",
+    name: "Almuerzo Promoción #3",
+    category: "Almuerzos",
+    priceUSD: 10.00,
+    sku: "ALM-MNU-003",
+    active: true,
+    image: "",
+    description: "1 Principal + 3 Contornos + Bebida (Malta, Refresco o Té)."
+  },
+  {
+    id: "hd_menu_alm_promo_4",
+    name: "Almuerzo Promoción #4",
+    category: "Almuerzos",
+    priceUSD: 15.00,
+    sku: "ALM-MNU-004",
+    active: true,
+    image: "",
+    description: "2 Principales + 3 Contornos + Bebida (Malta, Refresco o Té)."
+  },
+  {
+    id: "hd_menu_coctel_mojito_2x5",
+    name: "Mojito (2x5$)",
+    category: "Refrescos y Bebidas",
+    priceUSD: 5.00,
+    sku: "COC-MNU-001",
+    active: true,
+    image: "",
+    description: "Promoción 2 Mojitos tradicionales cubanos preparados al momento."
+  },
+  {
+    id: "hd_menu_coctel_tinto_verano_2x6",
+    name: "Tinto Verano (2x6$)",
+    category: "Refrescos y Bebidas",
+    priceUSD: 6.00,
+    sku: "COC-MNU-002",
+    active: true,
+    image: "",
+    description: "Promoción 2 Tintos de Verano refrescantes con vino tinto y toque cítrico."
+  },
+  {
+    id: "hd_menu_coctel_cuba_libre_2x6",
+    name: "Cuba Libre (2x6$)",
+    category: "Refrescos y Bebidas",
+    priceUSD: 6.00,
+    sku: "COC-MNU-003",
+    active: true,
+    image: "",
+    description: "Promoción 2 Cuba Libre con ron venezolano, Coca-Cola y limón."
+  },
+  {
+    id: "hd_menu_coctel_jarra_sangria",
+    name: "Jarra Sangría",
+    category: "Refrescos y Bebidas",
+    priceUSD: 8.00,
+    sku: "COC-MNU-004",
+    active: true,
+    image: "",
+    description: "Jarra de sangría artesanal con frutas de la estación."
+  },
+  {
+    id: "hd_menu_coctel_jarra_mojito",
+    name: "Jarra de Mojito",
+    category: "Refrescos y Bebidas",
+    priceUSD: 10.00,
+    sku: "COC-MNU-005",
+    active: true,
+    image: "",
+    description: "Jarra grande de mojito con hierbabuena fresca y ron."
+  },
+  {
+    id: "hd_menu_coctel_daiquiri",
+    name: "Daiquiri",
+    category: "Refrescos y Bebidas",
+    priceUSD: 5.00,
+    sku: "COC-MNU-006",
+    active: true,
+    image: "",
+    description: "Daiquiri frappeado con ron blanco y toques cítricos."
+  },
+  {
+    id: "hd_menu_coctel_pina_colada",
+    name: "Piña Colada",
+    category: "Refrescos y Bebidas",
+    priceUSD: 4.00,
+    sku: "COC-MNU-007",
+    active: true,
+    image: "",
+    description: "Piña colada cremosa con crema de coco, jugo de piña y ron."
+  },
+  {
+    id: "hd_menu_promo_tequenos",
+    name: "Tequeño (Ración Promo)",
+    category: "Salchipapas y Entradas",
+    priceUSD: 3.00,
+    sku: "ENT-MNU-001",
+    active: true,
+    image: "",
+    description: "Ración de tequeños crujientes rellenos de abundante queso blanco."
+  },
+  {
+    id: "hd_menu_promo_perro_especial",
+    name: "Perro Especial (Pizarra)",
+    category: "Perros Calientes",
+    priceUSD: 3.00,
+    sku: "HDG-MNU-006",
+    active: true,
+    image: "",
+    description: "Perro caliente especial en promoción de pizarra."
+  },
+  {
+    id: "hd_menu_postre_3leches",
+    name: "Torta 3 Leches",
+    category: "Postres",
+    priceUSD: 4.00,
+    sku: "PST-MNU-001",
+    active: true,
+    image: "",
+    description: "Tres tipos de leches: evaporada, crema y leche condensada con suave bizcocho."
+  },
+  {
+    id: "hd_menu_postre_quesillo",
+    name: "Quesillo",
+    category: "Postres",
+    priceUSD: 3.00,
+    sku: "PST-MNU-002",
+    active: true,
+    image: "",
+    description: "Tradicional quesillo casero venezolano con caramelo dorado."
+  },
+  {
+    id: "hd_menu_postre_torta_choco",
+    name: "Torta de Chocolate",
+    category: "Postres",
+    priceUSD: 4.00,
+    sku: "PST-MNU-003",
+    active: true,
+    image: "",
+    description: "Pastel tradicional redondo compuesto de una o más capas de masa dulce cocida al horno, rellenas y decoradas con crema pastelera y trufa de chocolate."
+  },
+  {
+    id: "hd_menu_postre_merengada",
+    name: "Merengada",
+    category: "Postres",
+    priceUSD: 3.50,
+    sku: "PST-MNU-004",
+    active: true,
+    image: "",
+    description: "Bebida preparada con leche y helado con sirope de caramelo o sirope de fresa."
+  },
+  {
+    id: "hd_menu_ext_papas_peq",
+    name: "Ración de Papas Pequeña",
+    category: "Salchipapas y Entradas",
+    priceUSD: 2.00,
+    sku: "EXT-MNU-001",
+    active: true,
+    image: "",
+    description: "Ración de papas fritas crujientes tamaño pequeño."
+  },
+  {
+    id: "hd_menu_ext_papas_med",
+    name: "Ración de Papas Mediana",
+    category: "Salchipapas y Entradas",
+    priceUSD: 3.00,
+    sku: "EXT-MNU-002",
+    active: true,
+    image: "",
+    description: "Ración de papas fritas crujientes tamaño mediano."
+  },
+  {
+    id: "hd_menu_ext_papas_gde",
+    name: "Ración de Papas Grande",
+    category: "Salchipapas y Entradas",
+    priceUSD: 4.00,
+    sku: "EXT-MNU-003",
+    active: true,
+    image: "",
+    description: "Ración de papas fritas crujientes tamaño grande."
+  },
+  {
+    id: "hd_menu_ext_ens_cesar",
+    name: "Ensalada César",
+    category: "Salchipapas y Entradas",
+    priceUSD: 4.00,
+    sku: "EXT-MNU-004",
+    active: true,
+    image: "",
+    description: "Lechuga romana fresca, crutones, queso parmesano y aderezo César de la casa."
+  },
+  {
+    id: "hd_menu_ext_ens_cesar_pollo",
+    name: "Ensalada César con Pollo",
+    category: "Salchipapas y Entradas",
+    priceUSD: 5.00,
+    sku: "EXT-MNU-005",
+    active: true,
+    image: "",
+    description: "Lechuga romana fresca, tiras de pollo a la plancha, crutones, queso parmesano y aderezo César."
+  },
+  {
+    id: "hd_menu_ext_salsa_queso",
+    name: "Salsa de Queso",
+    category: "Salchipapas y Entradas",
+    priceUSD: 2.00,
+    sku: "EXT-MNU-006",
+    active: true,
+    image: "",
+    description: "Adicional de salsa de queso cheddar fundido artesanal."
+  },
+  {
+    id: "hd_menu_ext_salsa_tazmania",
+    name: "Salsa Tazmania",
+    category: "Salchipapas y Entradas",
+    priceUSD: 3.00,
+    sku: "EXT-MNU-007",
+    active: true,
+    image: "",
+    description: "Adicional de salsa especial Tazmania de la casa."
   }
 ];
 
@@ -765,8 +1525,7 @@ export function initializeSeedData() {
 
   // Detectar si la base de datos aún tiene datos viejos o de la heladería
   const hasOldData = existingProducts.some(p => p.sku === 'BAR-001' || p.id === 'prod_1' || p.category === 'Barquillas');
-  const hasProductsWithoutImages = existingProducts.some(p => !p.image || !p.image.trim());
-
+  // Permitir productos sin imagen según solicitud del cliente
   // Purga definitiva de facturas y ventas para entrega en limpio a Happy Days
   const currentInvoiceCleanVer = db.rawGet('pos_invoices_clean_version') || '';
   if (currentInvoiceCleanVer !== 'happydays_entrega_limpia_v1') {
@@ -784,8 +1543,8 @@ export function initializeSeedData() {
     console.log('[HappyDays] Facturas y ventas purgadas en limpio para entrega.');
   }
 
-  if (currentSeedVersion !== 'happydays_v6_all_40_platos' || hasOldData || hasProductsWithoutImages || existingProducts.length === 0) {
-    db.rawSet('pos_client_brand', 'happydays_v6_all_40_platos');
+  if (currentSeedVersion !== 'happydays_v7_complete_menus' || hasOldData || existingProducts.length === 0) {
+    db.rawSet('pos_client_brand', 'happydays_v7_complete_menus');
     db.rawSet('pos_products', seedProducts);
     db.rawSet('pos_clients', seedClients);
     db.rawSet('pos_invoices', []);

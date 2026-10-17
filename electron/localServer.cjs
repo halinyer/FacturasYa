@@ -195,7 +195,12 @@ function getMenuData() {
       if (stat.mtimeMs !== lastDbMtime || !cachedProducts) {
         const db = JSON.parse(fs.readFileSync(dbFile, 'utf-8'));
         if (Array.isArray(db.pos_products) && db.pos_products.length > 0) {
-          cachedProducts = db.pos_products.filter(p => p.active !== false && p.image && p.image.trim());
+          cachedProducts = db.pos_products.filter(p => p.active !== false);
+          cachedProducts.sort((a, b) => {
+            const aHas = (a.image && typeof a.image === 'string' && a.image.trim().length > 4) ? 1 : 0;
+            const bHas = (b.image && typeof b.image === 'string' && b.image.trim().length > 4) ? 1 : 0;
+            return bHas - aHas;
+          });
           if (db.pos_exchange_rate && Number(db.pos_exchange_rate) > 100) {
             cachedExchangeRate = Number(db.pos_exchange_rate);
           }
@@ -440,7 +445,12 @@ function createLocalServer() {
       cachedExchangeRate = Number(exchangeRate);
     }
     if (Array.isArray(products) && products.length > 0) {
-      cachedProducts = products.filter(p => p.active !== false && p.image && p.image.trim());
+      cachedProducts = products.filter(p => p.active !== false);
+      cachedProducts.sort((a, b) => {
+        const aHas = (a.image && typeof a.image === 'string' && a.image.trim().length > 4) ? 1 : 0;
+        const bHas = (b.image && typeof b.image === 'string' && b.image.trim().length > 4) ? 1 : 0;
+        return bHas - aHas;
+      });
     }
     if (io) {
       io.emit('tasa:actualizada', { exchangeRate: cachedExchangeRate });
