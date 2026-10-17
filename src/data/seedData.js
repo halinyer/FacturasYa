@@ -1,5 +1,397 @@
 // Catálogo oficial de productos para Happy Days
 export const seedProducts = [
+  // --- PLATOS DEL MENÚ HAPPY DAYS (Fotos Oficiales) ---
+{
+    "id": "hd_plato_wa0020",
+    "name": "Burger Doble Bacon Deluxe",
+    "category": "Hamburguesas",
+    "priceUSD": 7.5,
+    "sku": "HBG-010",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0020.jpg",
+    "description": "Doble carne a la parrilla, tocineta crujiente, queso fundido, vegetales frescos y salsa especial"
+  },
+  {
+    "id": "hd_plato_wa0024",
+    "name": "Cheeseburger Clásica con Tocineta",
+    "category": "Hamburguesas",
+    "priceUSD": 6,
+    "sku": "HBG-011",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0024.jpg",
+    "description": "Carne 150g a la parrilla, tocineta, queso cheddar, cebolla y salsas de la casa"
+  },
+  {
+    "id": "hd_plato_wa0027",
+    "name": "Hamburguesa Monster Happy",
+    "category": "Hamburguesas",
+    "priceUSD": 9.5,
+    "sku": "HBG-012",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0027.jpg",
+    "description": "Doble carne, huevo frito, tocineta, queso blanco a la plancha, lechuga, tomate y salsa tártara"
+  },
+  {
+    "id": "hd_plato_wa0048",
+    "name": "Doble Smash Burger Cheddar",
+    "category": "Hamburguesas",
+    "priceUSD": 7.5,
+    "sku": "HBG-013",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0048.jpg",
+    "description": "Doble carne smash con bordes crujientes, doble queso cheddar fundido y tocineta ahumada"
+  },
+  {
+    "id": "hd_plato_wa0049",
+    "name": "Hamburguesa Criolla Suprema",
+    "category": "Hamburguesas",
+    "priceUSD": 8.5,
+    "sku": "HBG-014",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0049.jpg",
+    "description": "Carne jugosa, queso paisa a la plancha, huevo frito, tocineta y salsa BBQ ahumada"
+  },
+  {
+    "id": "hd_plato_wa0051",
+    "name": "Burger Mixta Happy Suprema",
+    "category": "Hamburguesas",
+    "priceUSD": 9,
+    "sku": "HBG-015",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0051.jpg",
+    "description": "Carne de res + filete de pollo a la plancha, jamón, tocineta, huevo frito y queso cheddar"
+  },
+  {
+    "id": "hd_plato_wa0053",
+    "name": "Burger BBQ Cebolla Caramelizada",
+    "category": "Hamburguesas",
+    "priceUSD": 6.5,
+    "sku": "HBG-016",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0053.jpg",
+    "description": "Carne 150g, queso cheddar fundido, tocineta y abundante cebolla caramelizada BBQ"
+  },
+  {
+    "id": "hd_plato_wa0054",
+    "name": "Triple Cheeseburger Happy",
+    "category": "Hamburguesas",
+    "priceUSD": 10,
+    "sku": "HBG-017",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0054.jpg",
+    "description": "Triple carne a la parrilla, triple queso cheddar derretido, tocineta y papitas"
+  },
+  {
+    "id": "hd_plato_wa0058",
+    "name": "Cheeseburger Clásica Sencilla",
+    "category": "Hamburguesas",
+    "priceUSD": 5,
+    "sku": "HBG-018",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0058.jpg",
+    "description": "Carne a la parrilla con queso cheddar fundido, papitas ralladas y salsa tártara"
+  },
+  {
+    "id": "hd_plato_wa0060",
+    "name": "Combo Cheeseburger con Papas",
+    "category": "Combos",
+    "priceUSD": 7,
+    "sku": "CMB-020",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0060.jpg",
+    "description": "Cheeseburger clásica con queso cheddar + bowl de papas fritas crujientes"
+  },
+  {
+    "id": "hd_plato_wa0062",
+    "name": "Cheeseburger Tradicional Americana",
+    "category": "Hamburguesas",
+    "priceUSD": 5.5,
+    "sku": "HBG-019",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0062.jpg",
+    "description": "Carne 100% res, queso cheddar fundido, lechuga fresca, tomate y salsas tradicionales"
+  },
+  {
+    "id": "hd_plato_wa0038",
+    "name": "Crispy Chicken Burger con Tocineta",
+    "category": "Pollo Crispy",
+    "priceUSD": 7,
+    "sku": "POL-010",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0038.jpg",
+    "description": "Pechuga de pollo super crujiente con empanizado especial, queso cheddar y tocineta"
+  },
+  {
+    "id": "hd_plato_wa0041",
+    "name": "Doble Crispy Chicken con Aros de Cebolla",
+    "category": "Pollo Crispy",
+    "priceUSD": 8.5,
+    "sku": "POL-011",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0041.jpg",
+    "description": "Doble filete crispy, aros de cebolla crocantes, queso cheddar, jamón y tocineta"
+  },
+  {
+    "id": "hd_plato_wa0045",
+    "name": "Mega Burger Crispy Chicken",
+    "category": "Pollo Crispy",
+    "priceUSD": 7.5,
+    "sku": "POL-012",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0045.jpg",
+    "description": "Pechuga de pollo gigante frita dorada, queso fundido, jamón ahumado y salsas de la casa"
+  },
+  {
+    "id": "hd_plato_wa0057",
+    "name": "Burger Pollo Crispy Clásica",
+    "category": "Pollo Crispy",
+    "priceUSD": 6,
+    "sku": "POL-013",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0057.jpg",
+    "description": "Filete de pollo crispy, queso amarillo derretido, jamón, lechuga y salsa tártara"
+  },
+  {
+    "id": "hd_plato_wa0061",
+    "name": "Combo Crispy Burger + Papas + Fanta",
+    "category": "Combos",
+    "priceUSD": 8.5,
+    "sku": "CMB-021",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0061.jpg",
+    "description": "Hamburguesa de pollo crispy con queso y jamón + bowl de papas fritas + refresco Fanta Naranja"
+  },
+  {
+    "id": "hd_plato_wa0028",
+    "name": "Perro Caliente Especial Happy",
+    "category": "Perros Calientes",
+    "priceUSD": 2.5,
+    "sku": "PER-001",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0028.jpg",
+    "description": "Salchicha especial, papitas ralladas crujientes, queso blanco llanero y variedad de salsas"
+  },
+  {
+    "id": "hd_plato_wa0029",
+    "name": "Perro Caliente con Queso Amarillo",
+    "category": "Perros Calientes",
+    "priceUSD": 3,
+    "sku": "PER-002",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0029.jpg",
+    "description": "Salchicha especial, papitas crujientes, queso amarillo fundido y salsas tradicionales"
+  },
+  {
+    "id": "hd_plato_wa0030",
+    "name": "Pepito Especial Happy con Aguacate",
+    "category": "Pepitos",
+    "priceUSD": 11,
+    "sku": "PEP-001",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0030.jpg",
+    "description": "Pan baguette artesanal, carne, pollo a la plancha, tocineta, aguacate fresco y queso fundido"
+  },
+  {
+    "id": "hd_plato_wa0033",
+    "name": "Pepito Familiar Mixto con Aguacate",
+    "category": "Pepitos",
+    "priceUSD": 14,
+    "sku": "PEP-002",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0033.jpg",
+    "description": "Pepito gigante de 40cm con lomito, pechuga de pollo, chuleta, tocineta, aguacate y lluvia de queso"
+  },
+  {
+    "id": "hd_plato_wa0036",
+    "name": "Pepito Gratinado con Tocineta",
+    "category": "Pepitos",
+    "priceUSD": 10,
+    "sku": "PEP-003",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0036.jpg",
+    "description": "Carne y pollo salteado a la plancha cubierto de jamón, abundante tocineta crocante y queso gratinado"
+  },
+  {
+    "id": "hd_plato_wa0032",
+    "name": "Club House Happy Especial",
+    "category": "Club House",
+    "priceUSD": 9,
+    "sku": "CLB-001",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0032.jpg",
+    "description": "4 Cuartos de sandwich triple piso con jamón, queso, pollo grill, tocineta, huevo y papas fritas"
+  },
+  {
+    "id": "hd_plato_wa0043",
+    "name": "Club House Doble con Queso Rallado",
+    "category": "Club House",
+    "priceUSD": 8.5,
+    "sku": "CLB-002",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0043.jpg",
+    "description": "Sandwich club house tradicional servido con montaña de papas fritas y queso blanco rallado"
+  },
+  {
+    "id": "hd_plato_wa0063",
+    "name": "Club House Gigante con Queso Nevado",
+    "category": "Club House",
+    "priceUSD": 9.5,
+    "sku": "CLB-003",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0063.jpg",
+    "description": "Sandwich club house gigante con pollo grill, huevo, jamón, queso, montaña de papas y queso rallado"
+  },
+  {
+    "id": "hd_plato_wa0025",
+    "name": "Cachapa con Queso de Mano y Queso Rallado",
+    "category": "Cachapas",
+    "priceUSD": 6.5,
+    "sku": "CAC-001",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0025.jpg",
+    "description": "Cachapa dorada de maíz tierno con mantequilla, generosa rueda de queso de mano fresco y queso rallado"
+  },
+  {
+    "id": "hd_plato_wa0037",
+    "name": "Churrasco a la Parrilla con Queso de Mano",
+    "category": "Platos & Parrillas",
+    "priceUSD": 12.5,
+    "sku": "PLT-001",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0037.jpg",
+    "description": "Corte de carne a la parrilla, rodajas de aguacate, queso de mano fresco, papas fritas y ensalada césar"
+  },
+  {
+    "id": "hd_plato_wa0039",
+    "name": "Milanesa de Pollo Crispy con Arroz y Ensalada",
+    "category": "Platos & Parrillas",
+    "priceUSD": 8.5,
+    "sku": "PLT-002",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0039.jpg",
+    "description": "Pechuga empanizada dorada y crujiente, servida con arroz blanco y ensalada fresca de tomate y pepino"
+  },
+  {
+    "id": "hd_plato_wa0050",
+    "name": "Milanesa de Pollo a la Napolitana",
+    "category": "Platos & Parrillas",
+    "priceUSD": 9.5,
+    "sku": "PLT-003",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0050.jpg",
+    "description": "Pechuga a la plancha con salsa napolitana casera, mozzarella gratinada, tomate, papas fritas y ensalada césar"
+  },
+  {
+    "id": "hd_plato_wa0059",
+    "name": "Pollo Asado con Arroz Especial y Ensalada",
+    "category": "Platos & Parrillas",
+    "priceUSD": 7.5,
+    "sku": "PLT-004",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0059.jpg",
+    "description": "Pollo en salsa especial de la casa acompañado de arroz sazonado con vegetales y ensalada rallada dulce"
+  },
+  {
+    "id": "hd_plato_wa0035",
+    "name": "Papas Happy Supreme con Cheddar Fundido",
+    "category": "Salchipapas y Entradas",
+    "priceUSD": 6,
+    "sku": "PAP-001",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0035.jpg",
+    "description": "Papas fritas crocantes bañadas en salsa de queso cheddar fundido, salchicha, tocineta y salsas"
+  },
+  {
+    "id": "hd_plato_wa0042",
+    "name": "Salchipapas Especiales Familiares",
+    "category": "Salchipapas y Entradas",
+    "priceUSD": 10,
+    "sku": "PAP-002",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0042.jpg",
+    "description": "Bandeja gigante de papas fritas con salchichas, tiritas de pollo grill, jamón, queso amarillo y ensalada césar"
+  },
+  {
+    "id": "hd_plato_wa0044",
+    "name": "Salchipapas Especiales Happy Days",
+    "category": "Salchipapas y Entradas",
+    "priceUSD": 8,
+    "sku": "PAP-003",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0044.jpg",
+    "description": "Papas fritas, salchichas en rodajas, dados de queso amarillo, pollo a la plancha y cebolla caramelizada"
+  },
+  {
+    "id": "hd_plato_wa0046",
+    "name": "Salchipapas con Cebolla Caramelizada",
+    "category": "Salchipapas y Entradas",
+    "priceUSD": 8.5,
+    "sku": "PAP-004",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0046.jpg",
+    "description": "Papas crocantes, salchichas doradas, queso cheddar, tiritas de pechuga grill y abundante cebolla caramelizada"
+  },
+  {
+    "id": "hd_plato_wa0047",
+    "name": "Salchipapas César Supreme",
+    "category": "Salchipapas y Entradas",
+    "priceUSD": 7,
+    "sku": "PAP-005",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0047.jpg",
+    "description": "Papas fritas con salchicha, queso parmesano y ensalada césar fresca con aderezo de la casa"
+  },
+  {
+    "id": "hd_plato_wa0055",
+    "name": "Salchipapas Tradicionales",
+    "category": "Salchipapas y Entradas",
+    "priceUSD": 5,
+    "sku": "PAP-006",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0055.jpg",
+    "description": "Papas fritas recién hechas con salchicha doradita, lluvia de queso blanco llanero y salsas"
+  },
+  {
+    "id": "hd_plato_wa0056",
+    "name": "Ración de Papas Fritas Clásicas",
+    "category": "Salchipapas y Entradas",
+    "priceUSD": 3,
+    "sku": "PAP-007",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0056.jpg",
+    "description": "Bowl de papas fritas doradas y crujientes con toque de sal marina"
+  },
+  {
+    "id": "hd_plato_wa0031",
+    "name": "Combo Club House + Salchipapas + 7Up 1.5L",
+    "category": "Combos",
+    "priceUSD": 18,
+    "sku": "CMB-022",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0031.jpg",
+    "description": "Bandeja de Club House Especial + Salchipapas con cheddar derretido + Refresco 7Up 1.5L"
+  },
+  {
+    "id": "hd_plato_wa0040",
+    "name": "Combo Pareja: 2 Milanesas Napolitanas + Torta Oreo + Pepsi 1.5L",
+    "category": "Combos",
+    "priceUSD": 22,
+    "sku": "CMB-023",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0040.jpg",
+    "description": "2 Platos de milanesa napolitana con mozzarella y papas + Porción de Torta de Oreo + Refresco Pepsi 1.5L"
+  },
+  {
+    "id": "hd_plato_wa0052",
+    "name": "Combo Doble Cheeseburger + Papas + Hit Naranja",
+    "category": "Combos",
+    "priceUSD": 9.5,
+    "sku": "CMB-024",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0052.jpg",
+    "description": "Hamburguesa doble carne smash con doble cheddar y tocineta + Bowl de papas fritas + Hit Naranja 500ml"
+  },
+
   // --- COMBOS PRINCIPALES (Con arte oficial de Happy Days) ---
   { 
     id: 'hd_prod_1', 
@@ -381,8 +773,8 @@ export function initializeSeedData() {
     console.log('[HappyDays] Facturas y ventas purgadas en limpio para entrega.');
   }
 
-  if (currentSeedVersion !== 'happydays_v3_clean_only_photos' || hasOldData || hasProductsWithoutImages || existingProducts.length === 0) {
-    db.rawSet('pos_client_brand', 'happydays_v3_clean_only_photos');
+  if (currentSeedVersion !== 'happydays_v5_full_platos_menu' || hasOldData || hasProductsWithoutImages || existingProducts.length === 0) {
+    db.rawSet('pos_client_brand', 'happydays_v5_full_platos_menu');
     db.rawSet('pos_products', seedProducts);
     db.rawSet('pos_clients', seedClients);
     db.rawSet('pos_invoices', []);
