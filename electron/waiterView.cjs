@@ -758,6 +758,113 @@ function renderWaiterView(initialState) {
 
     .alert-banner { position: fixed; top: max(14px, calc(var(--safe-top) + 8px)); left: 12px; right: 12px; background: #15803d; color: #ffffff; padding: 12px 14px; border-radius: 14px; font-weight: 800; font-size: 0.88rem; display: flex; align-items: center; justify-content: space-between; z-index: 1000; box-shadow: 0 10px 25px rgba(0,0,0,0.25); animation: slideDown 0.25s ease; border: 1px solid rgba(255,255,255,0.2); }
     @keyframes slideDown { from { transform: translateY(-40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+    /* Takeaway button & Table Order Bar */
+    .takeaway-quick-btn {
+      background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+      color: #ffffff;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 800;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(234, 88, 12, 0.35);
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: transform 0.1s;
+    }
+    .takeaway-quick-btn:active { transform: scale(0.96); }
+
+    .table-order-bar {
+      background: #ffffff;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 10px 14px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+    }
+    .table-order-bar.cuenta-active {
+      background: #fef2f2;
+      border-color: #fca5a5;
+    }
+    .table-order-left { display: flex; flex-direction: column; gap: 2px; }
+    .table-order-status-tag {
+      font-size: 0.7rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 6px;
+      width: fit-content;
+      letter-spacing: 0.3px;
+    }
+    .tag-en-consumo { background: #dbeafe; color: #1e40af; }
+    .tag-en-caja { background: #fee2e2; color: #b91c1c; border: 1px solid #f87171; }
+    .table-order-right { display: flex; align-items: center; gap: 10px; }
+    .table-order-totals { text-align: right; }
+    .table-order-usd { font-size: 1.15rem; font-weight: 900; color: #0f172a; line-height: 1.1; }
+    .table-order-bs { font-size: 0.78rem; font-weight: 800; color: #059669; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .btn-view-order {
+      background: var(--brand-dark);
+      color: #ffffff;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 0.8rem;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
+    .btn-view-order:active { transform: scale(0.97); }
+
+    .order-summary-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 12px;
+      margin-top: 10px;
+    }
+    .round-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 10px;
+      margin-bottom: 8px;
+    }
+    .round-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+      padding-bottom: 4px;
+      border-bottom: 1px dashed #e2e8f0;
+      font-size: 0.75rem;
+      font-weight: 800;
+      color: #64748b;
+    }
+    .round-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 5px 0;
+      font-size: 0.85rem;
+      border-bottom: 1px solid #f8fafc;
+    }
+    .round-item-name { font-weight: 700; color: #1e293b; }
+    .round-item-note { font-size: 0.72rem; color: #dc2626; font-style: italic; margin-top: 1px; }
+    .round-item-price { font-weight: 800; color: #0f172a; text-align: right; }
+    .round-item-price-bs { font-size: 0.7rem; color: #64748b; font-family: ui-monospace, SFMono-Regular, monospace; }
   </style>
   <script src="/socket.io/socket.io.js"></script>
 </head>
@@ -1636,14 +1743,21 @@ function renderWaiterView(initialState) {
       const zones = ['Todos'].concat(Array.from(new Set(state.tables.map(function(t) { return t.zone || 'Salón'; }))));
       const filteredTables = selectedZone === 'Todos' ? state.tables : state.tables.filter(function(t) { return t.zone === selectedZone; });
 
+      const rate = getLiveExchangeRate();
+
       const app = document.getElementById('appContent');
       app.innerHTML = 
-        '<div class="tables-top-bar">' +
-          '<div class="zones-bar">' +
+        '<div class="tables-top-bar" style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:12px;">' +
+          '<div class="zones-bar" style="flex:1; overflow-x:auto;">' +
             zones.map(function(z) {
-              return '<button class="zone-pill ' + (selectedZone === z ? 'active' : '') + '" data-zone="' + z + '" onclick="filterZoneFromBtn(this)">' + z + '</button>';
+              const zLabel = z === 'Para Llevar' ? '🛍️ Para Llevar' : z;
+              return '<button class="zone-pill ' + (selectedZone === z ? 'active' : '') + '" data-zone="' + z + '" onclick="filterZoneFromBtn(this)">' + zLabel + '</button>';
             }).join('') +
           '</div>' +
+          '<button class="takeaway-quick-btn" onclick="openNewTakeawayModal()">' +
+            '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>' +
+            '<span>+ Llevar</span>' +
+          '</button>' +
         '</div>' +
         '<div class="tables-grid">' +
           filteredTables.map(function(t) {
@@ -1651,22 +1765,31 @@ function renderWaiterView(initialState) {
             const totalUSD = order ? order.rounds.reduce(function(acc, r) {
               return acc + r.items.reduce(function(sum, i) { return sum + (i.priceUSD * i.quantity); }, 0);
             }, 0) : 0;
+            const totalBS = totalUSD * rate;
+            const formattedBS = totalBS.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             const hasReadyRound = order && (order.rounds || []).some(function(r) { return r.status === 'lista'; });
+            const itemCount = order ? order.rounds.reduce(function(sum, r) {
+              return sum + r.items.reduce(function(s, i) { return s + i.quantity; }, 0);
+            }, 0) : 0;
 
             let statusLabel = 'DISPONIBLE';
             if (t.status === 'ocupada') statusLabel = 'OCUPADA';
             if (t.status === 'cuenta') statusLabel = 'PIDIÓ CUENTA';
+            if (t.isTakeaway || t.zone === 'Para Llevar') {
+              if (t.status === 'libre') statusLabel = 'PARA LLEVAR';
+            }
 
             return '<div class="table-card ' + t.status + (hasReadyRound ? ' ready-dish' : '') + '" data-id="' + t.id + '" onclick="openTableFromCard(this)">' +
               '<div>' +
-                '<div class="table-name">' + t.name + '</div>' +
+                '<div class="table-name">' + (t.isTakeaway ? '🛍️ ' : '') + t.name + '</div>' +
                 '<div class="table-status status-' + t.status + '">' + statusLabel + '</div>' +
                 (hasReadyRound ? '<div style="background:#D6862B; color:#fff; font-size:0.68rem; font-weight:900; padding:3px 7px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; margin-top:6px; text-transform:uppercase;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> ¡Plato Listo!</div>' : '') +
               '</div>' +
               (totalUSD > 0 
                 ? '<div>' +
                     '<div class="table-total">$' + totalUSD.toFixed(2) + '</div>' +
-                    '<div style="font-size:0.68rem; color:#71717a; text-align:right; font-weight:700;">' + (order ? order.waiterName : '') + '</div>' +
+                    '<div style="font-size:0.75rem; color:#059669; font-weight:800; text-align:right; font-family:ui-monospace, monospace; margin-top:1px;">Bs. ' + formattedBS + '</div>' +
+                    '<div style="font-size:0.68rem; color:#71717a; text-align:right; font-weight:700; margin-top:2px;">' + (order ? order.waiterName : '') + (itemCount > 0 ? ' (' + itemCount + ' p.)' : '') + '</div>' +
                   '</div>' 
                 : '<div style="font-size:0.72rem; color:#a1a1aa; font-weight:700; margin-top:8px;">' + (t.zone || 'Salón') + '</div>') +
             '</div>';
@@ -1712,6 +1835,14 @@ function renderWaiterView(initialState) {
       });
 
       const existingOrder = (state.activeOrders || []).find(function(o) { return o.tableId === selectedTable.id; });
+      const rate = getLiveExchangeRate();
+      const orderTotalUSD = existingOrder ? existingOrder.rounds.reduce(function(acc, r) {
+        return acc + r.items.reduce(function(sum, i) { return sum + (i.priceUSD * i.quantity); }, 0);
+      }, 0) : 0;
+      const orderTotalBS = orderTotalUSD * rate;
+      const orderItemCount = existingOrder ? existingOrder.rounds.reduce(function(sum, r) {
+        return sum + r.items.reduce(function(s, i) { return s + i.quantity; }, 0);
+      }, 0) : 0;
 
       const app = document.getElementById('appContent');
       app.innerHTML = 
@@ -1723,12 +1854,48 @@ function renderWaiterView(initialState) {
             '</button>' +
             '<div class="table-badge-active">' +
               '<span class="table-badge-dot"></span>' +
-              '<span>' + selectedTable.name + '</span>' +
+              '<span>' + (selectedTable.isTakeaway ? '🛍️ ' : '') + selectedTable.name + '</span>' +
             '</div>' +
             (existingOrder ? (selectedTable.status === 'cuenta' 
-              ? '<span class="status-cuenta-badge">Cuenta en Caja</span>' 
+              ? '<span class="status-cuenta-badge" onclick="openTableOrderModal()" style="cursor:pointer;">⚠️ En Caja</span>' 
               : '<button class="bill-btn" onclick="requestBill()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/></svg><span>Pedir Cuenta</span></button>') : '<div style="width:70px;"></div>') +
           '</div>' +
+
+          (existingOrder && existingOrder.rounds && existingOrder.rounds.length > 0 ? (
+            '<div class="table-order-bar ' + (selectedTable.status === 'cuenta' ? 'cuenta-active' : '') + '">' +
+              '<div class="table-order-left">' +
+                '<div style="display:flex; align-items:center; gap:6px;">' +
+                  '<span class="table-order-status-tag ' + (selectedTable.status === 'cuenta' ? 'tag-en-caja' : 'tag-en-consumo') + '">' +
+                    (selectedTable.status === 'cuenta' ? '⚠️ CUENTA EN CAJA' : '🍽️ EN CONSUMO') +
+                  '</span>' +
+                  '<span style="font-size:0.75rem; color:#64748b; font-weight:800;">' + orderItemCount + ' plato(s)</span>' +
+                '</div>' +
+                '<div style="font-size:0.72rem; color:#64748b; margin-top:2px;">' +
+                  'Mesero: <strong>' + (existingOrder.waiterName || 'Mesero') + '</strong>' +
+                '</div>' +
+              '</div>' +
+              '<div class="table-order-right">' +
+                '<div class="table-order-totals">' +
+                  '<div class="table-order-usd">$' + orderTotalUSD.toFixed(2) + '</div>' +
+                  '<div class="table-order-bs">Bs. ' + orderTotalBS.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</div>' +
+                '</div>' +
+                '<button class="btn-view-order" onclick="openTableOrderModal()">' +
+                  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>' +
+                  '<span>Ver Pedido</span>' +
+                '</button>' +
+              '</div>' +
+            '</div>' +
+            (selectedTable.status === 'cuenta' ? (
+              '<div style="background:#fee2e2; border:1px solid #fca5a5; border-radius:10px; padding:7px 12px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">' +
+                '<div style="font-size:0.76rem; color:#b91c1c; font-weight:800;">' +
+                  '⚠️ Esta cuenta ya fue enviada a Caja para cobro.' +
+                '</div>' +
+                '<button onclick="reopenTable(\'' + selectedTable.id + '\')" style="background:#b91c1c; color:#fff; border:none; padding:4px 10px; border-radius:6px; font-size:0.72rem; font-weight:800; cursor:pointer;">' +
+                  '🔄 Reabrir Mesa' +
+                '</button>' +
+              '</div>'
+            ) : '')
+          ) : '') +
 
           '<div class="search-box">' +
             '<svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="2" x2="16.65" y2="16.65"/></svg>' +
@@ -1901,17 +2068,62 @@ function renderWaiterView(initialState) {
 
     function updateCartBar() {
       const count = currentCart.reduce(function(acc, i) { return acc + i.quantity; }, 0);
-      const totalUSD = currentCart.reduce(function(acc, i) { return acc + (i.priceUSD * i.quantity); }, 0);
       const rate = getLiveExchangeRate();
-      const totalBS = totalUSD * rate;
 
       const countEl = document.getElementById('cartCount');
       const usdEl = document.getElementById('cartTotalUSD');
       const bsEl = document.getElementById('cartTotalBS');
-      
-      if (countEl) countEl.innerText = count;
-      if (usdEl) usdEl.innerText = '$' + totalUSD.toFixed(2);
-      if (bsEl) bsEl.innerText = 'Bs. ' + totalBS.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const detailBtn = document.querySelector('.cart-detail-btn');
+      const sendBtn = document.querySelector('.cart-send-btn');
+
+      if (count > 0) {
+        const totalUSD = currentCart.reduce(function(acc, i) { return acc + (i.priceUSD * i.quantity); }, 0);
+        const totalBS = totalUSD * rate;
+        if (countEl) countEl.innerText = count + ' NUEVOS POR ENVIAR';
+        if (usdEl) usdEl.innerText = '$' + totalUSD.toFixed(2);
+        if (bsEl) bsEl.innerText = 'Bs. ' + totalBS.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        if (detailBtn) {
+          detailBtn.innerText = 'Ver Comanda';
+          detailBtn.onclick = openCartModal;
+        }
+        if (sendBtn) {
+          sendBtn.style.display = 'flex';
+          sendBtn.disabled = false;
+        }
+      } else {
+        const existingOrder = selectedTable ? (state.activeOrders || []).find(function(o) { return o.tableId === selectedTable.id; }) : null;
+        if (existingOrder && existingOrder.rounds && existingOrder.rounds.length > 0) {
+          const exTotalUSD = existingOrder.rounds.reduce(function(acc, r) {
+            return acc + r.items.reduce(function(s, i) { return s + (i.priceUSD * i.quantity); }, 0);
+          }, 0);
+          const exTotalBS = exTotalUSD * rate;
+          const exCount = existingOrder.rounds.reduce(function(acc, r) {
+            return acc + r.items.reduce(function(s, i) { return s + i.quantity; }, 0);
+          }, 0);
+          if (countEl) countEl.innerText = 'CONSUMO MESA (' + exCount + ' PLATOS)';
+          if (usdEl) usdEl.innerText = '$' + exTotalUSD.toFixed(2);
+          if (bsEl) bsEl.innerText = 'Bs. ' + exTotalBS.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          if (detailBtn) {
+            detailBtn.innerText = '📋 Ver Pedido Mesa';
+            detailBtn.onclick = openTableOrderModal;
+          }
+          if (sendBtn) {
+            sendBtn.style.display = 'none';
+          }
+        } else {
+          if (countEl) countEl.innerText = '0 ÍTEMS';
+          if (usdEl) usdEl.innerText = '$0.00';
+          if (bsEl) bsEl.innerText = 'Bs. 0,00';
+          if (detailBtn) {
+            detailBtn.innerText = 'Ver Detalle';
+            detailBtn.onclick = openCartModal;
+          }
+          if (sendBtn) {
+            sendBtn.style.display = 'flex';
+            sendBtn.disabled = true;
+          }
+        }
+      }
     }
 
     function openCartModal() {
@@ -2085,6 +2297,209 @@ function renderWaiterView(initialState) {
             renderTablesScreen();
           });
       }
+    }
+
+    function reopenTable(tableId) {
+      if (confirm('¿Deseas reabrir esta mesa para seguir agregando productos?')) {
+        fetch('/api/restaurant/table/' + tableId + '/reopen', { method: 'POST' })
+          .then(function(r) { return r.json(); })
+          .then(function(res) {
+            showAlert('Mesa reabierta para seguir consumiendo');
+            const tbl = (state.tables || []).find(function(t) { return t.id === tableId; });
+            if (tbl) tbl.status = 'ocupada';
+            if (selectedTable && selectedTable.id === tableId) selectedTable.status = 'ocupada';
+            if (currentScreen === 'order') renderOrderScreen();
+            else renderTablesScreen();
+          })
+          .catch(function() {
+            alert('Error al reabrir la mesa');
+          });
+      }
+    }
+
+    function openTableOrderModal() {
+      if (!selectedTable) return;
+      closeTableOrderModal();
+
+      const existingOrder = (state.activeOrders || []).find(function(o) { return o.tableId === selectedTable.id; });
+      if (!existingOrder || !existingOrder.rounds || existingOrder.rounds.length === 0) {
+        alert('Esta mesa aún no tiene consumos enviados a cocina o caja.');
+        return;
+      }
+
+      const rate = getLiveExchangeRate();
+      const totalUSD = existingOrder.rounds.reduce(function(acc, r) {
+        return acc + r.items.reduce(function(sum, i) { return sum + (i.priceUSD * i.quantity); }, 0);
+      }, 0);
+      const totalBS = totalUSD * rate;
+
+      const modal = document.createElement('div');
+      modal.className = 'modal-overlay';
+      modal.id = 'tableOrderModal';
+      modal.innerHTML = 
+        '<div class="modal-sheet" style="max-height:85vh; display:flex; flex-direction:column;">' +
+          '<div class="modal-header" style="border-bottom:1.5px solid #e2e8f0; padding-bottom:10px;">' +
+            '<div>' +
+              '<div class="modal-title" style="font-size:1.1rem; font-weight:900; color:#0f172a; display:flex; align-items:center; gap:8px;">' +
+                '<span>📋 ' + (selectedTable.isTakeaway ? '🛍️ ' : '') + selectedTable.name + '</span>' +
+                (selectedTable.status === 'cuenta' 
+                  ? '<span class="status-cuenta-badge" style="font-size:0.7rem; padding:3px 8px;">Cuenta en Caja</span>' 
+                  : '<span class="table-status status-ocupada" style="font-size:0.68rem; margin:0;">En Consumo</span>') +
+              '</div>' +
+              '<div style="font-size:0.75rem; color:#64748b; margin-top:2px;">' +
+                'Mesero: <strong>' + (existingOrder.waiterName || 'Mesero') + '</strong> &bull; ' +
+                'Hora: ' + (existingOrder.createdAt ? new Date(existingOrder.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '') +
+              '</div>' +
+            '</div>' +
+            '<button class="modal-close-btn" onclick="closeTableOrderModal()">&times;</button>' +
+          '</div>' +
+
+          '<div style="flex:1; overflow-y:auto; padding:10px 0;">' +
+            existingOrder.rounds.map(function(r, idx) {
+              const rTime = r.sentAt ? new Date(r.sentAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
+              let statusBadge = '<span style="background:#e0f2fe; color:#0369a1; padding:2px 7px; border-radius:6px; font-size:0.68rem; font-weight:800;">EN COCINA</span>';
+              if (r.status === 'lista') {
+                statusBadge = '<span style="background:#fef3c7; color:#b45309; padding:2px 7px; border-radius:6px; font-size:0.68rem; font-weight:800; border:1px solid #fde68a;">¡PLATO LISTO!</span>';
+              } else if (r.status === 'servida') {
+                statusBadge = '<span style="background:#f0fdf4; color:#15803d; padding:2px 7px; border-radius:6px; font-size:0.68rem; font-weight:800;">SERVIDO</span>';
+              }
+
+              return '<div class="round-card">' +
+                '<div class="round-header">' +
+                  '<span>Ronda #' + (idx + 1) + ' (' + rTime + ')</span>' +
+                  statusBadge +
+                '</div>' +
+                r.items.map(function(item) {
+                  const itemUsd = Number(item.priceUSD || 0) * Number(item.quantity || 1);
+                  const itemBs = itemUsd * rate;
+                  return '<div class="round-item">' +
+                    '<div style="flex:1;">' +
+                      '<div class="round-item-name">[' + item.quantity + '] ' + item.name + '</div>' +
+                      (item.note ? '<div class="round-item-note">&gt;&gt; ' + item.note + '</div>' : '') +
+                    '</div>' +
+                    '<div style="text-align:right;">' +
+                      '<div class="round-item-price">$' + itemUsd.toFixed(2) + '</div>' +
+                      '<div class="round-item-price-bs">Bs. ' + itemBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</div>' +
+                    '</div>' +
+                  '</div>';
+                }).join('') +
+              '</div>';
+            }).join('') +
+          '</div>' +
+
+          /* Resumen de Cuenta */
+          '<div class="order-summary-box">' +
+            '<div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;">' +
+              '<span style="font-weight:900; font-size:0.95rem; color:#0f172a;">TOTAL CUENTA:</span>' +
+              '<div style="text-align:right;">' +
+                '<div style="font-size:1.4rem; font-weight:900; color:var(--brand-primary); line-height:1.1;">$' + totalUSD.toFixed(2) + '</div>' +
+                '<div style="font-size:0.92rem; font-weight:800; color:#059669; font-family:ui-monospace, monospace; margin-top:2px;">Bs. ' + totalBS.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</div>' +
+              '</div>' +
+            '</div>' +
+            '<div style="font-size:0.72rem; color:#64748b; font-weight:600; text-align:right;">' +
+              'Tasa Oficial BCV: Bs. ' + rate.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' / USD' +
+            '</div>' +
+          '</div>' +
+
+          /* Botones de acción */
+          '<div style="margin-top:12px; display:flex; flex-direction:column; gap:8px;">' +
+            (selectedTable.status !== 'cuenta'
+              ? '<button class="cart-send-btn" style="width:100%; height:46px; justify-content:center; background:var(--brand-dark); font-size:0.92rem;" onclick="closeTableOrderModal(); requestBill();">' +
+                  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/></svg>' +
+                  '<span>PEDIR CUENTA / ENVIAR A CAJA</span>' +
+                '</button>'
+              : '<div style="background:#fef2f2; border:1px solid #fecaca; border-radius:10px; padding:10px; text-align:center;">' +
+                  '<div style="font-weight:800; color:#b91c1c; font-size:0.86rem; margin-bottom:4px;">⚠️ Cuenta enviada a Caja para cobro</div>' +
+                  '<button onclick="closeTableOrderModal(); reopenTable(\'' + selectedTable.id + '\');" style="background:#ffffff; color:#b91c1c; border:1.5px solid #fca5a5; padding:6px 14px; border-radius:8px; font-weight:800; font-size:0.78rem; cursor:pointer;">' +
+                    '🔄 Reabrir Mesa (Seguir Ordenando)' +
+                  '</button>' +
+                '</div>'
+            ) +
+            '<button onclick="closeTableOrderModal()" style="width:100%; height:40px; background:#f1f5f9; border:none; border-radius:10px; font-weight:800; font-size:0.85rem; color:#475569; cursor:pointer;">' +
+              'Volver al Menú' +
+            '</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(modal);
+    }
+
+    function closeTableOrderModal() {
+      const modal = document.getElementById('tableOrderModal');
+      if (modal) modal.remove();
+    }
+
+    function openNewTakeawayModal() {
+      closeNewTakeawayModal();
+      const modal = document.createElement('div');
+      modal.className = 'modal-overlay';
+      modal.id = 'takeawayModal';
+      modal.innerHTML = 
+        '<div class="modal-sheet" style="max-width:420px; border-radius:24px;">' +
+          '<div class="modal-header">' +
+            '<div class="modal-title">' +
+              '<span style="font-size:1.3rem;">🛍️</span>' +
+              '<span>Nuevo Pedido Para Llevar</span>' +
+            '</div>' +
+            '<button class="modal-close-btn" onclick="closeNewTakeawayModal()">&times;</button>' +
+          '</div>' +
+          '<div style="padding:14px 0;">' +
+            '<label style="display:block; font-size:0.82rem; font-weight:800; color:#334155; margin-bottom:6px;">' +
+              'Nombre del Cliente o Referencia (Opcional):' +
+            '</label>' +
+            '<input type="text" id="takeawayClientInput" placeholder="Ej. Carlos, Pedido #1, etc." style="width:100%; height:44px; padding:0 14px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:0.95rem; font-weight:700; color:#0f172a; outline:none; box-sizing:border-box;">' +
+            '<div style="font-size:0.75rem; color:#64748b; margin-top:6px;">' +
+              'Se creará la comanda de Para Llevar con este nombre para cocina y caja.' +
+            '</div>' +
+          '</div>' +
+          '<div style="display:flex; gap:10px; margin-top:8px;">' +
+            '<button onclick="closeNewTakeawayModal()" style="flex:1; height:44px; background:#f1f5f9; border:none; border-radius:10px; font-weight:800; color:#64748b; cursor:pointer;">' +
+              'Cancelar' +
+            '</button>' +
+            '<button onclick="submitNewTakeaway()" style="flex:2; height:44px; background:linear-gradient(135deg, #ea580c 0%, #c2410c 100%); color:#fff; border:none; border-radius:10px; font-weight:900; font-size:0.92rem; cursor:pointer; box-shadow:0 3px 10px rgba(234,88,12,0.3);">' +
+              '🛍️ Comenzar Pedido' +
+            '</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(modal);
+      setTimeout(function() {
+        const inp = document.getElementById('takeawayClientInput');
+        if (inp) inp.focus();
+      }, 100);
+    }
+
+    function closeNewTakeawayModal() {
+      const m = document.getElementById('takeawayModal');
+      if (m) m.remove();
+    }
+
+    function submitNewTakeaway() {
+      const inp = document.getElementById('takeawayClientInput');
+      const val = inp ? inp.value.trim() : '';
+      const takeawayCount = (state.tables || []).filter(function(t) { return t.isTakeaway || (t.zone === 'Para Llevar'); }).length;
+      const finalName = val ? ('Llevar: ' + val) : ('Para Llevar #' + (takeawayCount + 1));
+
+      fetch('/api/restaurant/tables', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: finalName,
+          zone: 'Para Llevar',
+          isTakeaway: true
+        })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(newTable) {
+        closeNewTakeawayModal();
+        if (newTable && newTable.id) {
+          if (!state.tables.some(function(t) { return t.id === newTable.id; })) {
+            state.tables.push(newTable);
+          }
+          openTable(newTable.id);
+        }
+      })
+      .catch(function(err) {
+        alert('Error creando comanda para llevar');
+      });
     }
   </script>
 </body>

@@ -226,11 +226,13 @@ export default function Tables() {
     });
 
     // Save temporary table transfer in sessionStorage so POS picks it up
+    const isTakeaway = table.isTakeaway || table.zone === 'Para Llevar' || (table.name && table.name.toLowerCase().includes('llevar'));
     sessionStorage.setItem('pos_incoming_table_order', JSON.stringify({
       tableId: table.id,
       tableName: table.name,
       waiterName: order.waiterName,
-      items: consolidatedItems
+      items: consolidatedItems,
+      orderType: isTakeaway ? 'para_llevar' : 'salon'
     }));
 
     // Navigate directly to POS

@@ -535,13 +535,18 @@ function createLocalServer() {
     const table = restaurantData.tables.find(t => t.id === req.params.id);
     if (!table) return res.status(404).json({ error: 'Mesa no encontrada' });
 
-    table.status = 'libre';
-    table.activeOrderId = null;
-
     const order = restaurantData.orders.find(o => o.tableId === req.params.id && o.status === 'open');
     if (order) {
       order.status = 'closed';
       order.closedAt = new Date().toISOString();
+    }
+
+    if (table.isTakeaway || table.id.startsWith('t_llevar_')) {
+      const idx = restaurantData.tables.findIndex(t => t.id === req.params.id);
+      if (idx !== -1) restaurantData.tables.splice(idx, 1);
+    } else {
+      table.status = 'libre';
+      table.activeOrderId = null;
     }
 
     saveOrdersData(restaurantData);
@@ -665,14 +670,15 @@ function createLocalServer() {
 
   // Tables management
   app.post('/api/restaurant/tables', (req, res) => {
-    const { name, zone } = req.body;
+    const { name, zone, isTakeaway } = req.body;
     if (!name) return res.status(400).json({ error: 'Nombre de mesa requerido' });
 
     const newTable = {
-      id: 't_' + Date.now(),
+      id: isTakeaway ? ('t_llevar_' + Date.now()) : ('t_' + Date.now()),
       name: name.trim(),
-      zone: zone || 'Salón',
-      status: 'libre'
+      zone: zone || (isTakeaway ? 'Para Llevar' : 'Salón'),
+      status: isTakeaway ? 'ocupada' : 'libre',
+      isTakeaway: !!isTakeaway
     };
     restaurantData.tables.push(newTable);
     saveOrdersData(restaurantData);
