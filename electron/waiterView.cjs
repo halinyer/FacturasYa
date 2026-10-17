@@ -1890,7 +1890,7 @@ function renderWaiterView(initialState) {
                 '<div style="font-size:0.76rem; color:#b91c1c; font-weight:800;">' +
                   '⚠️ Esta cuenta ya fue enviada a Caja para cobro.' +
                 '</div>' +
-                '<button onclick="reopenTable(\'' + selectedTable.id + '\')" style="background:#b91c1c; color:#fff; border:none; padding:4px 10px; border-radius:6px; font-size:0.72rem; font-weight:800; cursor:pointer;">' +
+                '<button onclick="reopenTable()" style="background:#b91c1c; color:#fff; border:none; padding:4px 10px; border-radius:6px; font-size:0.72rem; font-weight:800; cursor:pointer;">' +
                   '🔄 Reabrir Mesa' +
                 '</button>' +
               '</div>'
@@ -2300,8 +2300,10 @@ function renderWaiterView(initialState) {
     }
 
     function reopenTable(tableId) {
+      const id = tableId || (selectedTable ? selectedTable.id : null);
+      if (!id) return;
       if (confirm('¿Deseas reabrir esta mesa para seguir agregando productos?')) {
-        fetch('/api/restaurant/table/' + tableId + '/reopen', { method: 'POST' })
+        fetch('/api/restaurant/table/' + id + '/reopen', { method: 'POST' })
           .then(function(r) { return r.json(); })
           .then(function(res) {
             showAlert('Mesa reabierta para seguir consumiendo');
@@ -2410,7 +2412,7 @@ function renderWaiterView(initialState) {
                 '</button>'
               : '<div style="background:#fef2f2; border:1px solid #fecaca; border-radius:10px; padding:10px; text-align:center;">' +
                   '<div style="font-weight:800; color:#b91c1c; font-size:0.86rem; margin-bottom:4px;">⚠️ Cuenta enviada a Caja para cobro</div>' +
-                  '<button onclick="closeTableOrderModal(); reopenTable(\'' + selectedTable.id + '\');" style="background:#ffffff; color:#b91c1c; border:1.5px solid #fca5a5; padding:6px 14px; border-radius:8px; font-weight:800; font-size:0.78rem; cursor:pointer;">' +
+                  '<button onclick="closeTableOrderModal(); reopenTable();" style="background:#ffffff; color:#b91c1c; border:1.5px solid #fca5a5; padding:6px 14px; border-radius:8px; font-weight:800; font-size:0.78rem; cursor:pointer;">' +
                     '🔄 Reabrir Mesa (Seguir Ordenando)' +
                   '</button>' +
                 '</div>'
