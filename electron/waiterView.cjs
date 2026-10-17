@@ -750,6 +750,221 @@ function renderWaiterView(initialState) {
     .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #e2e8f0; }
     .modal-title { font-size: 1.15rem; font-weight: 900; color: #0f172a; display: flex; align-items: center; gap: 6px; }
     .modal-close-btn { border: none; background: #f1f5f9; width: 32px; height: 32px; border-radius: 50%; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #64748b; font-weight: 700; }
+
+    /* Product Detail Sheet & Lightbox */
+    .product-detail-sheet {
+      background: #ffffff;
+      width: 100%;
+      max-width: 480px;
+      margin: auto;
+      border-radius: 28px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.35);
+      animation: zoomInSheet 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+      max-height: 90vh;
+      box-sizing: border-box;
+    }
+    @keyframes zoomInSheet {
+      from { transform: scale(0.92); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .product-detail-hero {
+      position: relative;
+      width: 100%;
+      height: 240px;
+      background: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 14px;
+      box-sizing: border-box;
+      border-bottom: 1.5px solid #f1f5f9;
+      flex-shrink: 0;
+    }
+    .product-detail-hero img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      object-position: center;
+      filter: drop-shadow(0 6px 16px rgba(0,0,0,0.12));
+      border-radius: 14px;
+      cursor: pointer;
+    }
+    .product-detail-cat-pill {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(8px);
+      color: var(--brand-primary);
+      font-weight: 900;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      border: 1px solid rgba(0,0,0,0.06);
+    }
+    .product-detail-close-btn {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(8px);
+      color: #ffffff;
+      border: none;
+      font-size: 1.3rem;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      transition: transform 0.1s;
+      z-index: 5;
+    }
+    .product-detail-close-btn:active { transform: scale(0.9); }
+    .product-detail-body {
+      padding: 18px 20px 20px 20px;
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .product-detail-title {
+      font-size: 1.35rem;
+      font-weight: 900;
+      color: #0f172a;
+      line-height: 1.2;
+    }
+    .product-detail-prices {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      background: #f8fafc;
+      padding: 10px 14px;
+      border-radius: 14px;
+      border: 1px solid #e2e8f0;
+    }
+    .product-detail-usd {
+      font-size: 1.6rem;
+      font-weight: 900;
+      color: var(--brand-primary);
+      line-height: 1;
+    }
+    .product-detail-bs {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: #059669;
+      font-family: ui-monospace, monospace;
+      text-align: right;
+    }
+    .product-detail-desc-box {
+      background: #f8fafc;
+      border-radius: 14px;
+      padding: 12px 14px;
+      border: 1px solid #e2e8f0;
+    }
+    .product-detail-desc-label {
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 5px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .product-detail-desc-text {
+      font-size: 0.92rem;
+      color: #334155;
+      font-weight: 600;
+      line-height: 1.45;
+    }
+    .detail-qty-stepper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      background: #ffffff;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 6px;
+    }
+    .detail-qty-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      border: none;
+      background: #f1f5f9;
+      color: #0f172a;
+      font-weight: 900;
+      font-size: 1.4rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.1s;
+    }
+    .detail-qty-btn:active { background: #e2e8f0; transform: scale(0.95); }
+    .detail-qty-num {
+      font-size: 1.4rem;
+      font-weight: 900;
+      color: #0f172a;
+      min-width: 40px;
+      text-align: center;
+      font-family: ui-monospace, monospace;
+    }
+    .note-pills-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .note-pill {
+      background: #ffffff;
+      border: 1.5px solid #cbd5e1;
+      color: #475569;
+      padding: 5px 11px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+    .note-pill:active {
+      background: var(--brand-accent-soft);
+      border-color: var(--brand-primary);
+      color: var(--brand-primary);
+    }
+    .detail-add-btn {
+      width: 100%;
+      height: 52px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-hover) 100%);
+      color: #ffffff;
+      border: none;
+      font-size: 1rem;
+      font-weight: 900;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(37,99,235,0.35);
+      transition: transform 0.1s;
+      letter-spacing: 0.3px;
+    }
+    .detail-add-btn:active { transform: scale(0.98); }
     
     .cart-item-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
     .cart-thumb { width: 44px; height: 44px; border-radius: 8px; background: #ffffff; border: 1px solid #e2e8f0; margin-right: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; padding: 2px; }
@@ -1938,7 +2153,7 @@ function renderWaiterView(initialState) {
         const usdPrice = Number(p.priceUSD || 0);
         const bsPrice = (usdPrice * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-        return '<div class="prod-card" data-id="' + p.id + '" onclick="addToCartFromCard(this)">' +
+        return '<div class="prod-card" data-id="' + p.id + '" onclick="openProductDetail(this)">' +
           '<div class="prod-img-box">' +
             (inCartItem && inCartItem.quantity > 0 ? '<div class="prod-cart-badge">' + inCartItem.quantity + '</div>' : '') +
             (hasImg
@@ -1963,18 +2178,24 @@ function renderWaiterView(initialState) {
                 '<div class="prod-price-usd">$' + usdPrice.toFixed(2) + '</div>' +
                 '<div class="prod-price-bs">Bs. ' + bsPrice + '</div>' +
               '</div>' +
-              '<button class="prod-add-btn" type="button">+ AGREGAR</button>' +
+              '<button class="prod-add-btn" type="button" onclick="event.stopPropagation(); quickAddFromCard(this);">+ AGREGAR</button>' +
             '</div>' +
           '</div>' +
         '</div>';
       }).join('');
     }
 
-    function addToCartFromCard(card) {
+    function quickAddFromCard(btn) {
+      const card = btn.closest('.prod-card');
+      if (!card) return;
       const prodId = card.getAttribute('data-id');
       card.classList.add('tapped');
       setTimeout(function() { card.classList.remove('tapped'); }, 180);
       addToCart(prodId);
+    }
+
+    function addToCartFromCard(card) {
+      openProductDetail(card);
     }
 
     function onProductSearch(val) {
@@ -2502,6 +2723,217 @@ function renderWaiterView(initialState) {
       .catch(function(err) {
         alert('Error creando comanda para llevar');
       });
+    }
+
+    /* Product Detail Modal & High-Res Lightbox */
+    let currentDetailProduct = null;
+    let currentDetailQty = 1;
+
+    function onDetailImgError(img) {
+      img.onerror = null;
+      img.src = '/happydays/logo.png';
+    }
+
+    function openProductDetail(cardOrId) {
+      const prodId = typeof cardOrId === 'string' ? cardOrId : cardOrId.getAttribute('data-id');
+      const p = (state.menu && state.menu.products || []).find(function(x) { return x.id === prodId; });
+      if (!p) return;
+
+      currentDetailProduct = p;
+      currentDetailQty = 1;
+      closeProductDetailModal();
+
+      const rate = getLiveExchangeRate();
+      const usdPrice = Number(p.priceUSD || 0);
+      const bsPrice = (usdPrice * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const hasImg = p.image && typeof p.image === 'string' && p.image.trim().length > 4;
+      let safeImg = hasImg ? p.image.replace(/"/g, '&quot;') : '';
+      if (safeImg.startsWith('./')) safeImg = '/' + safeImg.substring(2);
+      const safeName = (p.name || 'Producto').replace(/"/g, '&quot;');
+      const safeDesc = (p.description || 'Elaborado artesanalmente al momento con ingredientes frescos seleccionados y receta de la casa.').replace(/"/g, '&quot;');
+
+      const modal = document.createElement('div');
+      modal.className = 'modal-overlay';
+      modal.id = 'productDetailModal';
+      modal.onclick = function(e) {
+        if (e.target === modal) closeProductDetailModal();
+      };
+
+      modal.innerHTML = 
+        '<div class="product-detail-sheet" onclick="event.stopPropagation()">' +
+          '<div class="product-detail-hero">' +
+            '<span class="product-detail-cat-pill">' + (p.category || 'Happy Days') + '</span>' +
+            '<button class="product-detail-close-btn" type="button" onclick="closeProductDetailModal()">&times;</button>' +
+            (hasImg
+              ? '<img src="' + safeImg + '" alt="' + safeName + '" data-name="' + safeName + '" onclick="openLightboxFromImg(this)" onerror="onDetailImgError(this)">' +
+                '<div style="position:absolute; bottom:8px; right:12px; background:rgba(0,0,0,0.6); color:#fff; font-size:0.68rem; font-weight:800; padding:3px 9px; border-radius:6px; pointer-events:none; backdrop-filter:blur(4px); display:flex; align-items:center; gap:4px;">' +
+                  '<span>🔍</span><span>Toca la foto para ampliar</span>' +
+                '</div>'
+              : '<div class="prod-img-fallback" style="width:100%; height:100%; border-radius:14px;">' +
+                  '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#D6862B" stroke-width="2"><path d="M3 11c0-3.3 2.7-6 6-6h6c3.3 0 6 2.7 6 6v1H3v-1Z"/><path d="M3 16h18v2a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-2Z"/><line x1="2" y1="14" x2="22" y2="14"/></svg>' +
+                  '<span style="font-weight:800; font-size:0.85rem; color:#64748b; margin-top:6px;">' + (p.category || 'Happy Days') + '</span>' +
+                '</div>'
+            ) +
+          '</div>' +
+          '<div class="product-detail-body">' +
+            '<div>' +
+              '<div class="product-detail-title">' + safeName + '</div>' +
+              (p.sku ? '<div style="font-size:0.75rem; color:#94a3b8; font-weight:700; margin-top:3px;">Código / SKU: ' + p.sku + '</div>' : '') +
+            '</div>' +
+
+            '<div class="product-detail-prices">' +
+              '<div>' +
+                '<div style="font-size:0.7rem; font-weight:800; color:#64748b; text-transform:uppercase;">Precio Unitario</div>' +
+                '<div class="product-detail-usd">$' + usdPrice.toFixed(2) + '</div>' +
+              '</div>' +
+              '<div style="text-align:right;">' +
+                '<div style="font-size:0.7rem; font-weight:800; color:#64748b; text-transform:uppercase;">Precio en Bs. (BCV)</div>' +
+                '<div class="product-detail-bs">Bs. ' + bsPrice + '</div>' +
+              '</div>' +
+            '</div>' +
+
+            '<div class="product-detail-desc-box">' +
+              '<div class="product-detail-desc-label">' +
+                '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>' +
+                '<span>Ingredientes y Descripción</span>' +
+              '</div>' +
+              '<div class="product-detail-desc-text">' + safeDesc + '</div>' +
+            '</div>' +
+
+            '<div>' +
+              '<label style="display:block; font-size:0.78rem; font-weight:800; color:#334155; margin-bottom:6px;">Cantidad a ordenar:</label>' +
+              '<div class="detail-qty-stepper">' +
+                '<button class="detail-qty-btn" type="button" onclick="changeDetailQty(-1)">&minus;</button>' +
+                '<div class="detail-qty-num" id="detailQtyNum">1</div>' +
+                '<button class="detail-qty-btn" type="button" onclick="changeDetailQty(1)">&plus;</button>' +
+              '</div>' +
+            '</div>' +
+
+            '<div>' +
+              '<label style="display:block; font-size:0.78rem; font-weight:800; color:#334155; margin-bottom:6px;">Nota o instrucción para cocina (opcional):</label>' +
+              '<input type="text" id="detailNoteInput" placeholder="Ej. Sin cebolla, salsa aparte, bien cocido..." style="width:100%; height:44px; border:1.5px solid #cbd5e1; border-radius:12px; padding:0 14px; font-size:0.9rem; font-weight:600; color:#0f172a; outline:none; box-sizing:border-box;">' +
+              '<div class="note-pills-row">' +
+                '<button type="button" class="note-pill" data-note="Sin cebolla" onclick="onPillClick(this)">Sin cebolla</button>' +
+                '<button type="button" class="note-pill" data-note="Salsa aparte" onclick="onPillClick(this)">Salsa aparte</button>' +
+                '<button type="button" class="note-pill" data-note="Bien cocido" onclick="onPillClick(this)">Bien cocido</button>' +
+                '<button type="button" class="note-pill" data-note="Término medio" onclick="onPillClick(this)">Término medio</button>' +
+                '<button type="button" class="note-pill" data-note="Extra queso" onclick="onPillClick(this)">Extra queso</button>' +
+              '</div>' +
+            '</div>' +
+
+            '<div style="margin-top:4px;">' +
+              '<button class="detail-add-btn" id="detailAddBtn" type="button" onclick="submitProductDetailAdd()">' +
+                '<span>🛍️ AGREGAR A LA COMANDA</span>' +
+                '<span style="opacity:0.88; font-size:0.9rem; font-weight:800;" id="detailAddBtnTotals">($' + usdPrice.toFixed(2) + ' / Bs. ' + bsPrice + ')</span>' +
+              '</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+
+      document.body.appendChild(modal);
+    }
+
+    function closeProductDetailModal() {
+      const m = document.getElementById('productDetailModal');
+      if (m) m.remove();
+    }
+
+    function changeDetailQty(delta) {
+      currentDetailQty = Math.max(1, currentDetailQty + delta);
+      const numEl = document.getElementById('detailQtyNum');
+      if (numEl) numEl.innerText = currentDetailQty;
+      updateDetailAddBtnTotals();
+    }
+
+    function onPillClick(btn) {
+      const text = btn.getAttribute('data-note') || '';
+      appendDetailNote(text);
+    }
+
+    function appendDetailNote(text) {
+      const inp = document.getElementById('detailNoteInput');
+      if (!inp || !text) return;
+      const current = inp.value.trim();
+      if (current.indexOf(text) !== -1) return;
+      inp.value = current ? (current + ', ' + text) : text;
+    }
+
+    function updateDetailAddBtnTotals() {
+      if (!currentDetailProduct) return;
+      const rate = getLiveExchangeRate();
+      const unitUsd = Number(currentDetailProduct.priceUSD || 0);
+      const totalUsd = unitUsd * currentDetailQty;
+      const totalBs = totalUsd * rate;
+      const btnTotals = document.getElementById('detailAddBtnTotals');
+      if (btnTotals) {
+        btnTotals.innerText = '($' + totalUsd.toFixed(2) + ' / Bs. ' + totalBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ')';
+      }
+    }
+
+    function submitProductDetailAdd() {
+      if (!currentDetailProduct) return;
+      const inp = document.getElementById('detailNoteInput');
+      const note = inp ? inp.value.trim() : '';
+
+      addCustomItemToCart(currentDetailProduct.id, currentDetailQty, note);
+      closeProductDetailModal();
+      showAlert('Agregado: [' + currentDetailQty + '] ' + currentDetailProduct.name);
+    }
+
+    function addCustomItemToCart(prodId, qty, note) {
+      const prod = (state.menu && state.menu.products || []).find(function(p) { return p.id === prodId; });
+      if (!prod) return;
+
+      let existing = currentCart.find(function(i) { return i.id === prodId && (i.note || '') === (note || ''); });
+      if (existing) {
+        existing.quantity += qty;
+      } else {
+        currentCart.push({
+          id: prod.id,
+          name: prod.name,
+          image: prod.image,
+          priceUSD: Number(prod.priceUSD),
+          quantity: qty,
+          note: note || ''
+        });
+        existing = currentCart[currentCart.length - 1];
+      }
+      if (navigator.vibrate) {
+        try { navigator.vibrate(35); } catch(e) {}
+      }
+      updateCartBar();
+      const totalForProd = currentCart.filter(function(i) { return i.id === prodId; }).reduce(function(acc, i) { return acc + i.quantity; }, 0);
+      updateCardBadge(prodId, totalForProd);
+    }
+
+    function openLightboxFromImg(img) {
+      const src = img.src;
+      const title = img.getAttribute('data-name') || '';
+      openLightbox(src, title);
+    }
+
+    function openLightbox(imgSrc, title) {
+      closeLightbox();
+      const lb = document.createElement('div');
+      lb.className = 'modal-overlay';
+      lb.id = 'lightboxModal';
+      lb.style.cssText = 'z-index: 10000; background: rgba(0,0,0,0.88); backdrop-filter: blur(16px); padding: 16px; display:flex; flex-direction:column; align-items:center; justify-content:center;';
+      lb.onclick = closeLightbox;
+
+      lb.innerHTML = 
+        '<div style="position:relative; max-width:92vw; max-height:88vh; display:flex; flex-direction:column; align-items:center;" onclick="event.stopPropagation()">' +
+          '<button type="button" onclick="closeLightbox()" style="position:absolute; top:-16px; right:-16px; width:40px; height:40px; border-radius:50%; background:#ffffff; color:#0f172a; border:none; font-size:1.4rem; font-weight:900; cursor:pointer; box-shadow:0 4px 16px rgba(0,0,0,0.4); display:flex; align-items:center; justify-content:center; z-index:10;">&times;</button>' +
+          '<img src="' + imgSrc + '" style="max-width:90vw; max-height:78vh; object-fit:contain; border-radius:20px; box-shadow:0 10px 40px rgba(0,0,0,0.5); background:#ffffff; padding:12px; box-sizing:border-box;">' +
+          (title ? '<div style="color:#ffffff; font-size:1.15rem; font-weight:900; margin-top:14px; text-shadow:0 2px 8px rgba(0,0,0,0.8); text-align:center;">' + title + '</div>' : '') +
+          '<div style="color:#cbd5e1; font-size:0.78rem; font-weight:600; margin-top:4px;">Toca en cualquier parte para cerrar</div>' +
+        '</div>';
+
+      document.body.appendChild(lb);
+    }
+
+    function closeLightbox() {
+      const el = document.getElementById('lightboxModal');
+      if (el) el.remove();
     }
   </script>
 </body>
