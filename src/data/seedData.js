@@ -392,6 +392,17 @@ export const seedProducts = [
     "description": "Hamburguesa doble carne smash con doble cheddar y tocineta + Bowl de papas fritas + Hit Naranja 500ml"
   },
 
+    {
+    "id": "hd_plato_wa0034",
+    "name": "Combo Especial Happy Days (Crew)",
+    "category": "Combos",
+    "priceUSD": 14.5,
+    "sku": "CMB-025",
+    "active": true,
+    "image": "./happydays/platos/plato_wa0034.jpg",
+    "description": "Especial de la casa seleccionado por el equipo de cocina de Happy Days"
+  },
+
   // --- COMBOS PRINCIPALES (Con arte oficial de Happy Days) ---
   { 
     id: 'hd_prod_1', 
@@ -773,8 +784,8 @@ export function initializeSeedData() {
     console.log('[HappyDays] Facturas y ventas purgadas en limpio para entrega.');
   }
 
-  if (currentSeedVersion !== 'happydays_v5_full_platos_menu' || hasOldData || hasProductsWithoutImages || existingProducts.length === 0) {
-    db.rawSet('pos_client_brand', 'happydays_v5_full_platos_menu');
+  if (currentSeedVersion !== 'happydays_v6_all_40_platos' || hasOldData || hasProductsWithoutImages || existingProducts.length === 0) {
+    db.rawSet('pos_client_brand', 'happydays_v6_all_40_platos');
     db.rawSet('pos_products', seedProducts);
     db.rawSet('pos_clients', seedClients);
     db.rawSet('pos_invoices', []);
