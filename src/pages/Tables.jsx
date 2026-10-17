@@ -210,7 +210,7 @@ export default function Tables() {
     const consolidatedItems = [];
     order.rounds.forEach(rnd => {
       rnd.items.forEach(item => {
-        const found = consolidatedItems.find(i => i.productId === item.productId && i.note === item.note);
+        const found = consolidatedItems.find(i => i.id === item.productId && (i.note || '') === (item.note || ''));
         if (found) {
           found.quantity += item.quantity;
         } else {
