@@ -740,7 +740,7 @@ export const seedProducts = [
     priceUSD: 6.00,
     sku: "HBG-MNU-001",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0058.jpg",
     description: "Camada de lechuga, tomate, cebolla, carne de hamburguesa, lágrimas de papas, queso, salsas tradicionales + salsa de la casa."
   },
   {
@@ -750,7 +750,7 @@ export const seedProducts = [
     priceUSD: 7.00,
     sku: "HBG-MNU-002",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0024.jpg",
     description: "Lechuga, tomate, cebolla, carne o proteína de pollo, huevo, jamón, queso amarillo, queso cheddar, aguacate, salsa tradicional + salsa de la casa."
   },
   {
@@ -760,7 +760,7 @@ export const seedProducts = [
     priceUSD: 7.00,
     sku: "HBG-MNU-003",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0053.jpg",
     description: "Lechuga, tomate, cebolla, carne o proteína de pollo, jamón, doble queso cheddar, tocineta, aguacate, salsa tradicional + salsa de la casa."
   },
   {
@@ -770,7 +770,7 @@ export const seedProducts = [
     priceUSD: 9.00,
     sku: "HBG-MNU-004",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0020.jpg",
     description: "Lechuga, tomate, cebolla, doble de carne o doble de pollo, jamón, doble queso cheddar, tocineta, cebolla caramelizada + salsa tradicional + salsa de la casa."
   },
   {
@@ -780,7 +780,7 @@ export const seedProducts = [
     priceUSD: 9.00,
     sku: "HBG-MNU-005",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0057.jpg",
     description: "Lechuga, tomate, cebolla, doble de pollo crispy con mostaza miel, jamón + doble queso cheddar, tocineta, salsa de queso, salsa tradicional + salsa de la casa."
   },
   {
@@ -790,7 +790,7 @@ export const seedProducts = [
     priceUSD: 10.00,
     sku: "HBG-MNU-006",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0048.jpg",
     description: "Lechuga, tomate, cebolla, doble de pollo crispy con mostaza miel, jamón, doble queso cheddar, tocineta, salsa de queso, salsa tradicional + salsa de la casa."
   },
   {
@@ -800,7 +800,7 @@ export const seedProducts = [
     priceUSD: 9.00,
     sku: "HBG-MNU-007",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0051.jpg",
     description: "Lechuga, tomate, cebolla, carne y pollo, jamón, doble queso cheddar, huevo, aguacate, tocineta, salsa tradicional + salsa de la casa."
   },
   {
@@ -810,7 +810,7 @@ export const seedProducts = [
     priceUSD: 10.00,
     sku: "HBG-MNU-008",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0051.jpg",
     description: "Lechuga, tomate, cebolla, carne o pollo y chuleta ahumada, jamón, aguacate, huevo, doble queso cheddar, tocineta, salsa tradicional + salsa de la casa."
   },
   {
@@ -820,7 +820,7 @@ export const seedProducts = [
     priceUSD: 11.00,
     sku: "HBG-MNU-009",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0049.jpg",
     description: "Lechuga, tomate, cebolla, carne y solomo a la parrilla, jamón, queso llanero a la plancha, queso cheddar, huevo frito, aguacate, tocineta, salsa tradicional + salsa de la casa."
   },
   {
@@ -830,7 +830,7 @@ export const seedProducts = [
     priceUSD: 12.00,
     sku: "HBG-MNU-010",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0054.jpg",
     description: "Lechuga, tomate, cebolla, triple de carne, tocineta, huevo, jamón, triple queso cheddar, aguacate, salsa tradicional + salsa de la casa."
   },
   {
@@ -840,7 +840,7 @@ export const seedProducts = [
     priceUSD: 10.00,
     sku: "HBG-MNU-011",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0049.jpg",
     description: "Lechuga, tomate, cebolla, carne y solomo a la parrilla o chuleta, jamón, queso cheddar, huevo frito, aguacate, tocineta, salsa tradicional + salsa de la casa."
   },
   {
@@ -850,7 +850,7 @@ export const seedProducts = [
     priceUSD: 14.00,
     sku: "HBG-MNU-012",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0027.jpg",
     description: "Camada de lechuga, tomate, cebolla, 4 proteínas: carne, pollo, chuleta y tocineta, huevo, jamón, triple queso cheddar, aguacate, salsa tradicional + salsa de la casa."
   },
   {
@@ -860,7 +860,7 @@ export const seedProducts = [
     priceUSD: 16.00,
     sku: "HBG-MNU-013",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0027.jpg",
     description: "Lechuga, tomate, cebolla, 6 proteínas: carne, pollo, chuleta, pernil, polaca y tocineta, huevo, jamón, triple queso cheddar, aguacate, salsa tradicional + salsa de la casa."
   },
   {
@@ -870,7 +870,7 @@ export const seedProducts = [
     priceUSD: 25.00,
     sku: "HBG-MNU-014",
     active: true,
-    image: "",
+    image: "./happydays/combo_4_burger_pana.jpg",
     description: "Lechuga, tomate, cebolla, 4 proteínas: 4 carne, 4 pollo, 4 chuleta, 4 tocineta, 4 huevo, 4 jamón, cuátruple queso cheddar, aguacate, salsa tradicional, salsa de la casa (para 2, 3 o 4 personas)."
   },
   {
@@ -880,7 +880,7 @@ export const seedProducts = [
     priceUSD: 10.00,
     sku: "HBG-MNU-015",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0060.jpg",
     description: "Carne, pollo, jamón, queso cheddar, queso mozzarella, gratinada sobre el pan, jamón, pimentón, cebolla, pepperoni y aceitunas."
   },
   {
@@ -890,7 +890,7 @@ export const seedProducts = [
     priceUSD: 8.00,
     sku: "SHW-MNU-001",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_shawarma_real.jpg",
     description: "Carne, lechuga, tomate, cebolla, lágrimas de papa, salsa de ajo, mostaza, BBQ."
   },
   {
@@ -900,7 +900,7 @@ export const seedProducts = [
     priceUSD: 8.00,
     sku: "SHW-MNU-002",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_shawarma_real.jpg",
     description: "Pollo, lechuga, tomate, cebolla, lágrimas de papa, salsa de ajo, mostaza, BBQ."
   },
   {
@@ -910,7 +910,7 @@ export const seedProducts = [
     priceUSD: 9.00,
     sku: "SHW-MNU-003",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_shawarma_real.jpg",
     description: "Pollo y carne, lechuga, tomate, cebolla, lágrimas de papa, salsa de ajo, mostaza, BBQ."
   },
   {
@@ -920,7 +920,7 @@ export const seedProducts = [
     priceUSD: 11.00,
     sku: "SHW-MNU-004",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_shawarma_real.jpg",
     description: "Pernil, lechuga, tomate, cebolla, lágrimas de papa, salsa de ajo, mostaza, BBQ."
   },
   {
@@ -930,7 +930,7 @@ export const seedProducts = [
     priceUSD: 12.00,
     sku: "SHW-MNU-005",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_shawarma_real.jpg",
     description: "Carne, pollo, chuleta ahumada, maíz, tocineta, queso cheddar, salsa de ajo, pepinillo, BBQ, mostaza."
   },
   {
@@ -940,7 +940,7 @@ export const seedProducts = [
     priceUSD: 2.00,
     sku: "HDG-MNU-001",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0028.jpg",
     description: "Pan con salchicha, papas, repollo y queso."
   },
   {
@@ -950,7 +950,7 @@ export const seedProducts = [
     priceUSD: 3.00,
     sku: "HDG-MNU-002",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0028.jpg",
     description: "Pan con salchicha, papas, repollo, jamón, queso, tocineta, aguacate."
   },
   {
@@ -960,7 +960,7 @@ export const seedProducts = [
     priceUSD: 4.00,
     sku: "HDG-MNU-003",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0029.jpg",
     description: "Pan con salchicha, papas, repollo, jamón, queso, tocineta, aguacate."
   },
   {
@@ -970,7 +970,7 @@ export const seedProducts = [
     priceUSD: 5.00,
     sku: "HDG-MNU-004",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0029.jpg",
     description: "Pan con salchicha, papas, repollo, carne de solomo, pollo, jamón, queso, tocineta, aguacate."
   },
   {
@@ -980,7 +980,7 @@ export const seedProducts = [
     priceUSD: 6.00,
     sku: "HDG-MNU-005",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0028.jpg",
     description: "Pan con salchicha polaca cocida al horno, papas, pollo, carne, jamón, aguacate."
   },
   {
@@ -990,7 +990,7 @@ export const seedProducts = [
     priceUSD: 12.00,
     sku: "PAR-MNU-001",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0037.jpg",
     description: "Papas fritas, carne, pollo, chorizo."
   },
   {
@@ -1000,7 +1000,7 @@ export const seedProducts = [
     priceUSD: 25.00,
     sku: "PAR-MNU-002",
     active: true,
-    image: "",
+    image: "./happydays/combo_parrilla_happy.jpg",
     description: "Carne de solomo, chorizo, papas fritas, queso, aguacate y ensalada."
   },
   {
@@ -1010,7 +1010,7 @@ export const seedProducts = [
     priceUSD: 40.00,
     sku: "PAR-MNU-003",
     active: true,
-    image: "",
+    image: "./happydays/combo_parrilla_happy.jpg",
     description: "Carne de solomo, chorizo, papas fritas, queso, aguacate, ensalada."
   },
   {
@@ -1020,7 +1020,7 @@ export const seedProducts = [
     priceUSD: 50.00,
     sku: "PAR-MNU-004",
     active: true,
-    image: "",
+    image: "./happydays/combo_parrilla_happy.jpg",
     description: "Carne de solomo, chorizo, papas fritas, queso, aguacate, ensalada."
   },
   {
@@ -1030,7 +1030,7 @@ export const seedProducts = [
     priceUSD: 29.00,
     sku: "PAR-MNU-005",
     active: true,
-    image: "",
+    image: "./happydays/combo_parrilla_happy.jpg",
     description: "Carne de solomo, pollo, papas fritas, ensalada César, 2 hamburguesas."
   },
   {
@@ -1040,7 +1040,7 @@ export const seedProducts = [
     priceUSD: 15.00,
     sku: "SUB-MNU-001",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0030.jpg",
     description: "Un pan completo de 40 cm con lechuga, tomate, cebolla, lágrimas de papa, carne a la parrilla, jamón de pierna, queso cheddar + tocineta."
   },
   {
@@ -1050,7 +1050,7 @@ export const seedProducts = [
     priceUSD: 15.00,
     sku: "SUB-MNU-002",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0033.jpg",
     description: "Un pan completo de 40 cm con lechuga, tomate, cebolla, lágrimas de papa, pollo a la parrilla, jamón de pierna, queso cheddar, tocineta y aguacate."
   },
   {
@@ -1060,7 +1060,7 @@ export const seedProducts = [
     priceUSD: 16.00,
     sku: "SUB-MNU-003",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0036.jpg",
     description: "Un pan completo de 40 cm con camada de lechuga, tomate, cebolla, lágrimas de papa, pollo y carne a la parrilla, jamón de pierna, queso cheddar, tocineta, aguacate."
   },
   {
@@ -1070,7 +1070,7 @@ export const seedProducts = [
     priceUSD: 17.00,
     sku: "SUB-MNU-004",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0030.jpg",
     description: "Lechuga, tomate, cebolla, carne y solomo a la parrilla, jamón, queso llanero a la plancha, queso cheddar, huevo frito, aguacate, tocineta, salsa tradicional, salsa de la casa."
   },
   {
@@ -1080,7 +1080,7 @@ export const seedProducts = [
     priceUSD: 28.00,
     sku: "SUB-MNU-005",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0033.jpg",
     description: "Lechuga, tomate, cebolla, carne y solomo a la parrilla, jamón, queso llanero a la plancha, queso cheddar, huevo frito, aguacate, tocineta, salsa tradicional + salsa de la casa."
   },
   {
@@ -1090,7 +1090,7 @@ export const seedProducts = [
     priceUSD: 25.00,
     sku: "SUB-MNU-006",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0036.jpg",
     description: "Pan de 1.20 mts con camada de lechuga, tomate, cebolla, carne, pollo, chorizo, chuleta ahumada, jamón, queso amarillo y salsa de queso. (Ideal para 5 personas)."
   },
   {
@@ -1100,7 +1100,7 @@ export const seedProducts = [
     priceUSD: 80.00,
     sku: "SUB-MNU-007",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0033.jpg",
     description: "Pan de 2 mts con camada de lechuga, tomate, cebolla, lágrimas de papa, pollo, carne, pollo, chorizo, chuleta ahumada, jamón, queso llanero a la plancha, queso cheddar, huevo frito, aguacate. (Ideal para 10 personas)."
   },
   {
@@ -1110,7 +1110,7 @@ export const seedProducts = [
     priceUSD: 6.00,
     sku: "SLP-MNU-001",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0035.jpg",
     description: "Papas fritas, salchicha, queso y salsas tradicionales + salsas de la casa."
   },
   {
@@ -1120,7 +1120,7 @@ export const seedProducts = [
     priceUSD: 7.00,
     sku: "SLP-MNU-002",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0044.jpg",
     description: "Papas fritas, salchicha, ensalada César, queso, salsas tradicionales + salsas de la casa."
   },
   {
@@ -1130,7 +1130,7 @@ export const seedProducts = [
     priceUSD: 9.00,
     sku: "SLP-MNU-003",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0042.jpg",
     description: "Papas fritas, salchicha, ensalada César y jamón de pierna, queso cheddar, salsa tradicionales + de la casa."
   },
   {
@@ -1140,7 +1140,7 @@ export const seedProducts = [
     priceUSD: 11.00,
     sku: "SLP-MNU-004",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0055.jpg",
     description: "Papas fritas, salchicha, ensalada César y jamón de pierna, queso cheddar, salsa tradicionales + de la casa."
   },
   {
@@ -1150,7 +1150,7 @@ export const seedProducts = [
     priceUSD: 16.00,
     sku: "SLP-MNU-005",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0046.jpg",
     description: "Papas fritas, salchicha, milanesa de pollo, tocineta, aguacate, ensalada César y jamón de pierna, queso cheddar, salsa tradicional + de la casa."
   },
   {
@@ -1160,7 +1160,7 @@ export const seedProducts = [
     priceUSD: 7.00,
     sku: "CPH-MNU-001",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0025.jpg",
     description: "Cachapa con queso de mano y mantequilla."
   },
   {
@@ -1170,7 +1170,7 @@ export const seedProducts = [
     priceUSD: 8.00,
     sku: "CPH-MNU-002",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0025.jpg",
     description: "Cachapa con queso de mano, jamón y mantequilla."
   },
   {
@@ -1180,7 +1180,7 @@ export const seedProducts = [
     priceUSD: 10.00,
     sku: "CPH-MNU-003",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0025.jpg",
     description: "Cachapa con queso de mano, solomo o pollo a la parrilla y mantequilla."
   },
   {
@@ -1190,7 +1190,7 @@ export const seedProducts = [
     priceUSD: 12.00,
     sku: "CPH-MNU-004",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0025.jpg",
     description: "Cachapa con queso de mano, pernil y mantequilla."
   },
   {
@@ -1200,7 +1200,7 @@ export const seedProducts = [
     priceUSD: 15.00,
     sku: "CPH-MNU-005",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0025.jpg",
     description: "Cachapa con carne, pollo, pernil, jamón, queso y aguacate."
   },
   {
@@ -1210,7 +1210,7 @@ export const seedProducts = [
     priceUSD: 9.00,
     sku: "CLB-MNU-001",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0032.jpg",
     description: "Sándwich de jamón y queso, carne, lechuga, tomate, cebolla, jamón, huevo y papas fritas."
   },
   {
@@ -1220,7 +1220,7 @@ export const seedProducts = [
     priceUSD: 10.00,
     sku: "CLB-MNU-002",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0043.jpg",
     description: "Sándwich de jamón y queso, pollo, lechuga, tomate, cebolla, jamón, huevo y papas fritas."
   },
   {
@@ -1230,7 +1230,7 @@ export const seedProducts = [
     priceUSD: 15.00,
     sku: "CLB-MNU-003",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0063.jpg",
     description: "Capas de pan con carne, pollo, lechuga, tomate, cebolla, jamón, queso, huevo, tocineta y ración de papas fritas grande (Ideal para 2 personas)."
   },
   {
@@ -1240,7 +1240,7 @@ export const seedProducts = [
     priceUSD: 20.00,
     sku: "CLB-MNU-004",
     active: true,
-    image: "",
+    image: "./happydays/combo_club_house_happy.jpg",
     description: "8 piezas sándwich de jamón y queso, carne, pollo, doble tocineta, doble huevo, doble jamón, doble queso, lechuga, tomate, cebolla, mega ración de papas fritas y ensalada César (Ideal para 4 personas)."
   },
   {
@@ -1250,7 +1250,7 @@ export const seedProducts = [
     priceUSD: 25.00,
     sku: "CLB-MNU-005",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0063.jpg",
     description: "12 piezas sándwich de jamón y queso, carne, pollo, chuleta ahumada, triple tocineta, triple huevo, triple jamón, lechuga, tomate, cebolla, 800 gr de papas y ración de ensalada César (Ideal para 6 personas)."
   },
   {
@@ -1260,7 +1260,7 @@ export const seedProducts = [
     priceUSD: 8.00,
     sku: "ALM-MNU-001",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0039.jpg",
     description: "1 Principal + 1 Contorno + Bebida (Malta o Agua)."
   },
   {
@@ -1270,7 +1270,7 @@ export const seedProducts = [
     priceUSD: 9.00,
     sku: "ALM-MNU-002",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0050.jpg",
     description: "1 Principal + 2 Contornos + Bebida (Malta o Agua)."
   },
   {
@@ -1280,7 +1280,7 @@ export const seedProducts = [
     priceUSD: 10.00,
     sku: "ALM-MNU-003",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0059.jpg",
     description: "1 Principal + 3 Contornos + Bebida (Malta, Refresco o Té)."
   },
   {
@@ -1290,7 +1290,7 @@ export const seedProducts = [
     priceUSD: 15.00,
     sku: "ALM-MNU-004",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0040.jpg",
     description: "2 Principales + 3 Contornos + Bebida (Malta, Refresco o Té)."
   },
   {
@@ -1300,7 +1300,7 @@ export const seedProducts = [
     priceUSD: 5.00,
     sku: "COC-MNU-001",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_mojito.jpg",
     description: "Promoción 2 Mojitos tradicionales cubanos preparados al momento."
   },
   {
@@ -1310,7 +1310,7 @@ export const seedProducts = [
     priceUSD: 6.00,
     sku: "COC-MNU-002",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_mojito.jpg",
     description: "Promoción 2 Tintos de Verano refrescantes con vino tinto y toque cítrico."
   },
   {
@@ -1320,7 +1320,7 @@ export const seedProducts = [
     priceUSD: 6.00,
     sku: "COC-MNU-003",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_mojito.jpg",
     description: "Promoción 2 Cuba Libre con ron venezolano, Coca-Cola y limón."
   },
   {
@@ -1330,7 +1330,7 @@ export const seedProducts = [
     priceUSD: 8.00,
     sku: "COC-MNU-004",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_mojito.jpg",
     description: "Jarra de sangría artesanal con frutas de la estación."
   },
   {
@@ -1340,7 +1340,7 @@ export const seedProducts = [
     priceUSD: 10.00,
     sku: "COC-MNU-005",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_mojito.jpg",
     description: "Jarra grande de mojito con hierbabuena fresca y ron."
   },
   {
@@ -1350,7 +1350,7 @@ export const seedProducts = [
     priceUSD: 5.00,
     sku: "COC-MNU-006",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_mojito.jpg",
     description: "Daiquiri frappeado con ron blanco y toques cítricos."
   },
   {
@@ -1360,7 +1360,7 @@ export const seedProducts = [
     priceUSD: 4.00,
     sku: "COC-MNU-007",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_mojito.jpg",
     description: "Piña colada cremosa con crema de coco, jugo de piña y ron."
   },
   {
@@ -1370,7 +1370,7 @@ export const seedProducts = [
     priceUSD: 3.00,
     sku: "ENT-MNU-001",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_tequenos.jpg",
     description: "Ración de tequeños crujientes rellenos de abundante queso blanco."
   },
   {
@@ -1380,7 +1380,7 @@ export const seedProducts = [
     priceUSD: 3.00,
     sku: "HDG-MNU-006",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0028.jpg",
     description: "Perro caliente especial en promoción de pizarra."
   },
   {
@@ -1390,7 +1390,7 @@ export const seedProducts = [
     priceUSD: 4.00,
     sku: "PST-MNU-001",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_torta_postre.jpg",
     description: "Tres tipos de leches: evaporada, crema y leche condensada con suave bizcocho."
   },
   {
@@ -1400,7 +1400,7 @@ export const seedProducts = [
     priceUSD: 3.00,
     sku: "PST-MNU-002",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_torta_postre.jpg",
     description: "Tradicional quesillo casero venezolano con caramelo dorado."
   },
   {
@@ -1410,7 +1410,7 @@ export const seedProducts = [
     priceUSD: 4.00,
     sku: "PST-MNU-003",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_torta_postre.jpg",
     description: "Pastel tradicional redondo compuesto de una o más capas de masa dulce cocida al horno, rellenas y decoradas con crema pastelera y trufa de chocolate."
   },
   {
@@ -1420,7 +1420,7 @@ export const seedProducts = [
     priceUSD: 3.50,
     sku: "PST-MNU-004",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_torta_postre.jpg",
     description: "Bebida preparada con leche y helado con sirope de caramelo o sirope de fresa."
   },
   {
@@ -1430,7 +1430,7 @@ export const seedProducts = [
     priceUSD: 2.00,
     sku: "EXT-MNU-001",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0056.jpg",
     description: "Ración de papas fritas crujientes tamaño pequeño."
   },
   {
@@ -1440,7 +1440,7 @@ export const seedProducts = [
     priceUSD: 3.00,
     sku: "EXT-MNU-002",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0056.jpg",
     description: "Ración de papas fritas crujientes tamaño mediano."
   },
   {
@@ -1450,7 +1450,7 @@ export const seedProducts = [
     priceUSD: 4.00,
     sku: "EXT-MNU-003",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0056.jpg",
     description: "Ración de papas fritas crujientes tamaño grande."
   },
   {
@@ -1460,7 +1460,7 @@ export const seedProducts = [
     priceUSD: 4.00,
     sku: "EXT-MNU-004",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_ensalada_cesar.jpg",
     description: "Lechuga romana fresca, crutones, queso parmesano y aderezo César de la casa."
   },
   {
@@ -1470,7 +1470,7 @@ export const seedProducts = [
     priceUSD: 5.00,
     sku: "EXT-MNU-005",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_ensalada_cesar.jpg",
     description: "Lechuga romana fresca, tiras de pollo a la plancha, crutones, queso parmesano y aderezo César."
   },
   {
@@ -1480,7 +1480,7 @@ export const seedProducts = [
     priceUSD: 2.00,
     sku: "EXT-MNU-006",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0035.jpg",
     description: "Adicional de salsa de queso cheddar fundido artesanal."
   },
   {
@@ -1490,7 +1490,7 @@ export const seedProducts = [
     priceUSD: 3.00,
     sku: "EXT-MNU-007",
     active: true,
-    image: "",
+    image: "./happydays/platos/plato_wa0046.jpg",
     description: "Adicional de salsa especial Tazmania de la casa."
   }
 ];
