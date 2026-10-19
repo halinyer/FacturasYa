@@ -114,10 +114,6 @@ const Sidebar = () => {
 
         {isAdmin() && (
           <>
-            <NavLink to="/dashboard" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <LayoutDashboard size={22} />
-              <span className="nav-text">Dashboard</span>
-            </NavLink>
             <NavLink to="/clients" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
               <Users size={22} />
               <span className="nav-text">Clientes</span>

@@ -47,7 +47,7 @@ const Login = () => {
     try {
       const success = await login(role, pinStr);
       if (success) {
-        navigate(role === 'admin' ? '/dashboard' : '/pos');
+        navigate('/pos');
       } else {
         handleError();
       }

@@ -10,7 +10,6 @@ import GlobalComandaNotifier from './components/GlobalComandaNotifier';
 // Pages
 import Login from './pages/Login';
 import POS from './pages/POS';
-import Dashboard from './pages/Dashboard';
 import Clients from './pages/Clients';
 import Products from './pages/Products';
 import CashClose from './pages/CashClose';
@@ -56,11 +55,7 @@ function App() {
           <Routes>
             <Route path="/pos" element={<POS />} />
             
-            <Route path="/dashboard" element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            } />
+            <Route path="/dashboard" element={<Navigate to="/pos" replace />} />
             
             <Route path="/clients" element={
               <ProtectedRoute>
@@ -98,10 +93,8 @@ function App() {
             <Route path="/tables" element={<Tables />} />
             <Route path="/mesas" element={<Tables />} />
             
-            {/* Default redirect based on role */}
-            <Route path="*" element={
-              <Navigate to={isAdmin() ? "/dashboard" : "/pos"} replace />
-            } />
+            {/* Default redirect always to POS */}
+            <Route path="*" element={<Navigate to="/pos" replace />} />
           </Routes>
         </main>
       </div>
