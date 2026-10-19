@@ -138,20 +138,22 @@ export const KitchenTicketModal = ({
             background: #1e293b; color: #f8fafc; gap: 8px;
           }
           .kitchen-content {
-            padding: ${is58 ? '10px 8px' : '16px 14px'};
+            padding: ${is58 ? '6px 4px' : '12px 10px'};
             overflow-y: auto; background: #ffffff; color: #000000;
           }
           .kitchen-paper {
-            font-family: 'Courier New', Courier, monospace;
-            font-size: ${is58 ? '11px' : '12.5px'};
-            line-height: ${is58 ? '1.25' : '1.35'};
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: ${is58 ? '10px' : '11.5px'};
+            line-height: 1.15;
             color: #000000; background: #ffffff; width: 100%;
             box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+            text-rendering: optimizeLegibility;
           }
           .k-center { text-align: center; }
-          .k-bold { font-weight: 900; }
-          .k-divider { border-top: 1px dashed #000000; margin: 5px 0; }
-          .k-double-divider { border-top: 2px dashed #000000; margin: 7px 0; }
+          .k-bold { font-weight: 700; }
+          .k-divider { border-top: 1px dashed #000000; margin: 3px 0; }
+          .k-double-divider { border-top: 1px dashed #000000; margin: 4px 0; }
 
           @media print {
             @page {
@@ -190,7 +192,7 @@ export const KitchenTicketModal = ({
               left: 0 !important; top: 0 !important;
               width: ${is58 ? '48mm' : '72mm'} !important;
               max-width: ${is58 ? '48mm' : '72mm'} !important;
-              padding: 1mm 1mm 32mm 1mm !important; /* Margen generoso de 32mm para que el corte no pise nada */
+              padding: 1mm 1mm 18mm 1mm !important;
               margin: 0 auto !important;
               page-break-inside: avoid !important;
               break-inside: avoid !important;
@@ -297,58 +299,59 @@ export const KitchenTicketModal = ({
           <div className="kitchen-content">
             <div className="kitchen-paper">
               {/* Minimalist Header */}
-              <div className="k-center k-bold" style={{ fontSize: is58 ? '14px' : '16px', letterSpacing: '1px' }}>
-                *** COCINA ***
+              <div className="k-center k-bold" style={{ fontSize: is58 ? '11px' : '12px', letterSpacing: '0.5px' }}>
+                *** COMANDA COCINA ***
               </div>
 
               <div className="k-divider" />
 
-              {/* MESA GIGANTE */}
-              <div style={{ textAlign: 'center', padding: '4px 0' }}>
-                <div className="k-bold" style={{ fontSize: is58 ? '21px' : '26px', letterSpacing: '1px' }}>
+              {/* MESA COMPACTA Y NÍTIDA */}
+              <div style={{ textAlign: 'center', padding: '1px 0' }}>
+                <div className="k-bold" style={{ fontSize: is58 ? '15px' : '17px', letterSpacing: '0.2px' }}>
                   {safeTableName}
                 </div>
                 {(round.roundNumber > 1 || round.isAdditional) && (
                   <div style={{ 
-                    border: '1.5px solid #000', 
-                    fontSize: is58 ? '10px' : '11.5px', 
-                    fontWeight: '900', 
-                    padding: '1px 5px', 
+                    border: '1px solid #000', 
+                    fontSize: is58 ? '9px' : '10px', 
+                    fontWeight: '700', 
+                    padding: '1px 4px', 
                     display: 'inline-block', 
-                    marginTop: '2px', 
-                    borderRadius: '2px',
-                    letterSpacing: '0.5px'
+                    marginTop: '1px', 
+                    borderRadius: '2px'
                   }}>
-                    *** RONDA #{round.roundNumber || 2} (ADICIONAL) ***
+                    *** RONDA #{round.roundNumber || 2} (EXTRA) ***
                   </div>
                 )}
               </div>
 
-              {/* HORA BIEN GRANDE Y CLARA */}
-              <div style={{ textAlign: 'center', background: '#000', color: '#fff', padding: '3px 0', margin: '3px 0', borderRadius: '2px' }}>
-                <span className="k-bold" style={{ fontSize: is58 ? '15px' : '18px', letterSpacing: '1px' }}>
-                  HORA: {timeStr}
-                </span>
-              </div>
-
-              {/* MESERA Y FECHA */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: is58 ? '11px' : '12px', marginTop: '4px' }}>
-                <span className="k-bold">MESERA: {safeWaiterName}</span>
+              {/* HORA Y FECHA (En una sola línea nítida, sin fondo negro que queme papel) */}
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                fontSize: is58 ? '10px' : '11px', 
+                fontWeight: '700',
+                borderTop: '1px dashed #000',
+                borderBottom: '1px dashed #000',
+                padding: '2px 0',
+                margin: '2px 0'
+              }}>
+                <span>HORA: {timeStr}</span>
                 <span>{dateStr}</span>
               </div>
 
-              {safeOrderId && (
-                <div style={{ fontSize: is58 ? '9.5px' : '10.5px', color: '#444', marginTop: '1px' }}>
-                  ORDEN: #{safeOrderId}
-                </div>
-              )}
+              {/* MESERA Y ORDEN */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: is58 ? '9.5px' : '10.5px', margin: '2px 0' }}>
+                <span>MESERA: <strong>{safeWaiterName}</strong></span>
+                {safeOrderId && <span>#{safeOrderId}</span>}
+              </div>
 
-              <div className="k-double-divider" />
+              <div className="k-divider" />
 
-              {/* Items Section - Minimalist & High Contrast */}
-              <div style={{ margin: '4px 0' }}>
+              {/* Items Section - Compacto y Nítido */}
+              <div style={{ margin: '2px 0' }}>
                 {items.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '8px 0', fontSize: '11px' }}>Sin platos</div>
+                  <div style={{ textAlign: 'center', padding: '4px 0', fontSize: '10px' }}>Sin platos</div>
                 ) : (
                   items.map((it, idx) => {
                     const qty = Number(it?.quantity || 1);
@@ -356,25 +359,24 @@ export const KitchenTicketModal = ({
                     const note = it?.note ? String(it.note).trim().toUpperCase() : '';
 
                     return (
-                      <div key={idx} style={{ marginBottom: is58 ? '7px' : '9px', paddingBottom: '3px', borderBottom: idx < items.length - 1 ? '1px dotted #ccc' : 'none' }}>
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
-                          <span className="k-bold" style={{ fontSize: is58 ? '16px' : '18px', minWidth: is58 ? '28px' : '32px' }}>
+                      <div key={idx} style={{ marginBottom: is58 ? '3px' : '4px', paddingBottom: '2px', borderBottom: idx < items.length - 1 ? '1px dotted #e2e8f0' : 'none' }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '4px' }}>
+                          <span className="k-bold" style={{ fontSize: is58 ? '12px' : '13px', minWidth: '18px' }}>
                             {qty}x
                           </span>
-                          <span className="k-bold" style={{ fontSize: is58 ? '13px' : '15px', flex: 1, wordBreak: 'break-word', lineHeight: '1.2' }}>
+                          <span className="k-bold" style={{ fontSize: is58 ? '11px' : '12px', flex: 1, wordBreak: 'break-word', lineHeight: '1.15' }}>
                             {name}
                           </span>
                         </div>
 
                         {note && (
                           <div style={{ 
-                            fontSize: is58 ? '11px' : '12.5px', 
-                            fontWeight: '900', 
-                            padding: '2px 5px', 
-                            marginTop: '3px', 
-                            marginLeft: is58 ? '12px' : '16px',
-                            borderLeft: '3px solid #000',
-                            background: '#f1f5f9'
+                            fontSize: is58 ? '9.5px' : '10px', 
+                            fontWeight: '700', 
+                            padding: '1px 3px', 
+                            marginTop: '1px', 
+                            marginLeft: '18px',
+                            borderLeft: '2px solid #000'
                           }}>
                             * {note}
                           </div>
@@ -385,29 +387,26 @@ export const KitchenTicketModal = ({
                 )}
               </div>
 
-              <div className="k-double-divider" />
+              <div className="k-divider" />
 
               {/* Total items */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: is58 ? '12px' : '14px' }} className="k-bold">
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: is58 ? '10px' : '11px' }} className="k-bold">
                 <span>TOTAL:</span>
                 <span>{totalItems} PLATO(S)</span>
               </div>
 
-              <div className="k-divider" />
-
               {/* Bottom Waiter Banner */}
               <div className="k-center k-bold" style={{ 
-                fontSize: is58 ? '13px' : '15px', 
-                padding: '5px', 
-                border: '2px solid #000', 
-                marginTop: '6px',
-                letterSpacing: '0.5px'
+                fontSize: is58 ? '11px' : '12px', 
+                padding: '2px 4px', 
+                border: '1px solid #000', 
+                marginTop: '3px'
               }}>
                 ENTREGAR A: {safeWaiterName}
               </div>
 
-              {/* Generoso espacio de corte térmico (35mm de avance para que la cuchilla no corte el texto) */}
-              <div style={{ height: '35mm', minHeight: '35mm' }}>&nbsp;</div>
+              {/* Margen limpio para corte térmico sin desperdicio */}
+              <div style={{ height: '16mm', minHeight: '16mm' }}>&nbsp;</div>
             </div>
           </div>
         </div>

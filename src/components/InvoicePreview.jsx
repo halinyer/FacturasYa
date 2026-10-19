@@ -167,24 +167,26 @@ const InvoicePreview = ({ invoice, onClose }) => {
             overflow-y: auto; background: #ffffff; color: #000000;
           }
           .ticket-paper {
-            font-family: 'Courier New', Courier, monospace;
-            font-size: ${paperSize === '58mm' ? '10px' : '11.5px'};
-            line-height: ${paperSize === '58mm' ? '1.25' : '1.35'};
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: ${paperSize === '58mm' ? '9.5px' : '11px'};
+            line-height: ${paperSize === '58mm' ? '1.18' : '1.25'};
             color: #000000;
             background: #ffffff;
             margin: 0 auto;
             width: 100%;
+            -webkit-font-smoothing: antialiased;
+            text-rendering: optimizeLegibility;
           }
           .ticket-center { text-align: center; }
           .ticket-right { text-align: right; }
-          .ticket-bold { font-weight: bold; }
+          .ticket-bold { font-weight: 700; }
           .ticket-divider {
             border-top: 1px dashed #000000;
-            margin: 5px 0;
+            margin: 3px 0;
           }
           .ticket-double-divider {
-            border-top: 2px dashed #000000;
-            margin: 7px 0;
+            border-top: 1px dashed #000000;
+            margin: 4px 0;
           }
           
           @media print {
