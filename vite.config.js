@@ -5,7 +5,10 @@ export default defineConfig({
   plugins: [react()],
   base: './',
   server: {
-    port: 5173
+    port: 5173,
+    watch: {
+      ignored: ['**/dist-electron/**', '**/dist/**', '**/*.tmp']
+    }
   },
   build: {
     outDir: 'dist'

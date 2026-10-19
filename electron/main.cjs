@@ -116,7 +116,7 @@ ipcMain.handle('print-window', async (event, options = {}) => {
 <title>Ticket</title>
 <style>
   @page {
-    size: ${widthMm}mm auto;
+    size: auto;
     margin: 0mm !important;
   }
   * {
@@ -180,14 +180,26 @@ ${options.html}
         printWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(fullHtml)}`);
 
         printWin.webContents.on('did-finish-load', () => {
-          setTimeout(() => {
+          setTimeout(async () => {
             if (!printWin || printWin.isDestroyed()) {
               return resolve({ success: false, failureReason: 'Ventana de impresión cerrada' });
             }
+
+            let heightMicrons = 200000;
+            try {
+              const bodyHeight = await printWin.webContents.executeJavaScript('document.body.scrollHeight');
+              if (bodyHeight > 0) {
+                heightMicrons = Math.max(80000, Math.ceil(bodyHeight * 265) + 15000);
+              }
+            } catch (err) {}
+
+            const widthMicrons = is58 ? 58000 : 80000;
+
             printWin.webContents.print({
-              silent: options.silent || false,
+              silent: !!options.silent,
               deviceName: targetDevice,
               printBackground: true,
+              pageSize: { width: widthMicrons, height: heightMicrons },
               margins: { marginType: 'none' }
             }, (success, failureReason) => {
               try {
@@ -195,7 +207,7 @@ ${options.html}
               } catch (e) {}
               resolve({ success, failureReason });
             });
-          }, 200);
+          }, 250);
         });
 
         printWin.webContents.on('did-fail-load', (e, code, desc) => {
