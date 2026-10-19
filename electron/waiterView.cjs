@@ -1275,7 +1275,7 @@ function renderWaiterView(initialState) {
     </div>
     <div class="cart-actions">
       <button class="cart-detail-btn" onclick="openCartModal()">Ver Detalle</button>
-      <button class="cart-send-btn" onclick="sendOrderRound()">
+      <button class="cart-send-btn" onclick="promptSelectTableAndSend()">
         <span>ENVIAR</span>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
       </button>
@@ -1670,11 +1670,11 @@ function renderWaiterView(initialState) {
 
       if (isMyOrder) {
         playKitchenChime();
-        if (navigator.vibrate) navigator.vibrate([350, 150, 350, 150, 500]);
-        showAlertWithAction('🔔 ¡Tu comanda en ' + data.tableName + ' está lista para servir!', 'Ver Avisos', openNotifsModal, 'var(--brand-warm)');
+        if (navigator.vibrate) navigator.vibrate([350, 150, 350]);
+        showAlert('🍽️ ¡PLATO LISTO PARA SERVIR! ' + data.tableName + ' (Mesera: ' + (data.waiterName || 'Mesero') + ')', '#15803d');
       } else {
-        // Silent peer notification: subtle banner without ringing audio so 10 tablets don't alarm at once
-        showAlertWithAction('🍽️ Plato listo en ' + data.tableName + ' (' + (data.waiterName || 'Mesero') + ')', 'Ver', openNotifsModal, '#475569');
+        // Silent peer notification: subtle banner without ringing audio so other tablets aren't disturbed
+        showAlert('🍽️ Plato listo en ' + data.tableName + ' (' + (data.waiterName || 'Mesero') + ')', '#475569');
       }
 
       const notifObj = {
@@ -1764,7 +1764,7 @@ function renderWaiterView(initialState) {
     // Modal: Bandeja de Notificaciones de Cocina
     function openNotifsModal() {
       closeNotifsModal();
-      const activeNotifs = savedNotifs.filter(function(n) { return !n.served; });
+      const activeNotifs = savedNotifs;
 
       const modal = document.createElement('div');
       modal.className = 'modal-overlay';
@@ -1773,9 +1773,9 @@ function renderWaiterView(initialState) {
         '<div class="modal-sheet" style="max-height: 85vh;">' +
           '<div class="modal-header">' +
             '<div class="modal-title">' +
-              '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D52829" stroke-width="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>' +
+              '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>' +
               '<span>Avisos de Cocina</span>' +
-              (activeNotifs.length > 0 ? '<span style="background:#D52829; color:#fff; font-size:0.72rem; font-weight:900; padding:2px 8px; border-radius:999px;">' + activeNotifs.length + ' PENDIENTES</span>' : '') +
+              (activeNotifs.length > 0 ? '<span style="background:#10b981; color:#fff; font-size:0.72rem; font-weight:900; padding:2px 8px; border-radius:999px;">' + activeNotifs.length + ' RECIENTES</span>' : '') +
             '</div>' +
             '<button class="modal-close-btn" onclick="closeNotifsModal()">&times;</button>' +
           '</div>' +
@@ -1786,17 +1786,17 @@ function renderWaiterView(initialState) {
                 '<div style="width:48px; height:48px; border-radius:50%; background:#f4f4f7; display:flex; align-items:center; justify-content:center; margin:0 auto 12px auto; color:#a1a1aa;">' +
                   '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>' +
                 '</div>' +
-                '<div style="font-weight:800; font-size:1rem; color:#18181b; margin-bottom:4px;">No hay pedidos pendientes por servir</div>' +
-                '<div style="font-size:0.8rem;">Cuando cocina o caja marque una orden lista, aparecerá aquí al instante.</div>' +
+                '<div style="font-weight:800; font-size:1rem; color:#18181b; margin-bottom:4px;">No hay avisos recientes</div>' +
+                '<div style="font-size:0.8rem;">Cuando cocina o caja marque un plato listo, te sonará la campana automáticamente.</div>' +
               '</div>' :
               activeNotifs.map(function(n) {
-                return '<div style="background:#ffffff; border:1.5px solid #7CBE43; border-radius:14px; padding:12px; box-shadow:0 3px 10px rgba(124,190,67,0.12); display:flex; flex-direction:column; gap:10px;">' +
+                return '<div style="background:#ffffff; border:1.5px solid #10b981; border-radius:14px; padding:12px; box-shadow:0 2px 8px rgba(16,185,129,0.1); display:flex; flex-direction:column; gap:8px;">' +
                   '<div style="display:flex; justify-content:space-between; align-items:center;">' +
                     '<div style="display:flex; align-items:center; gap:8px;">' +
-                      '<span style="background:#7CBE43; color:#fff; font-weight:900; font-size:0.92rem; padding:4px 10px; border-radius:8px;">' + n.tableName + '</span>' +
+                      '<span style="background:#10b981; color:#fff; font-weight:900; font-size:0.92rem; padding:4px 10px; border-radius:8px;">' + n.tableName + '</span>' +
                       '<span style="font-size:0.76rem; color:#71717a; font-weight:700;">' + (n.time || '') + '</span>' +
                     '</div>' +
-                    '<span style="font-size:0.76rem; color:#601718; font-weight:800;">Mesero: ' + (n.waiterName || '') + '</span>' +
+                    '<span style="font-size:0.76rem; color:#0f172a; font-weight:800;">Mesero: ' + (n.waiterName || '') + '</span>' +
                   '</div>' +
                   (n.items && n.items.length > 0 ? 
                     '<div style="background:#f9fafb; border-radius:8px; padding:8px 10px; font-size:0.84rem; color:#374151; border:1px solid #e5e7eb;">' +
@@ -1804,18 +1804,15 @@ function renderWaiterView(initialState) {
                         return '<div style="margin-bottom:2px;"><strong>' + (it.quantity || 1) + 'x</strong> ' + (it.name || it.productName) + (it.note ? ' <span style="color:#b45309; font-style:italic;">(' + it.note + ')</span>' : '') + '</div>';
                       }).join('') +
                     '</div>' : '') +
-                  '<button data-round-id="' + n.roundId + '" onclick="markNotifServedFromBtn(this)" style="background:#15803d; color:#ffffff; border:none; padding:11px; border-radius:10px; font-weight:900; font-size:0.86rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; text-transform:uppercase; letter-spacing:0.4px;">' +
-                    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' +
-                    '<span>Marcar como Entregado</span>' +
-                  '</button>' +
+                  '<div style="font-size:0.75rem; color:#059669; font-weight:800; text-align:right;">✓ Notificado por Cocina</div>' +
                 '</div>';
               }).join('')
             ) +
           '</div>' +
 
-          (activeNotifs.length > 1 ?
+          (activeNotifs.length > 0 ?
             '<div style="margin-top:8px; border-top:1px solid #e4e4e7; padding-top:8px;">' +
-              '<button onclick="clearAllNotifications()" style="width:100%; background:#f4f4f7; color:#71717a; border:none; padding:10px; border-radius:10px; font-weight:800; font-size:0.82rem; cursor:pointer;">Limpiar todos los avisos</button>' +
+              '<button onclick="clearAllNotifications()" style="width:100%; background:#f4f4f7; color:#71717a; border:none; padding:10px; border-radius:10px; font-weight:800; font-size:0.82rem; cursor:pointer;">Limpiar Historial</button>' +
             '</div>' : '') +
         '</div>';
 
@@ -1899,14 +1896,14 @@ function renderWaiterView(initialState) {
       updateWaiterUI();
       if (!currentWaiter) {
         renderLoginScreen();
-      } else if (selectedTable) {
+      } else if (currentScreen === 'tables') {
+        renderTablesScreen();
+      } else {
         if (currentScreen !== 'order') {
           renderOrderScreen();
         } else {
           refreshOrderMenuOnly();
         }
-      } else {
-        renderTablesScreen();
       }
     }
 
@@ -2032,7 +2029,8 @@ function renderWaiterView(initialState) {
             localStorage.setItem('waiter_logged_id', currentWaiter.id);
             closePinModal();
             updateWaiterUI();
-            renderTablesScreen();
+            selectedTable = null;
+            renderOrderScreen();
           } else {
             if (navigator.vibrate) navigator.vibrate([150, 100, 150]);
             currentPinInput = '';
@@ -2082,10 +2080,16 @@ function renderWaiterView(initialState) {
               return '<button class="zone-pill ' + (selectedZone === z ? 'active' : '') + '" data-zone="' + z + '" onclick="filterZoneFromBtn(this)">' + zLabel + '</button>';
             }).join('') +
           '</div>' +
-          '<button class="takeaway-quick-btn" onclick="openNewTakeawayModal()">' +
-            '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>' +
-            '<span>+ Llevar</span>' +
-          '</button>' +
+          '<div style="display:flex; gap:6px; flex-shrink:0;">' +
+            '<button class="takeaway-quick-btn" style="background:linear-gradient(135deg, #10b981 0%, #059669 100%); color:#fff; box-shadow:0 2px 8px rgba(16,185,129,0.3); border:none;" onclick="startNewOrderMenu()">' +
+              '<span style="font-size:1.1rem; line-height:1;">⚡</span>' +
+              '<span>Tomar Pedido</span>' +
+            '</button>' +
+            '<button class="takeaway-quick-btn" onclick="openNewTakeawayModal()">' +
+              '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>' +
+              '<span>+ Llevar</span>' +
+            '</button>' +
+          '</div>' +
         '</div>' +
         '<div class="tables-grid">' +
           filteredTables.map(function(t) {
@@ -2146,13 +2150,20 @@ function renderWaiterView(initialState) {
       renderOrderScreen();
     }
 
+    function startNewOrderMenu() {
+      selectedTable = null;
+      currentCart = [];
+      prodSearchQuery = '';
+      renderOrderScreen();
+    }
+
     // SCREEN 3: MENU & ORDERING
     function renderOrderScreen() {
       currentScreen = 'order';
       document.getElementById('cartBar').style.display = 'flex';
       updateCartBar();
       updateWaiterUI();
-      updateContextBadge(selectedTable ? selectedTable.name : 'Comanda');
+      updateContextBadge(selectedTable ? selectedTable.name : '✨ Nuevo Pedido');
 
       const cats = state.menu.categories || ['Todos'];
       const q = prodSearchQuery.toLowerCase().trim();
@@ -2162,7 +2173,7 @@ function renderWaiterView(initialState) {
         return matchesCat && matchesQuery;
       });
 
-      const existingOrder = (state.activeOrders || []).find(function(o) { return o.tableId === selectedTable.id; });
+      const existingOrder = selectedTable ? (state.activeOrders || []).find(function(o) { return o.tableId === selectedTable.id; }) : null;
       const rate = getLiveExchangeRate();
       const orderTotalUSD = existingOrder ? existingOrder.rounds.reduce(function(acc, r) {
         return acc + r.items.reduce(function(sum, i) { return sum + (i.priceUSD * i.quantity); }, 0);
@@ -2177,16 +2188,28 @@ function renderWaiterView(initialState) {
         '<div class="order-top-bar">' +
           '<div class="menu-header">' +
             '<button class="back-btn" onclick="renderTablesScreen()">' +
-              '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>' +
-              '<span>Mesas</span>' +
+              '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>' +
+              '<span>Ver Salón</span>' +
             '</button>' +
-            '<div class="table-badge-active">' +
-              '<span class="table-badge-dot"></span>' +
-              '<span>' + (selectedTable.isTakeaway ? '🛍️ ' : '') + selectedTable.name + '</span>' +
-            '</div>' +
+            (selectedTable ? (
+              '<div style="display:flex; align-items:center; gap:6px;">' +
+                '<div class="table-badge-active" onclick="openSelectTableModal()" style="cursor:pointer;" title="Toca para cambiar de mesa">' +
+                  '<span class="table-badge-dot"></span>' +
+                  '<span>' + (selectedTable.isTakeaway ? '🛍️ ' : '') + selectedTable.name + '</span>' +
+                  '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-left:4px;"><polyline points="6 9 12 15 18 9"/></svg>' +
+                '</div>' +
+                '<button onclick="resetToNewOrder()" title="Volver a Nuevo Pedido sin mesa" style="background:#fee2e2; color:#b91c1c; border:none; padding:6px 10px; border-radius:8px; font-weight:800; font-size:0.75rem; cursor:pointer;">✕ Limpiar</button>' +
+              '</div>'
+            ) : (
+              '<div class="table-badge-active" onclick="openSelectTableModal()" style="background:#f1f5f9; color:#0f172a; border:1.5px dashed #cbd5e1; cursor:pointer;" title="Toca para asignar mesa">' +
+                '<span style="color:#f59e0b; font-size:0.95rem;">⚡</span>' +
+                '<span>Nuevo Pedido</span>' +
+                '<span style="font-size:0.72rem; color:#64748b; font-weight:700; margin-left:4px;">(Mesa al enviar)</span>' +
+              '</div>'
+            )) +
             (existingOrder ? (selectedTable.status === 'cuenta' 
               ? '<span class="status-cuenta-badge" onclick="openTableOrderModal()" style="cursor:pointer;">⚠️ En Caja</span>' 
-              : '<button class="bill-btn" onclick="requestBill()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/></svg><span>Pedir Cuenta</span></button>') : '<div style="width:70px;"></div>') +
+              : '<button class="bill-btn" onclick="requestBill()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/></svg><span>Pedir Cuenta</span></button>') : '<div style="width:20px;"></div>') +
           '</div>' +
 
           (existingOrder && existingOrder.rounds && existingOrder.rounds.length > 0 ? (
@@ -2431,13 +2454,15 @@ function renderWaiterView(initialState) {
     }
 
     function refreshOrderMenuOnly() {
-      if (currentScreen !== 'order' || !selectedTable) return;
+      if (currentScreen !== 'order') return;
       updateCartBar();
       updateWaiterUI();
       updateRateDisplay();
 
-      const liveT = (state.tables || []).find(function(t) { return t.id === selectedTable.id; });
-      if (liveT) selectedTable = liveT;
+      if (selectedTable) {
+        const liveT = (state.tables || []).find(function(t) { return t.id === selectedTable.id; });
+        if (liveT) selectedTable = liveT;
+      }
 
       const q = prodSearchQuery.toLowerCase().trim();
       const prods = (state.menu && state.menu.products || []).filter(function(p) {
@@ -2527,6 +2552,10 @@ function renderWaiterView(initialState) {
         if (sendBtn) {
           sendBtn.style.display = 'flex';
           sendBtn.disabled = false;
+          const labelSpan = sendBtn.querySelector('span');
+          if (labelSpan) {
+            labelSpan.innerText = selectedTable ? ('ENVIAR (' + selectedTable.name + ')') : 'ELEGIR MESA Y ENVIAR ➔';
+          }
         }
       } else {
         const existingOrder = selectedTable ? (state.activeOrders || []).find(function(o) { return o.tableId === selectedTable.id; }) : null;
@@ -2559,6 +2588,8 @@ function renderWaiterView(initialState) {
           if (sendBtn) {
             sendBtn.style.display = 'flex';
             sendBtn.disabled = true;
+            const labelSpan = sendBtn.querySelector('span');
+            if (labelSpan) labelSpan.innerText = 'ENVIAR';
           }
         }
       }
@@ -2584,7 +2615,7 @@ function renderWaiterView(initialState) {
           '<div class="modal-header">' +
             '<div class="modal-title">' +
               '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D52829" stroke-width="2.5"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>' +
-              '<span>Comanda — ' + selectedTable.name + '</span>' +
+              '<span>Comanda — ' + (selectedTable ? selectedTable.name : 'Nuevo Pedido (Mesa al enviar)') + '</span>' +
             '</div>' +
             '<button class="modal-close-btn" onclick="closeCartModal()">&times;</button>' +
           '</div>' +
@@ -2622,8 +2653,8 @@ function renderWaiterView(initialState) {
                 '<div id="cartModalTotalBS" style="font-size:0.75rem; color:#71717a; font-weight:700; font-family:ui-monospace, monospace;">Bs. ' + totalBS.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</div>' +
               '</div>' +
             '</div>' +
-            '<button class="cart-send-btn" style="width:100%; padding:14px; font-size:0.95rem; justify-content:center;" onclick="closeCartModal(); sendOrderRound();">' +
-              '<span>ENVIAR COMANDA A COCINA Y CAJA</span>' +
+            '<button class="cart-send-btn" style="width:100%; padding:14px; font-size:0.95rem; justify-content:center;" onclick="closeCartModal(); promptSelectTableAndSend();">' +
+              '<span>' + (selectedTable ? ('ENVIAR A ' + selectedTable.name.toUpperCase()) : 'ELEGIR MESA Y ENVIAR ➔') + '</span>' +
               '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>' +
             '</button>' +
           '</div>' +
@@ -2686,17 +2717,142 @@ function renderWaiterView(initialState) {
       }
     }
 
-    function sendOrderRound() {
+    function promptSelectTableAndSend() {
+      if (currentCart.length === 0) {
+        alert('Agrega al menos un ítem al pedido antes de enviar.');
+        return;
+      }
+      if (selectedTable) {
+        executeSendRound(selectedTable.id);
+      } else {
+        openSelectTableModal();
+      }
+    }
+
+    function openSelectTableModal() {
+      closeSelectTableModal();
+
+      const count = currentCart.reduce(function(acc, i) { return acc + i.quantity; }, 0);
+      const totalUSD = currentCart.reduce(function(acc, i) { return acc + (i.priceUSD * i.quantity); }, 0);
+      const rate = getLiveExchangeRate();
+      const totalBS = totalUSD * rate;
+
+      const modal = document.createElement('div');
+      modal.className = 'modal-overlay';
+      modal.id = 'selectTableModal';
+      modal.innerHTML = 
+        '<div class="modal-sheet" style="max-width:540px; max-height:88vh; display:flex; flex-direction:column;">' +
+          '<div class="modal-header" style="border-bottom:1.5px solid #e2e8f0; padding-bottom:12px;">' +
+            '<div>' +
+              '<div class="modal-title" style="font-size:1.15rem; font-weight:900; color:#0f172a; display:flex; align-items:center; gap:8px;">' +
+                '<span>🍽️ Asignar Mesa al Pedido</span>' +
+              '</div>' +
+              '<div style="font-size:0.78rem; color:#64748b; margin-top:3px;">' +
+                count + ' ítem(s) &bull; <strong style="color:#D52829;">$' + totalUSD.toFixed(2) + '</strong> (Bs. ' + totalBS.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ') &bull; Toca para enviar directo' +
+              '</div>' +
+            '</div>' +
+            '<button class="modal-close-btn" onclick="closeSelectTableModal()">&times;</button>' +
+          '</div>' +
+
+          '<div style="margin:12px 0 8px 0;">' +
+            '<button onclick="sendAsQuickTakeaway()" style="width:100%; height:48px; background:linear-gradient(135deg, #ea580c 0%, #c2410c 100%); color:#fff; border:none; border-radius:12px; font-weight:900; font-size:0.95rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 3px 10px rgba(234,88,12,0.25);">' +
+              '<span style="font-size:1.15rem;">🛍️</span>' +
+              '<span>Enviar como Pedido Para Llevar</span>' +
+              '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>' +
+            '</button>' +
+          '</div>' +
+
+          '<div style="font-size:0.75rem; font-weight:800; color:#94a3b8; text-transform:uppercase; margin:8px 0 6px 0; letter-spacing:0.04em;">O selecciona la mesa donde se sentará el cliente:</div>' +
+
+          '<div style="flex:1; overflow-y:auto; padding-right:2px; display:grid; grid-template-columns:repeat(auto-fill, minmax(110px, 1fr)); gap:10px; margin-bottom:12px; max-height:48vh;">' +
+            (state.tables || []).map(function(t) {
+              const isOccupied = t.status === 'ocupada';
+              const isCuenta = t.status === 'cuenta';
+              const bg = isCuenta ? '#fef2f2' : (isOccupied ? '#fff7ed' : '#ffffff');
+              const border = isCuenta ? '#fca5a5' : (isOccupied ? '#fdba74' : '#cbd5e1');
+              const statusText = isCuenta ? '⚠️ En Caja' : (isOccupied ? 'Ocupada (+ ronda)' : 'LIBRE');
+              const statusColor = isCuenta ? '#b91c1c' : (isOccupied ? '#c2410c' : '#16a34a');
+
+              return '<div onclick="selectTableAndSend(\'' + t.id + '\')" style="background:' + bg + '; border:2px solid ' + border + '; border-radius:14px; padding:12px 8px; text-align:center; cursor:pointer; transition:transform 0.1s, box-shadow 0.1s; display:flex; flex-direction:column; justify-content:space-between; min-height:85px; box-shadow:0 2px 6px rgba(0,0,0,0.04);" onmousedown="this.style.transform=\'scale(0.96)\'" onmouseup="this.style.transform=\'scale(1)\'" ontouchstart="this.style.transform=\'scale(0.96)\'" ontouchend="this.style.transform=\'scale(1)\'">' +
+                '<div style="font-weight:900; font-size:1rem; color:#0f172a;">' + (t.isTakeaway ? '🛍️ ' : '') + t.name + '</div>' +
+                '<div style="font-size:0.68rem; font-weight:800; color:' + statusColor + '; text-transform:uppercase; margin-top:4px;">' + statusText + '</div>' +
+                '<div style="font-size:0.65rem; color:#94a3b8; font-weight:700; margin-top:2px;">' + (t.zone || 'Salón') + '</div>' +
+              '</div>';
+            }).join('') +
+          '</div>' +
+
+          '<button onclick="closeSelectTableModal()" style="width:100%; height:42px; background:#f1f5f9; border:none; border-radius:10px; font-weight:800; font-size:0.85rem; color:#64748b; cursor:pointer;">' +
+            'Cancelar y Volver al Menú' +
+          '</button>' +
+        '</div>';
+
+      document.body.appendChild(modal);
+    }
+
+    function closeSelectTableModal() {
+      const m = document.getElementById('selectTableModal');
+      if (m) m.remove();
+    }
+
+    function selectTableAndSend(tableId) {
+      closeSelectTableModal();
+      const tbl = (state.tables || []).find(function(t) { return t.id === tableId; });
+      if (!tbl) {
+        alert('Mesa no encontrada');
+        return;
+      }
+      selectedTable = tbl;
+      executeSendRound(tbl.id);
+    }
+
+    function sendAsQuickTakeaway() {
+      closeSelectTableModal();
+      const takeawayCount = (state.tables || []).filter(function(t) { return t.isTakeaway || (t.zone === 'Para Llevar'); }).length;
+      const finalName = 'Llevar #' + (takeawayCount + 1);
+
+      fetch('/api/restaurant/tables', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: finalName,
+          zone: 'Para Llevar',
+          isTakeaway: true
+        })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(newTable) {
+        if (newTable && newTable.id) {
+          if (!state.tables.some(function(t) { return t.id === newTable.id; })) {
+            state.tables.push(newTable);
+          }
+          selectedTable = newTable;
+          executeSendRound(newTable.id);
+        }
+      })
+      .catch(function(err) {
+        alert('Error creando comanda para llevar');
+      });
+    }
+
+    function executeSendRound(tableId) {
       if (currentCart.length === 0) {
         alert('Agrega al menos un ítem al pedido.');
         return;
       }
+      if (!currentWaiter) {
+        alert('Sesión no identificada. Por favor ingresa tu PIN.');
+        openWaiterSheet();
+        return;
+      }
+
+      const targetTbl = (state.tables || []).find(function(t) { return t.id === tableId; }) || selectedTable;
+      const tblName = targetTbl ? targetTbl.name : 'Mesa';
 
       fetch('/api/restaurant/order/round', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          tableId: selectedTable.id,
+          tableId: tableId,
           waiterId: currentWaiter.id,
           waiterName: currentWaiter.name,
           items: currentCart
@@ -2705,19 +2861,20 @@ function renderWaiterView(initialState) {
       .then(function(r) { return r.json(); })
       .then(function(res) {
         if (res.success) {
-          showAlert('Comanda enviada a Caja y Cocina con éxito');
+          showAlert('✅ Comanda de ' + tblName + ' enviada a Cocina y Caja');
           currentCart = [];
           if (res.order && Array.isArray(state.activeOrders)) {
             const idx = state.activeOrders.findIndex(function(o) { return o.id === res.order.id; });
             if (idx >= 0) state.activeOrders[idx] = res.order;
             else state.activeOrders.push(res.order);
           }
-          if (selectedTable) {
-            selectedTable.status = 'ocupada';
-            const tblInState = (state.tables || []).find(function(t) { return t.id === selectedTable.id; });
-            if (tblInState) tblInState.status = 'ocupada';
+          if (targetTbl) {
+            targetTbl.status = 'ocupada';
           }
-          renderTablesScreen();
+          // Reset selectedTable so the screen is immediately clean and ready for the next customer greeting
+          selectedTable = null;
+          syncAllCardsUI();
+          renderOrderScreen();
         } else {
           alert('Error: ' + res.error);
         }
@@ -2727,7 +2884,19 @@ function renderWaiterView(initialState) {
       });
     }
 
+    function sendOrderRound() {
+      promptSelectTableAndSend();
+    }
+
+    function resetToNewOrder() {
+      selectedTable = null;
+      currentCart = [];
+      syncAllCardsUI();
+      renderOrderScreen();
+    }
+
     function requestBill() {
+      if (!selectedTable) return;
       if (confirm('¿Marcar ' + selectedTable.name + ' como Pidiendo Cuenta?')) {
         fetch('/api/restaurant/table/' + selectedTable.id + '/bill', { method: 'POST' })
           .then(function() {

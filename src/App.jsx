@@ -5,6 +5,7 @@ import { DataProvider } from './contexts/DataContext';
 
 // Components
 import Sidebar from './components/Sidebar';
+import GlobalComandaNotifier from './components/GlobalComandaNotifier';
 
 // Pages
 import Login from './pages/Login';
@@ -50,6 +51,7 @@ function App() {
     <DataProvider>
       <div className="app-layout" style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden', backgroundColor: '#f4f5f7' }}>
         <Sidebar />
+        <GlobalComandaNotifier />
         <main className="main-content" style={{ flex: 1, height: '100vh', overflowY: 'auto', background: '#f4f5f7' }}>
           <Routes>
             <Route path="/pos" element={<POS />} />

@@ -5,6 +5,7 @@ import { useData } from '../contexts/DataContext';
 import { Utensils, Clock, CheckCircle, AlertCircle, ShoppingCart, Users, Plus, Check, RefreshCw, QrCode, ArrowRight, X, Printer, Edit2, Trash2, Bike, MapPin, Phone, Receipt } from 'lucide-react';
 import QRConnectModal from '../components/QRConnectModal';
 import InvoicePreview from '../components/InvoicePreview';
+import KitchenTicketModal from '../components/KitchenTicketModal';
 
 export default function Tables() {
   const navigate = useNavigate();
@@ -20,6 +21,7 @@ export default function Tables() {
   const [selectedTable, setSelectedTable] = useState(null);
   const [showQRModal, setShowQRModal] = useState(false);
   const [preBillInvoice, setPreBillInvoice] = useState(null);
+  const [selectedComandaPrint, setSelectedComandaPrint] = useState(null);
   const [restaurantState, setRestaurantState] = useState({
     tables: [],
     waiters: [],
@@ -740,21 +742,39 @@ export default function Tables() {
                       </div>
                     </div>
 
-                    <div style={{ marginTop: '16px' }}>
+                    <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedComandaPrint({
+                          round: rnd,
+                          tableName: rnd.tableName,
+                          waiterName: rnd.waiterName,
+                          orderId: rnd.orderId,
+                          autoPrint: true
+                        })}
+                        style={{
+                          width: '100%', padding: '10px', background: '#3b82f6', color: '#ffffff',
+                          border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.88rem'
+                        }}
+                      >
+                        <Printer size={16} /> Imprimir Comanda para Chef
+                      </button>
+
                       {!isReady ? (
                         <button
                           type="button"
                           onClick={() => handleMarkRoundReady(rnd.id)}
                           style={{
-                            width: '100%', padding: '12px', background: '#10b981', color: '#ffffff',
+                            width: '100%', padding: '11px', background: '#10b981', color: '#ffffff',
                             border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.95rem'
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.92rem'
                           }}
                         >
                           <Check size={18} /> Marcar Listo (Avisar a Mesero)
                         </button>
                       ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                           <div style={{ textAlign: 'center', fontSize: '0.84rem', color: '#059669', fontWeight: '800' }}>
                             🔔 Plato notificado a tablet
                           </div>
@@ -1600,6 +1620,18 @@ export default function Tables() {
         <InvoicePreview
           invoice={preBillInvoice}
           onClose={() => setPreBillInvoice(null)}
+        />
+      )}
+
+      {/* Comanda Kitchen Ticket Print Modal */}
+      {selectedComandaPrint && (
+        <KitchenTicketModal
+          round={selectedComandaPrint.round}
+          tableName={selectedComandaPrint.tableName}
+          waiterName={selectedComandaPrint.waiterName}
+          orderId={selectedComandaPrint.orderId}
+          autoPrint={selectedComandaPrint.autoPrint}
+          onClose={() => setSelectedComandaPrint(null)}
         />
       )}
 
