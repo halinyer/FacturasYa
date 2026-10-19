@@ -66,11 +66,20 @@ const InvoicePreview = ({ invoice, onClose }) => {
   const [formatType, setFormatType] = useState('nota_entrega');
   
   // Tamaño de papel: Por defecto 58mm para adaptarse a la impresora térmica conectada
-  const [paperSize, setPaperSize] = useState('58mm');
+  const [paperSize, setPaperSize] = useState(() => {
+    return localStorage.getItem('pos_comanda_paper_size') || '58mm';
+  });
+  const is58 = paperSize === '58mm';
   const [printers, setPrinters] = useState([]);
   const [selectedPrinter, setSelectedPrinter] = useState(() => {
     return localStorage.getItem('pos_comanda_printer') || 'POS-58';
   });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('pos_comanda_paper_size', paperSize);
+    } catch (e) {}
+  }, [paperSize]);
 
   useEffect(() => {
     if (window.electronAPI && typeof window.electronAPI.getPrinters === 'function') {
@@ -195,7 +204,7 @@ const InvoicePreview = ({ invoice, onClose }) => {
           }
           .invoice-modal {
             background: #0f172a; width: 100%;
-            max-width: ${paperSize === '58mm' ? '370px' : '470px'};
+            max-width: ${is58 ? '360px' : '460px'};
             border-radius: 14px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.85);
             border: 1px solid rgba(255, 255, 255, 0.12); display: flex; flex-direction: column;
             max-height: 94vh; overflow: hidden;
@@ -207,17 +216,18 @@ const InvoicePreview = ({ invoice, onClose }) => {
             background: #1e293b; color: #f8fafc;
           }
           .invoice-content {
-            padding: ${paperSize === '58mm' ? '12px 6px' : '20px 18px'};
+            padding: ${is58 ? '10px 4px' : '20px 18px'};
             overflow-y: auto; background: #ffffff; color: #000000;
           }
           .ticket-paper {
-            font-family: Arial, Helvetica, sans-serif;
-            font-size: ${paperSize === '58mm' ? '9.5px' : '11px'};
-            line-height: ${paperSize === '58mm' ? '1.18' : '1.25'};
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            font-size: ${is58 ? '9.5px' : '11px'};
+            line-height: 1.2;
+            font-weight: 400;
             color: #000000;
             background: #ffffff;
             margin: 0 auto;
-            width: ${paperSize === '58mm' ? '48mm' : '72mm'};
+            width: ${is58 ? '44mm' : '72mm'};
             max-width: 100%;
             box-sizing: border-box;
             -webkit-font-smoothing: antialiased;
@@ -231,13 +241,13 @@ const InvoicePreview = ({ invoice, onClose }) => {
             margin: 3px 0;
           }
           .ticket-double-divider {
-            border-top: 1px dashed #000000;
+            border-top: 2px dashed #000000;
             margin: 4px 0;
           }
           
           @media print {
             @page {
-              size: ${paperSize === '58mm' ? '58mm auto' : '80mm auto'};
+              size: ${is58 ? '58mm auto' : '80mm auto'};
               margin: 0mm;
             }
             html, body {
@@ -285,8 +295,8 @@ const InvoicePreview = ({ invoice, onClose }) => {
               position: absolute !important;
               left: 0 !important;
               top: 0 !important;
-              width: ${paperSize === '58mm' ? '48mm' : '72mm'} !important;
-              max-width: ${paperSize === '58mm' ? '48mm' : '72mm'} !important;
+              width: ${is58 ? '44mm' : '72mm'} !important;
+              max-width: ${is58 ? '44mm' : '72mm'} !important;
               padding: 1mm 1mm 28mm 1mm !important;
               margin: 0 auto !important;
               page-break-inside: avoid !important;
@@ -570,83 +580,75 @@ const InvoicePreview = ({ invoice, onClose }) => {
                 </div>
               )}
 
-              {/* OPCIÓN 2: NOTA DE ENTREGA / CUENTA DE SALÓN / COMANDA UNIFICADA (OPTIMIZADA 58mm / 80mm) */}
+              {/* OPCIÓN 2: NOTA DE ENTREGA / CUENTA DE SALÓN (OPTIMIZADA 58mm / 80mm) */}
               {formatType === 'nota_entrega' && (
                 <div>
+                  {/* Encabezado Compacto */}
                   <div className="ticket-center">
-                    <div className="ticket-bold" style={{ fontSize: paperSize === '58mm' ? '13px' : '15px', letterSpacing: '0.8px' }}>
+                    <div className="ticket-bold" style={{ fontSize: is58 ? '13px' : '15px', letterSpacing: '0.5px' }}>
                       HAPPY DAYS
                     </div>
-                    <div className="ticket-bold" style={{ fontSize: paperSize === '58mm' ? '10px' : '11.5px', marginTop: '1px' }}>
-                      RIF: {rif}
+                    <div style={{ fontSize: is58 ? '9px' : '10px', marginTop: '1px' }}>
+                      RIF: {rif} &nbsp;|&nbsp; Tel: {phone}
                     </div>
-                    <div className="ticket-bold" style={{ fontSize: paperSize === '58mm' ? '10px' : '11.5px', marginTop: '1px', textTransform: 'uppercase' }}>
-                      {legalName}
+                    <div style={{ fontSize: is58 ? '8.5px' : '9.5px' }}>
+                      C.C. Unicentro El Marqués • Caracas
                     </div>
-                    {addressLines.map((line, idx) => (
-                      <div key={idx} style={{ fontSize: paperSize === '58mm' ? '8.5px' : '10.5px', lineHeight: '1.2' }}>
-                        {line}
-                      </div>
-                    ))}
-                    <div style={{ fontSize: paperSize === '58mm' ? '9px' : '10.5px', marginTop: '1px' }}>
-                      Tel.: {phone}
-                    </div>
-                    <div style={{ fontSize: paperSize === '58mm' ? '8.5px' : '9.5px', marginTop: '2px', fontWeight: 'bold', color: '#000000' }}>
-                      DOCUMENTO DE CONTROL INTERNO (NO FISCAL)
-                    </div>
-                  </div>
-
-                  <div className="ticket-divider" />
-
-                  {/* Título de Nota de Entrega */}
-                  <div className="ticket-center">
-                    <div className="ticket-bold" style={{ fontSize: paperSize === '58mm' ? '11px' : '13px', letterSpacing: '0.5px' }}>
+                    <div className="ticket-bold" style={{ fontSize: is58 ? '10px' : '11.5px', marginTop: '3px', letterSpacing: '0.5px' }}>
                       *** NOTA DE ENTREGA ***
                     </div>
-                    <div className="ticket-bold" style={{ fontSize: paperSize === '58mm' ? '10px' : '12px', marginTop: '1px' }}>
-                      NOTA DE ENTREGA Nº: {docNumber}
-                    </div>
-                    <div style={{ fontSize: paperSize === '58mm' ? '9px' : '11px', marginTop: '1px' }}>
-                      FECHA: {dateStr}&nbsp;&nbsp;&nbsp;HORA: {timeStr}
+                    <div style={{ fontSize: is58 ? '8px' : '9px', marginTop: '1px' }}>
+                      (CONTROL INTERNO)
                     </div>
                   </div>
 
                   <div className="ticket-divider" />
 
-                  {/* Mesa, Mesero y Cliente */}
-                  <div style={{ fontSize: paperSize === '58mm' ? '9.5px' : '11px', lineHeight: '1.35' }}>
+                  {/* Metadatos de la Orden */}
+                  <div style={{ fontSize: is58 ? '9px' : '10px', lineHeight: '1.25' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span><strong>MESA:</strong> <span className="ticket-bold">{tableName || 'MOSTRADOR'}</span></span>
-                      <span><strong>MESERO:</strong> <span className="ticket-bold">{cashierIdentifier}</span></span>
+                      <span><strong>NOTA Nº:</strong> #{docNumber}</span>
+                      <span><strong>HORA:</strong> {timeStr}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span><strong>FECHA:</strong> {dateStr}</span>
+                      <span><strong>MESA:</strong> <strong className="ticket-bold">{tableName || 'MOSTRADOR'}</strong></span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span><strong>MESERO:</strong> {cashierIdentifier}</span>
                     </div>
 
                     {invoice.orderType === 'delivery' && (
-                      <div style={{ margin: '3px 0' }}>
-                        <div className="ticket-bold" style={{ fontSize: '9.5px' }}>🛵 MODALIDAD: DELIVERY</div>
+                      <div style={{ margin: '2px 0', borderTop: '1px dotted #000', paddingTop: '2px' }}>
+                        <div className="ticket-bold" style={{ fontSize: '9px' }}>🛵 MODALIDAD: DELIVERY</div>
                         {invoice.deliveryInfo?.address && <div><strong>Dir:</strong> {invoice.deliveryInfo.address}</div>}
                         {invoice.deliveryInfo?.phone && <div><strong>Tel:</strong> {invoice.deliveryInfo.phone}</div>}
                       </div>
                     )}
 
                     {invoice.orderType === 'para_llevar' && (
-                      <div className="ticket-bold" style={{ margin: '3px 0', fontSize: '9.5px' }}>
+                      <div className="ticket-bold" style={{ margin: '2px 0', fontSize: '9px' }}>
                         🛍️ MODALIDAD: PARA LLEVAR
                       </div>
                     )}
 
-                    <div><strong>CLIENTE:</strong> {clientInfo.name}</div>
-                    <div><strong>C.I/RIF:</strong> {clientInfo.cedula || 'V-00000000'}</div>
+                    <div style={{ borderTop: '1px dotted #000', marginTop: '2px', paddingTop: '2px' }}>
+                      <div><strong>CLIENTE:</strong> {clientInfo.name}</div>
+                      {clientInfo.cedula && clientInfo.cedula !== 'V-00000000' && (
+                        <div><strong>C.I/RIF:</strong> {clientInfo.cedula}</div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="ticket-divider" />
 
                   {/* Cabecera de Ítems */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: paperSize === '58mm' ? '9px' : '10.5px', fontWeight: 'bold', marginBottom: '3px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: is58 ? '8.5px' : '10px', fontWeight: 'bold', marginBottom: '2px' }}>
                     <span>CANT  DESCRIPCIÓN</span>
                     <span>TOTAL BS</span>
                   </div>
 
-                  <div style={{ margin: '3px 0' }}>
+                  <div style={{ margin: '2px 0' }}>
                     {items.map((item, idx) => {
                       const qty = Number(item.quantity || item.cantidad || 1);
                       const unitPriceUSD = Number(item.unitPrice || item.priceUSD || item.price || 0);
@@ -655,24 +657,54 @@ const InvoicePreview = ({ invoice, onClose }) => {
                       const noteText = item.note || item.notes;
 
                       return (
-                        <div key={idx} style={{ marginBottom: '5px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: paperSize === '58mm' ? '9.5px' : '11.5px' }}>
-                            <span className="ticket-bold" style={{ textTransform: 'uppercase' }}>
-                              [{qty}] {item.productName || item.name || 'PRODUCTO'}
+                        <div key={idx} style={{ marginBottom: '4px', paddingBottom: '2px', borderBottom: idx < items.length - 1 ? '1px dotted #e2e8f0' : 'none' }}>
+                          {/* Fila 1: Cantidad y Nombre con wrap fluido sin empujar el precio fuera */}
+                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '3px' }}>
+                            <span className="ticket-bold" style={{ fontSize: is58 ? '10px' : '11px', minWidth: '18px' }}>
+                              {qty}x
                             </span>
-                            <span className="ticket-bold">
-                              {formatVE(subtotalBs)}
+                            <span style={{ 
+                              fontSize: is58 ? '9.5px' : '11px', 
+                              fontWeight: '600',
+                              flex: 1, 
+                              wordBreak: 'break-word', 
+                              textTransform: 'uppercase',
+                              lineHeight: '1.18'
+                            }}>
+                              {item.productName || item.name || 'PRODUCTO'}
                             </span>
                           </div>
 
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: paperSize === '58mm' ? '8.5px' : '10px', color: '#000000' }}>
-                            <span>{qty} X {formatVE(unitPriceBs)} (${unitPriceUSD.toFixed(2)})</span>
-                            <span>Ref. ${(qty * unitPriceUSD).toFixed(2)}</span>
+                          {/* Fila 2: Precio unitario y Subtotal alineado a la derecha */}
+                          <div style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'baseline', 
+                            fontSize: is58 ? '8.5px' : '9.5px', 
+                            marginTop: '1px',
+                            paddingLeft: '18px'
+                          }}>
+                            <span>
+                              ${unitPriceUSD.toFixed(2)} c/u
+                            </span>
+                            <span className="ticket-bold" style={{ fontSize: is58 ? '9.5px' : '10.5px', whiteSpace: 'nowrap' }}>
+                              Bs. {formatVE(subtotalBs)}
+                              <span style={{ fontSize: '8px', fontWeight: 'normal', marginLeft: '3px' }}>
+                                (${(qty * unitPriceUSD).toFixed(2)})
+                              </span>
+                            </span>
                           </div>
 
+                          {/* Nota de producto si existe */}
                           {noteText && (
-                            <div style={{ fontSize: '9px', fontStyle: 'italic', color: '#000000', paddingLeft: '6px' }}>
-                              &gt;&gt; NOTA: {noteText}
+                            <div style={{ 
+                              fontSize: is58 ? '8px' : '9px', 
+                              fontStyle: 'italic', 
+                              marginTop: '1px', 
+                              paddingLeft: '18px',
+                              color: '#000' 
+                            }}>
+                              * {noteText}
                             </div>
                           )}
                         </div>
@@ -681,10 +713,13 @@ const InvoicePreview = ({ invoice, onClose }) => {
                   </div>
 
                   {invoice.deliveryFee > 0 && (
-                    <div style={{ marginBottom: '5px', fontSize: paperSize === '58mm' ? '9.5px' : '11px' }}>
+                    <div style={{ marginBottom: '4px', fontSize: is58 ? '9px' : '10px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span>[1] FLETE / DELIVERY</span>
-                        <span className="ticket-bold">{formatVE(Number(invoice.deliveryFee) * exchangeRate)}</span>
+                        <span className="ticket-bold">Bs. {formatVE(Number(invoice.deliveryFee) * exchangeRate)}</span>
+                      </div>
+                      <div style={{ fontSize: '8px', paddingLeft: '18px' }}>
+                        Ref. ${Number(invoice.deliveryFee).toFixed(2)}
                       </div>
                     </div>
                   )}
@@ -692,36 +727,41 @@ const InvoicePreview = ({ invoice, onClose }) => {
                   <div className="ticket-double-divider" />
 
                   {/* Totales */}
-                  <div style={{ fontSize: paperSize === '58mm' ? '9.5px' : '11px', lineHeight: '1.35' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: paperSize === '58mm' ? '12px' : '14px', margin: '3px 0' }} className="ticket-bold">
+                  <div style={{ fontSize: is58 ? '9px' : '10px', lineHeight: '1.25' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: is58 ? '11.5px' : '13px', margin: '2px 0' }} className="ticket-bold">
                       <span>TOTAL BS:</span>
-                      <span>Bs. {formatVE(totalBs)}</span>
+                      <span style={{ whiteSpace: 'nowrap' }}>Bs. {formatVE(totalBs)}</span>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: paperSize === '58mm' ? '11px' : '13px', margin: '2px 0' }} className="ticket-bold">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: is58 ? '10.5px' : '12px', margin: '2px 0' }} className="ticket-bold">
                       <span>TOTAL USD (REF):</span>
-                      <span>$ {totalUSD.toFixed(2)}</span>
+                      <span style={{ whiteSpace: 'nowrap' }}>$ {totalUSD.toFixed(2)}</span>
                     </div>
-                    <div style={{ fontSize: paperSize === '58mm' ? '8.5px' : '10.5px', color: '#000000' }}>
-                      Tasa Oficial BCV: Bs. {formatVE(exchangeRate, 2)} / USD
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: is58 ? '8px' : '9px', color: '#000', marginTop: '1px' }}>
+                      <span>Tasa Oficial BCV:</span>
+                      <span>Bs. {formatVE(exchangeRate, 2)} / USD</span>
                     </div>
                   </div>
 
                   <div className="ticket-divider" />
 
-                  <div style={{ fontSize: paperSize === '58mm' ? '9.5px' : '11px' }}>
-                    <div>
-                      <strong>ESTADO:</strong>{' '}
+                  {/* Estado y Método de Pago */}
+                  <div style={{ fontSize: is58 ? '9px' : '10px', lineHeight: '1.25' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span><strong>ESTADO:</strong></span>
                       <span className="ticket-bold">
                         {isPaid ? 'PAGADO / CANCELADO' : 'PENDIENTE POR COBRAR'}
                       </span>
                     </div>
-                    <div><strong>FORMA DE PAGO:</strong> {getPaymentLabel(paymentMethod)}</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span><strong>FORMA DE PAGO:</strong></span>
+                      <span className="ticket-bold">{getPaymentLabel(paymentMethod)}</span>
+                    </div>
                   </div>
 
-                  <div className="ticket-divider" style={{ margin: '8px 0 5px 0' }} />
-                  <div className="ticket-center" style={{ fontSize: '9px' }}>
+                  <div className="ticket-divider" style={{ margin: '6px 0 3px 0' }} />
+                  <div className="ticket-center" style={{ fontSize: is58 ? '8.5px' : '9.5px' }}>
                     <div className="ticket-bold">{CLIENT_CONFIG.receipt?.footerGreeting || '¡Gracias por su visita!'}</div>
-                    <div style={{ fontSize: '8.5px', marginTop: '1px' }}>{CLIENT_CONFIG.receipt?.contactNotice || 'Instagram: @happydays_ve'}</div>
+                    <div style={{ fontSize: is58 ? '8px' : '8.5px', marginTop: '1px' }}>{CLIENT_CONFIG.receipt?.contactNotice || 'Instagram: @happydays_ve'}</div>
                   </div>
 
                   {/* Guía de corte y avance forzado para que la cuchilla nunca pise el texto */}
