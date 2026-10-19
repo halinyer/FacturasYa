@@ -95,16 +95,20 @@ ipcMain.handle('print-window', async (event, options = {}) => {
           const systemPrinters = (mainWindowRef && mainWindowRef.webContents) 
             ? await mainWindowRef.webContents.getPrintersAsync() 
             : await printWin.webContents.getPrintersAsync();
-          const match = targetDevice && systemPrinters.find(p => p.name.toLowerCase() === targetDevice.toLowerCase());
-          if (match) {
-            targetDevice = match.name;
+          
+          const defaultPos = systemPrinters.find(p => p.isDefault && /pos|58|thermal|ticket/i.test(p.name)) ||
+                             systemPrinters.find(p => /pos58\s*printer/i.test(p.name));
+
+          if (defaultPos) {
+            targetDevice = defaultPos.name;
+          } else if (targetDevice) {
+            const match = systemPrinters.find(p => p.name.toLowerCase() === targetDevice.toLowerCase());
+            targetDevice = match ? match.name : (systemPrinters.find(p => p.isDefault)?.name || '');
           } else {
-            const defaultPrinter = systemPrinters.find(p => p.isDefault) || 
-                                   systemPrinters.find(p => /pos|thermal|ticket|58/i.test(p.name)) || 
-                                   systemPrinters[0];
-            targetDevice = defaultPrinter ? defaultPrinter.name : '';
-            console.log(`[Printer] Seleccionando impresora disponible: '${targetDevice}'`);
+            const anyThermal = systemPrinters.find(p => /pos|58|thermal|ticket/i.test(p.name));
+            targetDevice = anyThermal ? anyThermal.name : (systemPrinters.find(p => p.isDefault)?.name || '');
           }
+          console.log(`[Printer] Imprimiendo directamente en: '${targetDevice}'`);
         } catch (pe) {
           console.warn('[Printer] No se pudo obtener lista de impresoras:', pe);
         }

@@ -74,11 +74,7 @@ const InvoicePreview = ({ invoice, onClose }) => {
   const is58 = paperSize === '58mm';
   const [printers, setPrinters] = useState([]);
   const [selectedPrinter, setSelectedPrinter] = useState(() => {
-    return localStorage.getItem('pos_comanda_printer') || '';
-  });
-  const [silentMode, setSilentMode] = useState(() => {
-    const saved = localStorage.getItem('pos_silent_print');
-    return saved !== null ? saved === 'true' : true;
+    return localStorage.getItem('pos_comanda_printer') || 'POS58 Printer';
   });
 
   useEffect(() => {
@@ -92,19 +88,13 @@ const InvoicePreview = ({ invoice, onClose }) => {
       window.electronAPI.getPrinters().then(list => {
         if (Array.isArray(list) && list.length > 0) {
           setPrinters(list);
-          const saved = localStorage.getItem('pos_comanda_printer');
-          const exists = list.some(p => p.name === saved);
-          const defaultPos = list.find(p => p.isDefault && /pos|thermal|ticket|58/i.test(p.name));
+          const defaultPos = list.find(p => p.isDefault && /pos|thermal|ticket|58/i.test(p.name)) ||
+                             list.find(p => /pos58\s*printer/i.test(p.name)) ||
+                             list.find(p => /pos|thermal|ticket|58/i.test(p.name));
           
-          if (saved && exists) {
-            setSelectedPrinter(saved);
-          } else if (defaultPos) {
+          if (defaultPos) {
             setSelectedPrinter(defaultPos.name);
-          } else {
-            const pos = list.find(p => p.isDefault) || list.find(p => /pos-?58|pos58|ticket|thermal/i.test(p.name)) || list[0];
-            if (pos) {
-              setSelectedPrinter(pos.name);
-            }
+            try { localStorage.setItem('pos_comanda_printer', defaultPos.name); } catch(e){}
           }
         }
       }).catch(e => console.warn('Printers load notice:', e));
@@ -119,16 +109,11 @@ const InvoicePreview = ({ invoice, onClose }) => {
       await printIsolatedTicket({
         html,
         paperSize,
-        deviceName: selectedPrinter || '',
-        silent: silentMode
+        deviceName: selectedPrinter || 'POS58 Printer',
+        silent: true
       });
     } catch (err) {
-      console.warn('Fallback to standard print:', err);
-      try {
-        window.print();
-      } catch (e) {
-        alert('Error al abrir la impresora: ' + (e.message || e));
-      }
+      console.warn('Error al imprimir ticket:', err);
     }
   };
 
@@ -424,26 +409,6 @@ const InvoicePreview = ({ invoice, onClose }) => {
                     80mm
                   </button>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSilentMode(prev => {
-                      const next = !prev;
-                      try { localStorage.setItem('pos_silent_print', String(next)); } catch(e){}
-                      return next;
-                    });
-                  }}
-                  title={silentMode ? "Impresión Directa activa (imprime al instante sin abrir ventana)" : "Modo con diálogo: abrirá la ventana de Windows antes de imprimir"}
-                  style={{
-                    padding: '5px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800',
-                    border: 'none', cursor: 'pointer',
-                    background: silentMode ? '#0284c7' : 'rgba(255,255,255,0.12)',
-                    color: '#ffffff', display: 'flex', alignItems: 'center', gap: '3px'
-                  }}
-                >
-                  {silentMode ? '⚡ Directo' : 'Diálogo'}
-                </button>
 
                 <button 
                   type="button"

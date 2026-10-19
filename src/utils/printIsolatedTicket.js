@@ -123,11 +123,10 @@ export const printIsolatedTicket = async ({
   html,
   paperSize = '58mm',
   deviceName = '',
-  silent = false
+  silent = true
 }) => {
   if (!html) {
-    window.print();
-    return { success: true };
+    return { success: false, error: 'No hay contenido para imprimir' };
   }
 
   const fullHtml = getTicketFullHtml(html, paperSize);
@@ -138,21 +137,14 @@ export const printIsolatedTicket = async ({
         html,
         paperSize,
         deviceName: deviceName || '',
-        silent: !!silent,
+        silent: true,
         margins: { marginType: 'none' }
       });
 
-      if (res && res.success) {
-        return res;
-      }
-      if (silent) {
-        console.warn('Silent print finished with notice:', res?.failureReason);
-        return res || { success: false, failureReason: 'No respondio' };
-      }
-      console.warn('Electron print notice / fallback:', res?.failureReason);
+      return res || { success: true };
     } catch (e) {
       console.warn('Electron print call failed:', e);
-      if (silent) return { success: false, error: e.message };
+      return { success: false, error: e.message };
     }
   }
 
