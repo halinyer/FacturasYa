@@ -13,8 +13,12 @@ export const getTicketFullHtml = (htmlContent, paperSize = '58mm') => {
 <html>
 <head>
 <meta charset="utf-8">
+<meta name="color-scheme" content="light">
 <title>Ticket</title>
 <style>
+  :root {
+    color-scheme: light !important;
+  }
   @page {
     size: ${widthMm}mm auto;
     margin: 0mm !important;
@@ -23,15 +27,21 @@ export const getTicketFullHtml = (htmlContent, paperSize = '58mm') => {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
+    color: #000000 !important;
+    background-color: transparent !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+    -webkit-print-color-adjust: economy !important;
+    print-color-adjust: economy !important;
   }
   html, body {
+    color-scheme: light !important;
     width: ${printableWidth} !important;
     max-width: ${printableWidth} !important;
     margin: 0 auto !important;
     padding: 0 !important;
     background: #ffffff !important;
+    background-color: #ffffff !important;
     color: #000000 !important;
     font-family: Arial, Helvetica, sans-serif !important;
     -webkit-font-smoothing: antialiased;
@@ -47,7 +57,7 @@ export const getTicketFullHtml = (htmlContent, paperSize = '58mm') => {
     line-height: 1.25 !important;
     font-weight: 400 !important;
     color: #000000 !important;
-    background: #ffffff !important;
+    background: transparent !important;
     font-family: Arial, Helvetica, sans-serif !important;
   }
   .ticket-center { text-align: center !important; }

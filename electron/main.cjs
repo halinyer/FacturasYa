@@ -81,6 +81,7 @@ async function printThermalTicket(options = {}) {
           show: false,
           width: is58 ? 240 : 360,
           height: 800,
+          backgroundColor: '#ffffff',
           webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
@@ -116,8 +117,12 @@ async function printThermalTicket(options = {}) {
 <html>
 <head>
 <meta charset="utf-8">
+<meta name="color-scheme" content="light">
 <title>Ticket</title>
 <style>
+  :root {
+    color-scheme: light !important;
+  }
   @page {
     size: auto;
     margin: 0mm !important;
@@ -126,15 +131,20 @@ async function printThermalTicket(options = {}) {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
+    color: #000000 !important;
+    background-color: transparent !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+    -webkit-print-color-adjust: economy !important;
+    print-color-adjust: economy !important;
   }
   html, body {
+    color-scheme: light !important;
     width: ${printableWidth} !important;
     max-width: ${printableWidth} !important;
     margin: 0 auto !important;
     padding: 0 !important;
-    background: #ffffff !important;
+    background-color: #ffffff !important;
     color: #000000 !important;
     font-family: Arial, Helvetica, sans-serif !important;
     -webkit-font-smoothing: antialiased;
@@ -150,7 +160,7 @@ async function printThermalTicket(options = {}) {
     line-height: 1.25 !important;
     font-weight: 400 !important;
     color: #000000 !important;
-    background: #ffffff !important;
+    background: transparent !important;
     font-family: Arial, Helvetica, sans-serif !important;
   }
   .ticket-center { text-align: center !important; }
@@ -170,7 +180,7 @@ async function printThermalTicket(options = {}) {
     font-size: ${is58 ? '10px' : '11.5px'} !important;
     line-height: 1.15 !important;
     color: #000000 !important;
-    background: #ffffff !important;
+    background: transparent !important;
     padding: 0 1mm !important;
   }
 </style>
@@ -199,7 +209,7 @@ ${options.html}
             printWin.webContents.print({
               silent: options.silent !== false,
               deviceName: targetDevice,
-              printBackground: true,
+              printBackground: false,
               pageSize: { width: widthMicrons, height: heightMicrons },
               margins: { marginType: 'none' }
             }, (success, failureReason) => {
