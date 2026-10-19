@@ -68,6 +68,143 @@ ipcMain.handle('get-printers', async () => {
 });
 
 ipcMain.handle('print-window', async (event, options = {}) => {
+  // Option A: Isolated Ticket Printing (Prevents 1400px desktop layout from shrinking 58mm roll)
+  if (options && options.html) {
+    return new Promise(async (resolve) => {
+      let printWin = null;
+      try {
+        const is58 = options.paperSize === '58mm' || !options.paperSize || options.paperSize === '48mm';
+        const widthMm = is58 ? 58 : 80;
+        const printableWidth = is58 ? '48mm' : '72mm';
+
+        printWin = new BrowserWindow({
+          show: false,
+          parent: mainWindowRef || undefined,
+          modal: false,
+          width: is58 ? 240 : 360,
+          height: 800,
+          webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true
+          }
+        });
+
+        // Validate printer device if specified
+        let targetDevice = options.deviceName || '';
+        try {
+          const systemPrinters = await printWin.webContents.getPrintersAsync();
+          if (targetDevice && !systemPrinters.some(p => p.name.toLowerCase() === targetDevice.toLowerCase())) {
+            console.warn(`[Printer] Dispositivo '${targetDevice}' no coincide con lista de Windows. Usando default.`);
+            targetDevice = '';
+          }
+        } catch (pe) {
+          console.warn('[Printer] No se pudo obtener lista de impresoras:', pe);
+        }
+
+        const fullHtml = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Ticket</title>
+<style>
+  @page {
+    size: ${widthMm}mm auto;
+    margin: 0mm !important;
+  }
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  html, body {
+    width: ${printableWidth} !important;
+    max-width: ${printableWidth} !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif !important;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  .ticket-paper {
+    width: 100% !important;
+    max-width: ${printableWidth} !important;
+    margin: 0 auto !important;
+    padding: 0 1mm !important;
+    box-sizing: border-box !important;
+    font-size: ${is58 ? '10px' : '11px'} !important;
+    line-height: 1.2 !important;
+    font-weight: 500 !important;
+    color: #000000 !important;
+    background: #ffffff !important;
+  }
+  .ticket-center { text-align: center !important; }
+  .ticket-right { text-align: right !important; }
+  .ticket-bold { font-weight: 700 !important; }
+  .ticket-divider { border-top: 1px dashed #000000 !important; margin: 3px 0 !important; }
+  .ticket-double-divider { border-top: 2px dashed #000000 !important; margin: 4px 0 !important; }
+  .k-center { text-align: center !important; }
+  .k-bold { font-weight: 700 !important; }
+  .k-divider { border-top: 1px dashed #000000 !important; margin: 3px 0 !important; }
+  .k-double-divider { border-top: 1px dashed #000000 !important; margin: 4px 0 !important; }
+  .kitchen-paper {
+    width: 100% !important;
+    max-width: ${printableWidth} !important;
+    box-sizing: border-box !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+    font-size: ${is58 ? '10px' : '11.5px'} !important;
+    line-height: 1.15 !important;
+    color: #000000 !important;
+    background: #ffffff !important;
+    padding: 0 1mm !important;
+  }
+</style>
+</head>
+<body>
+${options.html}
+</body>
+</html>`;
+
+        printWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(fullHtml)}`);
+
+        printWin.webContents.on('did-finish-load', () => {
+          setTimeout(() => {
+            if (!printWin || printWin.isDestroyed()) {
+              return resolve({ success: false, failureReason: 'Ventana de impresión cerrada' });
+            }
+            printWin.webContents.print({
+              silent: options.silent || false,
+              deviceName: targetDevice,
+              printBackground: true,
+              margins: { marginType: 'none' }
+            }, (success, failureReason) => {
+              try {
+                if (printWin && !printWin.isDestroyed()) printWin.close();
+              } catch (e) {}
+              resolve({ success, failureReason });
+            });
+          }, 200);
+        });
+
+        printWin.webContents.on('did-fail-load', (e, code, desc) => {
+          try {
+            if (printWin && !printWin.isDestroyed()) printWin.close();
+          } catch (err) {}
+          resolve({ success: false, failureReason: desc });
+        });
+      } catch (err) {
+        try {
+          if (printWin && !printWin.isDestroyed()) printWin.close();
+        } catch (e) {}
+        resolve({ success: false, failureReason: err.message });
+      }
+    });
+  }
+
+  // Option B: Legacy Window Print Fallback
   if (!mainWindowRef || !mainWindowRef.webContents) {
     return { success: false, error: 'Ventana no disponible' };
   }

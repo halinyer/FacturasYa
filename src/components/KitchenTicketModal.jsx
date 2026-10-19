@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Printer, Utensils } from 'lucide-react';
+import { printIsolatedTicket } from '../utils/printIsolatedTicket';
 
 export const KitchenTicketModal = ({ 
   round, 
@@ -9,6 +10,7 @@ export const KitchenTicketModal = ({
   onClose,
   autoPrint = false 
 }) => {
+  const ticketRef = useRef(null);
   const [paperSize, setPaperSize] = useState(() => {
     return localStorage.getItem('pos_comanda_paper_size') || '58mm';
   });
@@ -47,21 +49,15 @@ export const KitchenTicketModal = ({
 
   const handlePrint = async () => {
     try {
-      if (window.electronAPI && typeof window.electronAPI.printWindow === 'function') {
-        const res = await window.electronAPI.printWindow({ 
-          silent: false,
-          deviceName: selectedPrinter || 'POS-58',
-          margins: { marginType: 'none' }
-        });
-        if (!res.success && res.failureReason) {
-          console.warn('Electron print notice, falling back to window.print:', res.failureReason);
-          window.print();
-        }
-      } else {
-        window.print();
-      }
+      const html = ticketRef.current ? ticketRef.current.outerHTML : '';
+      await printIsolatedTicket({
+        html,
+        paperSize,
+        deviceName: selectedPrinter || '',
+        silent: !!autoPrint
+      });
     } catch (err) {
-      console.warn('Fallback to browser print:', err);
+      console.warn('Fallback to standard print:', err);
       try {
         window.print();
       } catch (e) {
@@ -304,7 +300,7 @@ export const KitchenTicketModal = ({
           </div>
 
           <div className="kitchen-content">
-            <div className="kitchen-paper">
+            <div className="kitchen-paper" ref={ticketRef}>
               {/* Minimalist Header */}
               <div className="k-center k-bold" style={{ fontSize: is58 ? '11px' : '12px', letterSpacing: '0.5px' }}>
                 *** COMANDA COCINA ***

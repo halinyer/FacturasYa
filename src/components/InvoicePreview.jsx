@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Printer, Receipt, FileText } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { CLIENT_CONFIG } from '../config/clientConfig';
 import { BankLogo, findBank } from '../utils/venezuelaBanks';
+import { printIsolatedTicket } from '../utils/printIsolatedTicket';
 
 // Formateador de moneda venezolana (13.200,00)
 export const formatVE = (num, decimals = 2) => {
@@ -61,6 +62,7 @@ export const getPaymentLabel = (method) => {
 
 const InvoicePreview = ({ invoice, onClose }) => {
   const { clients = [] } = useData() || {};
+  const ticketRef = useRef(null);
   
   // Modos disponibles: 'seniat' (Factura Fiscal) | 'nota_entrega' (Nota de Entrega / Cuenta)
   const [formatType, setFormatType] = useState('nota_entrega');
@@ -105,21 +107,15 @@ const InvoicePreview = ({ invoice, onClose }) => {
 
   const handlePrint = async () => {
     try {
-      if (window.electronAPI && typeof window.electronAPI.printWindow === 'function') {
-        const res = await window.electronAPI.printWindow({ 
-          silent: false,
-          deviceName: selectedPrinter || 'POS-58',
-          margins: { marginType: 'none' }
-        });
-        if (!res.success && res.failureReason) {
-          console.warn('Electron print notice, falling back:', res.failureReason);
-          window.print();
-        }
-      } else {
-        window.print();
-      }
+      const html = ticketRef.current ? ticketRef.current.outerHTML : '';
+      await printIsolatedTicket({
+        html,
+        paperSize,
+        deviceName: selectedPrinter || '',
+        silent: false
+      });
     } catch (err) {
-      console.warn('Fallback to browser print:', err);
+      console.warn('Fallback to standard print:', err);
       try {
         window.print();
       } catch (e) {
@@ -438,7 +434,7 @@ const InvoicePreview = ({ invoice, onClose }) => {
 
           {/* Ticket Térmico Imprimible */}
           <div className="invoice-content">
-            <div className="ticket-paper">
+            <div className="ticket-paper" ref={ticketRef}>
               
               {/* OPCIÓN 1: FORMATO FISCAL OFICIAL SENIAT (COPIA FIEL DE FACTURA REAL HAPPY DAYS) */}
               {formatType === 'seniat' && (
