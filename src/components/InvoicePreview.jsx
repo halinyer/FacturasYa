@@ -65,13 +65,66 @@ const InvoicePreview = ({ invoice, onClose }) => {
   // Modos disponibles: 'seniat' (Factura Fiscal) | 'nota_entrega' (Nota de Entrega / Cuenta)
   const [formatType, setFormatType] = useState(invoice?.isPreBill ? 'nota_entrega' : 'seniat');
   
-  // Tamaño de papel: '58mm' o '80mm' (por defecto 58mm para notas de entrega, 80mm para fiscal)
-  const [paperSize, setPaperSize] = useState(invoice?.isPreBill ? '58mm' : '80mm');
+  // Tamaño de papel: '58mm' o '80mm' (por defecto 58mm para la impresora térmica USB)
+  const [paperSize, setPaperSize] = useState(() => {
+    return localStorage.getItem('pos_invoice_paper_size') || '58mm';
+  });
+
+  const [printers, setPrinters] = useState([]);
+  const [selectedPrinter, setSelectedPrinter] = useState(() => {
+    return localStorage.getItem('pos_comanda_printer') || 'POS-58';
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('pos_invoice_paper_size', paperSize);
+    } catch (e) {}
+  }, [paperSize]);
+
+  useEffect(() => {
+    if (window.electronAPI && typeof window.electronAPI.getPrinters === 'function') {
+      window.electronAPI.getPrinters().then(list => {
+        if (Array.isArray(list) && list.length > 0) {
+          setPrinters(list);
+          const saved = localStorage.getItem('pos_comanda_printer');
+          const exists = list.some(p => p.name === saved);
+          if (saved && exists) {
+            setSelectedPrinter(saved);
+          } else {
+            const pos = list.find(p => /pos-?58|pos58|ticket|thermal/i.test(p.name)) || list.find(p => p.isDefault) || list[0];
+            if (pos) {
+              setSelectedPrinter(pos.name);
+            }
+          }
+        }
+      }).catch(e => console.warn('Printers load notice:', e));
+    }
+  }, []);
 
   if (!invoice) return null;
 
-  const handlePrint = () => {
-    window.print();
+  const handlePrint = async () => {
+    try {
+      if (window.electronAPI && typeof window.electronAPI.printWindow === 'function') {
+        const res = await window.electronAPI.printWindow({ 
+          silent: false,
+          deviceName: selectedPrinter || 'POS-58'
+        });
+        if (!res.success && res.failureReason) {
+          console.warn('Electron print notice, falling back:', res.failureReason);
+          window.print();
+        }
+      } else {
+        window.print();
+      }
+    } catch (err) {
+      console.warn('Fallback to browser print:', err);
+      try {
+        window.print();
+      } catch (e) {
+        alert('Error al abrir la impresora: ' + (e.message || e));
+      }
+    }
   };
 
   const handleSelectFormat = (type) => {
@@ -79,7 +132,7 @@ const InvoicePreview = ({ invoice, onClose }) => {
     if (type === 'nota_entrega') {
       setPaperSize('58mm');
     } else {
-      setPaperSize('80mm');
+      setPaperSize('58mm'); // Mantener 58mm si la impresora conectada es de 58mm
     }
   };
 
@@ -189,11 +242,11 @@ const InvoicePreview = ({ invoice, onClose }) => {
           
           @media print {
             @page {
-              size: ${paperSize} auto;
+              size: ${paperSize === '58mm' ? '58mm auto' : '80mm auto'};
               margin: 0mm;
             }
             html, body {
-              width: ${paperSize} !important;
+              width: 100% !important;
               margin: 0 !important;
               padding: 0 !important;
               background: #fff !important;
@@ -207,13 +260,13 @@ const InvoicePreview = ({ invoice, onClose }) => {
               position: absolute !important;
               top: 0 !important;
               left: 0 !important;
-              width: ${paperSize} !important;
+              width: 100% !important;
             }
             .invoice-modal {
               box-shadow: none !important;
               border: none !important;
-              width: ${paperSize} !important;
-              max-width: ${paperSize} !important;
+              width: 100% !important;
+              max-width: 100% !important;
               border-radius: 0 !important;
               background: transparent !important;
               page-break-inside: avoid !important;
@@ -229,10 +282,10 @@ const InvoicePreview = ({ invoice, onClose }) => {
               position: absolute !important;
               left: 0 !important;
               top: 0 !important;
-              width: ${paperSize} !important;
-              max-width: ${paperSize} !important;
-              padding: ${paperSize === '58mm' ? '2mm 1mm' : '4mm 3mm'} !important;
-              margin: 0 !important;
+              width: ${paperSize === '58mm' ? '48mm' : '72mm'} !important;
+              max-width: ${paperSize === '58mm' ? '48mm' : '72mm'} !important;
+              padding: ${paperSize === '58mm' ? '1mm 1mm 32mm 1mm' : '3mm 3mm 32mm 3mm'} !important;
+              margin: 0 auto !important;
               page-break-inside: avoid !important;
               break-inside: avoid !important;
             }
@@ -297,8 +350,36 @@ const InvoicePreview = ({ invoice, onClose }) => {
                 </button>
               </div>
 
-              {/* Selector de Ancho 58mm / 80mm y Botón Imprimir */}
+              {/* Selector de Impresora, Ancho y Botón Imprimir */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {printers.length > 0 && (
+                  <select
+                    value={selectedPrinter}
+                    onChange={(e) => {
+                      setSelectedPrinter(e.target.value);
+                      localStorage.setItem('pos_comanda_printer', e.target.value);
+                    }}
+                    title="Impresora de Tickets"
+                    style={{
+                      background: 'rgba(255,255,255,0.12)',
+                      color: '#f8fafc',
+                      border: '1px solid rgba(255,255,255,0.25)',
+                      borderRadius: '6px',
+                      fontSize: '0.72rem',
+                      fontWeight: '700',
+                      padding: '4px 6px',
+                      outline: 'none',
+                      cursor: 'pointer',
+                      maxWidth: '120px'
+                    }}
+                  >
+                    {printers.map(p => (
+                      <option key={p.name} value={p.name} style={{ background: '#1e293b', color: '#fff' }}>
+                        🖨️ {p.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <div style={{ display: 'flex', background: 'rgba(255,255,255,0.08)', borderRadius: '6px', padding: '2px' }}>
                   <button
                     type="button"
@@ -481,6 +562,8 @@ const InvoicePreview = ({ invoice, onClose }) => {
                     <div className="ticket-bold">{CLIENT_CONFIG.receipt?.footerGreeting || '¡Gracias por su compra!'}</div>
                     <div style={{ fontSize: '8.5px', marginTop: '1px' }}>{CLIENT_CONFIG.receipt?.contactNotice || 'Instagram: @happydays_ve'}</div>
                   </div>
+                  {/* Margen térmico para corte limpio */}
+                  <div style={{ height: '35mm', minHeight: '35mm' }}>&nbsp;</div>
                 </div>
               )}
 
@@ -520,8 +603,8 @@ const InvoicePreview = ({ invoice, onClose }) => {
                     <div className="ticket-bold" style={{ fontSize: paperSize === '58mm' ? '10px' : '12px', marginTop: '1px' }}>
                       NOTA DE ENTREGA Nº: {docNumber}
                     </div>
-                    <div style={{ fontSize: paperSize === '58mm' ? '9px' : '11px', marginTop: '1px' }}>
-                      FECHA: {dateStr}&nbsp;&nbsp;&nbsp;HORA: {timeStr}
+                    <div style={{ fontSize: paperSize === '58mm' ? '10.5px' : '12px', marginTop: '2px', fontWeight: 'bold' }}>
+                      FECHA: {dateStr} &bull; HORA: {timeStr}
                     </div>
                   </div>
 
@@ -570,11 +653,11 @@ const InvoicePreview = ({ invoice, onClose }) => {
 
                       return (
                         <div key={idx} style={{ marginBottom: '5px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: paperSize === '58mm' ? '9.5px' : '11.5px' }}>
-                            <span className="ticket-bold" style={{ textTransform: 'uppercase' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '4px', fontSize: paperSize === '58mm' ? '10px' : '11.5px' }}>
+                            <span className="ticket-bold" style={{ textTransform: 'uppercase', flex: 1, minWidth: 0, wordBreak: 'break-word' }}>
                               [{qty}] {item.productName || item.name || 'PRODUCTO'}
                             </span>
-                            <span className="ticket-bold">
+                            <span className="ticket-bold" style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
                               {formatVE(subtotalBs)}
                             </span>
                           </div>
@@ -637,6 +720,9 @@ const InvoicePreview = ({ invoice, onClose }) => {
                     <div className="ticket-bold">{CLIENT_CONFIG.receipt?.footerGreeting || '¡Gracias por su visita!'}</div>
                     <div style={{ fontSize: '8.5px', marginTop: '1px' }}>{CLIENT_CONFIG.receipt?.contactNotice || 'Instagram: @happydays_ve'}</div>
                   </div>
+
+                  {/* Margen térmico para corte limpio (evita que la cuchilla pise el texto) */}
+                  <div style={{ height: '35mm', minHeight: '35mm' }}>&nbsp;</div>
                 </div>
               )}
 
