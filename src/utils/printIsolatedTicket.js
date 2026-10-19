@@ -33,7 +33,7 @@ export const getTicketFullHtml = (htmlContent, paperSize = '58mm') => {
     padding: 0 !important;
     background: #ffffff !important;
     color: #000000 !important;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif !important;
+    font-family: Arial, Helvetica, sans-serif !important;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
@@ -43,17 +43,18 @@ export const getTicketFullHtml = (htmlContent, paperSize = '58mm') => {
     margin: 0 auto !important;
     padding: 0 1mm !important;
     box-sizing: border-box !important;
-    font-size: ${is58 ? '10px' : '11px'} !important;
-    line-height: 1.2 !important;
-    font-weight: 500 !important;
+    font-size: ${is58 ? '9.5px' : '10.5px'} !important;
+    line-height: 1.25 !important;
+    font-weight: 400 !important;
     color: #000000 !important;
     background: #ffffff !important;
+    font-family: Arial, Helvetica, sans-serif !important;
   }
   .ticket-center { text-align: center !important; }
   .ticket-right { text-align: right !important; }
-  .ticket-bold { font-weight: 700 !important; }
+  .ticket-bold { font-weight: 600 !important; }
   .ticket-divider { border-top: 1px dashed #000000 !important; margin: 3px 0 !important; }
-  .ticket-double-divider { border-top: 2px dashed #000000 !important; margin: 4px 0 !important; }
+  .ticket-double-divider { border-top: 1px dashed #000000 !important; margin: 4px 0 !important; }
   .k-center { text-align: center !important; }
   .k-bold { font-weight: 700 !important; }
   .k-divider { border-top: 1px dashed #000000 !important; margin: 3px 0 !important; }

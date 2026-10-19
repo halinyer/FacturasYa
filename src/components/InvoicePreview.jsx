@@ -217,10 +217,10 @@ const InvoicePreview = ({ invoice, onClose }) => {
             overflow-y: auto; background: #ffffff; color: #000000;
           }
           .ticket-paper {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-            font-size: ${is58 ? '10px' : '11px'};
-            line-height: 1.2;
-            font-weight: 500;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: ${is58 ? '9.5px' : '10.5px'};
+            line-height: 1.25;
+            font-weight: 400;
             color: #000000;
             background: #ffffff;
             margin: 0 auto;
@@ -232,13 +232,13 @@ const InvoicePreview = ({ invoice, onClose }) => {
           }
           .ticket-center { text-align: center; }
           .ticket-right { text-align: right; }
-          .ticket-bold { font-weight: 700; }
+          .ticket-bold { font-weight: 600; }
           .ticket-divider {
             border-top: 1px dashed #000000;
             margin: 3px 0;
           }
           .ticket-double-divider {
-            border-top: 2px dashed #000000;
+            border-top: 1px dashed #000000;
             margin: 4px 0;
           }
           
@@ -588,19 +588,19 @@ const InvoicePreview = ({ invoice, onClose }) => {
                 <div>
                   {/* Encabezado Compacto */}
                   <div className="ticket-center">
-                    <div className="ticket-bold" style={{ fontSize: is58 ? '13px' : '15px', letterSpacing: '0.5px' }}>
+                    <div className="ticket-bold" style={{ fontSize: is58 ? '12px' : '14px', letterSpacing: '0.5px' }}>
                       HAPPY DAYS
                     </div>
-                    <div style={{ fontSize: is58 ? '9px' : '10px', marginTop: '1px' }}>
+                    <div style={{ fontSize: is58 ? '8.5px' : '9.5px', marginTop: '1px' }}>
                       RIF: {rif} &nbsp;|&nbsp; Tel: {phone}
                     </div>
-                    <div style={{ fontSize: is58 ? '8.5px' : '9.5px' }}>
+                    <div style={{ fontSize: is58 ? '8px' : '9px' }}>
                       C.C. Unicentro El Marqués • Caracas
                     </div>
-                    <div className="ticket-bold" style={{ fontSize: is58 ? '10px' : '11.5px', marginTop: '3px', letterSpacing: '0.5px' }}>
+                    <div className="ticket-bold" style={{ fontSize: is58 ? '9.5px' : '10.5px', marginTop: '2px', letterSpacing: '0.5px' }}>
                       *** NOTA DE ENTREGA ***
                     </div>
-                    <div style={{ fontSize: is58 ? '8px' : '9px', marginTop: '1px' }}>
+                    <div style={{ fontSize: is58 ? '7.5px' : '8.5px', marginTop: '1px' }}>
                       (CONTROL INTERNO)
                     </div>
                   </div>
@@ -608,37 +608,37 @@ const InvoicePreview = ({ invoice, onClose }) => {
                   <div className="ticket-divider" />
 
                   {/* Metadatos de la Orden */}
-                  <div style={{ fontSize: is58 ? '9px' : '10px', lineHeight: '1.25' }}>
+                  <div style={{ fontSize: is58 ? '8.5px' : '9.5px', lineHeight: '1.25' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span><strong>NOTA Nº:</strong> #{docNumber}</span>
-                      <span><strong>HORA:</strong> {timeStr}</span>
+                      <span>Nota Nº: #{docNumber}</span>
+                      <span>Hora: {timeStr}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span><strong>FECHA:</strong> {dateStr}</span>
-                      <span><strong>MESA:</strong> <strong className="ticket-bold">{tableName || 'MOSTRADOR'}</strong></span>
+                      <span>Fecha: {dateStr}</span>
+                      <span>Mesa: <span className="ticket-bold">{tableName || 'MOSTRADOR'}</span></span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span><strong>MESERO:</strong> {cashierIdentifier}</span>
+                      <span>Mesero: {cashierIdentifier}</span>
                     </div>
 
                     {invoice.orderType === 'delivery' && (
                       <div style={{ margin: '2px 0', borderTop: '1px dotted #000', paddingTop: '2px' }}>
-                        <div className="ticket-bold" style={{ fontSize: '9px' }}>🛵 MODALIDAD: DELIVERY</div>
-                        {invoice.deliveryInfo?.address && <div><strong>Dir:</strong> {invoice.deliveryInfo.address}</div>}
-                        {invoice.deliveryInfo?.phone && <div><strong>Tel:</strong> {invoice.deliveryInfo.phone}</div>}
+                        <div className="ticket-bold" style={{ fontSize: '8.5px' }}>🛵 MODALIDAD: DELIVERY</div>
+                        {invoice.deliveryInfo?.address && <div>Dir: {invoice.deliveryInfo.address}</div>}
+                        {invoice.deliveryInfo?.phone && <div>Tel: {invoice.deliveryInfo.phone}</div>}
                       </div>
                     )}
 
                     {invoice.orderType === 'para_llevar' && (
-                      <div className="ticket-bold" style={{ margin: '2px 0', fontSize: '9px' }}>
+                      <div className="ticket-bold" style={{ margin: '2px 0', fontSize: '8.5px' }}>
                         🛍️ MODALIDAD: PARA LLEVAR
                       </div>
                     )}
 
-                    <div style={{ borderTop: '1px dotted #000', marginTop: '2px', paddingTop: '2px' }}>
-                      <div><strong>CLIENTE:</strong> {clientInfo.name}</div>
+                    <div style={{ borderTop: '1px dotted #ccc', marginTop: '2px', paddingTop: '2px' }}>
+                      <div>Cliente: {clientInfo.name}</div>
                       {clientInfo.cedula && clientInfo.cedula !== 'V-00000000' && (
-                        <div><strong>C.I/RIF:</strong> {clientInfo.cedula}</div>
+                        <div>C.I/RIF: {clientInfo.cedula}</div>
                       )}
                     </div>
                   </div>
@@ -646,7 +646,7 @@ const InvoicePreview = ({ invoice, onClose }) => {
                   <div className="ticket-divider" />
 
                   {/* Cabecera de Ítems */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: is58 ? '8.5px' : '10px', fontWeight: 'bold', marginBottom: '2px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: is58 ? '8px' : '9px', fontWeight: '600', marginBottom: '2px', textTransform: 'uppercase', borderBottom: '1px solid #000', paddingBottom: '1px' }}>
                     <span>CANT  DESCRIPCIÓN</span>
                     <span>TOTAL BS</span>
                   </div>
@@ -660,19 +660,19 @@ const InvoicePreview = ({ invoice, onClose }) => {
                       const noteText = item.note || item.notes;
 
                       return (
-                        <div key={idx} style={{ marginBottom: '4px', paddingBottom: '2px', borderBottom: idx < items.length - 1 ? '1px dotted #e2e8f0' : 'none' }}>
-                          {/* Fila 1: Cantidad y Nombre con wrap fluido sin empujar el precio fuera */}
+                        <div key={idx} style={{ marginBottom: '3px', paddingBottom: '2px', borderBottom: idx < items.length - 1 ? '1px dotted #e2e8f0' : 'none' }}>
+                          {/* Fila 1: Cantidad y Nombre con wrap fluido */}
                           <div style={{ display: 'flex', alignItems: 'flex-start', gap: '3px' }}>
-                            <span className="ticket-bold" style={{ fontSize: is58 ? '10px' : '11px', minWidth: '18px' }}>
+                            <span className="ticket-bold" style={{ fontSize: is58 ? '9.5px' : '10.5px', minWidth: '16px' }}>
                               {qty}x
                             </span>
                             <span style={{ 
-                              fontSize: is58 ? '9.5px' : '11px', 
-                              fontWeight: '600',
+                              fontSize: is58 ? '9px' : '10px', 
+                              fontWeight: '500',
                               flex: 1, 
                               wordBreak: 'break-word', 
                               textTransform: 'uppercase',
-                              lineHeight: '1.18'
+                              lineHeight: '1.2'
                             }}>
                               {item.productName || item.name || 'PRODUCTO'}
                             </span>
@@ -683,16 +683,16 @@ const InvoicePreview = ({ invoice, onClose }) => {
                             display: 'flex', 
                             justifyContent: 'space-between', 
                             alignItems: 'baseline', 
-                            fontSize: is58 ? '8.5px' : '9.5px', 
+                            fontSize: is58 ? '8px' : '9px', 
                             marginTop: '1px',
-                            paddingLeft: '18px'
+                            paddingLeft: '16px'
                           }}>
-                            <span>
+                            <span style={{ color: '#444' }}>
                               ${unitPriceUSD.toFixed(2)} c/u
                             </span>
-                            <span className="ticket-bold" style={{ fontSize: is58 ? '9.5px' : '10.5px', whiteSpace: 'nowrap' }}>
+                            <span className="ticket-bold" style={{ fontSize: is58 ? '9px' : '10px', whiteSpace: 'nowrap' }}>
                               Bs. {formatVE(subtotalBs)}
-                              <span style={{ fontSize: '8px', fontWeight: 'normal', marginLeft: '3px' }}>
+                              <span style={{ fontSize: '7.5px', fontWeight: 'normal', color: '#555', marginLeft: '3px' }}>
                                 (${(qty * unitPriceUSD).toFixed(2)})
                               </span>
                             </span>
@@ -701,11 +701,11 @@ const InvoicePreview = ({ invoice, onClose }) => {
                           {/* Nota de producto si existe */}
                           {noteText && (
                             <div style={{ 
-                              fontSize: is58 ? '8px' : '9px', 
+                              fontSize: is58 ? '7.5px' : '8.5px', 
                               fontStyle: 'italic', 
                               marginTop: '1px', 
-                              paddingLeft: '18px',
-                              color: '#000' 
+                              paddingLeft: '16px',
+                              color: '#333' 
                             }}>
                               * {noteText}
                             </div>
@@ -716,12 +716,12 @@ const InvoicePreview = ({ invoice, onClose }) => {
                   </div>
 
                   {invoice.deliveryFee > 0 && (
-                    <div style={{ marginBottom: '4px', fontSize: is58 ? '9px' : '10px' }}>
+                    <div style={{ marginBottom: '3px', fontSize: is58 ? '8.5px' : '9.5px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span>[1] FLETE / DELIVERY</span>
                         <span className="ticket-bold">Bs. {formatVE(Number(invoice.deliveryFee) * exchangeRate)}</span>
                       </div>
-                      <div style={{ fontSize: '8px', paddingLeft: '18px' }}>
+                      <div style={{ fontSize: '7.5px', paddingLeft: '16px', color: '#555' }}>
                         Ref. ${Number(invoice.deliveryFee).toFixed(2)}
                       </div>
                     </div>
@@ -730,49 +730,20 @@ const InvoicePreview = ({ invoice, onClose }) => {
                   <div className="ticket-double-divider" />
 
                   {/* Totales */}
-                  <div style={{ fontSize: is58 ? '9px' : '10px', lineHeight: '1.25' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: is58 ? '11.5px' : '13px', margin: '2px 0' }} className="ticket-bold">
+                  <div style={{ fontSize: is58 ? '8.5px' : '9.5px', lineHeight: '1.3' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: is58 ? '10.5px' : '12px', margin: '2px 0' }} className="ticket-bold">
                       <span>TOTAL BS:</span>
                       <span style={{ whiteSpace: 'nowrap' }}>Bs. {formatVE(totalBs)}</span>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: is58 ? '10.5px' : '12px', margin: '2px 0' }} className="ticket-bold">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: is58 ? '10px' : '11px', margin: '2px 0' }} className="ticket-bold">
                       <span>TOTAL USD (REF):</span>
                       <span style={{ whiteSpace: 'nowrap' }}>$ {totalUSD.toFixed(2)}</span>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: is58 ? '8px' : '9px', color: '#000', marginTop: '1px' }}>
-                      <span>Tasa Oficial BCV:</span>
-                      <span>Bs. {formatVE(exchangeRate, 2)} / USD</span>
-                    </div>
                   </div>
 
-                  <div className="ticket-divider" />
-
-                  {/* Estado y Método de Pago */}
-                  <div style={{ fontSize: is58 ? '9px' : '10px', lineHeight: '1.25' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span><strong>ESTADO:</strong></span>
-                      <span className="ticket-bold">
-                        {isPaid ? 'PAGADO / CANCELADO' : 'PENDIENTE POR COBRAR'}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span><strong>FORMA DE PAGO:</strong></span>
-                      <span className="ticket-bold">{getPaymentLabel(paymentMethod)}</span>
-                    </div>
-                  </div>
-
-                  <div className="ticket-divider" style={{ margin: '6px 0 3px 0' }} />
-                  <div className="ticket-center" style={{ fontSize: is58 ? '8.5px' : '9.5px' }}>
-                    <div className="ticket-bold">{CLIENT_CONFIG.receipt?.footerGreeting || '¡Gracias por su visita!'}</div>
-                    <div style={{ fontSize: is58 ? '8px' : '8.5px', marginTop: '1px' }}>{CLIENT_CONFIG.receipt?.contactNotice || 'Instagram: @happydays_ve'}</div>
-                  </div>
-
-                  {/* Guía de corte y avance para pasar la cuchilla (12mm) */}
-                  <div style={{ textAlign: 'center', fontSize: '8px', letterSpacing: '2px', color: '#000', margin: '2px 0' }}>
-                    - - - - - - - - - - - - - -
-                  </div>
-                  <div style={{ height: '12mm', minHeight: '12mm', display: 'block', lineHeight: '12px' }}>
-                    &nbsp;<br/>&nbsp;
+                  {/* Avance mínimo para pasar la cuchilla de corte */}
+                  <div style={{ height: '10mm', minHeight: '10mm', display: 'block' }}>
+                    &nbsp;
                   </div>
                 </div>
               )}
