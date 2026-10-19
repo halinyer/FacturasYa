@@ -53,6 +53,7 @@ ipcMain.handle('restart-server', async () => {
     delete require.cache[serverPath];
   } catch (e) {}
   const freshServer = require('./localServer.cjs');
+  freshServer.setPrintHandler(printThermalTicket);
   return await freshServer.startServer(3001, app.getPath('userData'));
 });
 
@@ -67,25 +68,23 @@ ipcMain.handle('get-printers', async () => {
   }
 });
 
-ipcMain.handle('print-window', async (event, options = {}) => {
+async function printThermalTicket(options = {}) {
   // Option A: Isolated Ticket Printing (Prevents 1400px desktop layout from shrinking 58mm roll)
   if (options && options.html) {
     return new Promise(async (resolve) => {
       let printWin = null;
       try {
         const is58 = options.paperSize === '58mm' || !options.paperSize || options.paperSize === '48mm';
-        const widthMm = is58 ? 58 : 80;
         const printableWidth = is58 ? '48mm' : '72mm';
 
         printWin = new BrowserWindow({
           show: false,
-          parent: mainWindowRef || undefined,
-          modal: false,
           width: is58 ? 240 : 360,
           height: 800,
           webPreferences: {
             nodeIntegration: false,
-            contextIsolation: true
+            contextIsolation: true,
+            backgroundThrottling: false
           }
         });
 
@@ -181,8 +180,6 @@ ${options.html}
 </body>
 </html>`;
 
-        printWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(fullHtml)}`);
-
         printWin.webContents.on('did-finish-load', () => {
           setTimeout(async () => {
             if (!printWin || printWin.isDestroyed()) {
@@ -200,18 +197,19 @@ ${options.html}
             const widthMicrons = is58 ? 58000 : 80000;
 
             printWin.webContents.print({
-              silent: !!options.silent,
+              silent: options.silent !== false,
               deviceName: targetDevice,
               printBackground: true,
               pageSize: { width: widthMicrons, height: heightMicrons },
               margins: { marginType: 'none' }
             }, (success, failureReason) => {
+              console.log('[Printer] Resultado de impresion directa:', { success, failureReason, device: targetDevice });
               try {
                 if (printWin && !printWin.isDestroyed()) printWin.close();
               } catch (e) {}
               resolve({ success, failureReason });
             });
-          }, 250);
+          }, 200);
         });
 
         printWin.webContents.on('did-fail-load', (e, code, desc) => {
@@ -220,6 +218,8 @@ ${options.html}
           } catch (err) {}
           resolve({ success: false, failureReason: desc });
         });
+
+        printWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(fullHtml)}`);
       } catch (err) {
         try {
           if (printWin && !printWin.isDestroyed()) printWin.close();
@@ -229,14 +229,14 @@ ${options.html}
     });
   }
 
-  // Option B: Legacy Window Print Fallback
+  // Fallback if no HTML provided
   if (!mainWindowRef || !mainWindowRef.webContents) {
     return { success: false, error: 'Ventana no disponible' };
   }
   return new Promise((resolve) => {
     try {
       mainWindowRef.webContents.print({
-        silent: options.silent || false,
+        silent: options.silent !== false,
         printBackground: true,
         deviceName: options.deviceName || '',
         margins: options.margins || { marginType: 'none' }
@@ -247,6 +247,10 @@ ${options.html}
       resolve({ success: false, failureReason: err.message });
     }
   });
+}
+
+ipcMain.handle('print-window', async (event, options = {}) => {
+  return await printThermalTicket(options);
 });
 
 // Helper paths for file-based database
@@ -369,6 +373,7 @@ app.on('second-instance', () => {
 
 app.whenReady().then(async () => {
   try {
+    localServer.setPrintHandler(printThermalTicket);
     await localServer.startServer(3001, app.getPath('userData'));
   } catch (err) {
     console.error('Error starting local restaurant server on port 3001:', err);

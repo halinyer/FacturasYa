@@ -131,6 +131,7 @@ export const printIsolatedTicket = async ({
 
   const fullHtml = getTicketFullHtml(html, paperSize);
 
+  // 1. Vía Electron IPC nativo (Desktop App)
   if (window.electronAPI && typeof window.electronAPI.printWindow === 'function') {
     try {
       const res = await window.electronAPI.printWindow({
@@ -148,9 +149,30 @@ export const printIsolatedTicket = async ({
     }
   }
 
-  // Only open browser print dialog if silent was explicitly false
+  // 2. Vía Red Local (Navegador Chrome en PC o Tablet de Mesero)
+  try {
+    const isViteDev = window.location.port === '5173';
+    const baseUrl = isViteDev ? 'http://localhost:3001' : '';
+    const res = await fetch(`${baseUrl}/api/print-ticket`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        html,
+        paperSize,
+        deviceName: deviceName || 'POS58 Printer'
+      })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data || { success: true };
+    }
+  } catch (netErr) {
+    console.warn('Servidor local de impresión no respondió:', netErr);
+  }
+
+  // 3. Fallback con ventana sólo si silent fue explícitamente false
   if (!silent) {
     return printViaIframe(fullHtml);
   }
-  return { success: false, error: 'Impresión silenciosa solo disponible en app de escritorio' };
+  return { success: false, error: 'Impresora térmica no detectada' };
 };

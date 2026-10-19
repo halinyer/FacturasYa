@@ -14,6 +14,11 @@ let currentIp = '127.0.0.1';
 let qrDataUrl = '';
 let connectedSockets = new Set();
 let userDataDir = '';
+let customPrintHandler = null;
+
+function setPrintHandler(handler) {
+  customPrintHandler = handler;
+}
 
 // In-memory restaurant data cache
 let restaurantData = null;
@@ -421,6 +426,29 @@ function createLocalServer() {
   app.post('/api/bcv/refresh', async (req, res) => {
     const result = await fetchLiveBcvRate();
     res.json(result);
+  });
+
+  // Silent printing bridge for web browser & waiter tablets
+  app.post('/api/print-ticket', async (req, res) => {
+    try {
+      const { html, paperSize, deviceName } = req.body;
+      if (!html) {
+        return res.status(400).json({ success: false, error: 'HTML requerido para imprimir' });
+      }
+      if (typeof customPrintHandler === 'function') {
+        const result = await customPrintHandler({
+          html,
+          paperSize: paperSize || '58mm',
+          deviceName: deviceName || '',
+          silent: true
+        });
+        return res.json(result || { success: true });
+      }
+      return res.status(501).json({ success: false, error: 'Manejador de impresión física no configurado en servidor' });
+    } catch (e) {
+      console.error('[LocalServer] Error en /api/print-ticket:', e);
+      return res.status(500).json({ success: false, error: e.message });
+    }
   });
 
   // Sync exchange rate from desktop app
@@ -898,5 +926,6 @@ module.exports = {
   getServerInfoAsync,
   refreshServerIp,
   getAllLocalIps,
-  broadcastEvent
+  broadcastEvent,
+  setPrintHandler
 };
