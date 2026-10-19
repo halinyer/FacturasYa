@@ -516,10 +516,12 @@ function renderWaiterView(initialState) {
     .back-btn { background: #ffffff; border: 1.5px solid #e2e8f0; padding: 7px 12px; border-radius: 10px; font-weight: 800; font-size: 0.82rem; color: #1e293b; cursor: pointer; display: flex; align-items: center; gap: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); }
     .bill-btn { background: var(--brand-dark); color: #ffffff; border: none; padding: 7px 12px; border-radius: 10px; font-weight: 800; font-size: 0.82rem; cursor: pointer; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
     
-    .search-box { position: relative; margin-bottom: 8px; }
-    .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none; }
-    .search-input { width: 100%; height: 42px; padding: 0 16px 0 40px; border-radius: 12px; border: 1.5px solid #e2e8f0; font-size: 0.9rem; background: #ffffff; outline: none; font-weight: 600; color: #0f172a; box-shadow: 0 1px 2px rgba(0,0,0,0.02); transition: border-color 0.15s; }
-    .search-input:focus { border-color: var(--brand-primary); }
+    .search-box { position: relative; margin-bottom: 8px; display: flex; align-items: center; }
+    .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none; z-index: 2; }
+    .search-input { width: 100%; height: 44px; padding: 0 40px 0 42px; border-radius: 12px; border: 1.5px solid #cbd5e1; font-size: 0.92rem; background: #ffffff; outline: none; font-weight: 600; color: #0f172a; box-shadow: 0 1px 3px rgba(0,0,0,0.04); transition: all 0.15s; }
+    .search-input:focus { border-color: var(--brand-primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.15); }
+    .search-clear-btn { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: #e2e8f0; border: none; border-radius: 50%; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; color: #475569; cursor: pointer; transition: all 0.15s; z-index: 2; }
+    .search-clear-btn:active { background: #cbd5e1; transform: translateY(-50%) scale(0.92); }
 
     /* Products Grid */
     .prods-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 12px; }
@@ -2157,6 +2159,40 @@ function renderWaiterView(initialState) {
       renderOrderScreen();
     }
 
+    function normalizeSearchText(str) {
+      return (str || '')
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .trim();
+    }
+
+    function productMatchesQuery(p, rawQuery) {
+      if (!rawQuery) return true;
+      const qNorm = normalizeSearchText(rawQuery);
+      if (!qNorm) return true;
+      const tokens = qNorm.split(/\s+/).filter(Boolean);
+      const target = normalizeSearchText((p.name || '') + ' ' + (p.sku || '') + ' ' + (p.category || ''));
+      return tokens.every(function(token) {
+        return target.indexOf(token) !== -1;
+      });
+    }
+
+    function getFilteredProducts() {
+      const q = prodSearchQuery.trim();
+      const allProds = state.menu && state.menu.products ? state.menu.products : [];
+      if (q) {
+        // Universal search: when text is typed, search across the ENTIRE menu
+        return allProds.filter(function(p) {
+          return productMatchesQuery(p, q);
+        });
+      }
+      return allProds.filter(function(p) {
+        return selectedCategory === 'Todos' || p.category === selectedCategory;
+      });
+    }
+
     // SCREEN 3: MENU & ORDERING
     function renderOrderScreen() {
       currentScreen = 'order';
@@ -2166,12 +2202,8 @@ function renderWaiterView(initialState) {
       updateContextBadge(selectedTable ? selectedTable.name : '✨ Nuevo Pedido');
 
       const cats = state.menu.categories || ['Todos'];
-      const q = prodSearchQuery.toLowerCase().trim();
-      const prods = (state.menu.products || []).filter(function(p) {
-        const matchesCat = selectedCategory === 'Todos' || p.category === selectedCategory;
-        const matchesQuery = !q || (p.name || '').toLowerCase().indexOf(q) !== -1 || (p.sku || '').toLowerCase().indexOf(q) !== -1;
-        return matchesCat && matchesQuery;
-      });
+      const q = prodSearchQuery.trim();
+      const prods = getFilteredProducts();
 
       const existingOrder = selectedTable ? (state.activeOrders || []).find(function(o) { return o.tableId === selectedTable.id; }) : null;
       const rate = getLiveExchangeRate();
@@ -2193,18 +2225,20 @@ function renderWaiterView(initialState) {
             '</button>' +
             (selectedTable ? (
               '<div style="display:flex; align-items:center; gap:6px;">' +
-                '<div class="table-badge-active" onclick="openSelectTableModal()" style="cursor:pointer;" title="Toca para cambiar de mesa">' +
+                '<div class="table-badge-active" onclick="openSelectTableModal()" style="cursor:pointer;" title="Toca para cambiar de mesa o ver opciones">' +
                   '<span class="table-badge-dot"></span>' +
                   '<span>' + (selectedTable.isTakeaway ? '🛍️ ' : '') + selectedTable.name + '</span>' +
+                  (existingOrder ? ' <span style="font-size:0.75rem; opacity:0.9; font-weight:800;">($' + orderTotalUSD.toFixed(2) + ')</span>' : '') +
                   '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-left:4px;"><polyline points="6 9 12 15 18 9"/></svg>' +
                 '</div>' +
-                '<button onclick="resetToNewOrder()" title="Volver a Nuevo Pedido sin mesa" style="background:#fee2e2; color:#b91c1c; border:none; padding:6px 10px; border-radius:8px; font-weight:800; font-size:0.75rem; cursor:pointer;">✕ Limpiar</button>' +
+                '<button onclick="resetToNewOrder()" title="Volver a Nuevo Pedido sin mesa" style="background:#fee2e2; color:#b91c1c; border:none; padding:6px 10px; border-radius:8px; font-weight:800; font-size:0.75rem; cursor:pointer;">✕ Cambiar</button>' +
               '</div>'
             ) : (
-              '<div class="table-badge-active" onclick="openSelectTableModal()" style="background:#f1f5f9; color:#0f172a; border:1.5px dashed #cbd5e1; cursor:pointer;" title="Toca para asignar mesa">' +
+              '<div class="table-badge-active" onclick="openSelectTableModal()" style="background:#f1f5f9; color:#0f172a; border:1.5px dashed #cbd5e1; cursor:pointer;" title="Toca para elegir mesa">' +
                 '<span style="color:#f59e0b; font-size:0.95rem;">⚡</span>' +
                 '<span>Nuevo Pedido</span>' +
-                '<span style="font-size:0.72rem; color:#64748b; font-weight:700; margin-left:4px;">(Mesa al enviar)</span>' +
+                '<span style="font-size:0.72rem; color:#64748b; font-weight:700; margin-left:4px;">(Elegir mesa)</span>' +
+                '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-left:3px;"><polyline points="6 9 12 15 18 9"/></svg>' +
               '</div>'
             )) +
             (existingOrder ? (selectedTable.status === 'cuenta' 
@@ -2219,7 +2253,7 @@ function renderWaiterView(initialState) {
                   '<span class="table-order-status-tag ' + (selectedTable.status === 'cuenta' ? 'tag-en-caja' : 'tag-en-consumo') + '">' +
                     (selectedTable.status === 'cuenta' ? '⚠️ CUENTA EN CAJA' : '🍽️ EN CONSUMO') +
                   '</span>' +
-                  '<span style="font-size:0.75rem; color:#64748b; font-weight:800;">' + orderItemCount + ' plato(s)</span>' +
+                  '<span style="font-size:0.75rem; color:#64748b; font-weight:800;">' + orderItemCount + ' plato(s) en ' + existingOrder.rounds.length + ' ronda(s)</span>' +
                 '</div>' +
                 '<div style="font-size:0.72rem; color:#64748b; margin-top:2px;">' +
                   'Mesero: <strong>' + (existingOrder.waiterName || 'Mesero') + '</strong>' +
@@ -2230,7 +2264,7 @@ function renderWaiterView(initialState) {
                   '<div class="table-order-usd">$' + orderTotalUSD.toFixed(2) + '</div>' +
                   '<div class="table-order-bs">Bs. ' + orderTotalBS.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</div>' +
                 '</div>' +
-                '<button class="btn-view-order" onclick="openTableOrderModal()">' +
+                '<button class="btn-view-order" onclick="openTableOrderModal()" title="Ver lo que ya pidió esta mesa">' +
                   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>' +
                   '<span>Ver Pedido</span>' +
                 '</button>' +
@@ -2250,10 +2284,16 @@ function renderWaiterView(initialState) {
 
           '<div class="search-box">' +
             '<svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="2" x2="16.65" y2="16.65"/></svg>' +
-            '<input type="text" id="prodSearchInput" class="search-input" placeholder="Buscar producto o combo..." value="' + prodSearchQuery.replace(/"/g, '&quot;') + '" oninput="onProductSearch(this.value)">' +
+            '<input type="text" id="prodSearchInput" class="search-input" placeholder="🔍 Buscar producto, combo o bebida..." value="' + prodSearchQuery.replace(/"/g, '&quot;') + '" oninput="onProductSearch(this.value)" autocomplete="off" autocapitalize="off">' +
+            '<button id="clearSearchBtn" class="search-clear-btn" type="button" onclick="clearProductSearch()" style="display:' + (q ? 'flex' : 'none') + ';" title="Borrar búsqueda">✕</button>' +
           '</div>' +
 
-          '<div class="zones-bar">' +
+          '<div id="searchStatusRow" style="display:' + (q ? 'flex' : 'none') + '; justify-content:space-between; align-items:center; padding:4px 8px 6px 8px; font-size:0.75rem; color:#2563eb; font-weight:800;">' +
+            '<span>🔍 ' + prods.length + ' producto(s) en todo el menú</span>' +
+            '<button type="button" onclick="clearProductSearch()" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:3px 10px; border-radius:7px; font-size:0.75rem; font-weight:800; cursor:pointer;">Limpiar búsqueda ✕</button>' +
+          '</div>' +
+
+          '<div id="zonesBar" class="zones-bar" style="display:' + (q ? 'none' : 'flex') + ';">' +
             cats.map(function(c) {
               return '<button class="cat-pill ' + (selectedCategory === c ? 'active' : '') + '" data-cat="' + c + '" onclick="filterCatFromBtn(this)">' + c + '</button>';
             }).join('') +
@@ -2440,14 +2480,43 @@ function renderWaiterView(initialState) {
 
     function onProductSearch(val) {
       prodSearchQuery = val;
+      const prods = getFilteredProducts();
       const grid = document.querySelector('.prods-grid');
-      const q = prodSearchQuery.toLowerCase().trim();
-      const prods = (state.menu.products || []).filter(function(p) {
-        const matchesCat = selectedCategory === 'Todos' || p.category === selectedCategory;
-        const matchesQuery = !q || (p.name || '').toLowerCase().indexOf(q) !== -1 || (p.sku || '').toLowerCase().indexOf(q) !== -1;
-        return matchesCat && matchesQuery;
-      });
+      if (grid) {
+        grid.innerHTML = renderProductsGrid(prods);
+      }
+      const clearBtn = document.getElementById('clearSearchBtn');
+      if (clearBtn) {
+        clearBtn.style.display = val.trim() ? 'flex' : 'none';
+      }
+      const searchStatus = document.getElementById('searchStatusRow');
+      const zonesBar = document.getElementById('zonesBar');
+      if (val.trim()) {
+        if (zonesBar) zonesBar.style.display = 'none';
+        if (searchStatus) {
+          searchStatus.style.display = 'flex';
+          searchStatus.innerHTML = 
+            '<span>🔍 ' + prods.length + ' producto(s) en todo el menú</span>' +
+            '<button type="button" onclick="clearProductSearch()" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:3px 10px; border-radius:7px; font-size:0.75rem; font-weight:800; cursor:pointer;">Limpiar búsqueda ✕</button>';
+        }
+      } else {
+        if (searchStatus) searchStatus.style.display = 'none';
+        if (zonesBar) zonesBar.style.display = 'flex';
+      }
+    }
 
+    function clearProductSearch() {
+      prodSearchQuery = '';
+      const input = document.getElementById('prodSearchInput');
+      if (input) input.value = '';
+      const clearBtn = document.getElementById('clearSearchBtn');
+      if (clearBtn) clearBtn.style.display = 'none';
+      const searchStatus = document.getElementById('searchStatusRow');
+      if (searchStatus) searchStatus.style.display = 'none';
+      const zonesBar = document.getElementById('zonesBar');
+      if (zonesBar) zonesBar.style.display = 'flex';
+      const prods = getFilteredProducts();
+      const grid = document.querySelector('.prods-grid');
       if (grid) {
         grid.innerHTML = renderProductsGrid(prods);
       }
@@ -2464,13 +2533,7 @@ function renderWaiterView(initialState) {
         if (liveT) selectedTable = liveT;
       }
 
-      const q = prodSearchQuery.toLowerCase().trim();
-      const prods = (state.menu && state.menu.products || []).filter(function(p) {
-        const matchesCat = selectedCategory === 'Todos' || p.category === selectedCategory;
-        const matchesQuery = !q || (p.name || '').toLowerCase().indexOf(q) !== -1 || (p.sku || '').toLowerCase().indexOf(q) !== -1;
-        return matchesCat && matchesQuery;
-      });
-
+      const prods = getFilteredProducts();
       const grid = document.querySelector('.prods-grid');
       if (grid) {
         grid.innerHTML = renderProductsGrid(prods);
@@ -2539,46 +2602,76 @@ function renderWaiterView(initialState) {
       const detailBtn = document.querySelector('.cart-detail-btn');
       const sendBtn = document.querySelector('.cart-send-btn');
 
+      const existingOrder = selectedTable ? (state.activeOrders || []).find(function(o) { return o.tableId === selectedTable.id; }) : null;
+      const exTotalUSD = (existingOrder && existingOrder.rounds) ? existingOrder.rounds.reduce(function(acc, r) {
+        return acc + r.items.reduce(function(s, i) { return s + (i.priceUSD * i.quantity); }, 0);
+      }, 0) : 0;
+      const exCount = (existingOrder && existingOrder.rounds) ? existingOrder.rounds.reduce(function(acc, r) {
+        return acc + r.items.reduce(function(s, i) { return s + i.quantity; }, 0);
+      }, 0) : 0;
+
       if (count > 0) {
-        const totalUSD = currentCart.reduce(function(acc, i) { return acc + (i.priceUSD * i.quantity); }, 0);
-        const totalBS = totalUSD * rate;
-        if (countEl) countEl.innerText = count + ' NUEVOS POR ENVIAR';
-        if (usdEl) usdEl.innerText = '$' + totalUSD.toFixed(2);
-        if (bsEl) bsEl.innerText = 'Bs. ' + totalBS.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        if (detailBtn) {
-          detailBtn.innerText = 'Ver Comanda';
-          detailBtn.onclick = openCartModal;
-        }
-        if (sendBtn) {
-          sendBtn.style.display = 'flex';
-          sendBtn.disabled = false;
-          const labelSpan = sendBtn.querySelector('span');
-          if (labelSpan) {
-            labelSpan.innerText = selectedTable ? ('ENVIAR (' + selectedTable.name + ')') : 'ELEGIR MESA Y ENVIAR ➔';
+        const newTotalUSD = currentCart.reduce(function(acc, i) { return acc + (i.priceUSD * i.quantity); }, 0);
+        const combinedTotalUSD = exTotalUSD + newTotalUSD;
+        const combinedTotalBS = combinedTotalUSD * rate;
+
+        if (existingOrder && existingOrder.rounds && existingOrder.rounds.length > 0) {
+          if (countEl) countEl.innerText = '+ ' + count + ' NUEVOS (RONDA #' + (existingOrder.rounds.length + 1) + ')';
+          if (usdEl) usdEl.innerText = 'TOTAL: $' + combinedTotalUSD.toFixed(2);
+          if (bsEl) bsEl.innerText = 'Bs. ' + combinedTotalBS.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          if (detailBtn) {
+            detailBtn.innerText = 'Ver Ronda (' + count + ')';
+            detailBtn.onclick = openCartModal;
+          }
+          if (sendBtn) {
+            sendBtn.style.display = 'flex';
+            sendBtn.disabled = false;
+            sendBtn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+            sendBtn.style.color = '#ffffff';
+            const labelSpan = sendBtn.querySelector('span');
+            if (labelSpan) labelSpan.innerText = 'ENVIAR RONDA (' + selectedTable.name + ') ➔';
+          }
+        } else {
+          const newTotalBS = newTotalUSD * rate;
+          if (countEl) countEl.innerText = count + ' ÍTEM(S) SELECCIONADOS';
+          if (usdEl) usdEl.innerText = '$' + newTotalUSD.toFixed(2);
+          if (bsEl) bsEl.innerText = 'Bs. ' + newTotalBS.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          if (detailBtn) {
+            detailBtn.innerText = 'Ver Comanda';
+            detailBtn.onclick = openCartModal;
+          }
+          if (sendBtn) {
+            sendBtn.style.display = 'flex';
+            sendBtn.disabled = false;
+            sendBtn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+            sendBtn.style.color = '#ffffff';
+            const labelSpan = sendBtn.querySelector('span');
+            if (labelSpan) {
+              labelSpan.innerText = selectedTable ? ('ENVIAR (' + selectedTable.name + ')') : 'ELEGIR MESA Y ENVIAR ➔';
+            }
           }
         }
       } else {
-        const existingOrder = selectedTable ? (state.activeOrders || []).find(function(o) { return o.tableId === selectedTable.id; }) : null;
+        // Cart is empty (0 items)
         if (existingOrder && existingOrder.rounds && existingOrder.rounds.length > 0) {
-          const exTotalUSD = existingOrder.rounds.reduce(function(acc, r) {
-            return acc + r.items.reduce(function(s, i) { return s + (i.priceUSD * i.quantity); }, 0);
-          }, 0);
           const exTotalBS = exTotalUSD * rate;
-          const exCount = existingOrder.rounds.reduce(function(acc, r) {
-            return acc + r.items.reduce(function(s, i) { return s + i.quantity; }, 0);
-          }, 0);
-          if (countEl) countEl.innerText = 'CONSUMO MESA (' + exCount + ' PLATOS)';
+          if (countEl) countEl.innerText = (selectedTable ? selectedTable.name : 'MESA') + ' · ' + exCount + ' PLATOS EN CONSUMO';
           if (usdEl) usdEl.innerText = '$' + exTotalUSD.toFixed(2);
           if (bsEl) bsEl.innerText = 'Bs. ' + exTotalBS.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
           if (detailBtn) {
-            detailBtn.innerText = '📋 Ver Pedido Mesa';
+            detailBtn.innerText = '📋 Ver Consumo Actual';
             detailBtn.onclick = openTableOrderModal;
           }
           if (sendBtn) {
-            sendBtn.style.display = 'none';
+            sendBtn.style.display = 'flex';
+            sendBtn.disabled = true;
+            sendBtn.style.background = '#e2e8f0';
+            sendBtn.style.color = '#64748b';
+            const labelSpan = sendBtn.querySelector('span');
+            if (labelSpan) labelSpan.innerText = '+ 2DA RONDA (Elige productos)';
           }
         } else {
-          if (countEl) countEl.innerText = '0 ÍTEMS';
+          if (countEl) countEl.innerText = selectedTable ? (selectedTable.name + ' · LIBRE') : 'NUEVO PEDIDO';
           if (usdEl) usdEl.innerText = '$0.00';
           if (bsEl) bsEl.innerText = 'Bs. 0,00';
           if (detailBtn) {
@@ -2588,6 +2681,8 @@ function renderWaiterView(initialState) {
           if (sendBtn) {
             sendBtn.style.display = 'flex';
             sendBtn.disabled = true;
+            sendBtn.style.background = '#e2e8f0';
+            sendBtn.style.color = '#94a3b8';
             const labelSpan = sendBtn.querySelector('span');
             if (labelSpan) labelSpan.innerText = 'ENVIAR';
           }
@@ -2736,52 +2831,101 @@ function renderWaiterView(initialState) {
       const totalUSD = currentCart.reduce(function(acc, i) { return acc + (i.priceUSD * i.quantity); }, 0);
       const rate = getLiveExchangeRate();
       const totalBS = totalUSD * rate;
+      const isSending = count > 0;
+
+      const allTables = state.tables || [];
+      const occupiedTables = allTables.filter(function(t) { return t.status === 'ocupada' || t.status === 'cuenta'; });
+      const freeTables = allTables.filter(function(t) { return t.status !== 'ocupada' && t.status !== 'cuenta'; });
 
       const modal = document.createElement('div');
       modal.className = 'modal-overlay';
       modal.id = 'selectTableModal';
       modal.innerHTML = 
-        '<div class="modal-sheet" style="max-width:540px; max-height:88vh; display:flex; flex-direction:column;">' +
+        '<div class="modal-sheet" style="max-width:560px; max-height:90vh; display:flex; flex-direction:column;">' +
           '<div class="modal-header" style="border-bottom:1.5px solid #e2e8f0; padding-bottom:12px;">' +
             '<div>' +
               '<div class="modal-title" style="font-size:1.15rem; font-weight:900; color:#0f172a; display:flex; align-items:center; gap:8px;">' +
-                '<span>🍽️ Asignar Mesa al Pedido</span>' +
+                '<span>' + (isSending ? '🍽️ Asignar Mesa y Enviar Comanda' : '🍽️ Seleccionar Mesa para Pedido') + '</span>' +
               '</div>' +
               '<div style="font-size:0.78rem; color:#64748b; margin-top:3px;">' +
-                count + ' ítem(s) &bull; <strong style="color:#D52829;">$' + totalUSD.toFixed(2) + '</strong> (Bs. ' + totalBS.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ') &bull; Toca para enviar directo' +
+                (isSending 
+                  ? (count + ' ítem(s) en orden &bull; <strong style="color:#D52829;">$' + totalUSD.toFixed(2) + '</strong> &bull; Toca la mesa para enviar comanda directo')
+                  : 'Toca una mesa libre para empezar pedido, o una ocupada para agregarle una ronda.') +
               '</div>' +
             '</div>' +
             '<button class="modal-close-btn" onclick="closeSelectTableModal()">&times;</button>' +
           '</div>' +
 
-          '<div style="margin:12px 0 8px 0;">' +
-            '<button onclick="sendAsQuickTakeaway()" style="width:100%; height:48px; background:linear-gradient(135deg, #ea580c 0%, #c2410c 100%); color:#fff; border:none; border-radius:12px; font-weight:900; font-size:0.95rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 3px 10px rgba(234,88,12,0.25);">' +
-              '<span style="font-size:1.15rem;">🛍️</span>' +
-              '<span>Enviar como Pedido Para Llevar</span>' +
-              '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>' +
-            '</button>' +
+          '<div style="flex:1; overflow-y:auto; padding:10px 2px 14px 2px; display:flex; flex-direction:column; gap:12px;">' +
+            /* Botón rápido Para Llevar y Botón Nuevo Pedido */
+            '<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">' +
+              '<button onclick="sendAsQuickTakeaway()" style="height:48px; background:linear-gradient(135deg, #ea580c 0%, #c2410c 100%); color:#fff; border:none; border-radius:12px; font-weight:900; font-size:0.86rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 3px 10px rgba(234,88,12,0.25);">' +
+                '<span style="font-size:1.15rem;">🛍️</span>' +
+                '<span>' + (isSending ? 'Enviar Para Llevar' : 'Crear Para Llevar') + '</span>' +
+              '</button>' +
+              '<button onclick="resetToNewOrder(); closeSelectTableModal();" style="height:48px; background:#f8fafc; color:#0f172a; border:1.5px dashed #cbd5e1; border-radius:12px; font-weight:800; font-size:0.84rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">' +
+                '<span style="font-size:1rem; color:#f59e0b;">⚡</span>' +
+                '<span>Nuevo Pedido Libre</span>' +
+              '</button>' +
+            '</div>' +
+
+            /* SECCIÓN 1: MESAS OCUPADAS (Para agregar 2da ronda / extras) */
+            (occupiedTables.length > 0 ? (
+              '<div>' +
+                '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">' +
+                  '<span style="font-size:0.75rem; font-weight:900; color:#c2410c; text-transform:uppercase; letter-spacing:0.04em; display:flex; align-items:center; gap:5px;">' +
+                    '<span>🔥</span><span>Mesas Ocupadas (Agregar 2da Ronda / Bebidas):</span>' +
+                  '</span>' +
+                  '<span style="font-size:0.72rem; color:#64748b; font-weight:700;">' + occupiedTables.length + ' activa(s)</span>' +
+                '</div>' +
+                '<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(130px, 1fr)); gap:10px;">' +
+                  occupiedTables.map(function(t) {
+                    const order = (state.activeOrders || []).find(function(o) { return o.tableId === t.id; });
+                    const oUSD = order ? order.rounds.reduce(function(acc, r) { return acc + r.items.reduce(function(s, i) { return s + (i.priceUSD * i.quantity); }, 0); }, 0) : 0;
+                    const oCount = order ? order.rounds.reduce(function(s, r) { return s + r.items.reduce(function(ss, ii) { return ss + ii.quantity; }, 0); }, 0) : 0;
+                    const isCuenta = t.status === 'cuenta';
+
+                    return '<div class="select-table-item" data-id="' + t.id + '" onclick="selectTableFromCard(this)" style="background:' + (isCuenta ? '#fef2f2' : '#fff7ed') + '; border:2px solid ' + (isCuenta ? '#fca5a5' : '#fb923c') + '; border-radius:14px; padding:10px 8px; text-align:center; cursor:pointer; display:flex; flex-direction:column; justify-content:space-between; min-height:92px; box-shadow:0 2px 8px rgba(194,65,12,0.08);">' +
+                      '<div>' +
+                        '<div style="font-weight:900; font-size:1rem; color:#0f172a;">' + (t.isTakeaway ? '🛍️ ' : '') + t.name + '</div>' +
+                        '<div style="font-size:0.7rem; font-weight:900; color:' + (isCuenta ? '#b91c1c' : '#c2410c') + '; margin-top:2px;">' + (isCuenta ? '⚠️ EN CAJA' : '🍽️ $' + oUSD.toFixed(2) + ' (' + oCount + ' p.)') + '</div>' +
+                        '<div style="font-size:0.65rem; color:#71717a; margin-top:1px;">' + (order && order.waiterName ? order.waiterName : (t.zone || 'Salón')) + '</div>' +
+                      '</div>' +
+                      '<div style="margin-top:6px; background:' + (isCuenta ? '#b91c1c' : '#c2410c') + '; color:#fff; font-size:0.66rem; font-weight:900; padding:3px 6px; border-radius:6px; text-transform:uppercase;">' +
+                        (isSending ? '➔ Enviar Ronda Aquí' : '+ Agregar Ronda') +
+                      '</div>' +
+                    '</div>';
+                  }).join('') +
+                '</div>' +
+              '</div>'
+            ) : '') +
+
+            /* SECCIÓN 2: MESAS LIBRES */
+            '<div>' +
+              '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">' +
+                '<span style="font-size:0.75rem; font-weight:900; color:#16a34a; text-transform:uppercase; letter-spacing:0.04em; display:flex; align-items:center; gap:5px;">' +
+                  '<span>🟢</span><span>Mesas Disponibles (Sentar Nuevo Cliente):</span>' +
+                '</span>' +
+                '<span style="font-size:0.72rem; color:#64748b; font-weight:700;">' + freeTables.length + ' libre(s)</span>' +
+              '</div>' +
+              '<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(115px, 1fr)); gap:10px;">' +
+                freeTables.map(function(t) {
+                  return '<div class="select-table-item" data-id="' + t.id + '" onclick="selectTableFromCard(this)" style="background:#ffffff; border:2px solid #cbd5e1; border-radius:14px; padding:10px 8px; text-align:center; cursor:pointer; display:flex; flex-direction:column; justify-content:space-between; min-height:85px; box-shadow:0 2px 6px rgba(0,0,0,0.03);">' +
+                    '<div>' +
+                      '<div style="font-weight:900; font-size:1rem; color:#0f172a;">' + (t.isTakeaway ? '🛍️ ' : '') + t.name + '</div>' +
+                      '<div style="font-size:0.68rem; font-weight:900; color:#16a34a; text-transform:uppercase; margin-top:3px;">🟢 DISPONIBLE</div>' +
+                      '<div style="font-size:0.65rem; color:#94a3b8; font-weight:700; margin-top:2px;">' + (t.zone || 'Salón') + '</div>' +
+                    '</div>' +
+                    '<div style="margin-top:6px; background:#f1f5f9; color:#334155; font-size:0.66rem; font-weight:800; padding:3px 6px; border-radius:6px;">' +
+                      (isSending ? '➔ Asignar y Enviar' : 'Activar Mesa') +
+                    '</div>' +
+                  '</div>';
+                }).join('') +
+              '</div>' +
+            '</div>' +
           '</div>' +
 
-          '<div style="font-size:0.75rem; font-weight:800; color:#94a3b8; text-transform:uppercase; margin:8px 0 6px 0; letter-spacing:0.04em;">O selecciona la mesa donde se sentará el cliente:</div>' +
-
-          '<div style="flex:1; overflow-y:auto; padding-right:2px; display:grid; grid-template-columns:repeat(auto-fill, minmax(110px, 1fr)); gap:10px; margin-bottom:12px; max-height:48vh;">' +
-            (state.tables || []).map(function(t) {
-              const isOccupied = t.status === 'ocupada';
-              const isCuenta = t.status === 'cuenta';
-              const bg = isCuenta ? '#fef2f2' : (isOccupied ? '#fff7ed' : '#ffffff');
-              const border = isCuenta ? '#fca5a5' : (isOccupied ? '#fdba74' : '#cbd5e1');
-              const statusText = isCuenta ? '⚠️ En Caja' : (isOccupied ? 'Ocupada (+ ronda)' : 'LIBRE');
-              const statusColor = isCuenta ? '#b91c1c' : (isOccupied ? '#c2410c' : '#16a34a');
-
-              return '<div class="select-table-item" data-id="' + t.id + '" onclick="selectTableFromCard(this)" style="background:' + bg + '; border:2px solid ' + border + '; border-radius:14px; padding:12px 8px; text-align:center; cursor:pointer; display:flex; flex-direction:column; justify-content:space-between; min-height:85px; box-shadow:0 2px 6px rgba(0,0,0,0.04);">' +
-                '<div style="font-weight:900; font-size:1rem; color:#0f172a;">' + (t.isTakeaway ? '🛍️ ' : '') + t.name + '</div>' +
-                '<div style="font-size:0.68rem; font-weight:800; color:' + statusColor + '; text-transform:uppercase; margin-top:4px;">' + statusText + '</div>' +
-                '<div style="font-size:0.65rem; color:#94a3b8; font-weight:700; margin-top:2px;">' + (t.zone || 'Salón') + '</div>' +
-              '</div>';
-            }).join('') +
-          '</div>' +
-
-          '<button onclick="closeSelectTableModal()" style="width:100%; height:42px; background:#f1f5f9; border:none; border-radius:10px; font-weight:800; font-size:0.85rem; color:#64748b; cursor:pointer;">' +
+          '<button onclick="closeSelectTableModal()" style="width:100%; height:44px; background:#f1f5f9; border:none; border-radius:10px; font-weight:800; font-size:0.86rem; color:#64748b; cursor:pointer; margin-top:4px;">' +
             'Cancelar y Volver al Menú' +
           '</button>' +
         '</div>';
@@ -2807,7 +2951,18 @@ function renderWaiterView(initialState) {
         return;
       }
       selectedTable = tbl;
-      executeSendRound(tbl.id);
+      if (currentCart.length > 0) {
+        executeSendRound(tbl.id);
+      } else {
+        renderOrderScreen();
+        const existingOrder = (state.activeOrders || []).find(function(o) { return o.tableId === tbl.id; });
+        if (existingOrder && existingOrder.rounds && existingOrder.rounds.length > 0) {
+          const exTotalUSD = existingOrder.rounds.reduce(function(acc, r) { return acc + r.items.reduce(function(s, i) { return s + (i.priceUSD * i.quantity); }, 0); }, 0);
+          showAlert('🍽️ ' + tbl.name + ' activada ($' + exTotalUSD.toFixed(2) + ' consumidos). Selecciona productos para agregar ronda.', '#c2410c');
+        } else {
+          showAlert('🍽️ ' + tbl.name + ' seleccionada. Ahora puedes agregar los productos.', '#2563eb');
+        }
+      }
     }
 
     function sendAsQuickTakeaway() {
@@ -2831,7 +2986,12 @@ function renderWaiterView(initialState) {
             state.tables.push(newTable);
           }
           selectedTable = newTable;
-          executeSendRound(newTable.id);
+          if (currentCart.length > 0) {
+            executeSendRound(newTable.id);
+          } else {
+            renderOrderScreen();
+            showAlert('🛍️ Pedido ' + newTable.name + ' creado. Agrega los productos a la orden.', '#ea580c');
+          }
         }
       })
       .catch(function(err) {
@@ -3017,9 +3177,13 @@ function renderWaiterView(initialState) {
 
           /* Botones de acción */
           '<div style="margin-top:12px; display:flex; flex-direction:column; gap:8px;">' +
+            '<button class="cart-send-btn" style="width:100%; height:46px; justify-content:center; background:linear-gradient(135deg, #10b981 0%, #059669 100%); color:#fff; font-size:0.92rem;" onclick="closeTableOrderModal();">' +
+              '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' +
+              '<span>+ AGREGAR MÁS PRODUCTOS (2DA RONDA)</span>' +
+            '</button>' +
             (selectedTable.status !== 'cuenta'
-              ? '<button class="cart-send-btn" style="width:100%; height:46px; justify-content:center; background:var(--brand-dark); font-size:0.92rem;" onclick="closeTableOrderModal(); requestBill();">' +
-                  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/></svg>' +
+              ? '<button class="cart-send-btn" style="width:100%; height:44px; justify-content:center; background:var(--brand-dark); font-size:0.88rem;" onclick="closeTableOrderModal(); requestBill();">' +
+                  '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/></svg>' +
                   '<span>PEDIR CUENTA / ENVIAR A CAJA</span>' +
                 '</button>'
               : '<div style="background:#fef2f2; border:1px solid #fecaca; border-radius:10px; padding:10px; text-align:center;">' +

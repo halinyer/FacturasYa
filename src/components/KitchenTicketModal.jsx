@@ -308,6 +308,20 @@ export const KitchenTicketModal = ({
                 <div className="k-bold" style={{ fontSize: is58 ? '21px' : '26px', letterSpacing: '1px' }}>
                   {safeTableName}
                 </div>
+                {(round.roundNumber > 1 || round.isAdditional) && (
+                  <div style={{ 
+                    border: '1.5px solid #000', 
+                    fontSize: is58 ? '10px' : '11.5px', 
+                    fontWeight: '900', 
+                    padding: '1px 5px', 
+                    display: 'inline-block', 
+                    marginTop: '2px', 
+                    borderRadius: '2px',
+                    letterSpacing: '0.5px'
+                  }}>
+                    *** RONDA #{round.roundNumber || 2} (ADICIONAL) ***
+                  </div>
+                )}
               </div>
 
               {/* HORA BIEN GRANDE Y CLARA */}

@@ -486,8 +486,11 @@ function createLocalServer() {
       restaurantData.orders.push(order);
     }
 
+    const roundNumber = (order.rounds ? order.rounds.length : 0) + 1;
     const round = {
       id: 'rnd_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+      roundNumber,
+      isAdditional: roundNumber > 1,
       sentAt: new Date().toISOString(),
       waiterId,
       waiterName: waiterName || 'Mesero',
@@ -549,6 +552,12 @@ function createLocalServer() {
     if (order) {
       order.status = 'closed';
       order.closedAt = new Date().toISOString();
+      (order.rounds || []).forEach(r => {
+        if (r.status !== 'servida') {
+          r.status = 'servida';
+          r.servedAt = order.closedAt;
+        }
+      });
     }
 
     if (table.isTakeaway || table.id.startsWith('t_llevar_')) {
