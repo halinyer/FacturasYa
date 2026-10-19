@@ -2773,7 +2773,7 @@ function renderWaiterView(initialState) {
               const statusText = isCuenta ? '⚠️ En Caja' : (isOccupied ? 'Ocupada (+ ronda)' : 'LIBRE');
               const statusColor = isCuenta ? '#b91c1c' : (isOccupied ? '#c2410c' : '#16a34a');
 
-              return '<div onclick="selectTableAndSend(\'' + t.id + '\')" style="background:' + bg + '; border:2px solid ' + border + '; border-radius:14px; padding:12px 8px; text-align:center; cursor:pointer; transition:transform 0.1s, box-shadow 0.1s; display:flex; flex-direction:column; justify-content:space-between; min-height:85px; box-shadow:0 2px 6px rgba(0,0,0,0.04);" onmousedown="this.style.transform=\'scale(0.96)\'" onmouseup="this.style.transform=\'scale(1)\'" ontouchstart="this.style.transform=\'scale(0.96)\'" ontouchend="this.style.transform=\'scale(1)\'">' +
+              return '<div class="select-table-item" data-id="' + t.id + '" onclick="selectTableFromCard(this)" style="background:' + bg + '; border:2px solid ' + border + '; border-radius:14px; padding:12px 8px; text-align:center; cursor:pointer; display:flex; flex-direction:column; justify-content:space-between; min-height:85px; box-shadow:0 2px 6px rgba(0,0,0,0.04);">' +
                 '<div style="font-weight:900; font-size:1rem; color:#0f172a;">' + (t.isTakeaway ? '🛍️ ' : '') + t.name + '</div>' +
                 '<div style="font-size:0.68rem; font-weight:800; color:' + statusColor + '; text-transform:uppercase; margin-top:4px;">' + statusText + '</div>' +
                 '<div style="font-size:0.65rem; color:#94a3b8; font-weight:700; margin-top:2px;">' + (t.zone || 'Salón') + '</div>' +
@@ -2792,6 +2792,11 @@ function renderWaiterView(initialState) {
     function closeSelectTableModal() {
       const m = document.getElementById('selectTableModal');
       if (m) m.remove();
+    }
+
+    function selectTableFromCard(el) {
+      const tableId = el.getAttribute('data-id');
+      selectTableAndSend(tableId);
     }
 
     function selectTableAndSend(tableId) {
