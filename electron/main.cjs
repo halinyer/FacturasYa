@@ -200,11 +200,18 @@ ${options.html}
             try {
               const bodyHeight = await printWin.webContents.executeJavaScript('document.body.scrollHeight');
               if (bodyHeight > 0) {
-                heightMicrons = Math.max(80000, Math.ceil(bodyHeight * 265) + 15000);
+                heightMicrons = Math.max(60000, Math.ceil(bodyHeight * 265) + 15000);
               }
             } catch (err) {}
 
-            const widthMicrons = is58 ? 58000 : 80000;
+            // En impresoras de 58mm el ancho imprimible del cabezal físico es exactamente 48mm (48.047 micrones en driver POS58ENG)
+            // Enviar 58000 micrones desbordaba el búfer de 384 puntos del driver, corrompiendo la rasterización a negro sólido
+            const widthMicrons = is58 ? 48000 : 72000;
+
+            try {
+              const img = await printWin.webContents.capturePage();
+              fs.writeFileSync(path.join(__dirname, 'last_ticket_capture.png'), img.toPNG());
+            } catch (errCapture) {}
 
             printWin.webContents.print({
               silent: options.silent !== false,
@@ -213,7 +220,7 @@ ${options.html}
               pageSize: { width: widthMicrons, height: heightMicrons },
               margins: { marginType: 'none' }
             }, (success, failureReason) => {
-              console.log('[Printer] Resultado de impresion directa:', { success, failureReason, device: targetDevice });
+              console.log('[Printer] Resultado de impresion directa:', { success, failureReason, device: targetDevice, widthMicrons, heightMicrons });
               try {
                 if (printWin && !printWin.isDestroyed()) printWin.close();
               } catch (e) {}
