@@ -145,11 +145,20 @@ export const printIsolatedTicket = async ({
       if (res && res.success) {
         return res;
       }
+      if (silent) {
+        console.warn('Silent print finished with notice:', res?.failureReason);
+        return res || { success: false, failureReason: 'No respondio' };
+      }
       console.warn('Electron print notice / fallback:', res?.failureReason);
     } catch (e) {
-      console.warn('Electron print call failed, attempting browser iframe:', e);
+      console.warn('Electron print call failed:', e);
+      if (silent) return { success: false, error: e.message };
     }
   }
 
-  return printViaIframe(fullHtml);
+  // Only open browser print dialog if silent was explicitly false
+  if (!silent) {
+    return printViaIframe(fullHtml);
+  }
+  return { success: false, error: 'Impresión silenciosa solo disponible en app de escritorio' };
 };

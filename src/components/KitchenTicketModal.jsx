@@ -17,7 +17,7 @@ export const KitchenTicketModal = ({
 
   const [printers, setPrinters] = useState([]);
   const [selectedPrinter, setSelectedPrinter] = useState(() => {
-    return localStorage.getItem('pos_comanda_printer') || 'POS-58';
+    return localStorage.getItem('pos_comanda_printer') || '';
   });
 
   useEffect(() => {
@@ -33,10 +33,15 @@ export const KitchenTicketModal = ({
           setPrinters(list);
           const saved = localStorage.getItem('pos_comanda_printer');
           const exists = list.some(p => p.name === saved);
+          const defaultPos = list.find(p => p.isDefault && /pos|thermal|ticket|58/i.test(p.name));
+          
           if (saved && exists) {
             setSelectedPrinter(saved);
+          } else if (defaultPos) {
+            setSelectedPrinter(defaultPos.name);
+            localStorage.setItem('pos_comanda_printer', defaultPos.name);
           } else {
-            const pos = list.find(p => /pos-?58|pos58|ticket|thermal/i.test(p.name)) || list.find(p => p.isDefault) || list[0];
+            const pos = list.find(p => p.isDefault) || list.find(p => /pos-?58|pos58|ticket|thermal/i.test(p.name)) || list[0];
             if (pos) {
               setSelectedPrinter(pos.name);
               localStorage.setItem('pos_comanda_printer', pos.name);
@@ -54,7 +59,7 @@ export const KitchenTicketModal = ({
         html,
         paperSize,
         deviceName: selectedPrinter || '',
-        silent: !!autoPrint
+        silent: true
       });
     } catch (err) {
       console.warn('Fallback to standard print:', err);

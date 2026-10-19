@@ -89,13 +89,21 @@ ipcMain.handle('print-window', async (event, options = {}) => {
           }
         });
 
-        // Validate printer device if specified
+        // Resolve exact printer device name
         let targetDevice = options.deviceName || '';
         try {
-          const systemPrinters = await printWin.webContents.getPrintersAsync();
-          if (targetDevice && !systemPrinters.some(p => p.name.toLowerCase() === targetDevice.toLowerCase())) {
-            console.warn(`[Printer] Dispositivo '${targetDevice}' no coincide con lista de Windows. Usando default.`);
-            targetDevice = '';
+          const systemPrinters = (mainWindowRef && mainWindowRef.webContents) 
+            ? await mainWindowRef.webContents.getPrintersAsync() 
+            : await printWin.webContents.getPrintersAsync();
+          const match = targetDevice && systemPrinters.find(p => p.name.toLowerCase() === targetDevice.toLowerCase());
+          if (match) {
+            targetDevice = match.name;
+          } else {
+            const defaultPrinter = systemPrinters.find(p => p.isDefault) || 
+                                   systemPrinters.find(p => /pos|thermal|ticket|58/i.test(p.name)) || 
+                                   systemPrinters[0];
+            targetDevice = defaultPrinter ? defaultPrinter.name : '';
+            console.log(`[Printer] Seleccionando impresora disponible: '${targetDevice}'`);
           }
         } catch (pe) {
           console.warn('[Printer] No se pudo obtener lista de impresoras:', pe);
