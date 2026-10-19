@@ -50,7 +50,8 @@ export const KitchenTicketModal = ({
       if (window.electronAPI && typeof window.electronAPI.printWindow === 'function') {
         const res = await window.electronAPI.printWindow({ 
           silent: false,
-          deviceName: selectedPrinter || 'POS-58'
+          deviceName: selectedPrinter || 'POS-58',
+          margins: { marginType: 'none' }
         });
         if (!res.success && res.failureReason) {
           console.warn('Electron print notice, falling back to window.print:', res.failureReason);
@@ -190,12 +191,18 @@ export const KitchenTicketModal = ({
             .kitchen-content {
               position: absolute !important;
               left: 0 !important; top: 0 !important;
-              width: ${is58 ? '48mm' : '72mm'} !important;
+              width: 100% !important;
               max-width: ${is58 ? '48mm' : '72mm'} !important;
-              padding: 1mm 1mm 26mm 1mm !important;
-              margin: 0 auto !important;
+              padding: 0 !important;
+              margin: 0 !important;
               page-break-inside: avoid !important;
               break-inside: avoid !important;
+            }
+            .kitchen-paper {
+              width: 100% !important;
+              max-width: ${is58 ? '48mm' : '72mm'} !important;
+              margin: 0 !important;
+              padding: 0 1mm !important;
             }
           }
         `}
@@ -406,12 +413,12 @@ export const KitchenTicketModal = ({
                 ENTREGAR A: {safeWaiterName}
               </div>
 
-              {/* Guía de corte y avance forzado para que la cuchilla nunca pise el texto */}
-              <div style={{ textAlign: 'center', fontSize: '8px', letterSpacing: '2px', color: '#000', margin: '3px 0' }}>
+              {/* Guía de corte y avance para pasar la cuchilla (12mm) */}
+              <div style={{ textAlign: 'center', fontSize: '8px', letterSpacing: '2px', color: '#000', margin: '2px 0' }}>
                 - - - - - - - - - - - - - -
               </div>
-              <div style={{ height: '28mm', minHeight: '28mm', display: 'block', lineHeight: '14px' }}>
-                &nbsp;<br/>&nbsp;<br/>&nbsp;<br/>&nbsp;
+              <div style={{ height: '12mm', minHeight: '12mm', display: 'block', lineHeight: '12px' }}>
+                &nbsp;<br/>&nbsp;
               </div>
             </div>
           </div>

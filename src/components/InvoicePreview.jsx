@@ -108,7 +108,8 @@ const InvoicePreview = ({ invoice, onClose }) => {
       if (window.electronAPI && typeof window.electronAPI.printWindow === 'function') {
         const res = await window.electronAPI.printWindow({ 
           silent: false,
-          deviceName: selectedPrinter || 'POS-58'
+          deviceName: selectedPrinter || 'POS-58',
+          margins: { marginType: 'none' }
         });
         if (!res.success && res.failureReason) {
           console.warn('Electron print notice, falling back:', res.failureReason);
@@ -221,14 +222,14 @@ const InvoicePreview = ({ invoice, onClose }) => {
           }
           .ticket-paper {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-            font-size: ${is58 ? '9.5px' : '11px'};
+            font-size: ${is58 ? '10px' : '11px'};
             line-height: 1.2;
-            font-weight: 400;
+            font-weight: 500;
             color: #000000;
             background: #ffffff;
             margin: 0 auto;
-            width: ${is58 ? '44mm' : '72mm'};
-            max-width: 100%;
+            width: 100%;
+            max-width: ${is58 ? '48mm' : '72mm'};
             box-sizing: border-box;
             -webkit-font-smoothing: antialiased;
             text-rendering: optimizeLegibility;
@@ -248,7 +249,7 @@ const InvoicePreview = ({ invoice, onClose }) => {
           @media print {
             @page {
               size: ${is58 ? '58mm auto' : '80mm auto'};
-              margin: 0mm;
+              margin: 0mm !important;
             }
             html, body {
               width: 100% !important;
@@ -295,12 +296,18 @@ const InvoicePreview = ({ invoice, onClose }) => {
               position: absolute !important;
               left: 0 !important;
               top: 0 !important;
-              width: ${is58 ? '44mm' : '72mm'} !important;
-              max-width: ${is58 ? '44mm' : '72mm'} !important;
-              padding: 1mm 1mm 28mm 1mm !important;
-              margin: 0 auto !important;
+              width: 100% !important;
+              max-width: ${is58 ? '48mm' : '72mm'} !important;
+              padding: 0 !important;
+              margin: 0 !important;
               page-break-inside: avoid !important;
               break-inside: avoid !important;
+            }
+            .ticket-paper {
+              width: 100% !important;
+              max-width: ${is58 ? '48mm' : '72mm'} !important;
+              margin: 0 !important;
+              padding: 0 1mm !important;
             }
           }
         `}
@@ -570,12 +577,12 @@ const InvoicePreview = ({ invoice, onClose }) => {
                     <div style={{ fontSize: '8.5px', marginTop: '1px' }}>{CLIENT_CONFIG.receipt?.contactNotice || 'Instagram: @happydays_ve'}</div>
                   </div>
 
-                  {/* Guía de corte y avance forzado para que la cuchilla nunca pise el texto */}
-                  <div style={{ textAlign: 'center', fontSize: '8px', letterSpacing: '2px', color: '#000', margin: '3px 0' }}>
+                  {/* Guía de corte y avance para pasar la cuchilla (12mm) */}
+                  <div style={{ textAlign: 'center', fontSize: '8px', letterSpacing: '2px', color: '#000', margin: '2px 0' }}>
                     - - - - - - - - - - - - - -
                   </div>
-                  <div style={{ height: '28mm', minHeight: '28mm', display: 'block', lineHeight: '14px' }}>
-                    &nbsp;<br/>&nbsp;<br/>&nbsp;<br/>&nbsp;
+                  <div style={{ height: '12mm', minHeight: '12mm', display: 'block', lineHeight: '12px' }}>
+                    &nbsp;<br/>&nbsp;
                   </div>
                 </div>
               )}
@@ -764,12 +771,12 @@ const InvoicePreview = ({ invoice, onClose }) => {
                     <div style={{ fontSize: is58 ? '8px' : '8.5px', marginTop: '1px' }}>{CLIENT_CONFIG.receipt?.contactNotice || 'Instagram: @happydays_ve'}</div>
                   </div>
 
-                  {/* Guía de corte y avance forzado para que la cuchilla nunca pise el texto */}
-                  <div style={{ textAlign: 'center', fontSize: '8px', letterSpacing: '2px', color: '#000', margin: '3px 0' }}>
+                  {/* Guía de corte y avance para pasar la cuchilla (12mm) */}
+                  <div style={{ textAlign: 'center', fontSize: '8px', letterSpacing: '2px', color: '#000', margin: '2px 0' }}>
                     - - - - - - - - - - - - - -
                   </div>
-                  <div style={{ height: '28mm', minHeight: '28mm', display: 'block', lineHeight: '14px' }}>
-                    &nbsp;<br/>&nbsp;<br/>&nbsp;<br/>&nbsp;
+                  <div style={{ height: '12mm', minHeight: '12mm', display: 'block', lineHeight: '12px' }}>
+                    &nbsp;<br/>&nbsp;
                   </div>
                 </div>
               )}

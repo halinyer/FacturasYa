@@ -76,7 +76,8 @@ ipcMain.handle('print-window', async (event, options = {}) => {
       mainWindowRef.webContents.print({
         silent: options.silent || false,
         printBackground: true,
-        deviceName: options.deviceName || ''
+        deviceName: options.deviceName || '',
+        margins: options.margins || { marginType: 'none' }
       }, (success, failureReason) => {
         resolve({ success, failureReason });
       });
