@@ -747,10 +747,10 @@ export default function Tables() {
                         type="button"
                         onClick={() => setSelectedComandaPrint({
                           round: rnd,
-                          tableName: rnd.tableName,
-                          waiterName: rnd.waiterName,
-                          orderId: rnd.orderId,
-                          autoPrint: true
+                          tableName: rnd.tableName || 'Mesa',
+                          waiterName: rnd.waiterName || 'Mesero',
+                          orderId: rnd.orderId || rnd.id || '',
+                          autoPrint: false
                         })}
                         style={{
                           width: '100%', padding: '10px', background: '#3b82f6', color: '#ffffff',

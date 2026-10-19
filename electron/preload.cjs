@@ -8,4 +8,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getServerInfo: () => ipcRenderer.invoke('get-server-info'),
   refreshServerIp: (manualIp) => ipcRenderer.invoke('refresh-server-ip', manualIp),
   restartServer: () => ipcRenderer.invoke('restart-server'),
+  getPrinters: () => ipcRenderer.invoke('get-printers'),
+  printWindow: (options) => ipcRenderer.invoke('print-window', options),
 });

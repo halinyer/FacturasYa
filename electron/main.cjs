@@ -56,6 +56,36 @@ ipcMain.handle('restart-server', async () => {
   return await freshServer.startServer(3001, app.getPath('userData'));
 });
 
+// IPC Handler for reliable printer discovery and native thermal printing
+ipcMain.handle('get-printers', async () => {
+  if (!mainWindowRef || !mainWindowRef.webContents) return [];
+  try {
+    return await mainWindowRef.webContents.getPrintersAsync();
+  } catch (e) {
+    console.error('Error fetching printers:', e);
+    return [];
+  }
+});
+
+ipcMain.handle('print-window', async (event, options = {}) => {
+  if (!mainWindowRef || !mainWindowRef.webContents) {
+    return { success: false, error: 'Ventana no disponible' };
+  }
+  return new Promise((resolve) => {
+    try {
+      mainWindowRef.webContents.print({
+        silent: options.silent || false,
+        printBackground: true,
+        deviceName: options.deviceName || ''
+      }, (success, failureReason) => {
+        resolve({ success, failureReason });
+      });
+    } catch (err) {
+      resolve({ success: false, failureReason: err.message });
+    }
+  });
+});
+
 // Helper paths for file-based database
 const getDbPath = () => path.join(app.getPath('userData'), 'facturapos_db.json');
 const getDbBackupPath = () => path.join(app.getPath('userData'), 'facturapos_db.json.bak');
