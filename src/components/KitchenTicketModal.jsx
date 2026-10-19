@@ -13,11 +13,61 @@ export const KitchenTicketModal = ({
     return localStorage.getItem('pos_comanda_paper_size') || '58mm';
   });
 
+  const [printers, setPrinters] = useState([]);
+  const [selectedPrinter, setSelectedPrinter] = useState(() => {
+    return localStorage.getItem('pos_comanda_printer') || 'POS-58';
+  });
+
   useEffect(() => {
     try {
       localStorage.setItem('pos_comanda_paper_size', paperSize);
     } catch (e) {}
   }, [paperSize]);
+
+  useEffect(() => {
+    if (window.electronAPI && typeof window.electronAPI.getPrinters === 'function') {
+      window.electronAPI.getPrinters().then(list => {
+        if (Array.isArray(list) && list.length > 0) {
+          setPrinters(list);
+          const saved = localStorage.getItem('pos_comanda_printer');
+          const exists = list.some(p => p.name === saved);
+          if (saved && exists) {
+            setSelectedPrinter(saved);
+          } else {
+            const pos = list.find(p => /pos-?58|pos58|ticket|thermal/i.test(p.name)) || list.find(p => p.isDefault) || list[0];
+            if (pos) {
+              setSelectedPrinter(pos.name);
+              localStorage.setItem('pos_comanda_printer', pos.name);
+            }
+          }
+        }
+      }).catch(e => console.warn('Printers load notice:', e));
+    }
+  }, []);
+
+  const handlePrint = async () => {
+    try {
+      if (window.electronAPI && typeof window.electronAPI.printWindow === 'function') {
+        const res = await window.electronAPI.printWindow({ 
+          silent: false,
+          deviceName: selectedPrinter || 'POS-58'
+        });
+        if (!res.success && res.failureReason) {
+          console.warn('Electron print notice, falling back to window.print:', res.failureReason);
+          window.print();
+        }
+      } else {
+        window.print();
+      }
+    } catch (err) {
+      console.warn('Fallback to browser print:', err);
+      try {
+        window.print();
+      } catch (e) {
+        alert('Error al abrir la impresora: ' + (e.message || e));
+      }
+    }
+  };
 
   useEffect(() => {
     if (autoPrint) {
@@ -26,7 +76,7 @@ export const KitchenTicketModal = ({
       }, 400);
       return () => clearTimeout(timer);
     }
-  }, [autoPrint]);
+  }, [autoPrint, selectedPrinter]);
 
   if (!round) return null;
 
@@ -63,27 +113,6 @@ export const KitchenTicketModal = ({
   const timeStr = formatTime(round.sentAt);
   const dateStr = formatDate(round.sentAt);
 
-  const handlePrint = async () => {
-    try {
-      if (window.electronAPI && typeof window.electronAPI.printWindow === 'function') {
-        const res = await window.electronAPI.printWindow({ silent: false });
-        if (!res.success && res.failureReason) {
-          console.warn('Electron print notice, falling back:', res.failureReason);
-          window.print();
-        }
-      } else {
-        window.print();
-      }
-    } catch (err) {
-      console.warn('Fallback to browser print:', err);
-      try {
-        window.print();
-      } catch (e) {
-        alert('Error al abrir la impresora: ' + (e.message || e));
-      }
-    }
-  };
-
   const is58 = paperSize === '58mm';
 
   return (
@@ -98,7 +127,7 @@ export const KitchenTicketModal = ({
           }
           .kitchen-modal-box {
             background: #0f172a; width: 100%;
-            max-width: ${is58 ? '350px' : '430px'};
+            max-width: ${is58 ? '360px' : '440px'};
             border-radius: 14px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.85);
             border: 1px solid rgba(255, 255, 255, 0.15); display: flex; flex-direction: column;
             max-height: 94vh; overflow: hidden;
@@ -106,7 +135,7 @@ export const KitchenTicketModal = ({
           .kitchen-header-bar {
             display: flex; justify-content: space-between; align-items: center;
             padding: 10px 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            background: #1e293b; color: #f8fafc;
+            background: #1e293b; color: #f8fafc; gap: 8px;
           }
           .kitchen-content {
             padding: ${is58 ? '10px 6px' : '16px 12px'};
@@ -172,14 +201,45 @@ export const KitchenTicketModal = ({
       <div className="kitchen-modal-overlay" onClick={onClose}>
         <div className="kitchen-modal-box" onClick={e => e.stopPropagation()}>
           <div className="kitchen-header-bar">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Utensils size={18} color="#f59e0b" />
-              <div style={{ fontSize: '0.88rem', fontWeight: '800' }}>
-                Comanda de Cocina (Chef)
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Utensils size={17} color="#f59e0b" />
+              <div style={{ fontSize: '0.85rem', fontWeight: '800', whiteSpace: 'nowrap' }}>
+                Comanda Chef
               </div>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {/* Printers selector */}
+              {printers.length > 0 && (
+                <select
+                  value={selectedPrinter}
+                  onChange={(e) => {
+                    setSelectedPrinter(e.target.value);
+                    localStorage.setItem('pos_comanda_printer', e.target.value);
+                  }}
+                  title="Impresora de Comandas"
+                  style={{
+                    background: 'rgba(255,255,255,0.12)',
+                    color: '#f8fafc',
+                    border: '1px solid rgba(255,255,255,0.25)',
+                    borderRadius: '6px',
+                    fontSize: '0.72rem',
+                    fontWeight: '700',
+                    padding: '3px 6px',
+                    outline: 'none',
+                    cursor: 'pointer',
+                    maxWidth: '115px'
+                  }}
+                >
+                  {printers.map(p => (
+                    <option key={p.name} value={p.name} style={{ background: '#1e293b', color: '#fff' }}>
+                      🖨️ {p.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              {/* Paper format selector */}
               <div style={{ display: 'flex', background: 'rgba(255,255,255,0.1)', borderRadius: '6px', padding: '2px' }}>
                 <button
                   type="button"
@@ -207,6 +267,7 @@ export const KitchenTicketModal = ({
                 </button>
               </div>
 
+              {/* Print Button */}
               <button
                 type="button"
                 onClick={handlePrint}
