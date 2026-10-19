@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Printer, Receipt, FileText } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { CLIENT_CONFIG } from '../config/clientConfig';
@@ -63,15 +63,59 @@ const InvoicePreview = ({ invoice, onClose }) => {
   const { clients = [] } = useData() || {};
   
   // Modos disponibles: 'seniat' (Factura Fiscal) | 'nota_entrega' (Nota de Entrega / Cuenta)
-  const [formatType, setFormatType] = useState(invoice?.isPreBill ? 'nota_entrega' : 'seniat');
+  const [formatType, setFormatType] = useState('nota_entrega');
   
-  // Tamaño de papel: '58mm' o '80mm' (por defecto 58mm para notas de entrega, 80mm para fiscal)
-  const [paperSize, setPaperSize] = useState(invoice?.isPreBill ? '58mm' : '80mm');
+  // Tamaño de papel: Por defecto 58mm para adaptarse a la impresora térmica conectada
+  const [paperSize, setPaperSize] = useState('58mm');
+  const [printers, setPrinters] = useState([]);
+  const [selectedPrinter, setSelectedPrinter] = useState(() => {
+    return localStorage.getItem('pos_comanda_printer') || 'POS-58';
+  });
+
+  useEffect(() => {
+    if (window.electronAPI && typeof window.electronAPI.getPrinters === 'function') {
+      window.electronAPI.getPrinters().then(list => {
+        if (Array.isArray(list) && list.length > 0) {
+          setPrinters(list);
+          const saved = localStorage.getItem('pos_comanda_printer');
+          const exists = list.some(p => p.name === saved);
+          if (saved && exists) {
+            setSelectedPrinter(saved);
+          } else {
+            const pos = list.find(p => /pos-?58|pos58|ticket|thermal/i.test(p.name)) || list.find(p => p.isDefault) || list[0];
+            if (pos) {
+              setSelectedPrinter(pos.name);
+            }
+          }
+        }
+      }).catch(e => console.warn('Printers load notice:', e));
+    }
+  }, []);
 
   if (!invoice) return null;
 
-  const handlePrint = () => {
-    window.print();
+  const handlePrint = async () => {
+    try {
+      if (window.electronAPI && typeof window.electronAPI.printWindow === 'function') {
+        const res = await window.electronAPI.printWindow({ 
+          silent: false,
+          deviceName: selectedPrinter || 'POS-58'
+        });
+        if (!res.success && res.failureReason) {
+          console.warn('Electron print notice, falling back:', res.failureReason);
+          window.print();
+        }
+      } else {
+        window.print();
+      }
+    } catch (err) {
+      console.warn('Fallback to browser print:', err);
+      try {
+        window.print();
+      } catch (e) {
+        alert('Error al abrir la impresora: ' + (e.message || e));
+      }
+    }
   };
 
   const handleSelectFormat = (type) => {
@@ -79,7 +123,7 @@ const InvoicePreview = ({ invoice, onClose }) => {
     if (type === 'nota_entrega') {
       setPaperSize('58mm');
     } else {
-      setPaperSize('80mm');
+      setPaperSize('58mm'); // Mantener 58mm para no distorsionar en impresoras de 58mm
     }
   };
 
@@ -163,7 +207,7 @@ const InvoicePreview = ({ invoice, onClose }) => {
             background: #1e293b; color: #f8fafc;
           }
           .invoice-content {
-            padding: ${paperSize === '58mm' ? '14px 10px' : '20px 18px'};
+            padding: ${paperSize === '58mm' ? '12px 6px' : '20px 18px'};
             overflow-y: auto; background: #ffffff; color: #000000;
           }
           .ticket-paper {
@@ -173,7 +217,9 @@ const InvoicePreview = ({ invoice, onClose }) => {
             color: #000000;
             background: #ffffff;
             margin: 0 auto;
-            width: 100%;
+            width: ${paperSize === '58mm' ? '48mm' : '72mm'};
+            max-width: 100%;
+            box-sizing: border-box;
             -webkit-font-smoothing: antialiased;
             text-rendering: optimizeLegibility;
           }
@@ -191,14 +237,16 @@ const InvoicePreview = ({ invoice, onClose }) => {
           
           @media print {
             @page {
-              size: ${paperSize} auto;
+              size: ${paperSize === '58mm' ? '58mm auto' : '80mm auto'};
               margin: 0mm;
             }
             html, body {
-              width: ${paperSize} !important;
+              width: 100% !important;
               margin: 0 !important;
               padding: 0 !important;
               background: #fff !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
             }
             body * {
               visibility: hidden !important;
@@ -209,13 +257,13 @@ const InvoicePreview = ({ invoice, onClose }) => {
               position: absolute !important;
               top: 0 !important;
               left: 0 !important;
-              width: ${paperSize} !important;
+              width: 100% !important;
             }
             .invoice-modal {
               box-shadow: none !important;
               border: none !important;
-              width: ${paperSize} !important;
-              max-width: ${paperSize} !important;
+              width: 100% !important;
+              max-width: 100% !important;
               border-radius: 0 !important;
               background: transparent !important;
               page-break-inside: avoid !important;
@@ -226,15 +274,21 @@ const InvoicePreview = ({ invoice, onClose }) => {
             }
             .invoice-content, .invoice-content * {
               visibility: visible !important;
+              color: #000000 !important;
+              border-color: #000000 !important;
+              background-color: transparent !important;
+              text-shadow: none !important;
+              filter: none !important;
+              -webkit-text-stroke: 0 !important;
             }
             .invoice-content {
               position: absolute !important;
               left: 0 !important;
               top: 0 !important;
-              width: ${paperSize} !important;
-              max-width: ${paperSize} !important;
-              padding: ${paperSize === '58mm' ? '2mm 1mm' : '4mm 3mm'} !important;
-              margin: 0 !important;
+              width: ${paperSize === '58mm' ? '48mm' : '72mm'} !important;
+              max-width: ${paperSize === '58mm' ? '48mm' : '72mm'} !important;
+              padding: 1mm 1mm 28mm 1mm !important;
+              margin: 0 auto !important;
               page-break-inside: avoid !important;
               break-inside: avoid !important;
             }
@@ -299,8 +353,30 @@ const InvoicePreview = ({ invoice, onClose }) => {
                 </button>
               </div>
 
-              {/* Selector de Ancho 58mm / 80mm y Botón Imprimir */}
+              {/* Selector de Impresora, Ancho 58mm / 80mm y Botón Imprimir */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {printers.length > 0 && (
+                  <select
+                    value={selectedPrinter}
+                    onChange={(e) => {
+                      setSelectedPrinter(e.target.value);
+                      try { localStorage.setItem('pos_comanda_printer', e.target.value); } catch(err){}
+                    }}
+                    style={{
+                      padding: '4px 6px', borderRadius: '6px', fontSize: '0.72rem',
+                      background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)',
+                      maxWidth: '120px', cursor: 'pointer'
+                    }}
+                    title="Seleccionar impresora"
+                  >
+                    {printers.map((p, idx) => (
+                      <option key={idx} value={p.name} style={{ background: '#1e293b', color: '#fff' }}>
+                        {p.name} {p.isDefault ? '(Predet.)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
+
                 <div style={{ display: 'flex', background: 'rgba(255,255,255,0.08)', borderRadius: '6px', padding: '2px' }}>
                   <button
                     type="button"
@@ -427,7 +503,7 @@ const InvoicePreview = ({ invoice, onClose }) => {
                             <span className="ticket-bold">{formatVE(subtotalBs)} (G)</span>
                           </div>
                           {(item.note || item.notes) && (
-                            <div style={{ fontSize: '9px', fontStyle: 'italic', color: '#333', paddingLeft: '4px' }}>
+                            <div style={{ fontSize: '9px', fontStyle: 'italic', color: '#000000', paddingLeft: '4px' }}>
                               * {item.note || item.notes}
                             </div>
                           )}
@@ -462,7 +538,7 @@ const InvoicePreview = ({ invoice, onClose }) => {
                     <span>TOTAL</span>
                     <span>{formatVE(totalBs)}</span>
                   </div>
-                  <div style={{ fontSize: paperSize === '58mm' ? '9px' : '10.5px', color: '#222', marginBottom: '6px' }}>
+                  <div style={{ fontSize: paperSize === '58mm' ? '9px' : '10.5px', color: '#000000', marginBottom: '6px' }}>
                     (Ref. ${totalUSD.toFixed(2)} - Tasa BCV: Bs. {formatVE(exchangeRate, 2)})
                   </div>
 
@@ -482,6 +558,14 @@ const InvoicePreview = ({ invoice, onClose }) => {
                   <div className="ticket-center" style={{ fontSize: '9px', marginTop: '8px' }}>
                     <div className="ticket-bold">{CLIENT_CONFIG.receipt?.footerGreeting || '¡Gracias por su compra!'}</div>
                     <div style={{ fontSize: '8.5px', marginTop: '1px' }}>{CLIENT_CONFIG.receipt?.contactNotice || 'Instagram: @happydays_ve'}</div>
+                  </div>
+
+                  {/* Guía de corte y avance forzado para que la cuchilla nunca pise el texto */}
+                  <div style={{ textAlign: 'center', fontSize: '8px', letterSpacing: '2px', color: '#000', margin: '3px 0' }}>
+                    - - - - - - - - - - - - - -
+                  </div>
+                  <div style={{ height: '28mm', minHeight: '28mm', display: 'block', lineHeight: '14px' }}>
+                    &nbsp;<br/>&nbsp;<br/>&nbsp;<br/>&nbsp;
                   </div>
                 </div>
               )}
@@ -507,7 +591,7 @@ const InvoicePreview = ({ invoice, onClose }) => {
                     <div style={{ fontSize: paperSize === '58mm' ? '9px' : '10.5px', marginTop: '1px' }}>
                       Tel.: {phone}
                     </div>
-                    <div style={{ fontSize: paperSize === '58mm' ? '8.5px' : '9.5px', marginTop: '2px', fontWeight: 'bold', color: '#475569' }}>
+                    <div style={{ fontSize: paperSize === '58mm' ? '8.5px' : '9.5px', marginTop: '2px', fontWeight: 'bold', color: '#000000' }}>
                       DOCUMENTO DE CONTROL INTERNO (NO FISCAL)
                     </div>
                   </div>
@@ -537,15 +621,15 @@ const InvoicePreview = ({ invoice, onClose }) => {
                     </div>
 
                     {invoice.orderType === 'delivery' && (
-                      <div style={{ background: '#f0fdf4', padding: '3px 5px', borderRadius: '4px', margin: '2px 0', border: '1px solid #bbf7d0' }}>
-                        <div className="ticket-bold" style={{ color: '#166534', fontSize: '9.5px' }}>🛵 MODALIDAD: DELIVERY</div>
+                      <div style={{ margin: '3px 0' }}>
+                        <div className="ticket-bold" style={{ fontSize: '9.5px' }}>🛵 MODALIDAD: DELIVERY</div>
                         {invoice.deliveryInfo?.address && <div><strong>Dir:</strong> {invoice.deliveryInfo.address}</div>}
                         {invoice.deliveryInfo?.phone && <div><strong>Tel:</strong> {invoice.deliveryInfo.phone}</div>}
                       </div>
                     )}
 
                     {invoice.orderType === 'para_llevar' && (
-                      <div className="ticket-bold" style={{ color: '#7c3aed', margin: '2px 0', fontSize: '9.5px' }}>
+                      <div className="ticket-bold" style={{ margin: '3px 0', fontSize: '9.5px' }}>
                         🛍️ MODALIDAD: PARA LLEVAR
                       </div>
                     )}
@@ -581,13 +665,13 @@ const InvoicePreview = ({ invoice, onClose }) => {
                             </span>
                           </div>
 
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: paperSize === '58mm' ? '8.5px' : '10px', color: '#444' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: paperSize === '58mm' ? '8.5px' : '10px', color: '#000000' }}>
                             <span>{qty} X {formatVE(unitPriceBs)} (${unitPriceUSD.toFixed(2)})</span>
                             <span>Ref. ${(qty * unitPriceUSD).toFixed(2)}</span>
                           </div>
 
                           {noteText && (
-                            <div style={{ fontSize: '9px', fontStyle: 'italic', color: '#b91c1c', paddingLeft: '6px' }}>
+                            <div style={{ fontSize: '9px', fontStyle: 'italic', color: '#000000', paddingLeft: '6px' }}>
                               &gt;&gt; NOTA: {noteText}
                             </div>
                           )}
@@ -617,7 +701,7 @@ const InvoicePreview = ({ invoice, onClose }) => {
                       <span>TOTAL USD (REF):</span>
                       <span>$ {totalUSD.toFixed(2)}</span>
                     </div>
-                    <div style={{ fontSize: paperSize === '58mm' ? '8.5px' : '10.5px', color: '#333' }}>
+                    <div style={{ fontSize: paperSize === '58mm' ? '8.5px' : '10.5px', color: '#000000' }}>
                       Tasa Oficial BCV: Bs. {formatVE(exchangeRate, 2)} / USD
                     </div>
                   </div>
@@ -638,6 +722,14 @@ const InvoicePreview = ({ invoice, onClose }) => {
                   <div className="ticket-center" style={{ fontSize: '9px' }}>
                     <div className="ticket-bold">{CLIENT_CONFIG.receipt?.footerGreeting || '¡Gracias por su visita!'}</div>
                     <div style={{ fontSize: '8.5px', marginTop: '1px' }}>{CLIENT_CONFIG.receipt?.contactNotice || 'Instagram: @happydays_ve'}</div>
+                  </div>
+
+                  {/* Guía de corte y avance forzado para que la cuchilla nunca pise el texto */}
+                  <div style={{ textAlign: 'center', fontSize: '8px', letterSpacing: '2px', color: '#000', margin: '3px 0' }}>
+                    - - - - - - - - - - - - - -
+                  </div>
+                  <div style={{ height: '28mm', minHeight: '28mm', display: 'block', lineHeight: '14px' }}>
+                    &nbsp;<br/>&nbsp;<br/>&nbsp;<br/>&nbsp;
                   </div>
                 </div>
               )}

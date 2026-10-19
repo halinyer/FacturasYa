@@ -192,7 +192,7 @@ export const KitchenTicketModal = ({
               left: 0 !important; top: 0 !important;
               width: ${is58 ? '48mm' : '72mm'} !important;
               max-width: ${is58 ? '48mm' : '72mm'} !important;
-              padding: 1mm 1mm 18mm 1mm !important;
+              padding: 1mm 1mm 26mm 1mm !important;
               margin: 0 auto !important;
               page-break-inside: avoid !important;
               break-inside: avoid !important;
@@ -398,15 +398,21 @@ export const KitchenTicketModal = ({
               {/* Bottom Waiter Banner */}
               <div className="k-center k-bold" style={{ 
                 fontSize: is58 ? '11px' : '12px', 
-                padding: '2px 4px', 
-                border: '1px solid #000', 
-                marginTop: '3px'
+                padding: '3px 4px', 
+                border: '1.5px solid #000', 
+                marginTop: '4px',
+                marginBottom: '4px'
               }}>
                 ENTREGAR A: {safeWaiterName}
               </div>
 
-              {/* Margen limpio para corte térmico sin desperdicio */}
-              <div style={{ height: '16mm', minHeight: '16mm' }}>&nbsp;</div>
+              {/* Guía de corte y avance forzado para que la cuchilla nunca pise el texto */}
+              <div style={{ textAlign: 'center', fontSize: '8px', letterSpacing: '2px', color: '#000', margin: '3px 0' }}>
+                - - - - - - - - - - - - - -
+              </div>
+              <div style={{ height: '28mm', minHeight: '28mm', display: 'block', lineHeight: '14px' }}>
+                &nbsp;<br/>&nbsp;<br/>&nbsp;<br/>&nbsp;
+              </div>
             </div>
           </div>
         </div>
