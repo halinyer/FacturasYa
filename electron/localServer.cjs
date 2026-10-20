@@ -766,6 +766,24 @@ function createLocalServer() {
     res.json({ success: true, id: tableId });
   });
 
+  // Reset restaurant orders & clear table active status
+  app.post('/api/restaurant/reset-orders', (req, res) => {
+    if (!restaurantData) restaurantData = loadOrdersData();
+    restaurantData.orders = [];
+    if (Array.isArray(restaurantData.tables)) {
+      restaurantData.tables.forEach(t => {
+        t.status = 'libre';
+        delete t.currentOrderId;
+      });
+    }
+    saveOrdersData(restaurantData);
+    if (io) {
+      io.emit('mesas:actualizadas', restaurantData.tables);
+      io.emit('restaurante:sync', getFullRestaurantState());
+    }
+    res.json({ success: true, message: 'Comandas y mesas reiniciadas en limpio' });
+  });
+
   // Franchise Configuration & Synchronization
   app.get('/api/franchise', (req, res) => {
     if (!restaurantData) restaurantData = loadOrdersData();

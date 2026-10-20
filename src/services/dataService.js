@@ -625,5 +625,22 @@ export const db = {
       console.error('Error importing backup:', err);
       throw err;
     }
+  },
+
+  clearAllSalesData: () => {
+    setStorageItem('pos_invoices', []);
+    setStorageItem('pos_payments', []);
+    setStorageItem('pos_cash_closes', []);
+    setStorageItem('pos_open_tabs', []);
+    try {
+      localStorage.setItem('pos_invoices', JSON.stringify([]));
+      localStorage.setItem('pos_payments', JSON.stringify([]));
+      localStorage.setItem('pos_cash_closes', JSON.stringify([]));
+      localStorage.setItem('pos_open_tabs', JSON.stringify([]));
+    } catch (e) {}
+    try {
+      fetch('http://localhost:3001/api/restaurant/reset-orders', { method: 'POST' }).catch(() => {});
+    } catch (e) {}
+    return true;
   }
 };

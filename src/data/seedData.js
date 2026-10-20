@@ -1528,8 +1528,8 @@ export function initializeSeedData() {
   // Permitir productos sin imagen según solicitud del cliente
   // Purga definitiva de facturas y ventas para entrega en limpio a Happy Days
   const currentInvoiceCleanVer = db.rawGet('pos_invoices_clean_version') || '';
-  if (currentInvoiceCleanVer !== 'happydays_entrega_limpia_v1') {
-    db.rawSet('pos_invoices_clean_version', 'happydays_entrega_limpia_v1');
+  if (currentInvoiceCleanVer !== 'happydays_entrega_limpia_v2') {
+    db.rawSet('pos_invoices_clean_version', 'happydays_entrega_limpia_v2');
     db.rawSet('pos_invoices', []);
     db.rawSet('pos_payments', []);
     db.rawSet('pos_cash_closes', []);

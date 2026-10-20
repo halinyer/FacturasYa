@@ -255,6 +255,11 @@ export const DataProvider = ({ children }) => {
     return res;
   };
 
+  const clearAllSalesData = () => {
+    db.clearAllSalesData();
+    refreshData();
+  };
+
   const toggleRestaurantMode = (enabled) => {
     const val = db.setRestaurantMode(enabled);
     setRestaurantMode(val);
@@ -318,7 +323,8 @@ export const DataProvider = ({ children }) => {
       getNextInvoiceNumber,
       getClientById,
       exportBackup,
-      importBackup
+      importBackup,
+      clearAllSalesData
     }}>
       {children}
     </DataContext.Provider>

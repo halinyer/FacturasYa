@@ -7,7 +7,8 @@ import {
   FileText, 
   ChevronDown, 
   ChevronUp,
-  CreditCard
+  CreditCard,
+  Trash2
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import FilterBar from '../components/FilterBar';
@@ -29,7 +30,7 @@ import {
 const CHART_COLORS = ['#f59e0b', '#dc2626', '#10b981', '#3b82f6', '#8b5cf6', '#f97316'];
 
 export default function Dashboard() {
-  const { invoices = [], clients = [], products = [], payments = [], voidInvoice, addPayment, exchangeRate = 36.5 } = useData() || {};
+  const { invoices = [], clients = [], products = [], payments = [], voidInvoice, addPayment, clearAllSalesData, exchangeRate = 36.5 } = useData() || {};
   
   const [activeTab, setActiveTab] = useState('Facturas');
   const [filters, setFilters] = useState({
@@ -92,6 +93,13 @@ export default function Dashboard() {
     setPayingInvoice(null);
     setPaymentAmount('');
     setPaymentMethodAb('efectivo_usd');
+  };
+
+  const handleClearRecords = () => {
+    if (window.confirm('¿Deseas vaciar todos los registros del dashboard (facturas, pagos, cierres de caja y órdenes de prueba)? Esta acción dejará los reportes en $0.00.')) {
+      if (clearAllSalesData) clearAllSalesData();
+      alert('Registros eliminados con éxito. El dashboard ha quedado en $0.00.');
+    }
   };
 
   // Filter invoices
@@ -300,13 +308,36 @@ export default function Dashboard() {
     <div style={{ padding: '32px', maxWidth: '1400px', margin: '0 auto', background: '#f4f5f7', minHeight: '100%', color: '#111827' }}>
       
       {/* Top Header */}
-      <div style={{ marginBottom: '28px' }}>
-        <h1 style={{ margin: 0, color: '#111827', fontSize: '1.6rem', fontWeight: '700', letterSpacing: '-0.5px' }}>
-          Dashboard Administrativo
-        </h1>
-        <p style={{ margin: '4px 0 0 0', color: '#6b7280', fontSize: '0.88rem' }}>
-          Resumen de ventas, cuentas por cobrar y reportes en tiempo real
-        </p>
+      <div style={{ marginBottom: '28px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+        <div>
+          <h1 style={{ margin: 0, color: '#111827', fontSize: '1.6rem', fontWeight: '700', letterSpacing: '-0.5px' }}>
+            Dashboard Administrativo
+          </h1>
+          <p style={{ margin: '4px 0 0 0', color: '#6b7280', fontSize: '0.88rem' }}>
+            Resumen de ventas, cuentas por cobrar y reportes en tiempo real
+          </p>
+        </div>
+        <button
+          onClick={handleClearRecords}
+          title="Vaciar facturas, pagos y órdenes de prueba para comenzar en limpio"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            backgroundColor: '#fee2e2',
+            color: '#dc2626',
+            border: '1px solid #fecaca',
+            borderRadius: '8px',
+            padding: '8px 14px',
+            fontSize: '0.84rem',
+            fontWeight: '600',
+            cursor: 'pointer',
+            transition: 'all 0.2s'
+          }}
+        >
+          <Trash2 size={16} />
+          <span>Vaciar Registros</span>
+        </button>
       </div>
       
       {/* Apple Minimal KPI Cards */}
