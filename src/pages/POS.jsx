@@ -5,7 +5,8 @@ import {
   UtensilsCrossed, 
   Utensils, 
   CheckCircle, 
-  AlertCircle 
+  AlertCircle,
+  IceCream
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
@@ -662,7 +663,7 @@ const POS = () => {
             <Search size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
             <input
               type="text"
-              placeholder="Buscar producto, combo o código..."
+              placeholder="Buscar helado, paleta, pote o código..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               style={{
@@ -826,18 +827,18 @@ const POS = () => {
                             borderRadius: '8px'
                           }}
                         />
-                        <div className="pos-prod-fallback" style={{ display: 'none', flexDirection: 'column', alignItems: 'center', gap: '4px', color: 'var(--brand-primary, #D6862B)' }}>
-                          <UtensilsCrossed size={32} strokeWidth={1.8} />
+                        <div className="pos-prod-fallback" style={{ display: 'none', flexDirection: 'column', alignItems: 'center', gap: '4px', color: 'var(--brand-primary, #D91C24)' }}>
+                          <IceCream size={32} strokeWidth={1.8} />
                           <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', fontWeight: '800', color: '#64748b' }}>
-                            {product.category || 'Happy Days'}
+                            {product.category || 'Helados Cali'}
                           </span>
                         </div>
                       </>
                     ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', color: 'var(--brand-primary, #D6862B)' }}>
-                        <UtensilsCrossed size={32} strokeWidth={1.8} />
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', color: 'var(--brand-primary, #D91C24)' }}>
+                        <IceCream size={32} strokeWidth={1.8} />
                         <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', fontWeight: '800', color: '#64748b' }}>
-                          {product.category || 'Happy Days'}
+                          {product.category || 'Helados Cali'}
                         </span>
                       </div>
                     )}

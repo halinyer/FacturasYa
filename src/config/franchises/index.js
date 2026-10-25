@@ -1,5 +1,6 @@
 import facturapos from './facturapos.js';
 import happydays from './happydays.js';
+import heladoscali from './heladoscali.js';
 
 /**
  * Registro de franquicias y restaurantes soportados.
@@ -8,19 +9,20 @@ import happydays from './happydays.js';
  */
 export const FRANCHISES = {
   facturapos,
-  happydays
+  happydays,
+  heladoscali
 };
 
 /**
  * Obtiene la configuración del restaurante o franquicia actualmente activa.
- * Puede leerse de almacenamiento local, variable de entorno o fallback a 'facturapos'.
+ * En la rama cliente/helados-cali, el valor por defecto es Helados Cali.
  */
 export function getActiveFranchise() {
   const savedId = typeof window !== 'undefined' ? localStorage.getItem('pos_active_franchise') : null;
   if (savedId && FRANCHISES[savedId] && savedId !== 'facturapos') {
     return FRANCHISES[savedId];
   }
-  return FRANCHISES.happydays;
+  return FRANCHISES.heladoscali;
 }
 
 /**

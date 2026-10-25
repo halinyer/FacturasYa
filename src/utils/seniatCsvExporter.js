@@ -19,12 +19,12 @@ export function exportSeniatBookToCSV({
   purchasesTotals = {}
 }) {
   const periodLabel = `${selectedMonth}-${selectedYear}_${selectedFortnight}`;
-  const filename = `Libro_de_${isSales ? 'Ventas' : 'Compras'}_SENIAT_${CLIENT_CONFIG.rif || 'J500195923'}_${periodLabel}.csv`;
+  const filename = `Libro_de_${isSales ? 'Ventas' : 'Compras'}_SENIAT_${CLIENT_CONFIG.rif || 'J3105558882'}_${periodLabel}.csv`;
 
   const lines = [];
 
-  lines.push(`"${CLIENT_CONFIG.legalName || 'INVERSIONES HAPPY DAYS 1 C.A'}"`);
-  lines.push(`"RIF: ${CLIENT_CONFIG.rif || 'J-500195923'}"`);
+  lines.push(`"${CLIENT_CONFIG.legalName || 'DISTRIBUIDORA Y FRANQUICIA HELADOS CALI C.A.'}"`);
+  lines.push(`"RIF: ${CLIENT_CONFIG.rif || 'J-310555888-2'}"`);
   lines.push(`"LIBRO DE ${isSales ? 'VENTAS' : 'COMPRAS'} (IVA) - FORMATO SENIAT"`);
   lines.push(`"Período Fiscal: Mes ${selectedMonth}/${selectedYear} (${selectedFortnight === 'all' ? 'Mes Completo' : selectedFortnight === 'q1' ? '1ra Quincena' : '2da Quincena'})"`);
   lines.push('"Moneda de Registro: Bolívares (Bs.)"');

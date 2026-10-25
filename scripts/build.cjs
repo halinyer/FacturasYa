@@ -26,5 +26,5 @@ if (fs.existsSync(debugYml)) {
 }
 
 console.log('\n✅ ¡Listo! Compilación completada con éxito.');
-console.log('  ➜ 1. Ejecutable directo (Apertura inmediata): dist-electron/win-unpacked/FacturaPOS.exe');
-console.log('  ➜ 2. Ejecutable portable (Para llevar en Pendrive): dist-electron/FacturaPOS-1.0.0.exe\n');
+console.log('  ➜ 1. Ejecutable directo (Apertura inmediata): dist-electron/win-unpacked/HeladosCali-POS.exe');
+console.log('  ➜ 2. Ejecutable portable (Para llevar en Pendrive): dist-electron/HeladosCali-POS-1.0.0.exe\n');

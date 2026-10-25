@@ -1,39 +1,40 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-  /* Happy Days Design System (Clean, appetizing, high-contrast) */
-  --bg-app: #f7f7f9;
+  /* Helados Cali Design System (Fresco, alegre, alto contraste comercial) */
+  --bg-app: #f8fafc;
   --bg-surface: #ffffff;
-  --bg-subtle: #fafafa;
-  --border-subtle: #e5e7eb;
-  --border-card: #eaedf2;
+  --bg-subtle: #fffbeb;
+  --border-subtle: #fecdd3;
+  --border-card: #f1f5f9;
 
-  --text-primary: #18181b;
-  --text-secondary: #4b5563;
-  --text-muted: #9ca3af;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
 
-  /* Paleta Oficial Happy Days */
-  --brand-primary: #D52829;       /* Rojo Principal */
-  --brand-primary-hover: #b81f20;
-  --brand-dark: #601718;          /* Granate Profundo */
-  --brand-warm: #D6862B;          /* Ámbar / Dorado Cálido */
-  --brand-peach: #E99065;         /* Melocotón Cálido */
-  --brand-green: #7CBE43;         /* Verde Fresco */
+  /* Paleta Oficial Helados Cali */
+  --brand-primary: #D91C24;       /* Rojo Corporativo Cali */
+  --brand-primary-hover: #b9131a;
+  --brand-dark: #7F1D1D;          /* Borde Profundo / Títulos */
+  --brand-warm: #F59E0B;          /* Amarillo Dorado Neveras */
+  --brand-peach: #FDE68A;         /* Crema Vainilla */
+  --brand-cyan: #0284C7;          /* Azul Glaciar Refrescante */
+  --brand-green: #059669;         /* Verde Aprobado */
 
   /* Mapeo de Acentos para Interfaz */
-  --accent-gold: #D6862B;
-  --accent-gold-hover: #b97120;
-  --accent-gold-soft: #fef5ea;
+  --accent-gold: #F59E0B;
+  --accent-gold-hover: #d97706;
+  --accent-gold-soft: #fef3c7;
 
-  --accent-red: #D52829;
-  --accent-red-hover: #b81f20;
-  --accent-red-soft: #fef2f2;
+  --accent-red: #D91C24;
+  --accent-red-hover: #b9131a;
+  --accent-red-soft: #fff1f2;
 
-  --accent-green: #7CBE43;
-  --accent-green-soft: #f0fdf4;
+  --accent-green: #059669;
+  --accent-green-soft: #ecfdf5;
 
-  --accent-blue: #2563eb;
-  --accent-blue-soft: #dbeafe;
+  --accent-blue: #0284C7;
+  --accent-blue-soft: #e0f2fe;
 
   --accent-purple: #7c3aed;
   --accent-purple-soft: #ede9fe;

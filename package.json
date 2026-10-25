@@ -13,7 +13,7 @@
   },
   "build": {
     "appId": "com.facturapos.app",
-    "productName": "FacturaPOS",
+    "productName": "HeladosCali-POS",
     "directories": {
       "output": "dist-electron"
     },
@@ -33,7 +33,7 @@
         "portable",
         "dir"
       ],
-      "artifactName": "FacturaPOS-${version}.${ext}",
+      "artifactName": "HeladosCali-POS-${version}.${ext}",
       "signAndEditExecutable": false
     },
     "extraResources": [

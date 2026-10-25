@@ -433,7 +433,7 @@ export default function FiscalBooks() {
                 Libros de Compra y Venta (SENIAT)
               </h1>
               <span style={{ fontSize: '0.82rem', color: '#64748b' }}>
-                {CLIENT_CONFIG.legalName || 'INVERSIONES HAPPY DAYS 1 C.A'} • RIF: {CLIENT_CONFIG.rif || 'J-500195923'} • Cumplimiento Ley del IVA
+                {CLIENT_CONFIG.legalName || 'DISTRIBUIDORA Y FRANQUICIA HELADOS CALI C.A.'} • RIF: {CLIENT_CONFIG.rif || 'J-310555888-2'} • Cumplimiento Ley del IVA
               </span>
             </div>
           </div>
