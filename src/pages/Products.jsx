@@ -13,7 +13,7 @@ const Products = () => {
   const [imageLoading, setImageLoading] = useState(false);
   const fileInputRef = useRef(null);
   const [formData, setFormData] = useState({
-    id: null, name: '', category: '', priceUSD: '', sku: '', active: true, image: ''
+    id: null, name: '', category: '', priceUSD: '', priceMayor: '', priceCongelador: '', priceMicrodistribuidor: '', sku: '', active: true, image: ''
   });
 
   const handleImageChange = async (e) => {
@@ -58,13 +58,16 @@ const Products = () => {
         id: prod.id,
         name: prod.name || prod.nombre || '',
         category: prod.category || 'General',
-        priceUSD: (prod.priceUSD || prod.price || 0).toString(),
+        priceUSD: (prod.priceDetal || prod.priceUSD || prod.price || 0).toString(),
+        priceMayor: (prod.priceMayor ?? (prod.price_mayor ?? '')).toString(),
+        priceCongelador: (prod.priceCongelador ?? (prod.price_congelador ?? '')).toString(),
+        priceMicrodistribuidor: (prod.priceMicrodistribuidor ?? (prod.price_micro ?? '')).toString(),
         sku: prod.sku || '',
         active: prod.active !== false,
         image: prod.image || ''
       });
     } else {
-      setFormData({ id: null, name: '', category: '', priceUSD: '', sku: '', active: true, image: '' });
+      setFormData({ id: null, name: '', category: '', priceUSD: '', priceMayor: '', priceCongelador: '', priceMicrodistribuidor: '', sku: '', active: true, image: '' });
     }
     setIsModalOpen(true);
   };
@@ -72,10 +75,16 @@ const Products = () => {
   const handleSave = (e) => {
     e.preventDefault();
     try {
+      const priceDetal = parseFloat(formData.priceUSD) || 0;
       const data = {
         name: formData.name.trim(),
         category: formData.category ? formData.category.trim() : 'General',
-        priceUSD: parseFloat(formData.priceUSD) || 0,
+        priceUSD: priceDetal,
+        price: priceDetal,
+        priceDetal: priceDetal,
+        priceMayor: formData.priceMayor !== '' ? parseFloat(formData.priceMayor) : Number((priceDetal * 0.8).toFixed(2)),
+        priceCongelador: formData.priceCongelador !== '' ? parseFloat(formData.priceCongelador) : Number((priceDetal * 0.72).toFixed(2)),
+        priceMicrodistribuidor: formData.priceMicrodistribuidor !== '' ? parseFloat(formData.priceMicrodistribuidor) : Number((priceDetal * 0.65).toFixed(2)),
         sku: formData.sku ? formData.sku.trim() : '',
         active: formData.active !== false,
         image: formData.image || ''
@@ -203,8 +212,17 @@ const Products = () => {
                 <td style={{ padding: '14px 16px', color: '#6b7280', fontFamily: 'monospace' }}>{p.sku || '-'}</td>
                 <td style={{ padding: '14px 16px', fontWeight: '700', color: '#111827' }}>{p.name || p.nombre}</td>
                 <td style={{ padding: '14px 16px', color: '#4b5563' }}>{p.category || 'General'}</td>
-                <td style={{ padding: '14px 16px', fontWeight: '800', color: '#059669' }}>
-                  ${(Number(p.priceUSD || p.price || 0)).toFixed(2)}
+                <td style={{ padding: '14px 16px' }}>
+                  <div style={{ fontWeight: '800', color: '#059669', fontSize: '0.98rem' }}>
+                    ${(Number(p.priceDetal || p.priceUSD || p.price || 0)).toFixed(2)} <span style={{ fontSize: '0.68rem', color: '#64748b' }}>(Detal)</span>
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: '#64748b', display: 'flex', gap: '4px', marginTop: '2px', flexWrap: 'wrap' }}>
+                    <span style={{ color: '#059669' }}>Mayor: ${(Number(p.priceMayor || (p.price * 0.8))).toFixed(2)}</span>
+                    <span>•</span>
+                    <span style={{ color: '#d97706' }}>Cong: ${(Number(p.priceCongelador || (p.price * 0.72))).toFixed(2)}</span>
+                    <span>•</span>
+                    <span style={{ color: '#7c3aed' }}>Micro: ${(Number(p.priceMicrodistribuidor || (p.price * 0.65))).toFixed(2)}</span>
+                  </div>
                 </td>
                 <td style={{ padding: '14px 16px' }}>
                   <span style={{
@@ -347,21 +365,65 @@ const Products = () => {
                 </datalist>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', color: '#4b5563', marginBottom: '4px', fontWeight: '600' }}>Precio ($ USD) *</label>
-                  <input 
-                    required 
-                    type="number" 
-                    step="0.01" 
-                    min="0" 
-                    value={formData.priceUSD} 
-                    onChange={e => setFormData({ ...formData, priceUSD: e.target.value })}
-                    style={{ width: '100%', padding: '9px 12px', background: '#f9fafb', border: '1px solid #d1d5db', color: '#111827', borderRadius: '8px', boxSizing: 'border-box' }}
-                  />
+              <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: '0.8rem', fontWeight: '800', color: '#334155', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                  Precios por Modalidad de Venta ($ USD)
                 </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', color: '#4b5563', marginBottom: '4px', fontWeight: '600' }}>SKU / Código</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.74rem', color: '#2563eb', marginBottom: '3px', fontWeight: '700' }}>1. Detal (1-5 und) *</label>
+                    <input 
+                      required 
+                      type="number" 
+                      step="0.01" 
+                      min="0" 
+                      placeholder="Ej. 1.80"
+                      value={formData.priceUSD} 
+                      onChange={e => setFormData({ ...formData, priceUSD: e.target.value })}
+                      style={{ width: '100%', padding: '8px 10px', background: '#ffffff', border: '1.5px solid #bfdbfe', color: '#111827', borderRadius: '8px', boxSizing: 'border-box', fontWeight: '700' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.74rem', color: '#059669', marginBottom: '3px', fontWeight: '700' }}>2. Al Mayor (6+ und)</label>
+                    <input 
+                      type="number" 
+                      step="0.01" 
+                      min="0" 
+                      placeholder="Ej. 1.40"
+                      value={formData.priceMayor} 
+                      onChange={e => setFormData({ ...formData, priceMayor: e.target.value })}
+                      style={{ width: '100%', padding: '8px 10px', background: '#ffffff', border: '1.5px solid #a7f3d0', color: '#111827', borderRadius: '8px', boxSizing: 'border-box', fontWeight: '700' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.74rem', color: '#d97706', marginBottom: '3px', fontWeight: '700' }}>3. Congelador</label>
+                    <input 
+                      type="number" 
+                      step="0.01" 
+                      min="0" 
+                      placeholder="Ej. 1.20"
+                      value={formData.priceCongelador} 
+                      onChange={e => setFormData({ ...formData, priceCongelador: e.target.value })}
+                      style={{ width: '100%', padding: '8px 10px', background: '#ffffff', border: '1.5px solid #fde68a', color: '#111827', borderRadius: '8px', boxSizing: 'border-box', fontWeight: '700' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.74rem', color: '#7c3aed', marginBottom: '3px', fontWeight: '700' }}>4. Microdistribuidor</label>
+                    <input 
+                      type="number" 
+                      step="0.01" 
+                      min="0" 
+                      placeholder="Ej. 1.05"
+                      value={formData.priceMicrodistribuidor} 
+                      onChange={e => setFormData({ ...formData, priceMicrodistribuidor: e.target.value })}
+                      style={{ width: '100%', padding: '8px 10px', background: '#ffffff', border: '1.5px solid #ddd6fe', color: '#111827', borderRadius: '8px', boxSizing: 'border-box', fontWeight: '700' }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', color: '#4b5563', marginBottom: '4px', fontWeight: '600' }}>SKU / Código</label>
                   <input 
                     type="text" 
                     placeholder="HEL-001"
@@ -369,7 +431,6 @@ const Products = () => {
                     onChange={e => setFormData({ ...formData, sku: e.target.value })}
                     style={{ width: '100%', padding: '9px 12px', background: '#f9fafb', border: '1px solid #d1d5db', color: '#111827', borderRadius: '8px', boxSizing: 'border-box' }}
                   />
-                </div>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '14px' }}>

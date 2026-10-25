@@ -16,6 +16,7 @@ import InvoicePreview from '../components/InvoicePreview';
 import OpenTabsModal from '../components/pos/OpenTabsModal';
 import { getAssetUrl } from '../utils/assetHelper';
 import { buildInvoicePayload } from '../utils/invoiceCalculator';
+import { MODALIDADES, MODALIDADES_LIST, getProductPriceByModalidad, getModalidadForClient } from '../utils/pricingEngine';
 
 const POS = () => {
   const navigate = useNavigate();
@@ -39,6 +40,7 @@ const POS = () => {
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('Todos');
   const [cart, setCart] = useState([]);
+  const [modalidad, setModalidad] = useState('detal'); // 'detal' | 'mayor' | 'congelador' | 'microdistribuidor'
   const [client, setClient] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState('efectivo_usd');
   const [pagoMovilBank, setPagoMovilBank] = useState('');
@@ -217,17 +219,39 @@ const POS = () => {
   const cartTotalUSD = itemsSubtotalUSD + deliveryFee;
   const cartTotalBs = cartTotalUSD * currentRate;
 
+  // Cambio de modalidad de venta (Detal, Mayor, Congelador, Microdistribuidor)
+  const handleModalidadChange = (newMod) => {
+    setModalidad(newMod);
+    setCart(prev => prev.map(item => {
+      const prod = products.find(p => p.id === item.id) || item;
+      const newPrice = getProductPriceByModalidad(prod, newMod);
+      return {
+        ...item,
+        priceUSD: newPrice,
+        price: newPrice,
+        modalidad: newMod
+      };
+    }));
+    const modInfo = MODALIDADES[newMod];
+    if (modInfo) {
+      showToast(`Modalidad: ${modInfo.name} (${modInfo.description})`, 'info');
+    }
+  };
+
   // Cart operations
   const addToCart = (product) => {
+    const unitPrice = getProductPriceByModalidad(product, modalidad);
     setCart(prev => {
       const existing = prev.find(i => i.id === product.id);
       if (existing) {
-        return prev.map(i => i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i);
+        return prev.map(i => i.id === product.id ? { ...i, quantity: i.quantity + 1, priceUSD: unitPrice, price: unitPrice } : i);
       }
       return [...prev, { 
         id: product.id,
         name: product.name || product.nombre || 'Producto',
-        priceUSD: Number(product.priceUSD || product.price || 0),
+        priceUSD: unitPrice,
+        price: unitPrice,
+        modalidad,
         category: product.category,
         image: product.image || '',
         quantity: 1 
@@ -305,6 +329,10 @@ const POS = () => {
         address: selectedClient.address || prev.address,
         phone: selectedClient.phone || prev.phone
       }));
+      const clientMod = getModalidadForClient(selectedClient);
+      if (clientMod && clientMod !== modalidad) {
+        handleModalidadChange(clientMod);
+      }
     }
   };
 
@@ -428,7 +456,8 @@ const POS = () => {
         pagoMovilBank: bankFromModal !== undefined ? bankFromModal : pagoMovilBank,
         pagoMovilRef: refFromModal !== undefined ? refFromModal : pagoMovilRef,
         isFiscalInvoice,
-        loadedTableOrder
+        loadedTableOrder,
+        modalidad
       });
       const fiscalControlNumber = invoicePayload.fiscalControlNumber;
 
@@ -709,6 +738,58 @@ const POS = () => {
           )}
         </div>
 
+        {/* Modalidad de Venta Selector (Helados La Cascada) */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          background: '#ffffff',
+          padding: '8px 14px',
+          borderRadius: '14px',
+          border: '1.5px solid #e2e8f0',
+          marginBottom: '14px',
+          boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
+          flexWrap: 'wrap'
+        }}>
+          <span style={{ fontSize: '0.78rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginRight: '4px' }}>
+            Modalidad:
+          </span>
+          {MODALIDADES_LIST.map(mod => {
+            const isActive = modalidad === mod.id;
+            return (
+              <button
+                key={mod.id}
+                type="button"
+                onClick={() => handleModalidadChange(mod.id)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '7px 14px',
+                  borderRadius: '10px',
+                  border: isActive ? `2px solid ${mod.color}` : '1px solid #cbd5e1',
+                  background: isActive ? mod.bgLight : '#ffffff',
+                  color: isActive ? mod.textColor : '#475569',
+                  fontWeight: isActive ? '800' : '600',
+                  fontSize: '0.86rem',
+                  cursor: 'pointer',
+                  boxShadow: isActive ? `0 2px 8px ${mod.border}` : 'none',
+                  transition: 'all 0.15s ease'
+                }}
+                title={mod.description}
+              >
+                <span>{mod.icon}</span>
+                <span>{mod.name}</span>
+                {isActive && (
+                  <span style={{ fontSize: '0.66rem', background: mod.color, color: '#ffffff', padding: '1px 6px', borderRadius: '6px', fontWeight: '800', marginLeft: '4px' }}>
+                    Activo
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
         {/* Categories Bar */}
         <div style={{
           display: 'flex',
@@ -758,7 +839,7 @@ const POS = () => {
           ) : (
             filteredProducts.map(product => {
               const inCart = cart.find(i => i.id === product.id);
-              const price = Number(product.priceUSD || product.price || 0);
+              const price = getProductPriceByModalidad(product, modalidad);
 
               return (
                 <div
@@ -856,12 +937,26 @@ const POS = () => {
                     </div>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderTop: '1px solid #f1f5f9', paddingTop: '8px' }}>
-                      <span style={{ fontSize: '1.15rem', fontWeight: '900', color: '#059669' }}>
-                        ${price.toFixed(2)}
-                      </span>
-                      <span style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: '600', fontFamily: 'monospace' }}>
-                        Bs. {(price * currentRate).toFixed(2)}
-                      </span>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '1.18rem', fontWeight: '900', color: '#059669' }}>
+                            ${price.toFixed(2)}
+                          </span>
+                          {modalidad !== 'detal' && (
+                            <span style={{ fontSize: '0.62rem', fontWeight: '800', padding: '1px 5px', borderRadius: '4px', background: MODALIDADES[modalidad]?.bgLight, color: MODALIDADES[modalidad]?.textColor, border: `1px solid ${MODALIDADES[modalidad]?.border}` }}>
+                              {MODALIDADES[modalidad]?.badge}
+                            </span>
+                          )}
+                        </div>
+                        <span style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: '600', fontFamily: 'monospace' }}>
+                          Bs. {(price * currentRate).toFixed(2)}
+                        </span>
+                      </div>
+                      {modalidad !== 'detal' && Number(product.priceDetal || product.priceUSD || product.price || 0) > price && (
+                        <span style={{ fontSize: '0.7rem', color: '#94a3b8', textDecoration: 'line-through' }} title="Precio regular Detal">
+                          ${(Number(product.priceDetal || product.priceUSD || product.price || 0)).toFixed(2)}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -877,6 +972,8 @@ const POS = () => {
         onUpdateQuantity={updateQuantity}
         onRemoveFromCart={removeFromCart}
         onClearCart={handleClearCart}
+        modalidad={modalidad}
+        onModalidadChange={handleModalidadChange}
         client={client}
         onSelectClient={handleSelectClient}
         onSaveClientAddress={handleSaveClientAddress}
@@ -1171,6 +1268,8 @@ const POS = () => {
         onClose={() => setShowPaymentModal(false)}
         totalUSD={cartTotalUSD}
         currentRate={currentRate}
+        modalidad={modalidad}
+        onModalidadChange={handleModalidadChange}
         client={client}
         onSelectClient={handleSelectClient}
         onConfirmPayment={handleConfirmPayment}

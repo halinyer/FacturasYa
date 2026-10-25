@@ -603,6 +603,11 @@ const InvoicePreview = ({ invoice, onClose }) => {
                         MESA: {tableName} {invoice.waiterName ? `(Mesero: ${invoice.waiterName})` : ''}
                       </div>
                     )}
+                    {invoice.modalidad && invoice.modalidad !== 'detal' && (
+                      <div className="ticket-bold" style={{ fontSize: '9px', marginTop: '2px' }}>
+                        TARIFA: {invoice.modalidad === 'mayor' ? 'AL MAYOR (6+)' : invoice.modalidad === 'congelador' ? 'CLIENTE CONGELADOR' : invoice.modalidad === 'microdistribuidor' ? 'MICRODISTRIBUIDOR' : invoice.modalidad.toUpperCase()}
+                      </div>
+                    )}
                   </div>
 
                   <div className="ticket-divider" />
@@ -745,6 +750,14 @@ const InvoicePreview = ({ invoice, onClose }) => {
                     {invoice.orderType === 'para_llevar' && (
                       <div className="ticket-bold" style={{ margin: '2px 0', fontSize: '8.5px' }}>
                         🛍️ MODALIDAD: PARA LLEVAR
+                      </div>
+                    )}
+
+                    {invoice.modalidad && invoice.modalidad !== 'detal' && (
+                      <div style={{ margin: '2px 0', borderTop: '1px dotted #000', paddingTop: '2px' }}>
+                        <div className="ticket-bold" style={{ fontSize: '8.5px' }}>
+                          TARIFA: {invoice.modalidad === 'mayor' ? 'AL MAYOR (6+)' : invoice.modalidad === 'congelador' ? '❄️ CLIENTE CONGELADOR' : invoice.modalidad === 'microdistribuidor' ? '🛵 MICRODISTRIBUIDOR' : invoice.modalidad.toUpperCase()}
+                        </div>
                       </div>
                     )}
 

@@ -188,7 +188,7 @@ const Clients = () => {
         </div>
 
         <div style={{ display: 'flex', gap: '8px' }}>
-          {['Todos', 'Normal', 'Congelador'].map(tab => (
+          {['Todos', 'Normal', 'Mayorista', 'Congelador', 'Microdistribuidor'].map(tab => (
             <button
               key={tab}
               type="button"
@@ -201,7 +201,7 @@ const Clients = () => {
                 fontSize: '0.86rem', boxShadow: '0 1px 2px rgba(0,0,0,0.02)', transition: 'all 0.15s ease'
               }}
             >
-              {tab === 'Congelador' ? '❄️ Congelador (Crédito)' : tab}
+              {tab === 'Congelador' ? '❄️ Congelador' : tab === 'Microdistribuidor' ? '🛵 Microdistribuidor' : tab === 'Mayorista' ? '📦 Mayorista' : tab}
             </button>
           ))}
         </div>
@@ -264,7 +264,7 @@ const Clients = () => {
                       color: c.type === 'congelador' ? '#92400e' : '#475569',
                       border: c.type === 'congelador' ? '1px solid #fde68a' : '1px solid #e2e8f0'
                     }}>
-                      {c.type === 'congelador' ? '❄️ Congelador' : 'Normal'}
+                      {c.type === 'congelador' ? '❄️ Congelador' : c.type === 'microdistribuidor' ? '🛵 Microdist.' : c.type === 'mayorista' ? '📦 Mayorista' : '🛍️ Detal'}
                     </span>
                   </div>
 
@@ -319,7 +319,7 @@ const Clients = () => {
                     color: selectedClient.type === 'congelador' ? '#92400e' : '#475569',
                     border: selectedClient.type === 'congelador' ? '1px solid #fde68a' : '1px solid #e2e8f0'
                   }}>
-                    {selectedClient.type === 'congelador' ? '❄️ Cliente Congelador' : 'Cliente Normal'}
+                    {selectedClient.type === 'congelador' ? '❄️ Cliente Congelador' : selectedClient.type === 'microdistribuidor' ? '🛵 Microdistribuidor' : selectedClient.type === 'mayorista' ? '📦 Mayorista' : '🛍️ Consumidor Detal'}
                   </span>
                 </div>
                 <div style={{ fontSize: '0.82rem', color: '#64748b', display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '6px' }}>
@@ -600,8 +600,10 @@ const Clients = () => {
                   onChange={e => setFormData({ ...formData, type: e.target.value })}
                   style={{ width: '100%', padding: '10px 12px', background: '#ffffff', border: '1.5px solid #cbd5e1', color: '#0f172a', borderRadius: '10px', boxSizing: 'border-box', fontWeight: '700', fontSize: '0.88rem' }}
                 >
-                  <option value="normal">Normal (Pago de contado al despachar)</option>
-                  <option value="congelador">❄️ Congelador (Cliente con cuenta de crédito)</option>
+                  <option value="normal">🛍️ Consumidor Detal (Tarifa Detal regular)</option>
+                  <option value="mayorista">📦 Mayorista (Tarifa Al Mayor fija)</option>
+                  <option value="congelador">❄️ Cliente Congelador (Punto con cava / Crédito)</option>
+                  <option value="microdistribuidor">🛵 Microdistribuidor (Tarifa revendedor / carritos)</option>
                 </select>
               </div>
 

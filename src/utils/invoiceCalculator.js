@@ -21,7 +21,8 @@ export function buildInvoicePayload({
   pagoMovilBank = null,
   pagoMovilRef = null,
   isFiscalInvoice = false,
-  loadedTableOrder = null
+  loadedTableOrder = null,
+  modalidad = 'detal'
 }) {
   const selectedClient = client || { id: 'generic', name: 'Consumidor Final', cedula: 'V-00000000', type: 'normal' };
   const isClientCongelador = selectedClient.type === 'congelador';
@@ -136,6 +137,7 @@ export function buildInvoicePayload({
     changeUSD,
     changeBs,
     status,
+    modalidad,
     isFiscalInvoice: Boolean(isFiscalInvoice),
     docType: isFiscalInvoice ? 'fiscal' : 'nota_entrega',
     tableName: loadedTableOrder?.tableName || null,

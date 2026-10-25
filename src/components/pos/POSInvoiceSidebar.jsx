@@ -29,6 +29,7 @@ import { formatUSD, formatBs, getBsFontSize } from '../../utils/currency';
 import { getAssetUrl } from '../../utils/assetHelper';
 import { VZLA_BANKS } from '../../utils/venezuelaBanks';
 import BankSelector from './BankSelector';
+import { MODALIDADES, MODALIDADES_LIST } from '../../utils/pricingEngine';
 import './POSInvoiceSidebar.css';
 
 export { VZLA_BANKS };
@@ -47,6 +48,8 @@ const POSInvoiceSidebar = ({
   onUpdateQuantity,
   onRemoveFromCart,
   onClearCart,
+  modalidad = 'detal',
+  onModalidadChange,
   client,
   onSelectClient,
   currentRate = 876.80,
@@ -393,6 +396,50 @@ const POSInvoiceSidebar = ({
         </div>
       </div>
 
+      {/* Modalidad de Tarifa Activa */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '7px 12px',
+        margin: '0 16px 10px 16px',
+        background: MODALIDADES[modalidad]?.bgLight || '#eff6ff',
+        border: `1.5px solid ${MODALIDADES[modalidad]?.border || '#bfdbfe'}`,
+        borderRadius: '10px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ fontSize: '1rem' }}>{MODALIDADES[modalidad]?.icon}</span>
+          <div>
+            <div style={{ fontSize: '0.76rem', fontWeight: '800', color: MODALIDADES[modalidad]?.textColor }}>
+              {MODALIDADES[modalidad]?.name}
+            </div>
+            <div style={{ fontSize: '0.65rem', color: '#64748b' }}>
+              {MODALIDADES[modalidad]?.description}
+            </div>
+          </div>
+        </div>
+        {typeof onModalidadChange === 'function' && (
+          <select
+            value={modalidad}
+            onChange={(e) => onModalidadChange(e.target.value)}
+            style={{
+              padding: '4px 8px',
+              fontSize: '0.75rem',
+              fontWeight: '700',
+              borderRadius: '8px',
+              border: `1.5px solid ${MODALIDADES[modalidad]?.color}`,
+              background: '#ffffff',
+              color: MODALIDADES[modalidad]?.textColor,
+              cursor: 'pointer'
+            }}
+          >
+            {MODALIDADES_LIST.map(m => (
+              <option key={m.id} value={m.id}>{m.shortLabel}</option>
+            ))}
+          </select>
+        )}
+      </div>
+
       {/* 6. Itemized Products Cart List */}
       <div className="pos-cart-list">
         {cart.length === 0 ? (
@@ -425,6 +472,11 @@ const POSInvoiceSidebar = ({
                   </div>
                   <div className="pos-item-price-row">
                     <span className="pos-item-unit-price">{formatUSD(unitPrice)} c/u</span>
+                    {modalidad !== 'detal' && (
+                      <span style={{ fontSize: '0.62rem', fontWeight: '800', padding: '1px 4px', borderRadius: '4px', background: MODALIDADES[modalidad]?.bgLight, color: MODALIDADES[modalidad]?.textColor, border: `1px solid ${MODALIDADES[modalidad]?.border}` }}>
+                        {MODALIDADES[modalidad]?.badge}
+                      </span>
+                    )}
                     <span>•</span>
                     <span className="pos-item-subtotal">{formatUSD(itemSubtotal)}</span>
                   </div>
