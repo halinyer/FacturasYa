@@ -13,7 +13,7 @@
   },
   "build": {
     "appId": "com.facturapos.app",
-    "productName": "HeladosCali-POS",
+    "productName": "HeladosLaCascada-POS",
     "directories": {
       "output": "dist-electron"
     },
@@ -33,7 +33,7 @@
         "portable",
         "dir"
       ],
-      "artifactName": "HeladosCali-POS-${version}.${ext}",
+      "artifactName": "HeladosLaCascada-POS-${version}.${ext}",
       "signAndEditExecutable": false
     },
     "extraResources": [

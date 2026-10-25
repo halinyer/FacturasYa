@@ -1,6 +1,7 @@
 import facturapos from './facturapos.js';
 import happydays from './happydays.js';
 import heladoscali from './heladoscali.js';
+import heladoslacascada from './heladoslacascada.js';
 
 /**
  * Registro de franquicias y restaurantes soportados.
@@ -10,19 +11,20 @@ import heladoscali from './heladoscali.js';
 export const FRANCHISES = {
   facturapos,
   happydays,
-  heladoscali
+  heladoscali,
+  heladoslacascada
 };
 
 /**
  * Obtiene la configuración del restaurante o franquicia actualmente activa.
- * En la rama cliente/helados-cali, el valor por defecto es Helados Cali.
+ * En la rama cliente/helados-la-cascada, el valor por defecto es Helados La Cascada.
  */
 export function getActiveFranchise() {
   const savedId = typeof window !== 'undefined' ? localStorage.getItem('pos_active_franchise') : null;
   if (savedId && FRANCHISES[savedId] && savedId !== 'facturapos') {
     return FRANCHISES[savedId];
   }
-  return FRANCHISES.heladoscali;
+  return FRANCHISES.heladoslacascada;
 }
 
 /**
@@ -48,8 +50,6 @@ export function applyFranchiseTheme(franchise) {
 export const ACTIVE_FRANCHISE = getActiveFranchise();
 
 // Aplicación inmediata del tema visual
-if (typeof window !== 'undefined') {
-  applyFranchiseTheme(ACTIVE_FRANCHISE);
-}
+applyFranchiseTheme(ACTIVE_FRANCHISE);
 
 export default ACTIVE_FRANCHISE;

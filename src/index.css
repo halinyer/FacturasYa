@@ -1,40 +1,40 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-  /* Helados Cali Design System (Fresco, alegre, alto contraste comercial) */
+  /* Helados La Cascada Design System (Alegre, fresco, tradición andina de heladería) */
   --bg-app: #f8fafc;
   --bg-surface: #ffffff;
-  --bg-subtle: #fffbeb;
-  --border-subtle: #fecdd3;
+  --bg-subtle: #fff5f7;
+  --border-subtle: #fecdd6;
   --border-card: #f1f5f9;
 
   --text-primary: #0f172a;
   --text-secondary: #475569;
   --text-muted: #94a3b8;
 
-  /* Paleta Oficial Helados Cali */
-  --brand-primary: #D91C24;       /* Rojo Corporativo Cali */
-  --brand-primary-hover: #b9131a;
-  --brand-dark: #7F1D1D;          /* Borde Profundo / Títulos */
-  --brand-warm: #F59E0B;          /* Amarillo Dorado Neveras */
-  --brand-peach: #FDE68A;         /* Crema Vainilla */
-  --brand-cyan: #0284C7;          /* Azul Glaciar Refrescante */
+  /* Paleta Oficial Helados La Cascada */
+  --brand-primary: #FF4562;       /* Frambuesa / Rosa Intenso Cascada */
+  --brand-primary-hover: #e0334f;
+  --brand-dark: #2C35A3;          /* Azul Noche / Contraste Profundo */
+  --brand-warm: #FDEA00;          /* Amarillo Vainilla */
+  --brand-peach: #FFE4E8;         /* Rosa Pastel Suave */
+  --brand-cyan: #00D3C3;          /* Aqua / Turquesa Cascada */
   --brand-green: #059669;         /* Verde Aprobado */
 
   /* Mapeo de Acentos para Interfaz */
-  --accent-gold: #F59E0B;
-  --accent-gold-hover: #d97706;
-  --accent-gold-soft: #fef3c7;
+  --accent-gold: #eab308;
+  --accent-gold-hover: #ca8a04;
+  --accent-gold-soft: #fef9c3;
 
-  --accent-red: #D91C24;
-  --accent-red-hover: #b9131a;
-  --accent-red-soft: #fff1f2;
+  --accent-red: #FF4562;
+  --accent-red-hover: #e0334f;
+  --accent-red-soft: #fff0f3;
 
   --accent-green: #059669;
   --accent-green-soft: #ecfdf5;
 
-  --accent-blue: #0284C7;
-  --accent-blue-soft: #e0f2fe;
+  --accent-blue: #2C35A3;
+  --accent-blue-soft: #e0e7ff;
 
   --accent-purple: #7c3aed;
   --accent-purple-soft: #ede9fe;

@@ -218,14 +218,14 @@ const InvoicePreview = ({ invoice, onClose }) => {
   const timeStr = getFiscalTime(invoice.date || invoice.createdAt);
 
   // Datos de la empresa
-  const legalName = CLIENT_CONFIG.legalName || 'DISTRIBUIDORA Y FRANQUICIA HELADOS CALI C.A.';
-  const rif = CLIENT_CONFIG.rif || 'J-310555888-2';
-  const phone = CLIENT_CONFIG.phone || '0414-8889900';
+  const legalName = CLIENT_CONFIG.legalName || 'PRODUCTOS LA CASCADA C.A.';
+  const rif = CLIENT_CONFIG.rif || 'J-30819445-0';
+  const phone = CLIENT_CONFIG.phone || '0414-7407076';
   const addressLines = CLIENT_CONFIG.addressLines || [
-    'AV. PRINCIPAL ZONA INDUSTRIAL',
-    'FRANQUICIA Y DISTRIBUCION COMERCIAL',
-    'ESTADO BOLIVAR / COBERTURA NACIONAL',
-    'ZONA POSTAL 8051'
+    'AV. FRANCISCO DE CACERES Nº 12-134',
+    'EL CENTRO, LA GRITA, EDO. TACHIRA',
+    'FABRICA Y DISTRIBUCION NACIONAL',
+    'ZONA POSTAL 5022'
   ];
 
   // Identificador de mesa, mesero y cajero
@@ -683,7 +683,7 @@ const InvoicePreview = ({ invoice, onClose }) => {
 
                   <div className="ticket-center" style={{ fontSize: '9px', marginTop: '8px' }}>
                     <div className="ticket-bold">{CLIENT_CONFIG.receipt?.footerGreeting || '¡Gracias por su compra!'}</div>
-                    <div style={{ fontSize: '8.5px', marginTop: '1px' }}>{CLIENT_CONFIG.receipt?.contactNotice || 'Instagram: @heladoscali_oficial'}</div>
+                    <div style={{ fontSize: '8.5px', marginTop: '1px' }}>{CLIENT_CONFIG.receipt?.contactNotice || 'Instagram: @heladoslacascada'}</div>
                   </div>
 
                   {/* Guía de corte y avance para pasar la cuchilla (12mm) */}
@@ -702,13 +702,13 @@ const InvoicePreview = ({ invoice, onClose }) => {
                   {/* Encabezado Compacto */}
                   <div className="ticket-center">
                     <div className="ticket-bold" style={{ fontSize: is58 ? '12px' : '14px', letterSpacing: '0.5px' }}>
-                      {CLIENT_CONFIG.branding?.logoText?.toUpperCase() || CLIENT_CONFIG.name?.toUpperCase() || 'HELADOS CALI'}
+                      {CLIENT_CONFIG.branding?.logoText?.toUpperCase() || CLIENT_CONFIG.name?.toUpperCase() || 'HELADOS LA CASCADA'}
                     </div>
                     <div style={{ fontSize: is58 ? '8.5px' : '9.5px', marginTop: '1px' }}>
                       Tel: {phone}
                     </div>
                     <div style={{ fontSize: is58 ? '8px' : '9px' }}>
-                      {CLIENT_CONFIG.addressLines?.[0] || 'San Félix, Edo. Bolívar'}
+                      {CLIENT_CONFIG.addressLines?.[0] || 'La Grita, Edo. Táchira'}
                     </div>
                     <div className="ticket-bold" style={{ fontSize: is58 ? '10px' : '11px', marginTop: '2px', letterSpacing: '0.5px' }}>
                       *** NOTA DE ENTREGA ***

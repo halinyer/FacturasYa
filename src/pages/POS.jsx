@@ -827,18 +827,18 @@ const POS = () => {
                             borderRadius: '8px'
                           }}
                         />
-                        <div className="pos-prod-fallback" style={{ display: 'none', flexDirection: 'column', alignItems: 'center', gap: '4px', color: 'var(--brand-primary, #D91C24)' }}>
+                        <div className="pos-prod-fallback" style={{ display: 'none', flexDirection: 'column', alignItems: 'center', gap: '4px', color: 'var(--brand-primary, #FF4562)' }}>
                           <IceCream size={32} strokeWidth={1.8} />
                           <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', fontWeight: '800', color: '#64748b' }}>
-                            {product.category || 'Helados Cali'}
+                            {product.category || 'Helados La Cascada'}
                           </span>
                         </div>
                       </>
                     ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', color: 'var(--brand-primary, #D91C24)' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', color: 'var(--brand-primary, #FF4562)' }}>
                         <IceCream size={32} strokeWidth={1.8} />
                         <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', fontWeight: '800', color: '#64748b' }}>
-                          {product.category || 'Helados Cali'}
+                          {product.category || 'Helados La Cascada'}
                         </span>
                       </div>
                     )}

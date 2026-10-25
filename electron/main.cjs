@@ -451,13 +451,13 @@ ipcMain.handle('save-db', async (event, data) => {
 let mainWindowRef = null;
 
 function createWindow() {
-  const iconPath = path.join(__dirname, '../public/helados_cali_logo.png');
+  const iconPath = path.join(__dirname, '../public/helados_la_cascada_logo.png');
   const winOpts = {
     width: 1400,
     height: 900,
     minWidth: 1100,
     minHeight: 700,
-    title: 'Helados Cali — Sistema POS y Facturación Fiscal',
+    title: 'Helados La Cascada — Sistema POS y Facturación Fiscal',
     show: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
