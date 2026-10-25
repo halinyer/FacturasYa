@@ -20,13 +20,28 @@
     "files": [
       "dist/**/*",
       "electron/**/*",
+      "bin/**/*",
+      "public/**/*",
       "package.json"
     ],
+    "asarUnpack": [
+      "electron/fiscalBridge.ps1",
+      "electron/lib/**/*"
+    ],
     "win": {
-      "target": "portable",
+      "target": [
+        "portable",
+        "dir"
+      ],
       "artifactName": "FacturaPOS-${version}.${ext}",
       "signAndEditExecutable": false
-    }
+    },
+    "extraResources": [
+      {
+        "from": "bin/bridge_fiscal.exe",
+        "to": "bridge_fiscal.exe"
+      }
+    ]
   },
   "dependencies": {
     "express": "^5.3.0",

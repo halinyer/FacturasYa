@@ -19,6 +19,8 @@ export const KitchenTicketModal = ({
   const [selectedPrinter, setSelectedPrinter] = useState(() => {
     return localStorage.getItem('pos_comanda_printer') || '';
   });
+  const [isPrinting, setIsPrinting] = useState(false);
+  const [printToast, setPrintToast] = useState(null);
 
   useEffect(() => {
     try {
@@ -53,21 +55,28 @@ export const KitchenTicketModal = ({
   }, []);
 
   const handlePrint = async () => {
+    if (isPrinting) return;
+    setIsPrinting(true);
+    setPrintToast({ msg: 'Enviando comanda a la impresora...', type: 'info' });
     try {
       const html = ticketRef.current ? ticketRef.current.outerHTML : '';
-      await printIsolatedTicket({
+      const res = await printIsolatedTicket({
         html,
         paperSize,
         deviceName: selectedPrinter || '',
         silent: true
       });
-    } catch (err) {
-      console.warn('Fallback to standard print:', err);
-      try {
-        window.print();
-      } catch (e) {
-        alert('Error al abrir la impresora: ' + (e.message || e));
+      if (res && res.success === false) {
+        setPrintToast({ msg: `Aviso impresora: ${res.failureReason || res.error || 'Verifica la impresora'}`, type: 'error' });
+      } else {
+        setPrintToast({ msg: '¡Comanda enviada a impresión!', type: 'success' });
       }
+    } catch (err) {
+      console.warn('Error al imprimir comanda:', err);
+      setPrintToast({ msg: 'Error al enviar a la impresora: ' + (err.message || err), type: 'error' });
+    } finally {
+      setIsPrinting(false);
+      setTimeout(() => setPrintToast(null), 3500);
     }
   };
 
@@ -88,7 +97,7 @@ export const KitchenTicketModal = ({
 
   const safeTableName = String(tableName || round.tableName || 'MESA').toUpperCase();
   const safeWaiterName = String(waiterName || round.waiterName || 'MESERO').toUpperCase();
-  const safeOrderId = orderId ? String(orderId).slice(-6) : (round.orderId ? String(round.orderId).slice(-6) : '');
+  const roundNumLabel = `RONDA #${round.roundNumber || 1}`;
 
   const formatTime = (val) => {
     try {
@@ -129,28 +138,40 @@ export const KitchenTicketModal = ({
           }
           .kitchen-modal-box {
             background: #0f172a; width: 100%;
-            max-width: ${is58 ? '360px' : '440px'};
-            border-radius: 14px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.85);
+            max-width: 480px;
+            border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.85);
             border: 1px solid rgba(255, 255, 255, 0.15); display: flex; flex-direction: column;
             max-height: 94vh; overflow: hidden;
           }
           .kitchen-header-bar {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 10px 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            background: #1e293b; color: #f8fafc; gap: 8px;
+            display: flex; flex-direction: column; gap: 10px;
+            padding: 12px 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            background: #1e293b; color: #f8fafc;
           }
           .kitchen-content {
-            padding: ${is58 ? '6px 4px' : '12px 10px'};
-            overflow-y: auto; background: #ffffff; color: #000000;
+            padding: 16px 12px;
+            overflow-y: auto; background: #e2e8f0; color: #000000;
+            display: flex; justify-content: center; align-items: flex-start;
+            flex: 1;
           }
           .kitchen-paper {
             font-family: Arial, Helvetica, sans-serif;
-            font-size: ${is58 ? '10px' : '11.5px'};
-            line-height: 1.15;
-            color: #000000; background: #ffffff; width: 100%;
+            font-size: ${is58 ? '10.5px' : '11.5px'};
+            line-height: 1.2;
+            color: #000000; background: #ffffff;
+            width: 100%;
+            max-width: ${is58 ? '230px' : '310px'};
+            padding: 12px 10px;
+            border-radius: 6px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
             box-sizing: border-box;
             -webkit-font-smoothing: antialiased;
             text-rendering: optimizeLegibility;
+          }
+          .kitchen-footer-bar {
+            display: flex; align-items: center; gap: 10px;
+            padding: 12px 16px; background: #1e293b;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
           }
           .k-center { text-align: center; }
           .k-bold { font-weight: 700; }
@@ -185,7 +206,7 @@ export const KitchenTicketModal = ({
               page-break-inside: avoid !important;
               break-inside: avoid !important;
             }
-            .kitchen-header-bar { display: none !important; }
+            .kitchen-header-bar, .kitchen-footer-bar { display: none !important; }
             .kitchen-content, .kitchen-content * {
               visibility: visible !important;
             }
@@ -212,97 +233,116 @@ export const KitchenTicketModal = ({
       <div className="kitchen-modal-overlay" onClick={onClose}>
         <div className="kitchen-modal-box" onClick={e => e.stopPropagation()}>
           <div className="kitchen-header-bar">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Utensils size={17} color="#f59e0b" />
-              <div style={{ fontSize: '0.85rem', fontWeight: '800', whiteSpace: 'nowrap' }}>
-                Comanda Cocina
+            {/* Fila 1: Título y Botón Cerrar */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Utensils size={18} color="#f59e0b" />
+                <div style={{ fontSize: '0.95rem', fontWeight: '800' }}>
+                  Comanda Cocina — {safeTableName}
+                </div>
               </div>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              {/* Selector de impresora */}
-              {printers.length > 0 && (
-                <select
-                  value={selectedPrinter}
-                  onChange={(e) => {
-                    setSelectedPrinter(e.target.value);
-                    localStorage.setItem('pos_comanda_printer', e.target.value);
-                  }}
-                  title="Impresora de Comandas"
-                  style={{
-                    background: 'rgba(255,255,255,0.12)',
-                    color: '#f8fafc',
-                    border: '1px solid rgba(255,255,255,0.25)',
-                    borderRadius: '6px',
-                    fontSize: '0.72rem',
-                    fontWeight: '700',
-                    padding: '3px 6px',
-                    outline: 'none',
-                    cursor: 'pointer',
-                    maxWidth: '115px'
-                  }}
-                >
-                  {printers.map(p => (
-                    <option key={p.name} value={p.name} style={{ background: '#1e293b', color: '#fff' }}>
-                      🖨️ {p.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-
-              {/* Selector de ancho */}
-              <div style={{ display: 'flex', background: 'rgba(255,255,255,0.1)', borderRadius: '6px', padding: '2px' }}>
-                <button
-                  type="button"
-                  onClick={() => setPaperSize('58mm')}
-                  style={{
-                    padding: '3px 7px', borderRadius: '4px', fontSize: '0.72rem', fontWeight: '800',
-                    border: 'none', cursor: 'pointer',
-                    background: is58 ? '#e2e8f0' : 'transparent',
-                    color: is58 ? '#0f172a' : '#94a3b8'
-                  }}
-                >
-                  58mm
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPaperSize('80mm')}
-                  style={{
-                    padding: '3px 7px', borderRadius: '4px', fontSize: '0.72rem', fontWeight: '800',
-                    border: 'none', cursor: 'pointer',
-                    background: !is58 ? '#e2e8f0' : 'transparent',
-                    color: !is58 ? '#0f172a' : '#94a3b8'
-                  }}
-                >
-                  80mm
-                </button>
-              </div>
-
-              {/* Botón imprimir */}
-              <button
-                type="button"
-                onClick={handlePrint}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px',
-                  background: '#10b981', color: '#fff', border: 'none', borderRadius: '8px',
-                  fontWeight: '800', cursor: 'pointer', fontSize: '0.8rem'
-                }}
-              >
-                <Printer size={14} /> Imprimir
-              </button>
 
               <button
                 type="button"
                 onClick={onClose}
+                title="Cerrar ventana"
                 style={{
                   background: 'rgba(255,255,255,0.1)', color: '#fff', border: 'none',
-                  borderRadius: '8px', padding: '6px', cursor: 'pointer'
+                  borderRadius: '8px', padding: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center'
                 }}
               >
-                <X size={16} />
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Fila 2: Impresora, Tamaño 58mm/80mm y Botón Imprimir */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, minWidth: '180px' }}>
+                {/* Selector de impresora */}
+                {printers.length > 0 && (
+                  <select
+                    value={selectedPrinter}
+                    onChange={(e) => {
+                      setSelectedPrinter(e.target.value);
+                      localStorage.setItem('pos_comanda_printer', e.target.value);
+                    }}
+                    title="Impresora de Comandas"
+                    style={{
+                      background: 'rgba(255,255,255,0.12)',
+                      color: '#f8fafc',
+                      border: '1px solid rgba(255,255,255,0.25)',
+                      borderRadius: '6px',
+                      fontSize: '0.76rem',
+                      fontWeight: '700',
+                      padding: '5px 8px',
+                      outline: 'none',
+                      cursor: 'pointer',
+                      flex: 1,
+                      maxWidth: '185px'
+                    }}
+                  >
+                    {printers.map(p => (
+                      <option key={p.name} value={p.name} style={{ background: '#1e293b', color: '#fff' }}>
+                        🖨️ {p.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+
+                {/* Selector de ancho */}
+                <div style={{ display: 'flex', background: 'rgba(255,255,255,0.1)', borderRadius: '6px', padding: '2px', flexShrink: 0 }}>
+                  <button
+                    type="button"
+                    onClick={() => setPaperSize('58mm')}
+                    style={{
+                      padding: '4px 9px', borderRadius: '4px', fontSize: '0.74rem', fontWeight: '800',
+                      border: 'none', cursor: 'pointer',
+                      background: is58 ? '#e2e8f0' : 'transparent',
+                      color: is58 ? '#0f172a' : '#94a3b8'
+                    }}
+                  >
+                    58mm
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaperSize('80mm')}
+                    style={{
+                      padding: '4px 9px', borderRadius: '4px', fontSize: '0.74rem', fontWeight: '800',
+                      border: 'none', cursor: 'pointer',
+                      background: !is58 ? '#e2e8f0' : 'transparent',
+                      color: !is58 ? '#0f172a' : '#94a3b8'
+                    }}
+                  >
+                    80mm
+                  </button>
+                </div>
+              </div>
+
+              {/* Botón imprimir superior */}
+              <button
+                type="button"
+                onClick={handlePrint}
+                disabled={isPrinting}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px',
+                  background: '#10b981', color: '#fff', border: 'none', borderRadius: '8px',
+                  fontWeight: '800', cursor: isPrinting ? 'wait' : 'pointer', fontSize: '0.82rem',
+                  boxShadow: '0 2px 8px rgba(16, 185, 129, 0.35)', flexShrink: 0
+                }}
+              >
+                <Printer size={15} /> {isPrinting ? 'Imprimiendo...' : 'Imprimir'}
               </button>
             </div>
           </div>
+
+          {printToast && (
+            <div style={{
+              padding: '7px 14px', fontSize: '0.78rem', fontWeight: '700', color: '#fff', textAlign: 'center',
+              background: printToast.type === 'success' ? '#059669' : printToast.type === 'error' ? '#dc2626' : '#0284c7'
+            }}>
+              {printToast.msg}
+            </div>
+          )}
 
           <div className="kitchen-content">
             <div className="kitchen-paper" ref={ticketRef}>
@@ -348,10 +388,10 @@ export const KitchenTicketModal = ({
                 <span>{dateStr}</span>
               </div>
 
-              {/* MESERA Y ORDEN */}
+              {/* MESERA Y RONDA */}
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: is58 ? '9.5px' : '10.5px', margin: '2px 0' }}>
-                <span>MESERA: <strong>{safeWaiterName}</strong></span>
-                {safeOrderId && <span>#{safeOrderId}</span>}
+                <span>MESERO: <strong>{safeWaiterName}</strong></span>
+                <span><strong>{roundNumLabel}</strong></span>
               </div>
 
               <div className="k-divider" />
@@ -422,6 +462,36 @@ export const KitchenTicketModal = ({
                 &nbsp;<br/>&nbsp;
               </div>
             </div>
+          </div>
+
+          {/* Barra inferior fija con botón grande de Impresión */}
+          <div className="kitchen-footer-bar">
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                padding: '11px 16px', background: 'rgba(255,255,255,0.1)', color: '#cbd5e1',
+                border: '1px solid rgba(255,255,255,0.15)', borderRadius: '10px',
+                fontWeight: '700', fontSize: '0.86rem', cursor: 'pointer'
+              }}
+            >
+              Cerrar
+            </button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              disabled={isPrinting}
+              style={{
+                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                padding: '12px 18px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                color: '#ffffff', border: 'none', borderRadius: '10px',
+                fontWeight: '900', fontSize: '0.92rem', cursor: isPrinting ? 'wait' : 'pointer',
+                boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)'
+              }}
+            >
+              <Printer size={18} />
+              {isPrinting ? 'IMPRIMIENDO COMANDA...' : `IMPRIMIR COMANDA (${paperSize.toUpperCase()})`}
+            </button>
           </div>
         </div>
       </div>

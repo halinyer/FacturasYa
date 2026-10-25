@@ -14,10 +14,11 @@ import POSPaymentModal from '../components/pos/POSPaymentModal';
 import InvoicePreview from '../components/InvoicePreview';
 import OpenTabsModal from '../components/pos/OpenTabsModal';
 import { getAssetUrl } from '../utils/assetHelper';
+import { buildInvoicePayload } from '../utils/invoiceCalculator';
 
 const POS = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { 
     products = [], 
     createInvoice, 
@@ -29,7 +30,9 @@ const POS = () => {
     saveOpenTab,
     deleteOpenTab,
     updateOpenTabStatus,
-    updateClient
+    updateClient,
+    fiscalSettings,
+    fiscalPrintInvoice
   } = useData() || {};
 
   const [search, setSearch] = useState('');
@@ -53,6 +56,45 @@ const POS = () => {
   const [activeTab, setActiveTab] = useState(null);
   const [showOpenTabsModal, setShowOpenTabsModal] = useState(false);
   const [preBillInvoice, setPreBillInvoice] = useState(null);
+
+  // Document mode: 'nota_entrega' | 'fiscal'
+  const [docType, setDocType] = useState(() => {
+    return localStorage.getItem('pos_doc_type') || (fiscalSettings?.enabled ? 'fiscal' : 'nota_entrega');
+  });
+  const [cashReceivedUSD, setCashReceivedUSD] = useState('');
+  const [cashReceivedBs, setCashReceivedBs] = useState('');
+
+  // Monitor nocturno de cierre obligatorio pre-medianoche (SENIAT)
+  const [currentClock, setCurrentClock] = useState(() => new Date());
+  const [adminBypass, setAdminBypass] = useState(false);
+  const [showLockModal, setShowLockModal] = useState(false);
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [supervisorPinInput, setSupervisorPinInput] = useState('');
+  const [supervisorPinError, setSupervisorPinError] = useState(false);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentClock(new Date());
+    }, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const curHour = currentClock.getHours();
+  const curMin = currentClock.getMinutes();
+  // Aviso preventivo de 11:00 PM a 11:44 PM (23:00 - 23:44)
+  const isClosingWarning = curHour === 23 && curMin < 45;
+  // Bloqueo estricto de facturación de 11:45 PM a medianoche (23:45 - 23:59) y madrugada (00:00 - 05:00 AM)
+  const isNightLocked = ((curHour === 23 && curMin >= 45) || (curHour >= 0 && curHour < 5)) && !adminBypass;
+  const formattedTime = currentClock.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+  const handleDocTypeChange = (newDoc) => {
+    setDocType(newDoc);
+    try {
+      localStorage.setItem('pos_doc_type', newDoc);
+    } catch (e) {
+      // ignore
+    }
+  };
 
   // Auto-fetch fresh live BCV rate on mount
   useEffect(() => {
@@ -87,17 +129,33 @@ const POS = () => {
     ? parseFloat(customRate) 
     : (exchangeRate && Number(exchangeRate) > 100 ? Number(exchangeRate) : 876.80);
 
+  const handleDirectCheckout = () => {
+    if (cart.length === 0) {
+      showToast('El pedido está vacío. Agrega al menos un producto.', 'error');
+      return;
+    }
+    if (isNightLocked) {
+      setShowLockModal(true);
+      return;
+    }
+    setShowPaymentModal(true);
+  };
+
   // Listen for Enter to open payment modal
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Enter' && cart.length > 0 && !showPaymentModal && !showPreview) {
         if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+        if (isNightLocked) {
+          setShowLockModal(true);
+          return;
+        }
         setShowPaymentModal(true);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cart, showPaymentModal, showPreview]);
+  }, [cart, showPaymentModal, showPreview, isNightLocked]);
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type });
@@ -328,131 +386,138 @@ const POS = () => {
     setPreBillInvoice(preBill);
   };
 
-  // Payment Confirmation -> Emits Nota de Entrega
-  const handleConfirmPayment = ({ 
+  // Payment Confirmation -> Emits Nota de Entrega or Factura Fiscal
+  const handleConfirmPayment = async ({ 
     paymentMethod: methodFromModal, 
     isMixedPayment, 
     mixedPayments, 
     isPending,
     pagoMovilBank: bankFromModal,
-    pagoMovilRef: refFromModal
+    pagoMovilRef: refFromModal,
+    isFiscalInvoice = false,
+    isDirectCheckout = false
   }) => {
     if (cart.length === 0) {
       showToast('El pedido está vacío. Agrega al menos un producto.', 'error');
       return;
     }
 
+    if (isNightLocked) {
+      setShowPaymentModal(false);
+      setShowLockModal(true);
+      return;
+    }
+
     try {
-      const selectedClient = client || { id: 'generic', name: 'Consumidor Final', cedula: 'V-00000000', type: 'normal' };
-      const isClientCongelador = selectedClient.type === 'congelador';
-      const status = (isPending && isClientCongelador) ? 'pending' : 'paid';
-
-      let finalPaymentMethod = methodFromModal || paymentMethod;
-      let finalMixedPayments = null;
-      let totalReceivedUSD = cartTotalUSD;
-
-      const finalBank = bankFromModal !== undefined ? bankFromModal : pagoMovilBank;
-      const finalRef = refFromModal !== undefined ? refFromModal : pagoMovilRef;
-
-      if (isMixedPayment && mixedPayments) {
-        finalPaymentMethod = 'mixto';
-        const usdCash = parseFloat(mixedPayments.efectivo_usd) || 0;
-        const zelle = parseFloat(mixedPayments.zelle) || 0;
-        const pmBs = parseFloat(mixedPayments.pago_movil) || 0;
-        const bsCash = parseFloat(mixedPayments.efectivo_bs) || 0;
-        const pmUSD = pmBs / currentRate;
-        const bsCashUSD = bsCash / currentRate;
-
-        totalReceivedUSD = usdCash + zelle + pmUSD + bsCashUSD;
-
-        finalMixedPayments = {
-          efectivo_usd: usdCash,
-          zelle,
-          pago_movil: pmBs,
-          efectivo_bs: bsCash,
-          pago_movil_usd: pmUSD,
-          efectivo_bs_usd: bsCashUSD
-        };
-      }
-
-      const changeUSD = totalReceivedUSD > cartTotalUSD ? Number((totalReceivedUSD - cartTotalUSD).toFixed(2)) : 0;
-      const changeBs = Number((changeUSD * currentRate).toFixed(2));
-
-      // SENIAT Venezuelan Fiscal Calculations
-      const subtotalItemsUSD = itemsSubtotalUSD;
-      const baseImponibleUSD = Number((subtotalItemsUSD / 1.16).toFixed(2));
-      const ivaUSD = Number((subtotalItemsUSD - baseImponibleUSD).toFixed(2));
-      const baseImponibleBs = Number((baseImponibleUSD * currentRate).toFixed(2));
-      const ivaBs = Number((ivaUSD * currentRate).toFixed(2));
-
-      // IGTF 3% calculation: applies ONLY to foreign currency payments (efectivo_usd, zelle, or foreign fraction of mixed)
-      let igtfBaseUSD = 0;
-      if (finalPaymentMethod === 'efectivo_usd' || finalPaymentMethod === 'zelle') {
-        igtfBaseUSD = Number(cartTotalUSD.toFixed(2));
-      } else if (finalPaymentMethod === 'mixto' && finalMixedPayments) {
-        igtfBaseUSD = Number(((parseFloat(finalMixedPayments.efectivo_usd) || 0) + (parseFloat(finalMixedPayments.zelle) || 0)).toFixed(2));
-      }
-      const igtfUSD = Number((igtfBaseUSD * 0.03).toFixed(2));
-      const igtfBs = Number((igtfUSD * currentRate).toFixed(2));
-      const isIgtfExempt = igtfBaseUSD === 0; // Exento si se paga en Bolívares (Pago Móvil / Efectivo Bs)
-
-      const fiscalControlNumber = `00-${String(Date.now()).slice(-6)}`;
-
-      const invoicePayload = {
-        clientId: selectedClient.id,
-        clientName: selectedClient.name,
-        clientCedula: selectedClient.cedula,
-        clientType: selectedClient.type || 'normal',
-        clientAddress: selectedClient.address || deliveryInfo?.address || null,
-        clientPhone: selectedClient.phone || deliveryInfo?.phone || null,
+      const invoicePayload = buildInvoicePayload({
+        cart,
+        client,
+        user,
         orderType,
-        deliveryInfo: orderType === 'delivery' ? deliveryInfo : null,
-        deliveryFee: orderType === 'delivery' ? deliveryFee : 0,
-        items: cart.map(item => ({
-          productId: item.id,
-          productName: item.name,
-          quantity: item.quantity,
-          unitPrice: Number(item.priceUSD || item.price || 0),
-          subtotal: Number(((Number(item.priceUSD || item.price || 0)) * item.quantity).toFixed(2)),
-          taxRate: 0.16
-        })),
-        subtotalUSD: Number(subtotalItemsUSD.toFixed(2)),
-        subtotalBs: Number((subtotalItemsUSD * currentRate).toFixed(2)),
-        baseImponibleUSD,
-        baseImponibleBs,
-        ivaRate: 0.16,
-        ivaUSD,
-        ivaBs,
-        igtfBaseUSD,
-        igtfRate: 0.03,
-        igtfUSD,
-        igtfBs,
-        isIgtfExempt,
-        fiscalControlNumber,
-        totalUSD: Number(cartTotalUSD.toFixed(2)),
-        totalBs: Number(cartTotalBs.toFixed(2)),
-        exchangeRate: currentRate,
-        paymentMethod: finalPaymentMethod,
-        mixedPayments: finalMixedPayments,
-        pagoMovilBank: (finalPaymentMethod === 'pago_movil' || finalPaymentMethod === 'mixto') ? (finalBank || null) : null,
-        pagoMovilRef: (finalPaymentMethod === 'pago_movil' || finalPaymentMethod === 'mixto') ? (finalRef || null) : null,
-        receivedAmount: status === 'pending' ? 0 : totalReceivedUSD,
-        changeUSD,
-        changeBs,
-        status,
-        tableName: loadedTableOrder?.tableName || null,
-        waiterName: loadedTableOrder?.waiterName || null
-      };
+        deliveryInfo,
+        deliveryFee,
+        itemsSubtotalUSD,
+        cartTotalUSD,
+        cartTotalBs,
+        currentRate,
+        paymentMethod: methodFromModal || paymentMethod,
+        isMixedPayment,
+        mixedPayments,
+        isPending,
+        pagoMovilBank: bankFromModal !== undefined ? bankFromModal : pagoMovilBank,
+        pagoMovilRef: refFromModal !== undefined ? refFromModal : pagoMovilRef,
+        isFiscalInvoice,
+        loadedTableOrder
+      });
+      const fiscalControlNumber = invoicePayload.fiscalControlNumber;
 
+      // FLUJO DE FACTURA FISCAL SENIAT:
+      // Primero se envía a la máquina fiscal y se espera su confirmación real (S1 + ACK).
+      // Si la máquina fiscal la rechaza o la anula, NUNCA se suma como venta pagada en Cierre de Caja ni Libro de Ventas.
+      if (isFiscalInvoice) {
+        if (!fiscalPrintInvoice) {
+          showToast('El servicio de impresora fiscal no está disponible.', 'error');
+          return;
+        }
+
+        showToast('Imprimiendo en máquina fiscal HKA... Por favor espere.', 'info');
+        const res = await fiscalPrintInvoice(invoicePayload);
+
+        if (!res || !res.success) {
+          const errReason = res?.annulReason || res?.error || 'Error o anulación en impresora fiscal';
+          // Si la impresora llegó a abrir el documento y lo anuló físicamente con '7',
+          // guardamos el registro con estado 'voided' (Anulada, monto 0 para caja y libro SENIAT) para auditoría total.
+          if (res?.wasAnnulled) {
+            createInvoice({
+              ...invoicePayload,
+              status: 'voided',
+              wasFiscalAnnulled: true,
+              voidReason: `ANULADA POR IMPRESORA FISCAL: ${errReason}`,
+              voidDate: new Date().toISOString(),
+              receivedAmount: 0,
+              fiscalS1Snapshot: res?.s1 || null
+            });
+          }
+          showToast(`ALERTA FISCAL: ${res?.error || 'La factura fue rechazada/anulada por la impresora fiscal. No se sumó a caja.'}`, 'error');
+          return;
+        }
+
+        // ¡Éxito certificado por la impresora fiscal! Guardamos el número oficial SENIAT y el serial de máquina
+        const officialFiscalNum = res.fiscalInvoiceNumber
+          ? String(res.fiscalInvoiceNumber).padStart(8, '0')
+          : null;
+        const machineSerial = res.s1?.registered_machine_number || res.s1?.machine_register || null;
+        const nextZ = res.s1?.z_counter !== undefined ? String(Number(res.s1.z_counter) + 1).padStart(4, '0') : null;
+
+        const verifiedFiscalPayload = {
+          ...invoicePayload,
+          fiscalInvoiceNumber: officialFiscalNum,
+          fiscalControlNumber: officialFiscalNum || fiscalControlNumber,
+          fiscalSerial: machineSerial,
+          fiscalZNumber: nextZ,
+          fiscalVerified: true,
+          fiscalPrintedAt: new Date().toISOString(),
+          fiscalS1Snapshot: res.s1 || null
+        };
+
+        const createdFiscal = createInvoice(verifiedFiscalPayload);
+
+        if (activeTab?.id) {
+          deleteOpenTab(activeTab.id);
+          setActiveTab(null);
+        }
+        if (loadedTableOrder && loadedTableOrder.tableId) {
+          fetch(`http://localhost:3001/api/restaurant/table/${loadedTableOrder.tableId}/free`, {
+            method: 'POST'
+          }).catch(err => console.warn('Could not free table:', err));
+          setLoadedTableOrder(null);
+        }
+
+        setLastInvoice(createdFiscal || verifiedFiscalPayload);
+        setCart([]);
+        setClient(null);
+        setOrderType('salon');
+        setDeliveryInfo({ address: '', phone: '', courier: '', deliveryFee: 0 });
+        setPagoMovilBank('');
+        setPagoMovilRef('');
+        setCashReceivedUSD('');
+        setCashReceivedBs('');
+        setPaymentMethod('efectivo_usd');
+        setShowPaymentModal(false);
+
+        const numStr = officialFiscalNum ? ` N° ${officialFiscalNum}` : '';
+        showToast(`¡Factura Fiscal${numStr} emitida y respaldada en Caja y Libro SENIAT!`, 'success');
+        return;
+      }
+
+      // FLUJO DE NOTA DE ENTREGA / CONTROL INTERNO:
       const created = createInvoice(invoicePayload);
       
-      // If order was an open tab, delete it from open tabs
       if (activeTab?.id) {
         deleteOpenTab(activeTab.id);
         setActiveTab(null);
       }
 
-      // If order was from a restaurant table, free the table in local server
       if (loadedTableOrder && loadedTableOrder.tableId) {
         fetch(`http://localhost:3001/api/restaurant/table/${loadedTableOrder.tableId}/free`, {
           method: 'POST'
@@ -467,20 +532,128 @@ const POS = () => {
       setDeliveryInfo({ address: '', phone: '', courier: '', deliveryFee: 0 });
       setPagoMovilBank('');
       setPagoMovilRef('');
+      setCashReceivedUSD('');
+      setCashReceivedBs('');
       setPaymentMethod('efectivo_usd');
       setShowPaymentModal(false);
+      
       showToast('¡Nota de Entrega registrada con éxito!', 'success');
       setShowPreview(true);
     } catch (error) {
       console.error(error);
-      showToast('Error al procesar la Nota de Entrega', 'error');
+      showToast(isFiscalInvoice ? 'Error al procesar la Factura Fiscal' : 'Error al procesar la Nota de Entrega', 'error');
     }
   };
 
   return (
-    <div style={{ display: 'flex', height: '100%', background: '#f8fafc', color: '#0f172a', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#f8fafc', color: '#0f172a', overflow: 'hidden' }}>
       
-      {/* Catalog Grid View (Left Column) */}
+      {/* Aviso Preventivo Pre-Medianoche (11:00 PM a 11:44 PM) */}
+      {isClosingWarning && (
+        <div style={{
+          background: '#fef3c7',
+          borderBottom: '1px solid #fcd34d',
+          padding: '10px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexShrink: 0,
+          color: '#92400e',
+          fontSize: '0.88rem',
+          fontWeight: '600'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '1.25rem' }}>⚠️</span>
+            <span>
+              <strong>AVISO DE CIERRE DE CAJA ({formattedTime}):</strong> Faltan {45 - curMin} min para el bloqueo obligatorio de facturación (11:45 PM). Realice el Arqueo y Cierre de Caja (Reporte Z) antes de las 12:00 AM para cuadrar la jornada ante el SENIAT.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/cash-close')}
+            style={{
+              padding: '6px 14px',
+              background: '#d97706',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: '700',
+              fontSize: '0.82rem',
+              cursor: 'pointer'
+            }}
+          >
+            👉 Ir a Cierre de Caja
+          </button>
+        </div>
+      )}
+
+      {/* Bloqueo Estricto de Facturación Pre-Medianoche (11:45 PM a 5:00 AM) */}
+      {isNightLocked && (
+        <div style={{
+          background: '#fee2e2',
+          borderBottom: '2px solid #ef4444',
+          padding: '10px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexShrink: 0,
+          color: '#991b1b',
+          fontSize: '0.88rem',
+          fontWeight: '700'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '1.35rem' }}>⛔</span>
+            <div>
+              <span style={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                FACTURACIÓN BLOQUEADA POR CIERRE OBLIGATORIO ({formattedTime}):
+              </span>
+              <span style={{ fontWeight: '500', marginLeft: '6px', color: '#7f1d1d' }}>
+                Debe realizar el Cierre de Caja (Reporte Z) antes de las 12:00 AM para no mezclar operaciones con el día siguiente.
+              </span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button
+              type="button"
+              onClick={() => navigate('/cash-close')}
+              style={{
+                padding: '7px 16px',
+                background: '#dc2626',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '8px',
+                fontWeight: '800',
+                fontSize: '0.82rem',
+                cursor: 'pointer',
+                boxShadow: '0 2px 6px rgba(220,38,38,0.3)'
+              }}
+            >
+              👉 IR A CERRAR CAJA AHORA
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowPinModal(true)}
+              style={{
+                padding: '7px 12px',
+                background: '#ffffff',
+                color: '#991b1b',
+                border: '1px solid #fca5a5',
+                borderRadius: '8px',
+                fontWeight: '700',
+                fontSize: '0.78rem',
+                cursor: 'pointer'
+              }}
+            >
+              🔓 Desbloqueo Supervisor
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Main POS Content Row (Catalog + Sidebar) */}
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+
+        {/* Catalog Grid View (Left Column) */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '24px', overflowY: 'auto' }}>
         
         {/* Search Header */}
@@ -718,14 +891,11 @@ const POS = () => {
             setCart([]);
           }
         }}
-        onGenerateNotaEntrega={() => setShowPaymentModal(true)}
+        onGenerateNotaEntrega={handleDirectCheckout}
         products={products}
         paymentMethod={paymentMethod}
         onSelectPaymentMethod={(methodId) => {
           setPaymentMethod(methodId);
-          if (methodId === 'pago_movil' || methodId === 'mixto') {
-            setShowPaymentModal(true);
-          }
         }}
         pagoMovilBank={pagoMovilBank}
         onSelectPagoMovilBank={setPagoMovilBank}
@@ -746,7 +916,253 @@ const POS = () => {
           setOrderType('salon');
           setDeliveryInfo({ address: '', phone: '', courier: '', deliveryFee: 0 });
         }}
+        docType={docType}
+        onChangeDocType={handleDocTypeChange}
+        fiscalSettings={fiscalSettings}
+        cashReceivedUSD={cashReceivedUSD}
+        onChangeCashReceivedUSD={setCashReceivedUSD}
+        cashReceivedBs={cashReceivedBs}
+        onChangeCashReceivedBs={setCashReceivedBs}
+        onDirectCheckout={handleDirectCheckout}
+        onOpenPaymentModal={() => {
+          if (isNightLocked) {
+            setShowLockModal(true);
+            return;
+          }
+          setShowPaymentModal(true);
+        }}
+        isNightLocked={isNightLocked}
+        onOpenLockModal={() => setShowLockModal(true)}
       />
+
+      </div>
+
+      {/* Modal de Bloqueo por Cierre de Caja Pre-Medianoche */}
+      {showLockModal && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.85)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 3500, backdropFilter: 'blur(6px)', padding: '20px'
+        }}>
+          <div style={{
+            background: '#ffffff', borderRadius: '20px', padding: '28px',
+            maxWidth: '520px', width: '100%', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.4)',
+            border: '2px solid #ef4444', color: '#0f172a', textAlign: 'center'
+          }}>
+            <div style={{
+              width: '64px', height: '64px', borderRadius: '50%', background: '#fee2e2',
+              color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 16px auto'
+            }}>
+              <AlertCircle size={36} />
+            </div>
+
+            <h2 style={{ margin: '0 0 8px 0', fontSize: '1.4rem', fontWeight: '800', color: '#991b1b' }}>
+              ⛔ FACTURACIÓN BLOQUEADA
+            </h2>
+            <p style={{ margin: '0 0 16px 0', fontSize: '0.95rem', color: '#475569', fontWeight: '600' }}>
+              Horario de Cierre Obligatorio ({formattedTime})
+            </p>
+
+            <div style={{
+              background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px',
+              padding: '14px 18px', marginBottom: '20px', textAlign: 'left',
+              fontSize: '0.85rem', color: '#7f1d1d', lineHeight: '1.5'
+            }}>
+              <strong>¿Por qué está bloqueada la facturación?</strong>
+              <ul style={{ margin: '6px 0 0 0', paddingLeft: '20px' }}>
+                <li>Son más de las 11:45 PM y la jornada fiscal de hoy debe cerrarse.</li>
+                <li>Por normativa del SENIAT y cuadre de caja, <strong>debe emitir el Reporte Z y realizar el Cierre de Caja antes de las 12:00 AM</strong>.</li>
+                <li>No se permite facturar para evitar descuadres entre la fecha fiscal de la impresora y los libros contables.</li>
+              </ul>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowLockModal(false);
+                  navigate('/cash-close');
+                }}
+                style={{
+                  padding: '13px 20px',
+                  background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '10px',
+                  fontWeight: '800',
+                  fontSize: '0.95rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)'
+                }}
+              >
+                <span>👉 IR A CERRAR CAJA AHORA (REPORTE Z)</span>
+              </button>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowLockModal(false)}
+                  style={{
+                    flex: 1,
+                    padding: '10px 14px',
+                    background: '#f1f5f9',
+                    border: '1px solid #cbd5e1',
+                    color: '#475569',
+                    borderRadius: '8px',
+                    fontWeight: '700',
+                    fontSize: '0.85rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Volver al POS
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowLockModal(false);
+                    setShowPinModal(true);
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '10px 14px',
+                    background: '#fef3c7',
+                    border: '1px solid #fde68a',
+                    color: '#92400e',
+                    borderRadius: '8px',
+                    fontWeight: '700',
+                    fontSize: '0.85rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  🔓 Desbloqueo Supervisor
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de PIN de Supervisor para Desbloqueo de Emergencia */}
+      {showPinModal && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.85)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 3600, backdropFilter: 'blur(6px)', padding: '20px'
+        }}>
+          <div style={{
+            background: '#ffffff', borderRadius: '18px', padding: '24px',
+            maxWidth: '380px', width: '100%', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.4)',
+            border: '1px solid #cbd5e1', color: '#0f172a', textAlign: 'center'
+          }}>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '1.15rem', fontWeight: '800', color: '#0f172a' }}>
+              Autorización de Supervisor
+            </h3>
+            <p style={{ margin: '0 0 16px 0', fontSize: '0.82rem', color: '#64748b' }}>
+              Ingrese el PIN de Administrador/Supervisor para autorizar facturación extraordinaria fuera de hora.
+            </p>
+
+            <input
+              type="password"
+              maxLength={4}
+              placeholder="••••"
+              autoFocus
+              value={supervisorPinInput}
+              onChange={(e) => {
+                setSupervisorPinInput(e.target.value.replace(/\D/g, ''));
+                setSupervisorPinError(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  if (supervisorPinInput === '7391' || (isAdmin && isAdmin())) {
+                    setAdminBypass(true);
+                    setShowPinModal(false);
+                    setSupervisorPinInput('');
+                    setSupervisorPinError(false);
+                    showToast('Desbloqueo de supervisor concedido para esta sesión.', 'success');
+                  } else {
+                    setSupervisorPinError(true);
+                  }
+                }
+              }}
+              style={{
+                width: '100%',
+                padding: '12px',
+                fontSize: '1.5rem',
+                textAlign: 'center',
+                letterSpacing: '8px',
+                border: supervisorPinError ? '2px solid #ef4444' : '2px solid #cbd5e1',
+                borderRadius: '10px',
+                outline: 'none',
+                marginBottom: '12px',
+                boxSizing: 'border-box'
+              }}
+            />
+
+            {supervisorPinError && (
+              <p style={{ margin: '0 0 12px 0', fontSize: '0.8rem', color: '#dc2626', fontWeight: '700' }}>
+                PIN incorrecto. Intente nuevamente.
+              </p>
+            )}
+
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPinModal(false);
+                  setSupervisorPinInput('');
+                  setSupervisorPinError(false);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  background: '#f1f5f9',
+                  border: '1px solid #cbd5e1',
+                  color: '#475569',
+                  borderRadius: '8px',
+                  fontWeight: '700',
+                  fontSize: '0.85rem',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (supervisorPinInput === '7391' || (isAdmin && isAdmin())) {
+                    setAdminBypass(true);
+                    setShowPinModal(false);
+                    setSupervisorPinInput('');
+                    setSupervisorPinError(false);
+                    showToast('Desbloqueo de supervisor concedido para esta sesión.', 'success');
+                  } else {
+                    setSupervisorPinError(true);
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  background: '#2563eb',
+                  border: 'none',
+                  color: '#ffffff',
+                  borderRadius: '8px',
+                  fontWeight: '800',
+                  fontSize: '0.85rem',
+                  cursor: 'pointer'
+                }}
+              >
+                Autorizar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Payment Confirmation Modal */}
       <POSPaymentModal
@@ -755,10 +1171,13 @@ const POS = () => {
         totalUSD={cartTotalUSD}
         currentRate={currentRate}
         client={client}
+        onSelectClient={handleSelectClient}
         onConfirmPayment={handleConfirmPayment}
         initialPaymentMethod={paymentMethod}
         initialPagoMovilBank={pagoMovilBank}
         initialPagoMovilRef={pagoMovilRef}
+        fiscalEnabled={fiscalSettings?.enabled}
+        initialDocType={docType}
       />
 
       {/* Open Tabs & Delivery Drawer Modal (Llevar la cuenta) */}

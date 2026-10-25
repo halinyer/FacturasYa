@@ -35,16 +35,19 @@ export const getFiscalTime = (dateVal) => {
   return `${hours}:${minutes}`;
 };
 
-// Formato de número oficial a 8 dígitos (ej. 00011898)
+// Formato de número oficial a 8 dígitos (ej. 00011898) o etiqueta limpia en Pre-Cuenta
 export const getFiscalNumber = (invoice) => {
+  if (!invoice) return '00000001';
   if (invoice.fiscalInvoiceNumber) return String(invoice.fiscalInvoiceNumber).padStart(8, '0');
+  if (invoice.isPreBill || String(invoice.invoiceNumber || '').toUpperCase().startsWith('PRE') || String(invoice.invoiceNumber || '').toUpperCase().startsWith('NE-PRE')) {
+    return 'PRE-CUENTA';
+  }
   if (invoice.invoiceNumber) {
     const digits = String(invoice.invoiceNumber).replace(/\D/g, '');
     if (digits) return digits.padStart(8, '0').slice(-8);
     return String(invoice.invoiceNumber);
   }
-  const idDigits = String(invoice.id || '1').replace(/\D/g, '') || '1';
-  return idDigits.padStart(8, '0').slice(-8);
+  return '00000001';
 };
 
 // Etiqueta fiscal de pago
@@ -61,11 +64,16 @@ export const getPaymentLabel = (method) => {
 };
 
 const InvoicePreview = ({ invoice, onClose }) => {
-  const { clients = [] } = useData() || {};
+  const { clients = [], fiscalSettings, fiscalPrintInvoice, updateInvoice } = useData() || {};
   const ticketRef = useRef(null);
+  const [isFiscalPrinting, setIsFiscalPrinting] = useState(false);
+  const [fiscalToast, setFiscalToast] = useState(null);
   
   // Modos disponibles: 'seniat' (Factura Fiscal) | 'nota_entrega' (Nota de Entrega / Cuenta)
-  const [formatType, setFormatType] = useState('nota_entrega');
+  const isInvoiceOriginallyFiscal = Boolean(invoice?.isFiscalInvoice || invoice?.docType === 'fiscal');
+  const [formatType, setFormatType] = useState(() => {
+    return isInvoiceOriginallyFiscal ? 'seniat' : 'nota_entrega';
+  });
   
   // Tamaño de papel: Por defecto 58mm para adaptarse a la impresora térmica conectada
   const [paperSize, setPaperSize] = useState(() => {
@@ -88,11 +96,15 @@ const InvoicePreview = ({ invoice, onClose }) => {
       window.electronAPI.getPrinters().then(list => {
         if (Array.isArray(list) && list.length > 0) {
           setPrinters(list);
+          const saved = localStorage.getItem('pos_comanda_printer');
+          const savedExists = saved && list.some(p => p.name === saved);
           const defaultPos = list.find(p => p.isDefault && /pos|thermal|ticket|58/i.test(p.name)) ||
                              list.find(p => /pos58\s*printer/i.test(p.name)) ||
                              list.find(p => /pos|thermal|ticket|58/i.test(p.name));
           
-          if (defaultPos) {
+          if (savedExists) {
+            setSelectedPrinter(saved);
+          } else if (defaultPos) {
             setSelectedPrinter(defaultPos.name);
             try { localStorage.setItem('pos_comanda_printer', defaultPos.name); } catch(e){}
           }
@@ -117,6 +129,69 @@ const InvoicePreview = ({ invoice, onClose }) => {
     }
   };
 
+  // Datos del cliente
+  const getClientData = () => {
+    const found = clients.find(c => c.id === invoice.clientId);
+    if (invoice.client && typeof invoice.client === 'object') {
+      return {
+        name: invoice.client.name || invoice.clientName || (found ? found.name : 'Consumidor Final'),
+        cedula: invoice.client.cedula || invoice.clientCedula || (found ? found.cedula : 'V-00000000'),
+        phone: invoice.client.phone || invoice.clientPhone || (found ? found.phone : (invoice.deliveryInfo?.phone || '')),
+        address: invoice.client.address || invoice.clientAddress || (found ? found.address : (invoice.deliveryInfo?.address || ''))
+      };
+    }
+    return {
+      name: invoice.clientName || (found ? found.name : 'Consumidor Final'),
+      cedula: invoice.clientCedula || (found ? found.cedula : 'V-00000000'),
+      phone: invoice.clientPhone || (found ? found.phone : (invoice.deliveryInfo?.phone || '')),
+      address: invoice.clientAddress || (found ? found.address : (invoice.deliveryInfo?.address || ''))
+    };
+  };
+
+  const clientInfo = getClientData();
+
+  const handleFiscalPrint = async () => {
+    setIsFiscalPrinting(true);
+    setFiscalToast({ msg: 'Enviando a impresora fiscal...', type: 'info' });
+    try {
+      if (fiscalPrintInvoice) {
+        const enrichedInvoice = {
+          ...invoice,
+          clientName: clientInfo.name,
+          clientCedula: clientInfo.cedula,
+          clientRif: clientInfo.cedula,
+          clientPhone: clientInfo.phone,
+          clientAddress: clientInfo.address
+        };
+        const res = await fiscalPrintInvoice(enrichedInvoice);
+        if (res && res.success) {
+          const officialFiscalNum = res.fiscalInvoiceNumber
+            ? String(res.fiscalInvoiceNumber).padStart(8, '0')
+            : undefined;
+          if (invoice.id && updateInvoice) {
+            updateInvoice(invoice.id, {
+              isFiscalInvoice: true,
+              docType: 'fiscal',
+              fiscalInvoiceNumber: officialFiscalNum,
+              fiscalControlNumber: officialFiscalNum || invoice.fiscalControlNumber,
+              fiscalSerial: res.s1?.registered_machine_number || res.s1?.machine_register || undefined,
+              fiscalVerified: true,
+              fiscalPrintedAt: new Date().toISOString()
+            });
+          }
+          setFiscalToast({ msg: `¡Factura fiscal ${officialFiscalNum ? 'N° ' + officialFiscalNum : ''} impresa exitosamente!`, type: 'success' });
+        } else {
+          setFiscalToast({ msg: `Error fiscal: ${res?.error || 'Sin respuesta'}`, type: 'error' });
+        }
+      }
+    } catch (e) {
+      setFiscalToast({ msg: `Error: ${e.message}`, type: 'error' });
+    } finally {
+      setIsFiscalPrinting(false);
+      setTimeout(() => setFiscalToast(null), 4000);
+    }
+  };
+
   const handleSelectFormat = (type) => {
     setFormatType(type);
     if (type === 'nota_entrega') {
@@ -125,27 +200,6 @@ const InvoicePreview = ({ invoice, onClose }) => {
       setPaperSize('58mm'); // Mantener 58mm para no distorsionar en impresoras de 58mm
     }
   };
-
-  // Datos del cliente
-  const getClientData = () => {
-    if (invoice.client && typeof invoice.client === 'object') {
-      return {
-        name: invoice.client.name || invoice.clientName || 'Consumidor Final',
-        cedula: invoice.client.cedula || invoice.clientCedula || 'V-00000000',
-        phone: invoice.client.phone || invoice.clientPhone || (invoice.deliveryInfo?.phone || ''),
-        address: invoice.client.address || invoice.clientAddress || (invoice.deliveryInfo?.address || 'EL VALLE')
-      };
-    }
-    const found = clients.find(c => c.id === invoice.clientId);
-    return {
-      name: invoice.clientName || (found ? found.name : 'Consumidor Final'),
-      cedula: invoice.clientCedula || (found ? found.cedula : 'V-00000000'),
-      phone: invoice.clientPhone || (found ? found.phone : (invoice.deliveryInfo?.phone || '')),
-      address: invoice.clientAddress || (found ? found.address : (invoice.deliveryInfo?.address || 'EL VALLE'))
-    };
-  };
-
-  const clientInfo = getClientData();
   const items = invoice.items || [];
   const totalUSD = Number(invoice.totalUSD || invoice.total || 0);
   const exchangeRate = Number(invoice.exchangeRate || invoice.tasaCambio || 876.80);
@@ -194,20 +248,27 @@ const InvoicePreview = ({ invoice, onClose }) => {
           }
           .invoice-modal {
             background: #0f172a; width: 100%;
-            max-width: ${is58 ? '360px' : '460px'};
-            border-radius: 14px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.85);
+            max-width: 500px;
+            border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.85);
             border: 1px solid rgba(255, 255, 255, 0.12); display: flex; flex-direction: column;
             max-height: 94vh; overflow: hidden;
             transition: max-width 0.2s ease;
           }
           .invoice-header-bar {
-            display: flex; flex-direction: column; gap: 8px;
-            padding: 12px 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex; flex-direction: column; gap: 10px;
+            padding: 12px 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.08);
             background: #1e293b; color: #f8fafc;
           }
           .invoice-content {
-            padding: ${is58 ? '10px 4px' : '20px 18px'};
-            overflow-y: auto; background: #ffffff; color: #000000;
+            padding: 16px 12px;
+            overflow-y: auto; background: #e2e8f0; color: #000000;
+            display: flex; justify-content: center; align-items: flex-start;
+            flex: 1;
+          }
+          .invoice-footer-bar {
+            display: flex; align-items: center; gap: 10px;
+            padding: 12px 16px; background: #1e293b;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
           }
           .ticket-paper {
             font-family: Arial, Helvetica, sans-serif;
@@ -218,7 +279,10 @@ const InvoicePreview = ({ invoice, onClose }) => {
             background: #ffffff;
             margin: 0 auto;
             width: 100%;
-            max-width: ${is58 ? '48mm' : '72mm'};
+            max-width: ${is58 ? '230px' : '310px'};
+            padding: 12px 10px;
+            border-radius: 6px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
             box-sizing: border-box;
             -webkit-font-smoothing: antialiased;
             text-rendering: optimizeLegibility;
@@ -269,7 +333,7 @@ const InvoicePreview = ({ invoice, onClose }) => {
               page-break-inside: avoid !important;
               break-inside: avoid !important;
             }
-            .invoice-header-bar {
+            .invoice-header-bar, .invoice-footer-bar {
               display: none !important;
             }
             .invoice-content, .invoice-content * {
@@ -309,9 +373,9 @@ const InvoicePreview = ({ invoice, onClose }) => {
           <div className="invoice-header-bar">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Receipt size={18} color="#38bdf8" />
+                <Receipt size={18} color={formatType === 'seniat' ? "#10b981" : "#38bdf8"} />
                 <h3 style={{ margin: 0, fontSize: '0.88rem', fontWeight: '800' }}>
-                  {formatType === 'seniat' ? `Factura Fiscal SENIAT: ${docNumber}` : `Nota de Entrega: #${docNumber}`}
+                  {formatType === 'seniat' ? `Factura Fiscal SENIAT: Nº ${docNumber}` : `Nota de Entrega: #${docNumber}`}
                 </h3>
               </div>
               <button 
@@ -327,103 +391,159 @@ const InvoicePreview = ({ invoice, onClose }) => {
               </button>
             </div>
 
-            {/* Pestañas de Selección de Formato y Ancho de Papel (58mm / 80mm) */}
+            {/* Pestañas de Selección de Formato y Controles de Impresión */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-              {/* Formato */}
-              <div style={{ display: 'flex', background: 'rgba(0,0,0,0.3)', borderRadius: '8px', padding: '2px', gap: '3px' }}>
-                <button
-                  type="button"
-                  onClick={() => handleSelectFormat('seniat')}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '4px',
-                    padding: '5px 10px', borderRadius: '6px', fontSize: '0.76rem', fontWeight: '800',
-                    border: 'none', cursor: 'pointer',
-                    background: formatType === 'seniat' ? '#38bdf8' : 'transparent',
-                    color: formatType === 'seniat' ? '#0f172a' : '#cbd5e1'
-                  }}
-                >
-                  <Receipt size={13} /> SENIAT Fiscal
-                </button>
+              {/* Botones de Selección de Modo (Nota de Entrega vs Factura Fiscal) */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <button
                   type="button"
                   onClick={() => handleSelectFormat('nota_entrega')}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: '4px',
-                    padding: '5px 10px', borderRadius: '6px', fontSize: '0.76rem', fontWeight: '800',
+                    display: 'inline-flex', alignItems: 'center', gap: '5px',
+                    padding: '5px 12px', borderRadius: '6px', fontSize: '0.76rem', fontWeight: '800',
                     border: 'none', cursor: 'pointer',
-                    background: formatType === 'nota_entrega' ? '#D52829' : 'transparent',
-                    color: '#ffffff'
+                    background: formatType === 'nota_entrega' ? '#2563eb' : 'rgba(255,255,255,0.08)',
+                    color: formatType === 'nota_entrega' ? '#ffffff' : '#94a3b8'
                   }}
                 >
-                  <FileText size={13} /> Nota de Entrega
+                  <FileText size={13} /> NOTA DE ENTREGA (NO FISCAL)
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleSelectFormat('seniat')}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '5px',
+                    padding: '5px 12px', borderRadius: '6px', fontSize: '0.76rem', fontWeight: '800',
+                    border: 'none', cursor: 'pointer',
+                    background: formatType === 'seniat' ? '#059669' : 'rgba(255,255,255,0.08)',
+                    color: formatType === 'seniat' ? '#ffffff' : '#94a3b8'
+                  }}
+                >
+                  <Receipt size={13} /> FACTURA FISCAL SENIAT
                 </button>
               </div>
 
-              {/* Selector de Impresora, Ancho 58mm / 80mm y Botón Imprimir */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                {printers.length > 0 && (
-                  <select
-                    value={selectedPrinter}
-                    onChange={(e) => {
-                      setSelectedPrinter(e.target.value);
-                      try { localStorage.setItem('pos_comanda_printer', e.target.value); } catch(err){}
-                    }}
-                    style={{
-                      padding: '4px 6px', borderRadius: '6px', fontSize: '0.72rem',
-                      background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)',
-                      maxWidth: '120px', cursor: 'pointer'
-                    }}
-                    title="Seleccionar impresora"
-                  >
-                    {printers.map((p, idx) => (
-                      <option key={idx} value={p.name} style={{ background: '#1e293b', color: '#fff' }}>
-                        {p.name} {p.isDefault ? '(Predet.)' : ''}
-                      </option>
-                    ))}
-                  </select>
+              {/* Controles de Impresión Adaptados Estrictamente al Modo Seleccionado */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {formatType === 'seniat' ? (
+                  /* MODO FISCAL SENIAT: Impresora 58mm común DESHABILITADA (por ley SENIAT).
+                     Sólo la Impresora Fiscal HKA80 autorizada por SENIAT puede emitir este documento. */
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{
+                      fontSize: '0.72rem',
+                      color: '#86efac',
+                      background: 'rgba(5, 150, 105, 0.2)',
+                      border: '1px solid rgba(134, 239, 172, 0.3)',
+                      padding: '4px 8px',
+                      borderRadius: '6px',
+                      fontWeight: '700',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px'
+                    }}>
+                      <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+                      HKA80 Fiscal ({fiscalSettings?.port || fiscalSettings?.selectedPort || 'COM2'})
+                    </span>
+
+                    <button 
+                      type="button"
+                      onClick={handleFiscalPrint}
+                      disabled={isFiscalPrinting}
+                      style={{ 
+                        display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px',
+                        background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                        color: '#ffffff', border: 'none', borderRadius: '8px',
+                        fontWeight: '800', cursor: isFiscalPrinting ? 'wait' : 'pointer', fontSize: '0.82rem',
+                        boxShadow: '0 2px 10px rgba(5, 150, 105, 0.4)'
+                      }}
+                      title="Emitir ticket en la impresora fiscal The Factory HKA y acumular en memoria para el Cierre Z"
+                    >
+                      <Printer size={15} /> {isFiscalPrinting ? 'Enviando a HKA...' : `Emitir en Fiscal HKA (${fiscalSettings?.port || fiscalSettings?.selectedPort || 'COM2'})`}
+                    </button>
+                  </div>
+                ) : (
+                  /* MODO NOTA DE ENTREGA: Impresora Térmica 58mm / 80mm Convencional */
+                  <>
+                    {printers.length > 0 && (
+                      <select
+                        value={selectedPrinter}
+                        onChange={(e) => {
+                          setSelectedPrinter(e.target.value);
+                          try { localStorage.setItem('pos_comanda_printer', e.target.value); } catch(err){}
+                        }}
+                        style={{
+                          padding: '4px 6px', borderRadius: '6px', fontSize: '0.72rem',
+                          background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)',
+                          maxWidth: '120px', cursor: 'pointer'
+                        }}
+                        title="Seleccionar impresora térmica"
+                      >
+                        {printers.map((p, idx) => (
+                          <option key={idx} value={p.name} style={{ background: '#1e293b', color: '#fff' }}>
+                            {p.name} {p.isDefault ? '(Predet.)' : ''}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+
+                    <div style={{ display: 'flex', background: 'rgba(255,255,255,0.08)', borderRadius: '6px', padding: '2px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setPaperSize('58mm')}
+                        style={{
+                          padding: '4px 7px', borderRadius: '4px', fontSize: '0.72rem', fontWeight: '800',
+                          border: 'none', cursor: 'pointer',
+                          background: paperSize === '58mm' ? '#e2e8f0' : 'transparent',
+                          color: paperSize === '58mm' ? '#0f172a' : '#94a3b8'
+                        }}
+                      >
+                        58mm
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPaperSize('80mm')}
+                        style={{
+                          padding: '4px 7px', borderRadius: '4px', fontSize: '0.72rem', fontWeight: '800',
+                          border: 'none', cursor: 'pointer',
+                          background: paperSize === '80mm' ? '#e2e8f0' : 'transparent',
+                          color: paperSize === '80mm' ? '#0f172a' : '#94a3b8'
+                        }}
+                      >
+                        80mm
+                      </button>
+                    </div>
+
+                    <button 
+                      type="button"
+                      onClick={handlePrint}
+                      style={{ 
+                        display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px',
+                        background: '#22c55e', color: '#0f172a', border: 'none', borderRadius: '8px',
+                        fontWeight: '800', cursor: 'pointer', fontSize: '0.78rem'
+                      }}
+                    >
+                      <Printer size={14} /> Imprimir Comprobante ({paperSize})
+                    </button>
+                  </>
                 )}
-
-                <div style={{ display: 'flex', background: 'rgba(255,255,255,0.08)', borderRadius: '6px', padding: '2px' }}>
-                  <button
-                    type="button"
-                    onClick={() => setPaperSize('58mm')}
-                    style={{
-                      padding: '4px 7px', borderRadius: '4px', fontSize: '0.72rem', fontWeight: '800',
-                      border: 'none', cursor: 'pointer',
-                      background: paperSize === '58mm' ? '#e2e8f0' : 'transparent',
-                      color: paperSize === '58mm' ? '#0f172a' : '#94a3b8'
-                    }}
-                  >
-                    58mm
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPaperSize('80mm')}
-                    style={{
-                      padding: '4px 7px', borderRadius: '4px', fontSize: '0.72rem', fontWeight: '800',
-                      border: 'none', cursor: 'pointer',
-                      background: paperSize === '80mm' ? '#e2e8f0' : 'transparent',
-                      color: paperSize === '80mm' ? '#0f172a' : '#94a3b8'
-                    }}
-                  >
-                    80mm
-                  </button>
-                </div>
-
-                <button 
-                  type="button"
-                  onClick={handlePrint}
-                  style={{ 
-                    display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px',
-                    background: '#22c55e', color: '#0f172a', border: 'none', borderRadius: '8px',
-                    fontWeight: '800', cursor: 'pointer', fontSize: '0.78rem'
-                  }}
-                >
-                  <Printer size={14} /> Imprimir ({paperSize})
-                </button>
               </div>
             </div>
           </div>
+
+          {/* Toast de notificación de estado fiscal */}
+          {fiscalToast && (
+            <div style={{
+              padding: '8px 14px',
+              fontSize: '0.8rem',
+              fontWeight: '700',
+              color: '#ffffff',
+              background: fiscalToast.type === 'success' ? '#059669' : fiscalToast.type === 'error' ? '#dc2626' : '#0284c7',
+              textAlign: 'center'
+            }}>
+              {fiscalToast.msg}
+            </div>
+          )}
 
           {/* Ticket Térmico Imprimible */}
           <div className="invoice-content">
@@ -585,16 +705,16 @@ const InvoicePreview = ({ invoice, onClose }) => {
                       HAPPY DAYS
                     </div>
                     <div style={{ fontSize: is58 ? '8.5px' : '9.5px', marginTop: '1px' }}>
-                      RIF: {rif} &nbsp;|&nbsp; Tel: {phone}
+                      Tel: {phone}
                     </div>
                     <div style={{ fontSize: is58 ? '8px' : '9px' }}>
                       C.C. Unicentro El Marqués • Caracas
                     </div>
-                    <div className="ticket-bold" style={{ fontSize: is58 ? '9.5px' : '10.5px', marginTop: '2px', letterSpacing: '0.5px' }}>
+                    <div className="ticket-bold" style={{ fontSize: is58 ? '10px' : '11px', marginTop: '2px', letterSpacing: '0.5px' }}>
                       *** NOTA DE ENTREGA ***
                     </div>
-                    <div style={{ fontSize: is58 ? '7.5px' : '8.5px', marginTop: '1px' }}>
-                      (CONTROL INTERNO)
+                    <div style={{ fontSize: is58 ? '7.5px' : '8px', marginTop: '1px', color: '#555' }}>
+                      (DOCUMENTO NO FISCAL - CONTROL INTERNO)
                     </div>
                   </div>
 
@@ -631,7 +751,7 @@ const InvoicePreview = ({ invoice, onClose }) => {
                     <div style={{ borderTop: '1px dotted #ccc', marginTop: '2px', paddingTop: '2px' }}>
                       <div>Cliente: {clientInfo.name}</div>
                       {clientInfo.cedula && clientInfo.cedula !== 'V-00000000' && (
-                        <div>C.I/RIF: {clientInfo.cedula}</div>
+                        <div>C.I: {clientInfo.cedula}</div>
                       )}
                     </div>
                   </div>
@@ -744,8 +864,68 @@ const InvoicePreview = ({ invoice, onClose }) => {
             </div>
           </div>
 
+          {/* Barra inferior fija con botón grande de Impresión */}
+          <div className="invoice-footer-bar">
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                padding: '11px 16px', background: 'rgba(255,255,255,0.1)', color: '#cbd5e1',
+                border: '1px solid rgba(255,255,255,0.15)', borderRadius: '10px',
+                fontWeight: '700', fontSize: '0.86rem', cursor: 'pointer'
+              }}
+            >
+              Cerrar
+            </button>
+
+            {formatType === 'seniat' ? (
+              <button
+                type="button"
+                onClick={handleFiscalPrint}
+                disabled={isFiscalPrinting}
+                style={{
+                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                  padding: '12px 18px', background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                  color: '#ffffff', border: 'none', borderRadius: '10px',
+                  fontWeight: '900', fontSize: '0.9rem', cursor: isFiscalPrinting ? 'wait' : 'pointer',
+                  boxShadow: '0 4px 14px rgba(5, 150, 105, 0.4)'
+                }}
+              >
+                <Printer size={18} />
+                {isFiscalPrinting ? 'ENVIANDO A IMPRESORA FISCAL...' : `EMITIR EN IMPRESORA FISCAL HKA (${fiscalSettings?.port || fiscalSettings?.selectedPort || 'COM2'})`}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handlePrint}
+                style={{
+                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                  padding: '12px 18px', background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                  color: '#ffffff', border: 'none', borderRadius: '10px',
+                  fontWeight: '900', fontSize: '0.92rem', cursor: 'pointer',
+                  boxShadow: '0 4px 14px rgba(34, 197, 94, 0.4)'
+                }}
+              >
+                <Printer size={18} />
+                IMPRIMIR COMPROBANTE ({paperSize.toUpperCase()})
+              </button>
+            )}
+          </div>
+
         </div>
       </div>
+
+      {fiscalToast && (
+        <div style={{
+          position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)',
+          background: fiscalToast.type === 'success' ? '#10b981' : fiscalToast.type === 'error' ? '#dc2626' : '#0284c7',
+          color: '#fff', padding: '10px 20px', borderRadius: '24px',
+          fontWeight: '700', fontSize: '0.85rem', zIndex: 3000,
+          boxShadow: '0 8px 20px rgba(0,0,0,0.25)'
+        }}>
+          {fiscalToast.msg}
+        </div>
+      )}
     </>
   );
 };

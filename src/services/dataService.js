@@ -13,13 +13,17 @@ export const initDB = async () => {
           pos_products: localStorage.getItem('pos_products') ? JSON.parse(localStorage.getItem('pos_products')) : [],
           pos_clients: localStorage.getItem('pos_clients') ? JSON.parse(localStorage.getItem('pos_clients')) : [],
           pos_invoices: localStorage.getItem('pos_invoices') ? JSON.parse(localStorage.getItem('pos_invoices')) : [],
+          pos_purchases: localStorage.getItem('pos_purchases') ? JSON.parse(localStorage.getItem('pos_purchases')) : [],
           pos_payments: localStorage.getItem('pos_payments') ? JSON.parse(localStorage.getItem('pos_payments')) : [],
           pos_cash_closes: localStorage.getItem('pos_cash_closes') ? JSON.parse(localStorage.getItem('pos_cash_closes')) : [],
-          pos_open_tabs: localStorage.getItem('pos_open_tabs') ? JSON.parse(localStorage.getItem('pos_open_tabs')) : []
+          pos_open_tabs: localStorage.getItem('pos_open_tabs') ? JSON.parse(localStorage.getItem('pos_open_tabs')) : [],
+          pos_expenses: localStorage.getItem('pos_expenses') ? JSON.parse(localStorage.getItem('pos_expenses')) : [],
+          pos_settings: localStorage.getItem('pos_settings') ? JSON.parse(localStorage.getItem('pos_settings')) : {}
         };
         await window.electronAPI.saveDb(memoryStore);
       } else {
         memoryStore = fileData;
+        if (!memoryStore.pos_expenses) memoryStore.pos_expenses = [];
       }
     } catch (e) {
       console.error("Failed to load from Electron fs, falling back to localStorage", e);
@@ -31,9 +35,11 @@ export const initDB = async () => {
       pos_products: localStorage.getItem('pos_products') ? JSON.parse(localStorage.getItem('pos_products')) : [],
       pos_clients: localStorage.getItem('pos_clients') ? JSON.parse(localStorage.getItem('pos_clients')) : [],
       pos_invoices: localStorage.getItem('pos_invoices') ? JSON.parse(localStorage.getItem('pos_invoices')) : [],
+      pos_purchases: localStorage.getItem('pos_purchases') ? JSON.parse(localStorage.getItem('pos_purchases')) : [],
       pos_payments: localStorage.getItem('pos_payments') ? JSON.parse(localStorage.getItem('pos_payments')) : [],
       pos_cash_closes: localStorage.getItem('pos_cash_closes') ? JSON.parse(localStorage.getItem('pos_cash_closes')) : [],
-      pos_open_tabs: localStorage.getItem('pos_open_tabs') ? JSON.parse(localStorage.getItem('pos_open_tabs')) : []
+      pos_open_tabs: localStorage.getItem('pos_open_tabs') ? JSON.parse(localStorage.getItem('pos_open_tabs')) : [],
+      pos_expenses: localStorage.getItem('pos_expenses') ? JSON.parse(localStorage.getItem('pos_expenses')) : []
     };
   }
 };
@@ -73,7 +79,28 @@ const setStorageItem = (key, data) => {
 };
 
 const generateId = (prefix) => {
-  return `${prefix}_${crypto.randomUUID()}`;
+  const uuid = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+    ? crypto.randomUUID()
+    : `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+  return `${prefix}_${uuid}`;
+};
+
+export const normalizeCedulaRif = (raw) => {
+  const str = String(raw || '').trim().toUpperCase();
+  if (!str) return 'V-00000000';
+  // Si son solo dígitos o dígitos con puntos/espacios, agregar prefijo V-
+  const clean = str.replace(/[\.\s]/g, '');
+  if (/^\d+$/.test(clean)) {
+    return `V-${clean}`;
+  }
+  const match = clean.match(/^([VEJGP])[-]?(\d+)(?:[-]?(\d))?$/);
+  if (match) {
+    const letter = match[1];
+    const body = match[2];
+    const check = match[3];
+    return check !== undefined ? `${letter}-${body}-${check}` : `${letter}-${body}`;
+  }
+  return clean;
 };
 
 export const db = {
@@ -94,6 +121,28 @@ export const db = {
     return !!enabled;
   },
 
+  // FISCAL PRINTER SETTINGS
+  getFiscalSettings: () => {
+    const settings = getStorageItem('pos_settings') || {};
+    const fiscal = settings.fiscal || {
+      enabled: true,
+      port: 'COM2',
+      baudRate: 9600,
+      autoPrintInvoice: false
+    };
+    return fiscal;
+  },
+  saveFiscalSettings: (fiscalConfig) => {
+    const settings = getStorageItem('pos_settings') || {};
+    const cleanConfig = { ...fiscalConfig };
+    const updated = {
+      ...settings,
+      fiscal: { ...(settings.fiscal || {}), ...cleanConfig }
+    };
+    setStorageItem('pos_settings', updated);
+    return updated.fiscal;
+  },
+
   // PRODUCTS
   getProducts: () => getStorageItem('pos_products'),
   
@@ -110,8 +159,8 @@ export const db = {
   createProduct: (data) => {
     const products = getStorageItem('pos_products') || [];
     const newProduct = {
-      id: generateId('prod'),
       ...data,
+      id: (data && data.id) ? data.id : generateId('prod'),
       active: data.active !== undefined ? data.active : true,
       createdAt: new Date().toISOString()
     };
@@ -145,29 +194,56 @@ export const db = {
   },
 
   // CLIENTS
-  getClients: () => getStorageItem('pos_clients'),
+  getClients: () => {
+    const rawClients = getStorageItem('pos_clients') || [];
+    let needsRepair = false;
+    const seenIds = new Set();
+    const repairedClients = rawClients.map((c, idx) => {
+      if (!c || typeof c !== 'object') return c;
+      let validId = c.id;
+      if (!validId || seenIds.has(validId)) {
+        validId = `${generateId('cli')}_${idx}`;
+        needsRepair = true;
+      }
+      seenIds.add(validId);
+      return validId === c.id ? c : { ...c, id: validId };
+    });
+    if (needsRepair) {
+      setStorageItem('pos_clients', repairedClients);
+    }
+    return repairedClients;
+  },
   
   getClientById: (id) => {
-    const clients = getStorageItem('pos_clients') || [];
+    const clients = db.getClients();
     return clients.find(c => c.id === id);
   },
   
   searchClients: (query) => {
-    const clients = getStorageItem('pos_clients') || [];
+    const clients = db.getClients();
     if (!query) return clients;
     
     const lowerQuery = query.toLowerCase();
     return clients.filter(c => 
       (c.name || '').toLowerCase().includes(lowerQuery) || 
-      (c.cedula || '').toLowerCase().includes(lowerQuery)
+      (c.cedula || '').toLowerCase().includes(lowerQuery) ||
+      (c.phone || '').toLowerCase().includes(lowerQuery) ||
+      (c.address || '').toLowerCase().includes(lowerQuery)
     );
   },
   
   createClient: (data) => {
-    const clients = getStorageItem('pos_clients') || [];
+    const clients = db.getClients();
+    const cleanName = String(data?.name || '').trim() || 'Cliente';
+    const cleanCedula = normalizeCedulaRif(data?.cedula || data?.rif || '');
     const newClient = {
-      id: generateId('cli'),
       ...data,
+      id: (data && data.id) ? data.id : generateId('cli'),
+      name: cleanName,
+      cedula: cleanCedula,
+      phone: String(data?.phone || '').trim(),
+      address: String(data?.address || '').trim(),
+      type: data?.type || 'normal',
       createdAt: new Date().toISOString()
     };
     const updated = [newClient, ...clients];
@@ -176,14 +252,28 @@ export const db = {
   },
   
   updateClient: (id, updates) => {
-    const clients = getStorageItem('pos_clients') || [];
+    const clients = db.getClients();
     const index = clients.findIndex(c => c.id === id);
     if (index === -1) return null;
     
     const updated = [...clients];
-    updated[index] = { ...updated[index], ...updates };
+    const nextCedula = updates?.cedula !== undefined ? normalizeCedulaRif(updates.cedula) : updated[index].cedula;
+    updated[index] = {
+      ...updated[index],
+      ...updates,
+      id: updated[index].id,
+      name: updates?.name !== undefined ? String(updates.name).trim() : updated[index].name,
+      cedula: nextCedula
+    };
     setStorageItem('pos_clients', updated);
     return updated[index];
+  },
+
+  deleteClient: (id) => {
+    const clients = db.getClients();
+    const updated = clients.filter(c => c.id !== id);
+    setStorageItem('pos_clients', updated);
+    return true;
   },
   
   getClientDebt: (clientId) => {
@@ -264,6 +354,16 @@ export const db = {
     return newInvoice;
   },
   
+  updateInvoice: (id, updates) => {
+    const invoices = getStorageItem('pos_invoices');
+    const index = invoices.findIndex(inv => inv.id === id);
+    if (index === -1) return null;
+
+    invoices[index] = { ...invoices[index], ...updates };
+    setStorageItem('pos_invoices', invoices);
+    return invoices[index];
+  },
+
   updateInvoiceStatus: (id, status) => {
     const invoices = getStorageItem('pos_invoices');
     const index = invoices.findIndex(inv => inv.id === id);
@@ -276,15 +376,85 @@ export const db = {
   
   voidInvoice: (id, reason) => {
     const invoices = getStorageItem('pos_invoices');
-    const index = invoices.findIndex(inv => inv.id === id);
+    const index = invoices.findIndex(inv => String(inv.id) === String(id) || String(inv.invoiceNumber) === String(id));
     if (index === -1) return null;
     
+    invoices[index].previousStatus = invoices[index].status !== 'voided' ? invoices[index].status : 'paid';
     invoices[index].status = 'voided';
-    invoices[index].voidReason = reason;
+    invoices[index].voidReason = reason || 'Anulada en sistema / impresora fiscal';
     invoices[index].voidDate = new Date().toISOString();
     
     setStorageItem('pos_invoices', invoices);
     return invoices[index];
+  },
+
+  restoreInvoice: (id) => {
+    const invoices = getStorageItem('pos_invoices');
+    const index = invoices.findIndex(inv => String(inv.id) === String(id) || String(inv.invoiceNumber) === String(id));
+    if (index === -1) return null;
+
+    invoices[index].status = invoices[index].previousStatus || 'paid';
+    delete invoices[index].voidReason;
+    delete invoices[index].voidDate;
+
+    setStorageItem('pos_invoices', invoices);
+    return invoices[index];
+  },
+
+  deleteInvoice: (id) => {
+    const invoices = getStorageItem('pos_invoices');
+    const filtered = invoices.filter(inv => String(inv.id) !== String(id) && String(inv.invoiceNumber) !== String(id));
+    setStorageItem('pos_invoices', filtered);
+
+    // Also remove related payments
+    const payments = getStorageItem('pos_payments');
+    const filteredPayments = payments.filter(p => String(p.invoiceId) !== String(id));
+    setStorageItem('pos_payments', filteredPayments);
+
+    return true;
+  },
+
+  deleteCashClose: (idOrDate) => {
+    const closes = getStorageItem('pos_cash_closes');
+    const targetClean = String(idOrDate).includes('T') ? String(idOrDate).split('T')[0] : String(idOrDate);
+    const filtered = closes.filter(c => {
+      const cDate = (c.date || '').includes('T') ? c.date.split('T')[0] : c.date;
+      return String(c.id) !== String(idOrDate) && cDate !== targetClean;
+    });
+    setStorageItem('pos_cash_closes', filtered);
+    return true;
+  },
+
+  clearInvoicesByDate: (dateStr) => {
+    const invoices = getStorageItem('pos_invoices');
+    const payments = getStorageItem('pos_payments');
+    const targetClean = String(dateStr).includes('T') ? String(dateStr).split('T')[0] : String(dateStr);
+
+    const toDeleteIds = new Set();
+    const keptInvoices = invoices.filter(inv => {
+      const invDate = (inv.date || '').includes('T') ? inv.date.split('T')[0] : (inv.date || '');
+      let localDate = '';
+      if (inv.date) {
+        const d = new Date(inv.date);
+        if (!isNaN(d.getTime())) {
+          localDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        }
+      }
+      if (invDate === targetClean || localDate === targetClean) {
+        toDeleteIds.add(String(inv.id));
+        return false;
+      }
+      return true;
+    });
+
+    const keptPayments = payments.filter(p => !toDeleteIds.has(String(p.invoiceId)));
+
+    setStorageItem('pos_invoices', keptInvoices);
+    setStorageItem('pos_payments', keptPayments);
+
+    // Also delete any cash close record for that date
+    db.deleteCashClose(targetClean);
+    return true;
   },
 
   // PAYMENTS
@@ -335,12 +505,28 @@ export const db = {
   
   createCashClose: (data) => {
     const closes = getStorageItem('pos_cash_closes');
+    const rawDate = data.date || new Date().toISOString().split('T')[0];
+    const targetDateClean = rawDate.includes('T') ? rawDate.split('T')[0] : rawDate;
+
+    // Verificar si ya existe un cierre para esa fecha
+    const existingIndex = closes.findIndex(c => {
+      const cDate = (c.date || '').includes('T') ? c.date.split('T')[0] : c.date;
+      return cDate === targetDateClean;
+    });
+
     const newClose = {
-      id: generateId('cc'),
+      id: existingIndex !== -1 ? closes[existingIndex].id : generateId('cc'),
       ...data,
-      date: new Date().toISOString()
+      date: targetDateClean,
+      updatedAt: new Date().toISOString()
     };
-    closes.push(newClose);
+
+    if (existingIndex !== -1) {
+      closes[existingIndex] = newClose;
+    } else {
+      closes.push(newClose);
+    }
+
     setStorageItem('pos_cash_closes', closes);
     return newClose;
   },
@@ -364,8 +550,13 @@ export const db = {
       return time >= startOfDay && time <= endOfDay;
     });
     
+    const activeInvoices = todaysInvoices.filter(inv => inv.status !== 'voided' && inv.status !== 'anulada');
+    const voidedInvoices = todaysInvoices.filter(inv => inv.status === 'voided' || inv.status === 'anulada');
+
     const summary = {
-      totalSales: todaysInvoices.reduce((sum, inv) => sum + inv.totalUSD, 0),
+      totalSales: activeInvoices.reduce((sum, inv) => sum + (Number(inv.totalUSD) || 0), 0),
+      totalVoidedUSD: voidedInvoices.reduce((sum, inv) => sum + (Number(inv.totalUSD) || 0), 0),
+      voidedCount: voidedInvoices.length,
       totalCollected: 0,
       totalPending: 0,
       breakdown: {
@@ -376,8 +567,8 @@ export const db = {
       }
     };
     
-    // Calculate collected from fully paid invoices today
-    todaysInvoices.forEach(inv => {
+    // Calculate collected from fully paid (non-voided) invoices today
+    activeInvoices.forEach(inv => {
       if (inv.status === 'paid' && !payments.some(p => p.invoiceId === inv.id)) {
         summary.totalCollected += inv.totalUSD;
         if (inv.paymentMethod === 'mixto' && inv.mixedPayments) {
@@ -589,6 +780,99 @@ export const db = {
     return updated[index];
   },
 
+  // EXPENSES (Gastos y Salidas de Caja)
+  getExpenses: () => {
+    const list = getStorageItem('pos_expenses') || [];
+    return [...list].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+  },
+
+  createExpense: (data = {}) => {
+    const expenses = getStorageItem('pos_expenses') || [];
+    const rate = Number(data.exchangeRate) || db.getCurrentRate() || 876.80;
+    const rawAmount = parseFloat(data.amount) || 0;
+    const currency = data.currency === 'BS' ? 'BS' : 'USD';
+    const amountUSD = currency === 'BS'
+      ? Number((rawAmount / rate).toFixed(2))
+      : Number((Number(data.amountUSD) || rawAmount).toFixed(2));
+    const amountBs = currency === 'BS'
+      ? Number(rawAmount.toFixed(2))
+      : Number((amountUSD * rate).toFixed(2));
+
+    const newExpense = {
+      id: data.id || generateId('exp'),
+      date: data.date || new Date().toISOString(),
+      description: String(data.description || '').trim() || 'Gasto operativo',
+      category: data.category || 'Operativo',
+      amountUSD,
+      amountBs,
+      currency,
+      paymentMethod: data.paymentMethod || 'efectivo_usd',
+      exchangeRate: rate,
+      createdBy: data.createdBy || 'Caja'
+    };
+
+    const updated = [newExpense, ...expenses];
+    setStorageItem('pos_expenses', updated);
+    return newExpense;
+  },
+
+  deleteExpense: (id) => {
+    const expenses = getStorageItem('pos_expenses') || [];
+    const updated = expenses.filter(e => e.id !== id);
+    setStorageItem('pos_expenses', updated);
+    return true;
+  },
+
+  // CLOUD & MOBILE MONITOR SETTINGS (Para que el dueño vea todo desde su teléfono)
+  getCloudMonitorSettings: () => {
+    const settings = getStorageItem('pos_settings') || {};
+    const stored = settings.cloudMonitor || {};
+    return { cloudSyncUrl: stored.cloudSyncUrl || '', enablePublicTunnel: true };
+  },
+
+  saveCloudMonitorSettings: (cfg) => {
+    const settings = getStorageItem('pos_settings') || {};
+    settings.cloudMonitor = {
+      cloudSyncUrl: (cfg && cfg.cloudSyncUrl) || (settings.cloudMonitor && settings.cloudMonitor.cloudSyncUrl) || '',
+      enablePublicTunnel: true
+    };
+    setStorageItem('pos_settings', settings);
+    return settings.cloudMonitor;
+  },
+
+  // PURCHASES (Libro de Compras SENIAT)
+  getPurchases: () => {
+    return getStorageItem('pos_purchases');
+  },
+
+  addPurchase: (purchaseData) => {
+    const purchases = getStorageItem('pos_purchases');
+    const newPurchase = {
+      ...purchaseData,
+      id: purchaseData.id || ('pur_' + Date.now()),
+      createdAt: purchaseData.createdAt || new Date().toISOString()
+    };
+    purchases.unshift(newPurchase);
+    setStorageItem('pos_purchases', purchases);
+    return newPurchase;
+  },
+
+  updatePurchase: (id, updateData) => {
+    const purchases = getStorageItem('pos_purchases');
+    const index = purchases.findIndex(p => p.id === id);
+    if (index === -1) return null;
+    purchases[index] = { ...purchases[index], ...updateData, updatedAt: new Date().toISOString() };
+    setStorageItem('pos_purchases', purchases);
+    return purchases[index];
+  },
+
+  deletePurchase: (id) => {
+    const purchases = getStorageItem('pos_purchases');
+    const filtered = purchases.filter(p => p.id !== id);
+    setStorageItem('pos_purchases', filtered);
+    return true;
+  },
+
   // BACKUP & RESTORE (100% Offline Data Protection)
   exportBackupData: () => {
     const data = {
@@ -597,6 +881,8 @@ export const db = {
       products: getStorageItem('pos_products'),
       clients: getStorageItem('pos_clients'),
       invoices: getStorageItem('pos_invoices'),
+      expenses: getStorageItem('pos_expenses'),
+      purchases: getStorageItem('pos_purchases'),
       payments: getStorageItem('pos_payments'),
       cashCloses: getStorageItem('pos_cash_closes'),
       openTabs: getStorageItem('pos_open_tabs'),
@@ -614,6 +900,8 @@ export const db = {
       setStorageItem('pos_products', data.products);
       setStorageItem('pos_clients', data.clients || []);
       setStorageItem('pos_invoices', data.invoices || []);
+      setStorageItem('pos_expenses', data.expenses || []);
+      setStorageItem('pos_purchases', data.purchases || []);
       setStorageItem('pos_payments', data.payments || []);
       setStorageItem('pos_cash_closes', data.cashCloses || []);
       setStorageItem('pos_open_tabs', data.openTabs || []);
@@ -629,11 +917,15 @@ export const db = {
 
   clearAllSalesData: () => {
     setStorageItem('pos_invoices', []);
+    setStorageItem('pos_expenses', []);
+    setStorageItem('pos_purchases', []);
     setStorageItem('pos_payments', []);
     setStorageItem('pos_cash_closes', []);
     setStorageItem('pos_open_tabs', []);
     try {
       localStorage.setItem('pos_invoices', JSON.stringify([]));
+      localStorage.setItem('pos_expenses', JSON.stringify([]));
+      localStorage.setItem('pos_purchases', JSON.stringify([]));
       localStorage.setItem('pos_payments', JSON.stringify([]));
       localStorage.setItem('pos_cash_closes', JSON.stringify([]));
       localStorage.setItem('pos_open_tabs', JSON.stringify([]));

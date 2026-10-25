@@ -1,17 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { useData } from '../contexts/DataContext';
 
+export const getLocalDateStr = (date = new Date()) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
 const FilterBar = ({ onChange, onFilterChange }) => {
   const { products } = useData();
   const triggerChange = onChange || onFilterChange;
+  const todayStr = getLocalDateStr(new Date());
   
+  const [activePreset, setActivePreset] = useState('hoy');
   const [filters, setFilters] = useState({
-    desde: '',
-    hasta: '',
+    desde: todayStr,
+    hasta: todayStr,
     cliente: '',
     productoId: '',
     estado: 'Todas',
-    tipoCliente: 'Todos'
+    tipoCliente: 'Todos',
+    preset: 'hoy'
   });
 
   useEffect(() => {
@@ -21,42 +31,61 @@ const FilterBar = ({ onChange, onFilterChange }) => {
   }, [filters]);
 
   const handleChange = (key, value) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
+    if (key === 'desde' || key === 'hasta') {
+      setActivePreset('custom');
+    }
+    setFilters(prev => ({
+      ...prev,
+      [key]: value,
+      preset: (key === 'desde' || key === 'hasta') ? 'custom' : prev.preset
+    }));
   };
 
   const handleDatePreset = (preset) => {
     const today = new Date();
     let desde = '';
-    let hasta = today.toISOString().split('T')[0];
+    let hasta = getLocalDateStr(today);
 
     if (preset === 'hoy') {
       desde = hasta;
+    } else if (preset === 'ayer') {
+      const yesterday = new Date(today);
+      yesterday.setDate(today.getDate() - 1);
+      desde = getLocalDateStr(yesterday);
+      hasta = desde;
     } else if (preset === 'semana') {
-      const firstDay = new Date();
+      const firstDay = new Date(today);
       firstDay.setDate(today.getDate() - today.getDay());
-      desde = firstDay.toISOString().split('T')[0];
-      hasta = new Date().toISOString().split('T')[0];
+      desde = getLocalDateStr(firstDay);
+      hasta = getLocalDateStr(today);
     } else if (preset === 'mes') {
       const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-      desde = firstDay.toISOString().split('T')[0];
-      hasta = new Date().toISOString().split('T')[0];
+      desde = getLocalDateStr(firstDay);
+      hasta = getLocalDateStr(today);
     } else if (preset === 'anio') {
       const firstDay = new Date(today.getFullYear(), 0, 1);
-      desde = firstDay.toISOString().split('T')[0];
-      hasta = new Date().toISOString().split('T')[0];
+      desde = getLocalDateStr(firstDay);
+      hasta = getLocalDateStr(today);
+    } else if (preset === 'todo') {
+      desde = '';
+      hasta = '';
     }
 
-    setFilters(prev => ({ ...prev, desde, hasta }));
+    setActivePreset(preset);
+    setFilters(prev => ({ ...prev, desde, hasta, preset }));
   };
 
   const clearFilters = () => {
+    const t = getLocalDateStr(new Date());
+    setActivePreset('hoy');
     setFilters({
-      desde: '',
-      hasta: '',
+      desde: t,
+      hasta: t,
       cliente: '',
       productoId: '',
       estado: 'Todas',
-      tipoCliente: 'Todos'
+      tipoCliente: 'Todos',
+      preset: 'hoy'
     });
   };
 
@@ -80,15 +109,20 @@ const FilterBar = ({ onChange, onFilterChange }) => {
     fontWeight: '600'
   };
 
-  const btnStyle = {
-    background: '#fef3c7',
-    color: '#b45309',
-    border: '1px solid #fde68a',
-    padding: '6px 14px',
-    borderRadius: '16px',
-    fontSize: '0.8rem',
-    fontWeight: '700',
-    cursor: 'pointer'
+  const getBtnStyle = (presetKey) => {
+    const isActive = activePreset === presetKey;
+    return {
+      background: isActive ? '#2563eb' : '#f1f5f9',
+      color: isActive ? '#ffffff' : '#334155',
+      border: `1px solid ${isActive ? '#1d4ed8' : '#cbd5e1'}`,
+      padding: '7px 15px',
+      borderRadius: '18px',
+      fontSize: '0.8rem',
+      fontWeight: '700',
+      cursor: 'pointer',
+      boxShadow: isActive ? '0 2px 6px rgba(37, 99, 235, 0.25)' : 'none',
+      transition: 'all 0.15s'
+    };
   };
 
   return (
@@ -103,12 +137,33 @@ const FilterBar = ({ onChange, onFilterChange }) => {
       gap: '16px',
       boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
     }}>
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-        <span style={{ fontSize: '0.85rem', color: '#6b7280', marginRight: '4px', fontWeight: '600' }}>Rango rápido:</span>
-        <button type="button" onClick={() => handleDatePreset('hoy')} style={btnStyle}>Hoy</button>
-        <button type="button" onClick={() => handleDatePreset('semana')} style={btnStyle}>Esta Semana</button>
-        <button type="button" onClick={() => handleDatePreset('mes')} style={btnStyle}>Este Mes</button>
-        <button type="button" onClick={() => handleDatePreset('anio')} style={btnStyle}>Este Año</button>
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontSize: '0.85rem', color: '#475569', marginRight: '4px', fontWeight: '700' }}>📅 Periodo:</span>
+          <button type="button" onClick={() => handleDatePreset('hoy')} style={getBtnStyle('hoy')}>Hoy</button>
+          <button type="button" onClick={() => handleDatePreset('ayer')} style={getBtnStyle('ayer')}>Ayer</button>
+          <button type="button" onClick={() => handleDatePreset('semana')} style={getBtnStyle('semana')}>Esta Semana</button>
+          <button type="button" onClick={() => handleDatePreset('mes')} style={getBtnStyle('mes')}>Este Mes</button>
+          <button type="button" onClick={() => handleDatePreset('anio')} style={getBtnStyle('anio')}>Este Año</button>
+          <button type="button" onClick={() => handleDatePreset('todo')} style={getBtnStyle('todo')}>Todo el Historial</button>
+        </div>
+
+        <button 
+          type="button"
+          onClick={clearFilters}
+          style={{
+            background: '#f8fafc',
+            color: '#475569',
+            border: '1px solid #cbd5e1',
+            padding: '6px 12px',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontSize: '0.78rem',
+            fontWeight: '600'
+          }}
+        >
+          Restablecer a Hoy
+        </button>
       </div>
 
       <div style={{
@@ -155,7 +210,7 @@ const FilterBar = ({ onChange, onFilterChange }) => {
             onChange={(e) => handleChange('productoId', e.target.value)}
           >
             <option value="">Todos los productos</option>
-            {products.map(p => (
+            {(products || []).map(p => (
               <option key={p.id} value={p.id}>{p.name || p.nombre}</option>
             ))}
           </select>
@@ -188,25 +243,6 @@ const FilterBar = ({ onChange, onFilterChange }) => {
             <option value="congelador">Congelador</option>
           </select>
         </div>
-      </div>
-
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <button 
-          type="button"
-          onClick={clearFilters}
-          style={{
-            background: '#fee2e2',
-            color: '#dc2626',
-            border: '1px solid #fecaca',
-            padding: '8px 16px',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontSize: '0.85rem',
-            fontWeight: '600'
-          }}
-        >
-          Limpiar filtros
-        </button>
       </div>
     </div>
   );

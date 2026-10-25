@@ -14,7 +14,7 @@ export const getTicketFullHtml = (htmlContent, paperSize = '58mm') => {
 <head>
 <meta charset="utf-8">
 <meta name="color-scheme" content="light">
-<title>Ticket</title>
+<title>&nbsp;</title>
 <style>
   :root {
     color-scheme: light !important;

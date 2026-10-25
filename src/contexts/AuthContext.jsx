@@ -1,16 +1,22 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import { ACCESS_PINS } from '../config/accessConfig';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
-    const savedUser = localStorage.getItem('pos_user');
-    return savedUser ? JSON.parse(savedUser) : null;
+    try {
+      const savedUser = JSON.parse(localStorage.getItem('pos_user') || 'null');
+      // Sesiones guardadas con el esquema de PIN anterior se descartan (obliga a iniciar sesión de nuevo)
+      if (savedUser && savedUser.v === 2) return savedUser;
+    } catch (e) {}
+    localStorage.removeItem('pos_user');
+    return null;
   });
 
   const users = {
-    '1234': { role: 'admin', name: 'Administrador', pin: '1234' },
-    '0000': { role: 'cajero', name: 'Cajera Principal', pin: '0000' }
+    [ACCESS_PINS.admin]: { role: 'admin', name: 'Administrador', v: 2 },
+    [ACCESS_PINS.cajero]: { role: 'cajero', name: 'Cajera Principal', v: 2 }
   };
 
   const login = (role, pin) => {

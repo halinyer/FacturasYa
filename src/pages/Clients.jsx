@@ -54,14 +54,24 @@ const Clients = () => {
   const handleSaveClient = (e) => {
     e.preventDefault();
     try {
+      const payload = {
+        name: (formData.name || '').trim(),
+        cedula: (formData.cedula || '').trim(),
+        phone: (formData.phone || '').trim(),
+        address: (formData.address || '').trim(),
+        type: formData.type || 'normal'
+      };
       if (formData.id) {
-        updateClient(formData.id, formData);
+        const updated = updateClient(formData.id, payload);
         showToast('Cliente actualizado correctamente', 'success');
         if (selectedClient && selectedClient.id === formData.id) {
-          setSelectedClient({ ...selectedClient, ...formData });
+          setSelectedClient(updated || { ...selectedClient, ...payload, id: formData.id });
         }
       } else {
-        addClient(formData);
+        const created = addClient(payload);
+        if (created) {
+          setSelectedClient(created);
+        }
         showToast('Cliente creado exitosamente', 'success');
       }
       setIsModalOpen(false);

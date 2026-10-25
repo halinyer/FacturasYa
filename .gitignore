@@ -10,12 +10,27 @@ pnpm-debug.log*
 node_modules/
 dist/
 dist-electron/
+dist-electron-*/
 release/
 build/
+build_pyinstaller/
+asar_extracted/
+__pycache__/
+*.pyc
+*.spec
+*.class
+*.exe
+!bin/*.exe
+
+# Emuladores locales
+VFPHKA-*/
 
 # Datos locales y backups en tiempo de ejecución
 facturapos_db.json*
 facturapos_orders.json*
+auditoria_fiscal.json
+owner_secret.key
+registro_fiscal.log
 
 # Entorno / Variables locales
 .env

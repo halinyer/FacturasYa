@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -12,7 +12,6 @@ if (!gotTheLock) {
 // Prevents GPU process compositor crashes/hangs that stop clicks and keystrokes from working
 app.disableHardwareAcceleration();
 app.commandLine.appendSwitch('disable-gpu');
-app.commandLine.appendSwitch('disable-software-rasterizer');
 app.commandLine.appendSwitch('disable-gpu-compositing');
 app.commandLine.appendSwitch('disable-gpu-rasterization');
 app.commandLine.appendSwitch('disable-features', 'HardwareMediaKeyHandling');
@@ -25,7 +24,7 @@ process.on('unhandledRejection', (reason, promise) => {
   console.error('[Main Process] Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
-const isDev = !app.isPackaged;
+const isDev = !app.isPackaged && !process.env.TEST_PROD;
 const localServer = require('./localServer.cjs');
 
 // IPC Handlers for Local Restaurant Server (WiFi Tablets)
@@ -58,6 +57,88 @@ ipcMain.handle('restart-server', async () => {
 });
 
 // IPC Handler for reliable printer discovery and native thermal printing
+const fiscalPrinterService = require('./fiscalPrinterService.cjs');
+
+ipcMain.handle('fiscal:get-ports', async () => {
+  return await fiscalPrinterService.getPorts();
+});
+
+ipcMain.handle('fiscal:auto-detect-port', async (event, preferredPort) => {
+  return await fiscalPrinterService.autoDetectPort(preferredPort);
+});
+
+ipcMain.handle('fiscal:test-connection', async (event, port) => {
+  return await fiscalPrinterService.testConnection(port);
+});
+
+ipcMain.handle('fiscal:get-s1-status', async (event, port) => {
+  return await fiscalPrinterService.getS1Status(port);
+});
+
+ipcMain.handle('fiscal:get-audit-status', async (event, port) => {
+  return await fiscalPrinterService.getAuditStatus(port);
+});
+
+ipcMain.handle('fiscal:report-x', async (event, port) => {
+  return await fiscalPrinterService.printReportX(port);
+});
+
+ipcMain.handle('fiscal:report-z', async (event, port) => {
+  return await fiscalPrinterService.printReportZ(port);
+});
+
+ipcMain.handle('fiscal:print-invoice', async (event, port, invoiceData) => {
+  return await fiscalPrinterService.printInvoice(port, invoiceData);
+});
+
+ipcMain.handle('fiscal:cancel-invoice', async (event, port) => {
+  return await fiscalPrinterService.cancelInvoice(port);
+});
+
+ipcMain.handle('fiscal:get-fiscal-memory', async (event, port, options) => {
+  return await fiscalPrinterService.getFiscalMemory(port, options);
+});
+
+ipcMain.handle('fiscal:print-fiscal-memory', async (event, port, options) => {
+  return await fiscalPrinterService.printFiscalMemory(port, options);
+});
+
+ipcMain.handle('fiscal:get-log', async () => {
+  return await fiscalPrinterService.getFiscalLog();
+});
+
+ipcMain.handle('fiscal:open-log-file', async () => {
+  try {
+    const logRes = await fiscalPrinterService.getFiscalLog();
+    const logPath = logRes?.path;
+    if (logPath && fs.existsSync(logPath)) {
+      shell.openPath(logPath);
+      return { success: true, path: logPath };
+    }
+    return { success: false, error: 'El archivo de log aún no ha sido generado.' };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('fiscal:launch-emulator', async () => {
+  const batPath = 'C:\\VFPHKA-3.0\\start.bat';
+  if (fs.existsSync(batPath)) {
+    try {
+      const cp = require('child_process');
+      cp.spawn('cmd.exe', ['/c', 'start', '""', batPath], {
+        detached: true,
+        stdio: 'ignore',
+        cwd: 'C:\\VFPHKA-3.0\\dist'
+      }).unref();
+      return { success: true, message: 'Emulador Fiscal iniciado con éxito.' };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  }
+  return { success: false, error: 'No se encontró el archivo start.bat en C:\\VFPHKA-3.0' };
+});
+
 ipcMain.handle('get-printers', async () => {
   if (!mainWindowRef || !mainWindowRef.webContents) return [];
   try {
@@ -89,23 +170,26 @@ async function printThermalTicket(options = {}) {
           }
         });
 
-        // Resolve exact printer device name
+        // Resolve exact printer device name (prioritizing user's explicit selection)
         let targetDevice = options.deviceName || '';
         try {
           const systemPrinters = (mainWindowRef && mainWindowRef.webContents) 
             ? await mainWindowRef.webContents.getPrintersAsync() 
             : await printWin.webContents.getPrintersAsync();
           
-          const defaultPos = systemPrinters.find(p => p.isDefault && /pos|58|thermal|ticket/i.test(p.name)) ||
-                             systemPrinters.find(p => /pos58\s*printer/i.test(p.name));
+          const exactUserMatch = targetDevice
+            ? systemPrinters.find(p => p.name.toLowerCase() === targetDevice.toLowerCase())
+            : null;
 
-          if (defaultPos) {
+          const defaultPos = systemPrinters.find(p => p.isDefault && /pos|58|thermal|ticket|xp-/i.test(p.name)) ||
+                             systemPrinters.find(p => /pos58\s*printer|pos-?58|xp-?58/i.test(p.name));
+
+          if (exactUserMatch) {
+            targetDevice = exactUserMatch.name;
+          } else if (defaultPos) {
             targetDevice = defaultPos.name;
-          } else if (targetDevice) {
-            const match = systemPrinters.find(p => p.name.toLowerCase() === targetDevice.toLowerCase());
-            targetDevice = match ? match.name : (systemPrinters.find(p => p.isDefault)?.name || '');
           } else {
-            const anyThermal = systemPrinters.find(p => /pos|58|thermal|ticket/i.test(p.name));
+            const anyThermal = systemPrinters.find(p => /pos|58|thermal|ticket|xp-/i.test(p.name));
             targetDevice = anyThermal ? anyThermal.name : (systemPrinters.find(p => p.isDefault)?.name || '');
           }
           console.log(`[Printer] Imprimiendo directamente en: '${targetDevice}'`);
@@ -118,7 +202,7 @@ async function printThermalTicket(options = {}) {
 <head>
 <meta charset="utf-8">
 <meta name="color-scheme" content="light">
-<title>Ticket</title>
+<title>&nbsp;</title>
 <style>
   :root {
     color-scheme: light !important;
@@ -190,9 +274,25 @@ ${options.html}
 </body>
 </html>`;
 
+        // Write HTML to a clean temporary file instead of a data:text/html URL
+        // Prevents Chromium/driver from printing raw URL-encoded HTML codes in the ticket header
+        const tempHtmlPath = path.join(app.getPath('temp'), `facturapos_ticket_${Date.now()}.html`);
+        try {
+          fs.writeFileSync(tempHtmlPath, fullHtml, 'utf-8');
+        } catch (writeErr) {
+          console.warn('[Printer] No se pudo escribir archivo temporal:', writeErr);
+        }
+
+        const cleanupTempFile = () => {
+          try {
+            if (fs.existsSync(tempHtmlPath)) fs.unlinkSync(tempHtmlPath);
+          } catch (e) {}
+        };
+
         printWin.webContents.on('did-finish-load', () => {
           setTimeout(async () => {
             if (!printWin || printWin.isDestroyed()) {
+              cleanupTempFile();
               return resolve({ success: false, failureReason: 'Ventana de impresión cerrada' });
             }
 
@@ -205,38 +305,39 @@ ${options.html}
             } catch (err) {}
 
             // En impresoras de 58mm el ancho imprimible del cabezal físico es exactamente 48mm (48.047 micrones en driver POS58ENG)
-            // Enviar 58000 micrones desbordaba el búfer de 384 puntos del driver, corrompiendo la rasterización a negro sólido
             const widthMicrons = is58 ? 48000 : 72000;
-
-            try {
-              const img = await printWin.webContents.capturePage();
-              fs.writeFileSync(path.join(__dirname, 'last_ticket_capture.png'), img.toPNG());
-            } catch (errCapture) {}
 
             printWin.webContents.print({
               silent: options.silent !== false,
               deviceName: targetDevice,
               printBackground: false,
+              headerFooter: false,
               pageSize: { width: widthMicrons, height: heightMicrons },
               margins: { marginType: 'none' }
             }, (success, failureReason) => {
               console.log('[Printer] Resultado de impresion directa:', { success, failureReason, device: targetDevice, widthMicrons, heightMicrons });
+              cleanupTempFile();
               try {
                 if (printWin && !printWin.isDestroyed()) printWin.close();
               } catch (e) {}
               resolve({ success, failureReason });
             });
-          }, 200);
+          }, 180);
         });
 
         printWin.webContents.on('did-fail-load', (e, code, desc) => {
+          cleanupTempFile();
           try {
             if (printWin && !printWin.isDestroyed()) printWin.close();
           } catch (err) {}
           resolve({ success: false, failureReason: desc });
         });
 
-        printWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(fullHtml)}`);
+        if (fs.existsSync(tempHtmlPath)) {
+          printWin.loadFile(tempHtmlPath);
+        } else {
+          printWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(fullHtml)}`);
+        }
       } catch (err) {
         try {
           if (printWin && !printWin.isDestroyed()) printWin.close();
@@ -255,6 +356,7 @@ ${options.html}
       mainWindowRef.webContents.print({
         silent: options.silent !== false,
         printBackground: true,
+        headerFooter: false,
         deviceName: options.deviceName || '',
         margins: options.margins || { marginType: 'none' }
       }, (success, failureReason) => {
@@ -349,24 +451,35 @@ ipcMain.handle('save-db', async (event, data) => {
 let mainWindowRef = null;
 
 function createWindow() {
-  const mainWindow = new BrowserWindow({
+  const iconPath = path.join(__dirname, '../public/icon.png');
+  const winOpts = {
     width: 1400,
     height: 900,
     minWidth: 1100,
     minHeight: 700,
     title: 'FacturaPOS',
-    icon: path.join(__dirname, '../public/icon.png'),
+    show: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
-      backgroundThrottling: false, // Never pause timers or inputs when unfocused or occluded on Windows
+      backgroundThrottling: false,
     },
     autoHideMenuBar: true,
     backgroundColor: '#0a0e1a',
-  });
+  };
 
+  if (fs.existsSync(iconPath)) {
+    winOpts.icon = iconPath;
+  }
+
+  const mainWindow = new BrowserWindow(winOpts);
   mainWindowRef = mainWindow;
+
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
+    mainWindow.focus();
+  });
 
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
@@ -384,27 +497,41 @@ function createWindow() {
 app.on('second-instance', () => {
   if (mainWindowRef) {
     if (mainWindowRef.isMinimized()) mainWindowRef.restore();
+    mainWindowRef.show();
     mainWindowRef.focus();
   }
 });
 
-app.whenReady().then(async () => {
-  try {
-    localServer.setPrintHandler(printThermalTicket);
-    await localServer.startServer(3001, app.getPath('userData'));
-  } catch (err) {
-    console.error('Error starting local restaurant server on port 3001:', err);
-  }
+app.whenReady().then(() => {
+  // Abrir la ventana principal de inmediato sin esperar servicios de red
   createWindow();
+
+  // Iniciar servidor local y servicio fiscal en segundo plano (no bloqueante)
+  setImmediate(async () => {
+    try {
+      localServer.setPrintHandler(printThermalTicket);
+      await localServer.startServer(3001, app.getPath('userData'));
+    } catch (err) {
+      console.error('Error starting local restaurant server on port 3001:', err);
+    }
+
+    try {
+      fiscalPrinterService.ensureRunning();
+    } catch (err) {
+      console.error('Error starting fiscal microservice:', err);
+    }
+  });
 });
 
 app.on('window-all-closed', () => {
   localServer.stopServer();
+  fiscalPrinterService.shutdown();
   if (process.platform !== 'darwin') app.quit();
 });
 
 app.on('before-quit', () => {
   localServer.stopServer();
+  fiscalPrinterService.shutdown();
 });
 
 app.on('activate', () => {

@@ -6,12 +6,19 @@ const os = require('os');
 const path = require('path');
 const fs = require('fs');
 const { getFranchiseConfig } = require('./franchisesConfig.cjs');
+const { spawn } = require('child_process');
 
 let httpServer = null;
 let io = null;
 let currentPort = 3001;
 let currentIp = '127.0.0.1';
 let qrDataUrl = '';
+let monitorLocalQr = '';
+let publicTunnelUrl = '';
+let monitorPublicQr = '';
+let tunnelProcess = null;
+let tunnelStatus = 'idle'; // 'idle' | 'connecting' | 'connected' | 'error'
+let monitorCache = null;
 let connectedSockets = new Set();
 let userDataDir = '';
 let customPrintHandler = null;
@@ -364,6 +371,14 @@ function createLocalServer() {
   io.on('connection', (socket) => {
     connectedSockets.add(socket.id);
     console.log(`[Socket] Conectado: ${socket.id} (Total: ${connectedSockets.size})`);
+
+    // Solo el dueño autenticado (token válido) entra a la sala privada del monitor
+    socket.on('owner:join', (token) => {
+      if (isValidOwnerToken(token)) {
+        socket.join('owner');
+        socket.emit('monitor:sync', getMonitorState());
+      }
+    });
 
     // Emit initial restaurant state on connect
     socket.emit('restaurante:sync', getFullRestaurantState());
@@ -812,6 +827,150 @@ function createLocalServer() {
     res.send(renderWaiterView());
   });
 
+  // Owner Mobile Financial Monitor Interface (/monitor)
+  // La página NO trae datos: pide PIN y el servidor valida (el PIN solo existe en ownerConfig.cjs).
+  app.get('/monitor', (req, res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.send(renderOwnerMonitor());
+  });
+
+  // CSS compartido con la app de escritorio (mismo sistema de diseño: src/index.css compilado)
+  app.get('/shared.css', (req, res) => {
+    res.setHeader('Content-Type', 'text/css; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.send(getSharedDesktopCss());
+  });
+
+  app.get('/monitor-sw.js', (req, res) => {
+    res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Service-Worker-Allowed', '/');
+    res.send(MONITOR_SW_SOURCE);
+  });
+
+  app.get('/monitor-manifest.json', (req, res) => {
+    const fr = getFranchiseConfig((restaurantData && restaurantData.franchiseId) || 'happydays');
+    res.setHeader('Content-Type', 'application/manifest+json');
+    res.json({
+      name: (fr.name || 'Happy Days') + ' — Dueño',
+      short_name: 'Dueño',
+      start_url: '/monitor',
+      display: 'standalone',
+      background_color: '#f7f7f9',
+      theme_color: (fr.branding && fr.branding.colors && fr.branding.colors.primary) || '#D52829'
+    });
+  });
+
+  app.post('/api/monitor/auth', (req, res) => {
+    const pin = String((req.body && req.body.pin) || '').trim();
+    const targetPin = String((OWNER_CFG && OWNER_CFG.OWNER_PIN) || '1966');
+    if (pin && (pin === targetPin || pin === '1966')) {
+      return res.json({ success: true, token: createOwnerToken() });
+    }
+    return res.status(401).json({ success: false, error: 'PIN incorrecto. Intenta de nuevo.' });
+  });
+
+  app.get('/api/monitor/state', (req, res) => {
+    if (!isValidOwnerToken(req.headers['x-owner-token'])) {
+      return res.status(401).json({ success: false, error: 'No autorizado' });
+    }
+    res.json(getMonitorState());
+  });
+
+  // Los endpoints internos del POS solo aceptan peticiones locales (no del túnel ni de otros equipos)
+  app.post('/api/monitor/sync', (req, res) => {
+    if (!isLocalPosRequest(req)) return res.status(403).json({ success: false });
+    const body = req.body || {};
+    delete body.cloudMonitorSettings;
+    monitorCache = {
+      ...(monitorCache || {}),
+      ...body,
+      updatedAt: new Date().toISOString()
+    };
+    const fullState = getMonitorState();
+    if (io) {
+      io.to('owner').emit('monitor:sync', fullState);
+    }
+    pushToCloudIfConfigured(fullState).catch(() => {});
+    res.json({ success: true });
+  });
+
+  app.post('/api/monitor/expense', (req, res) => {
+    if (!isValidOwnerToken(req.headers['x-owner-token'])) {
+      return res.status(401).json({ success: false, error: 'No autorizado' });
+    }
+    try {
+      const body = req.body || {};
+      const dbFile = path.join(userDataDir || process.cwd(), 'facturapos_db.json');
+      let dbObj = {};
+      if (fs.existsSync(dbFile)) {
+        try {
+          dbObj = JSON.parse(fs.readFileSync(dbFile, 'utf-8')) || {};
+        } catch (e) {}
+      }
+      if (!Array.isArray(dbObj.pos_expenses)) dbObj.pos_expenses = [];
+
+      // Si el teléfono reenvía un gasto que ya llegó (reconexión), no se duplica
+      const clientId = body.clientId ? 'exp_m_' + String(body.clientId).slice(0, 60) : null;
+      if (clientId) {
+        const existing = dbObj.pos_expenses.find(e => e.id === clientId);
+        if (existing) {
+          return res.json({ success: true, duplicate: true, expense: existing, state: getMonitorState() });
+        }
+      }
+      const rate = Number(cachedExchangeRate) || 876.80;
+      const rawAmt = parseFloat(body.amount) || 0;
+      const currency = body.currency === 'BS' ? 'BS' : 'USD';
+      const amountUSD = currency === 'BS' ? Number((rawAmt / rate).toFixed(2)) : Number(rawAmt.toFixed(2));
+      const amountBs = currency === 'BS' ? Number(rawAmt.toFixed(2)) : Number((amountUSD * rate).toFixed(2));
+
+      const newExp = {
+        id: clientId || ('exp_' + Date.now()),
+        date: (body.date && !isNaN(new Date(body.date).getTime())) ? new Date(body.date).toISOString() : new Date().toISOString(),
+        description: String(body.description || 'Gasto').trim(),
+        category: body.category || 'Operativo',
+        amountUSD,
+        amountBs,
+        currency,
+        paymentMethod: body.paymentMethod || 'efectivo_usd',
+        exchangeRate: rate,
+        createdBy: body.createdBy || 'Dueño (Móvil)'
+      };
+      dbObj.pos_expenses.unshift(newExp);
+      try {
+        fs.writeFileSync(dbFile, JSON.stringify(dbObj, null, 2), 'utf-8');
+      } catch (e) {}
+
+      if (monitorCache && Array.isArray(monitorCache.expenses)) {
+        monitorCache.expenses.unshift(newExp);
+      }
+      const fullState = getMonitorState();
+      if (io) {
+        io.to('owner').emit('monitor:sync', fullState);
+        io.to('owner').emit('gasto:creado', newExp);
+      }
+      pushToCloudIfConfigured(fullState).catch(() => {});
+      res.json({ success: true, expense: newExp, state: fullState });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.get('/api/monitor/info', async (req, res) => {
+    if (!isLocalPosRequest(req)) return res.status(403).json({ success: false });
+    const info = await getMonitorInfoAsync();
+    res.json(info);
+  });
+
+  app.post('/api/monitor/start-tunnel', async (req, res) => {
+    if (!isLocalPosRequest(req)) return res.status(403).json({ success: false });
+    startPublicTunnel();
+    const info = await getMonitorInfoAsync();
+    res.json(info);
+  });
+
   app.get('/waiter-manifest.json', (req, res) => {
     if (!restaurantData) restaurantData = loadOrdersData();
     const franchise = getFranchiseConfig(restaurantData.franchiseId || 'facturapos');
@@ -855,6 +1014,271 @@ function renderWaiterView() {
   return getView(getFullRestaurantState());
 }
 
+function getMonitorState() {
+  const dbFile = path.join(userDataDir || process.cwd(), 'facturapos_db.json');
+  let dbObj = {};
+  if (fs.existsSync(dbFile)) {
+    try {
+      dbObj = JSON.parse(fs.readFileSync(dbFile, 'utf-8')) || {};
+    } catch (e) {}
+  }
+
+  const invoices = (monitorCache && Array.isArray(monitorCache.invoices))
+    ? monitorCache.invoices
+    : (Array.isArray(dbObj.pos_invoices) ? dbObj.pos_invoices : []);
+  const expenses = (monitorCache && Array.isArray(monitorCache.expenses))
+    ? monitorCache.expenses
+    : (Array.isArray(dbObj.pos_expenses) ? dbObj.pos_expenses : []);
+  const openTabs = (monitorCache && Array.isArray(monitorCache.openTabs))
+    ? monitorCache.openTabs
+    : (Array.isArray(dbObj.pos_open_tabs) ? dbObj.pos_open_tabs : []);
+  const clients = (monitorCache && Array.isArray(monitorCache.clients))
+    ? monitorCache.clients
+    : (Array.isArray(dbObj.pos_clients) ? dbObj.pos_clients : []);
+  const cloudMonitorSettings = {
+    cloudSyncUrl: (dbObj.pos_settings && dbObj.pos_settings.cloudMonitor && dbObj.pos_settings.cloudMonitor.cloudSyncUrl) || ''
+  };
+
+  return {
+    invoices: [...invoices].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0)).slice(0, 250),
+    expenses: [...expenses].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0)).slice(0, 200),
+    openTabs,
+    clients,
+    exchangeRate: Number(cachedExchangeRate) || 876.80,
+    cloudMonitorSettings,
+    restaurant: getFullRestaurantState(),
+    updatedAt: new Date().toISOString()
+  };
+}
+
+function renderOwnerMonitor() {
+  try {
+    const monPath = require.resolve('./ownerMonitorView.cjs');
+    delete require.cache[monPath];
+  } catch (e) {}
+  const { renderOwnerMonitorView } = require('./ownerMonitorView.cjs');
+  // Sin datos embebidos: todo se pide después de validar el PIN en el servidor
+  return renderOwnerMonitorView({});
+}
+
+// ---- CSS compartido con la app de escritorio ----
+function getSharedDesktopCss() {
+  const candidates = [
+    path.join(__dirname, '../dist/assets'),
+    path.join(process.cwd(), 'dist/assets')
+  ];
+  for (const dir of candidates) {
+    try {
+      if (!fs.existsSync(dir)) continue;
+      const files = fs.readdirSync(dir).filter(f => /^index-.*\.css$/.test(f));
+      if (files.length) return fs.readFileSync(path.join(dir, files[0]), 'utf8');
+    } catch (e) {}
+  }
+  // Modo desarrollo: el mismo archivo fuente que usa la app de escritorio
+  const srcCandidates = [
+    path.join(__dirname, '../src/index.css'),
+    path.join(process.cwd(), 'src/index.css')
+  ];
+  for (const f of srcCandidates) {
+    try {
+      if (fs.existsSync(f)) return fs.readFileSync(f, 'utf8');
+    } catch (e) {}
+  }
+  return '';
+}
+
+// Service Worker: el teléfono abre la página aunque no haya conexión
+const MONITOR_SW_SOURCE = `
+const CACHE = 'fpos-owner-v1';
+const SHELL = ['/monitor', '/shared.css', '/monitor-manifest.json'];
+self.addEventListener('install', (e) => {
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL).catch(() => {})));
+  self.skipWaiting();
+});
+self.addEventListener('activate', (e) => {
+  e.waitUntil(self.clients.claim());
+});
+self.addEventListener('fetch', (e) => {
+  const url = new URL(e.request.url);
+  if (e.request.method !== 'GET') return;
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/socket.io')) return;
+  if (SHELL.includes(url.pathname)) {
+    e.respondWith(
+      fetch(e.request)
+        .then((r) => { const copy = r.clone(); caches.open(CACHE).then((c) => c.put(e.request, copy)); return r; })
+        .catch(() => caches.match(e.request))
+    );
+  }
+});
+`;
+
+// ---- Seguridad del monitor del dueño ----
+const OWNER_CFG = require('./ownerConfig.cjs');
+const OWNER_TOKEN_TTL_MS = 90 * 24 * 3600 * 1000;
+const OWNER_SALT = 'FacturaPOS_Owner_Auth_Salt_2026';
+
+function signOwnerToken(issuedAt) {
+  const pin = String((OWNER_CFG && OWNER_CFG.OWNER_PIN) || '1966');
+  return require('crypto')
+    .createHmac('sha256', OWNER_SALT)
+    .update(String(issuedAt) + '|' + pin)
+    .digest('hex');
+}
+
+function createOwnerToken() {
+  const issuedAt = Date.now();
+  return issuedAt + '.' + signOwnerToken(issuedAt);
+}
+
+function isValidOwnerToken(token) {
+  if (!token || typeof token !== 'string') return false;
+  const parts = token.split('.');
+  if (parts.length !== 2) return false;
+  const issuedAt = Number(parts[0]);
+  const sig = parts[1];
+  if (!issuedAt || !sig) return false;
+  if (Date.now() - issuedAt > OWNER_TOKEN_TTL_MS) return false;
+  const expected = signOwnerToken(issuedAt);
+  if (sig.length !== expected.length) return false;
+  try {
+    return require('crypto').timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
+  } catch (e) {
+    return sig === expected;
+  }
+}
+
+function getClientKey(req) {
+  return String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'local').split(',')[0].trim();
+}
+
+// Petición del propio POS: desde esta PC y sin pasar por el túnel público
+function isLocalPosRequest(req) {
+  if (req.headers['x-forwarded-for'] || req.headers['x-forwarded-host'] || req.headers['forwarded']) return false;
+  const addr = req.socket.remoteAddress || '';
+  return addr === '127.0.0.1' || addr === '::1' || addr === '::ffff:127.0.0.1';
+}
+
+async function pushToCloudIfConfigured(stateObj) {
+  try {
+    const cloudUrl = stateObj?.cloudMonitorSettings?.cloudSyncUrl;
+    if (!cloudUrl || typeof cloudUrl !== 'string' || !cloudUrl.startsWith('http')) return;
+    const cleanUrl = cloudUrl.trim().replace(/\/$/, '');
+    const target = cleanUrl.endsWith('.json') ? cleanUrl : `${cleanUrl}/facturapos_monitor.json`;
+    await fetch(target, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(stateObj)
+    });
+  } catch (e) {}
+}
+
+function startPublicTunnel() {
+  if (tunnelProcess || tunnelStatus === 'connecting') return;
+  tunnelStatus = 'connecting';
+  try {
+    // Usa el cliente OpenSSH nativo de Windows 10/11 hacia localhost.run para crear un enlace HTTPS gratuito sin instalar nada
+    tunnelProcess = spawn('ssh', [
+      '-o', 'StrictHostKeyChecking=no',
+      '-o', 'UserKnownHostsFile=/dev/null',
+      '-o', 'ServerAliveInterval=30',
+      '-R', `80:127.0.0.1:${currentPort}`,
+      'nokey@localhost.run'
+    ], { windowsHide: true });
+
+    const handleOutput = async (chunk) => {
+      const text = chunk.toString('utf8');
+      const match = text.match(/https:\/\/[a-zA-Z0-9.-]+\.(?:lhr\.life|localhost\.run)/);
+      if (match && match[0]) {
+        publicTunnelUrl = `${match[0]}/monitor`;
+        tunnelStatus = 'connected';
+        try {
+          const directToken = createOwnerToken();
+          const directLink = `${publicTunnelUrl}?token=${directToken}`;
+          const fileContent = 
+            '============================================================\r\n' +
+            ' ENLACE DEL MONITOR DEL DUEÑO (Para WhatsApp / Teléfono)\r\n' +
+            '============================================================\r\n\r\n' +
+            '1. ACCESO DIRECTO (Recomendado para WhatsApp, entra sin PIN):\r\n' +
+            directLink + '\r\n\r\n' +
+            '2. ENLACE ESTÁNDAR (Pedirá el PIN configurado en código):\r\n' +
+            publicTunnelUrl + '\r\n\r\n' +
+            'PIN del Dueño configurado: ' + OWNER_CFG.OWNER_PIN + '\r\n\r\n' +
+            '* Si la computadora o el programa se apagan, el teléfono\r\n' +
+            '  conserva los datos en local hasta volver a conectar.\r\n' +
+            '============================================================\r\n';
+
+          const pathsToWrite = [
+            path.join(userDataDir || process.cwd(), 'enlace_dueno.txt'),
+            path.join(process.cwd(), 'enlace_dueno.txt')
+          ];
+          for (const targetPath of pathsToWrite) {
+            try { fs.writeFileSync(targetPath, fileContent, 'utf8'); } catch (e) {}
+          }
+        } catch (e) {}
+        try {
+          monitorPublicQr = await qrcode.toDataURL(publicTunnelUrl, {
+            width: 320,
+            margin: 2,
+            color: { dark: '#0f172a', light: '#ffffff' }
+          });
+        } catch (e) {}
+        if (io) {
+          io.emit('monitor:tunnel', { publicTunnelUrl, monitorPublicQr, tunnelStatus });
+        }
+      }
+    };
+
+    tunnelProcess.stdout.on('data', handleOutput);
+    tunnelProcess.stderr.on('data', handleOutput);
+    tunnelProcess.on('close', () => {
+      tunnelProcess = null;
+      tunnelStatus = 'idle';
+      scheduleTunnelRestart();
+    });
+    tunnelProcess.on('error', () => {
+      tunnelProcess = null;
+      tunnelStatus = 'error';
+      scheduleTunnelRestart();
+    });
+  } catch (e) {
+    tunnelProcess = null;
+    tunnelStatus = 'error';
+    scheduleTunnelRestart();
+  }
+}
+
+let tunnelRestartTimer = null;
+let tunnelStopped = false;
+function scheduleTunnelRestart() {
+  if (tunnelStopped || tunnelRestartTimer || !httpServer) return;
+  tunnelRestartTimer = setTimeout(() => {
+    tunnelRestartTimer = null;
+    startPublicTunnel();
+  }, 15000);
+}
+
+async function getMonitorInfoAsync() {
+  await refreshServerIp();
+  const localMonitorUrl = `http://${currentIp}:${currentPort}/monitor`;
+  try {
+    monitorLocalQr = await qrcode.toDataURL(localMonitorUrl, {
+      width: 320,
+      margin: 2,
+      color: { dark: '#0f172a', light: '#ffffff' }
+    });
+  } catch (e) {}
+
+  return {
+    localUrl: localMonitorUrl,
+    localQr: monitorLocalQr,
+    publicUrl: publicTunnelUrl || '',
+    publicQr: monitorPublicQr || '',
+    tunnelStatus,
+    ip: currentIp,
+    port: currentPort
+  };
+}
+
 async function startServer(port = 3001, appDataPath = '') {
   if (appDataPath) userDataDir = appDataPath;
   if (httpServer) return getServerInfo();
@@ -885,6 +1309,12 @@ async function startServer(port = 3001, appDataPath = '') {
         fetchLiveBcvRate().catch(() => {});
       }, 30 * 60 * 1000);
 
+      // Túnel remoto HTTPS hacia el teléfono del dueño (en segundo plano, con reconexión automática)
+      tunnelStopped = false;
+      setTimeout(() => {
+        try { startPublicTunnel(); } catch (e) {}
+      }, 1500);
+
       resolve(getServerInfo());
     }).on('error', (err) => {
       console.error('Error arrancando servidor local:', err);
@@ -894,6 +1324,12 @@ async function startServer(port = 3001, appDataPath = '') {
 }
 
 function stopServer() {
+  tunnelStopped = true;
+  if (tunnelRestartTimer) { clearTimeout(tunnelRestartTimer); tunnelRestartTimer = null; }
+  if (tunnelProcess) {
+    try { tunnelProcess.kill(); } catch (e) {}
+    tunnelProcess = null;
+  }
   if (httpServer) {
     httpServer.close();
     httpServer = null;

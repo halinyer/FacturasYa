@@ -743,23 +743,46 @@ export default function Tables() {
                     </div>
 
                     <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedComandaPrint({
-                          round: rnd,
-                          tableName: rnd.tableName || 'Mesa',
-                          waiterName: rnd.waiterName || 'Mesero',
-                          orderId: rnd.orderId || rnd.id || '',
-                          autoPrint: false
-                        })}
-                        style={{
-                          width: '100%', padding: '10px', background: '#3b82f6', color: '#ffffff',
-                          border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.88rem'
-                        }}
-                      >
-                        <Printer size={16} /> Imprimir Comanda para Chef
-                      </button>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedComandaPrint({
+                            round: rnd,
+                            tableName: rnd.tableName || 'Mesa',
+                            waiterName: rnd.waiterName || 'Mesero',
+                            orderId: rnd.orderId || rnd.id || '',
+                            autoPrint: true
+                          })}
+                          style={{
+                            flex: 1.3, padding: '10px 12px', background: '#2563eb', color: '#ffffff',
+                            border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.84rem',
+                            boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)'
+                          }}
+                          title="Enviar directo a la impresora térmica y abrir vista previa"
+                        >
+                          <Printer size={15} /> Imprimir Comanda (58mm)
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setSelectedComandaPrint({
+                            round: rnd,
+                            tableName: rnd.tableName || 'Mesa',
+                            waiterName: rnd.waiterName || 'Mesero',
+                            orderId: rnd.orderId || rnd.id || '',
+                            autoPrint: false
+                          })}
+                          style={{
+                            flex: 0.9, padding: '10px 10px', background: '#eff6ff', color: '#1d4ed8',
+                            border: '1px solid #bfdbfe', borderRadius: '10px', fontWeight: '800', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', fontSize: '0.82rem'
+                          }}
+                          title="Ver vista previa de la comanda antes de imprimir"
+                        >
+                          <Receipt size={15} /> Ver Ticket
+                        </button>
+                      </div>
 
                       {!isReady ? (
                         <button
@@ -1314,9 +1337,27 @@ export default function Tables() {
 
                     {currentOrder.rounds.map((rnd, rIdx) => (
                       <div key={rnd.id} style={{ background: '#f8fafc', borderRadius: '12px', padding: '12px', border: '1px solid #e2e8f0' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#64748b', fontWeight: '700', marginBottom: '8px' }}>
-                          <span>Ronda #{rIdx + 1}</span>
-                          <span>{new Date(rnd.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem', color: '#64748b', fontWeight: '700', marginBottom: '8px' }}>
+                          <span>Ronda #{rIdx + 1} • {new Date(rnd.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedComandaPrint({
+                              round: { ...rnd, roundNumber: rnd.roundNumber || (rIdx + 1) },
+                              tableName: currentTable.name || 'Mesa',
+                              waiterName: currentOrder.waiterName || 'Mesero',
+                              orderId: currentOrder.id || rnd.id || '',
+                              autoPrint: false
+                            })}
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '4px',
+                              padding: '4px 8px', background: '#eff6ff', color: '#2563eb',
+                              border: '1px solid #bfdbfe', borderRadius: '6px',
+                              fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer'
+                            }}
+                            title="Ver e imprimir comanda de esta ronda en 58mm"
+                          >
+                            <Printer size={12} /> Comanda
+                          </button>
                         </div>
                         {rnd.items.map((i, iIdx) => (
                           <div key={iIdx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', marginBottom: '4px' }}>

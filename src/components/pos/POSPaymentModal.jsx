@@ -7,16 +7,21 @@ import {
   CreditCard, 
   Receipt,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  FileText,
+  Printer,
+  User
 } from 'lucide-react';
 import { formatUSD, formatBs, getBsFontSize } from '../../utils/currency';
 import BankSelector from './BankSelector';
+import ClientSearch from '../ClientSearch';
 
 const PAYMENT_OPTIONS = [
   { id: 'efectivo_usd', label: 'Efectivo ($)', icon: DollarSign, color: '#059669', bg: '#ecfdf5', border: '#a7f3d0' },
   { id: 'pago_movil', label: 'Pago Móvil (Bs)', icon: Smartphone, color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
+  { id: 'punto', label: 'Punto de Venta (Bs)', icon: CreditCard, color: '#0284c7', bg: '#f0f9ff', border: '#bae6fd' },
   { id: 'efectivo_bs', label: 'Efectivo (Bs)', icon: Banknote, color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
-  { id: 'zelle', label: 'Zelle / Tarjeta', icon: CreditCard, color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe' }
+  { id: 'zelle', label: 'Zelle ($ USD)', icon: CreditCard, color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe' }
 ];
 
 const POSPaymentModal = ({
@@ -25,18 +30,23 @@ const POSPaymentModal = ({
   totalUSD = 0,
   currentRate = 876.80,
   client = null,
+  onSelectClient,
   onConfirmPayment,
   initialPaymentMethod = 'efectivo_usd',
   initialPagoMovilBank = '',
-  initialPagoMovilRef = ''
+  initialPagoMovilRef = '',
+  fiscalEnabled = false,
+  initialDocType = 'nota_entrega'
 }) => {
   const [paymentMethod, setPaymentMethod] = useState(initialPaymentMethod);
   const [isMixedPayment, setIsMixedPayment] = useState(initialPaymentMethod === 'mixto');
   const [pagoMovilBank, setPagoMovilBank] = useState(initialPagoMovilBank);
   const [pagoMovilRef, setPagoMovilRef] = useState(initialPagoMovilRef);
+  const [docType, setDocType] = useState(initialDocType || (fiscalEnabled ? 'fiscal' : 'nota_entrega')); // 'nota_entrega' | 'fiscal'
   const [mixedPayments, setMixedPayments] = useState({
     efectivo_usd: '',
     pago_movil: '',
+    punto: '',
     efectivo_bs: '',
     zelle: ''
   });
@@ -50,9 +60,10 @@ const POSPaymentModal = ({
       setPaymentMethod(isMix ? 'efectivo_usd' : initialPaymentMethod);
       setPagoMovilBank(initialPagoMovilBank || '');
       setPagoMovilRef(initialPagoMovilRef || '');
+      setDocType(initialDocType || (fiscalEnabled ? 'fiscal' : 'nota_entrega'));
       setRefError('');
     }
-  }, [isOpen, initialPaymentMethod, initialPagoMovilBank, initialPagoMovilRef]);
+  }, [isOpen, initialPaymentMethod, initialPagoMovilBank, initialPagoMovilRef, initialDocType, fiscalEnabled]);
 
   if (!isOpen) return null;
 
@@ -64,12 +75,14 @@ const POSPaymentModal = ({
   const totalPaidUSD = (parseFloat(mixedPayments.efectivo_usd) || 0) +
                        (parseFloat(mixedPayments.zelle) || 0) +
                        ((parseFloat(mixedPayments.pago_movil) || 0) / currentRate) +
+                       ((parseFloat(mixedPayments.punto) || 0) / currentRate) +
                        ((parseFloat(mixedPayments.efectivo_bs) || 0) / currentRate);
   const differenceUSD = totalUSD - totalPaidUSD;
 
   const isPagoMovilOnly = paymentMethod === 'pago_movil' && !isMixedPayment;
 
-  const handleConfirm = () => {
+  const handleConfirm = (overrideIsFiscal) => {
+    const isFiscal = typeof overrideIsFiscal === 'boolean' ? overrideIsFiscal : (docType === 'fiscal');
     const isPayingWithPagoMovil = (paymentMethod === 'pago_movil' || (isMixedPayment && (parseFloat(mixedPayments.pago_movil) || 0) > 0)) && !isPending;
 
     if (isPayingWithPagoMovil) {
@@ -90,7 +103,8 @@ const POSPaymentModal = ({
       mixedPayments: isMixedPayment ? mixedPayments : null,
       isPending,
       pagoMovilBank: (paymentMethod === 'pago_movil' || isMixedPayment) ? pagoMovilBank : '',
-      pagoMovilRef: (paymentMethod === 'pago_movil' || isMixedPayment) ? (pagoMovilRef || '').trim() : ''
+      pagoMovilRef: (paymentMethod === 'pago_movil' || isMixedPayment) ? (pagoMovilRef || '').trim() : '',
+      isFiscalInvoice: isFiscal && !isPending
     });
   };
 
@@ -147,12 +161,12 @@ const POSPaymentModal = ({
             )}
             <div>
               <h2 style={{ margin: 0, fontSize: '1.22rem', fontWeight: '800', letterSpacing: '-0.3px', color: '#0f172a' }}>
-                {isPagoMovilOnly 
-                  ? 'Cobro con Pago Móvil' 
-                  : (isMixedPayment ? 'Pago Dividido / Mixto' : 'Confirmar Nota de Entrega')}
+                {docType === 'fiscal' 
+                  ? (isPagoMovilOnly ? 'Cobro Fiscal con Pago Móvil' : (isMixedPayment ? 'Pago Mixto - Factura Fiscal' : 'Emitir Factura Fiscal SENIAT')) 
+                  : (isPagoMovilOnly ? 'Cobro con Pago Móvil' : (isMixedPayment ? 'Pago Mixto - Nota de Entrega' : 'Emitir Nota de Entrega'))}
               </h2>
               <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px' }}>
-                {client ? `Cliente: ${client.name || 'Consumidor Final'}` : 'Consumidor Final'}
+                {client ? `Cliente: ${client.name || 'Consumidor Final'}` : 'Consumidor Final'} • {docType === 'fiscal' ? 'Documento Oficial SENIAT' : 'Comprobante Interno'}
               </div>
             </div>
           </div>
@@ -176,6 +190,32 @@ const POSPaymentModal = ({
           >
             <X size={18} />
           </button>
+        </div>
+
+        {/* Customer / Fiscal Receptor Selector right inside Payment Modal */}
+        <div style={{
+          background: docType === 'fiscal' ? '#f0fdf4' : '#f8fafc',
+          border: docType === 'fiscal' ? '1.5px solid #a7f3d0' : '1px solid #e2e8f0',
+          borderRadius: '14px',
+          padding: '12px 14px',
+          marginBottom: '16px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <span style={{ fontSize: '0.76rem', fontWeight: '800', color: docType === 'fiscal' ? '#065f46' : '#334155', display: 'flex', alignItems: 'center', gap: '5px', textTransform: 'uppercase' }}>
+              <User size={14} /> Datos del Cliente en la Factura {docType === 'fiscal' ? 'SENIAT' : ''}:
+            </span>
+            {docType === 'fiscal' && (
+              <span style={{ fontSize: '0.7rem', fontWeight: '700', color: '#059669' }}>
+                Imprime Razón Social y RIF/C.I.
+              </span>
+            )}
+          </div>
+          <ClientSearch onSelect={onSelectClient} selected={client} />
+          {docType === 'fiscal' && (!client || client.id === 'generic' || client.name === 'Consumidor Final') && (
+            <div style={{ fontSize: '0.72rem', color: '#047857', marginTop: '6px', fontWeight: '600' }}>
+              💡 Si el cliente pide factura personalizada con su RIF o Cédula, búscalo arriba o pulsa <strong>+ Nuevo</strong>.
+            </div>
+          )}
         </div>
 
         {/* Amount Card */}
@@ -382,42 +422,57 @@ const POSPaymentModal = ({
               </div>
             ) : (
               <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '14px', padding: '14px', marginBottom: '16px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
                   <div>
-                    <label style={{ fontSize: '0.75rem', fontWeight: '700', color: '#475569', display: 'block', marginBottom: '4px' }}>Efectivo ($)</label>
+                    <label style={{ fontSize: '0.75rem', fontWeight: '700', color: '#475569', display: 'block', marginBottom: '4px' }}>💵 Efectivo ($)</label>
                     <input
                       type="number"
                       step="0.01"
+                      placeholder="0.00"
                       value={mixedPayments.efectivo_usd}
                       onChange={(e) => setMixedPayments({ ...mixedPayments, efectivo_usd: e.target.value })}
                       style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', boxSizing: 'border-box', fontWeight: '600' }}
                     />
                   </div>
                   <div>
-                    <label style={{ fontSize: '0.75rem', fontWeight: '700', color: '#475569', display: 'block', marginBottom: '4px' }}>Pago Móvil (Bs)</label>
+                    <label style={{ fontSize: '0.75rem', fontWeight: '700', color: '#2563eb', display: 'block', marginBottom: '4px' }}>📱 Pago Móvil (Bs)</label>
                     <input
                       type="number"
                       step="0.01"
+                      placeholder="0.00"
                       value={mixedPayments.pago_movil}
                       onChange={(e) => setMixedPayments({ ...mixedPayments, pago_movil: e.target.value })}
                       style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', boxSizing: 'border-box', fontWeight: '600' }}
                     />
                   </div>
                   <div>
-                    <label style={{ fontSize: '0.75rem', fontWeight: '700', color: '#475569', display: 'block', marginBottom: '4px' }}>Efectivo (Bs)</label>
+                    <label style={{ fontSize: '0.75rem', fontWeight: '700', color: '#0284c7', display: 'block', marginBottom: '4px' }}>💳 Punto Venta (Bs)</label>
                     <input
                       type="number"
                       step="0.01"
+                      placeholder="0.00"
+                      value={mixedPayments.punto}
+                      onChange={(e) => setMixedPayments({ ...mixedPayments, punto: e.target.value })}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', boxSizing: 'border-box', fontWeight: '600' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: '700', color: '#d97706', display: 'block', marginBottom: '4px' }}>🇻🇪 Efectivo (Bs)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
                       value={mixedPayments.efectivo_bs}
                       onChange={(e) => setMixedPayments({ ...mixedPayments, efectivo_bs: e.target.value })}
                       style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', boxSizing: 'border-box', fontWeight: '600' }}
                     />
                   </div>
                   <div>
-                    <label style={{ fontSize: '0.75rem', fontWeight: '700', color: '#475569', display: 'block', marginBottom: '4px' }}>Zelle / Punto ($)</label>
+                    <label style={{ fontSize: '0.75rem', fontWeight: '700', color: '#7c3aed', display: 'block', marginBottom: '4px' }}>🏦 Zelle ($)</label>
                     <input
                       type="number"
                       step="0.01"
+                      placeholder="0.00"
                       value={mixedPayments.zelle}
                       onChange={(e) => setMixedPayments({ ...mixedPayments, zelle: e.target.value })}
                       style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', boxSizing: 'border-box', fontWeight: '600' }}
@@ -581,6 +636,104 @@ const POSPaymentModal = ({
           </label>
         )}
 
+        {/* Selector de Tipo de Documento: Nota de Entrega vs Factura Fiscal SENIAT */}
+        {fiscalEnabled && !isPending && (
+          <div style={{ marginBottom: '16px' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#64748b', marginBottom: '6px', letterSpacing: '0.5px' }}>
+              DOCUMENTO A EMITIR:
+            </div>
+            <div style={{
+              display: 'flex',
+              gap: '8px',
+              background: '#f8fafc',
+              padding: '4px',
+              borderRadius: '12px',
+              border: '1.5px solid #e2e8f0'
+            }}>
+              <button
+                type="button"
+                onClick={() => setDocType('nota_entrega')}
+                style={{
+                  flex: 1,
+                  padding: '9px 12px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: docType === 'nota_entrega' ? '#2563eb' : 'transparent',
+                  color: docType === 'nota_entrega' ? '#ffffff' : '#64748b',
+                  fontWeight: '700',
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <FileText size={15} />
+                <span>Nota de Entrega</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setDocType('fiscal')}
+                style={{
+                  flex: 1,
+                  padding: '9px 12px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: docType === 'fiscal' ? '#059669' : 'transparent',
+                  color: docType === 'fiscal' ? '#ffffff' : '#64748b',
+                  fontWeight: '700',
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <Printer size={15} />
+                <span>Factura Fiscal (SENIAT)</span>
+              </button>
+            </div>
+            {docType === 'nota_entrega' && (
+              <div style={{
+                marginTop: '8px',
+                padding: '7px 12px',
+                borderRadius: '8px',
+                background: '#eff6ff',
+                border: '1px solid #bfdbfe',
+                fontSize: '0.74rem',
+                color: '#1e40af',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                lineHeight: '1.3'
+              }}>
+                <span>📄 <b>Nota de Entrega interna:</b> Comprobante para cliente (Impresora normal térmica de 58mm).</span>
+              </div>
+            )}
+            {docType === 'fiscal' && (
+              <div style={{
+                marginTop: '8px',
+                padding: '7px 12px',
+                borderRadius: '8px',
+                background: '#ecfdf5',
+                border: '1px solid #a7f3d0',
+                fontSize: '0.74rem',
+                color: '#065f46',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                lineHeight: '1.3'
+              }}>
+                <span>⚡ <b>Factura Fiscal SENIAT:</b> Se enviará a la Impresora Fiscal HKA (COM2) y se acumulará para el <b>Cierre Z</b> de hoy (no imprime en 58mm).</span>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Action Buttons */}
         {isPagoMovilOnly ? (
           <div style={{ display: 'flex', gap: '10px' }}>
@@ -604,18 +757,26 @@ const POSPaymentModal = ({
             </button>
             <button
               type="button"
-              onClick={handleConfirm}
+              onClick={() => handleConfirm()}
               style={{
                 flex: 2,
                 padding: '13px',
                 borderRadius: '12px',
                 border: 'none',
-                background: isPending ? '#f59e0b' : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                background: isPending 
+                  ? '#f59e0b' 
+                  : docType === 'fiscal'
+                    ? 'linear-gradient(135deg, #059669 0%, #047857 100%)'
+                    : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
                 color: '#ffffff',
                 fontWeight: '800',
                 fontSize: '0.96rem',
                 cursor: 'pointer',
-                boxShadow: isPending ? '0 4px 14px rgba(245, 158, 11, 0.3)' : '0 4px 14px rgba(37, 99, 235, 0.3)',
+                boxShadow: isPending 
+                  ? '0 4px 14px rgba(245, 158, 11, 0.3)' 
+                  : docType === 'fiscal'
+                    ? '0 4px 14px rgba(5, 150, 105, 0.3)'
+                    : '0 4px 14px rgba(37, 99, 235, 0.3)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -624,18 +785,28 @@ const POSPaymentModal = ({
               }}
             >
               <CheckCircle2 size={18} />
-              <span>{isPending ? 'REGISTRAR PENDIENTE' : 'CONFIRMAR PAGO MÓVIL'}</span>
+              <span>
+                {isPending 
+                  ? 'REGISTRAR PENDIENTE' 
+                  : docType === 'fiscal' 
+                    ? 'EMITIR FACTURA FISCAL (PAGO MÓVIL)' 
+                    : 'EMITIR NOTA DE ENTREGA (PAGO MÓVIL)'}
+              </span>
             </button>
           </div>
         ) : (
           <button
             type="button"
-            onClick={handleConfirm}
+            onClick={() => handleConfirm()}
             disabled={isMixedPayment && differenceUSD > 0.05}
             style={{
               width: '100%',
               padding: '15px',
-              background: isPending ? '#f59e0b' : 'var(--brand-primary, #2563eb)',
+              background: isPending 
+                ? '#f59e0b' 
+                : docType === 'fiscal' 
+                  ? '#059669' 
+                  : 'var(--brand-primary, #2563eb)',
               color: '#ffffff',
               border: 'none',
               borderRadius: '14px',
@@ -646,13 +817,23 @@ const POSPaymentModal = ({
               alignItems: 'center',
               justifyContent: 'center',
               gap: '8px',
-              boxShadow: '0 4px 14px rgba(0, 0, 0, 0.15)',
+              boxShadow: isPending 
+                ? '0 4px 14px rgba(245, 158, 11, 0.25)' 
+                : docType === 'fiscal'
+                  ? '0 4px 14px rgba(5, 150, 105, 0.25)'
+                  : '0 4px 14px rgba(37, 99, 235, 0.25)',
               opacity: isMixedPayment && differenceUSD > 0.05 ? 0.6 : 1,
               transition: 'all 0.15s ease'
             }}
           >
-            <Receipt size={18} />
-            <span>{isPending ? 'REGISTRAR CUENTA POR COBRAR' : 'CONFIRMAR NOTA DE ENTREGA'}</span>
+            {docType === 'fiscal' ? <Printer size={18} /> : <Receipt size={18} />}
+            <span>
+              {isPending 
+                ? 'REGISTRAR CUENTA POR COBRAR' 
+                : docType === 'fiscal' 
+                  ? 'EMITIR FACTURA FISCAL SENIAT (HKA80)' 
+                  : 'EMITIR NOTA DE ENTREGA'}
+            </span>
           </button>
         )}
       </div>

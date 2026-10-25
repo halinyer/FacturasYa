@@ -17,18 +17,14 @@ if (fs.existsSync(distElectronDir)) {
 console.log('⚡ [2/4] Compilando frontend web (Vite)...');
 execSync('npx vite build', { stdio: 'inherit', cwd: rootDir });
 
-console.log('📦 [3/4] Empaquetando ejecutable único con Electron Builder...');
-execSync('npx electron-builder --win portable', { stdio: 'inherit', cwd: rootDir });
-
-console.log('🗑️ [4/4] Limpiando ejecutables intermedios duplicados (win-unpacked)...');
-const winUnpackedDir = path.join(distElectronDir, 'win-unpacked');
-if (fs.existsSync(winUnpackedDir)) {
-  fs.rmSync(winUnpackedDir, { recursive: true, force: true });
-}
+console.log('📦 [3/3] Empaquetando ejecutables con Electron Builder...');
+execSync('npx electron-builder --win', { stdio: 'inherit', cwd: rootDir });
 
 const debugYml = path.join(distElectronDir, 'builder-debug.yml');
 if (fs.existsSync(debugYml)) {
   fs.rmSync(debugYml, { force: true });
 }
 
-console.log('\n✅ ¡Listo! Único ejecutable generado limpiamente en dist-electron/FacturaPOS-1.0.0.exe\n');
+console.log('\n✅ ¡Listo! Compilación completada con éxito.');
+console.log('  ➜ 1. Ejecutable directo (Apertura inmediata): dist-electron/win-unpacked/FacturaPOS.exe');
+console.log('  ➜ 2. Ejecutable portable (Para llevar en Pendrive): dist-electron/FacturaPOS-1.0.0.exe\n');
