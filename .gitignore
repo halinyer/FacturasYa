@@ -30,6 +30,7 @@ facturapos_db.json*
 facturapos_orders.json*
 auditoria_fiscal.json
 owner_secret.key
+enlace_dueno.txt
 registro_fiscal.log
 
 # Entorno / Variables locales

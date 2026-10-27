@@ -83,7 +83,10 @@ export default function Dashboard() {
     publicQr: '',
     localUrl: '',
     localQr: '',
-    tunnelStatus: 'idle'
+    directUrl: '',
+    directQr: '',
+    tunnelStatus: 'idle',
+    tunnelProvider: 'none'
   });
   const [showQrModal, setShowQrModal] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
@@ -109,8 +112,10 @@ export default function Dashboard() {
     };
   }, []);
 
-  const handleCopyLink = () => {
-    const url = monitorInfo.publicUrl || monitorInfo.localUrl;
+  const handleCopyLink = (useDirect = true) => {
+    const url = useDirect
+      ? (monitorInfo.directUrl || monitorInfo.publicUrl || monitorInfo.localUrl)
+      : (monitorInfo.publicUrl || monitorInfo.localUrl);
     if (url) {
       navigator.clipboard.writeText(url);
       setCopiedLink(true);
@@ -566,7 +571,9 @@ export default function Dashboard() {
               fontSize: '0.7rem',
               fontWeight: '800'
             }}>
-              {monitorInfo.publicUrl ? '● EN LÍNEA (INTERNET)' : (monitorInfo.localUrl ? '● EN LÍNEA (WIFI LOCAL)' : 'Conectando túnel...')}
+              {monitorInfo.publicUrl 
+                ? (monitorInfo.tunnelProvider === 'cloudflare' ? '● EN LÍNEA (CLOUDFLARE HTTPS)' : '● EN LÍNEA (INTERNET)') 
+                : (monitorInfo.localUrl ? '● EN LÍNEA (WIFI LOCAL)' : 'Conectando túnel...')}
             </span>
           </div>
 
@@ -641,9 +648,9 @@ export default function Dashboard() {
             minWidth: '108px',
             minHeight: '108px'
           }}>
-            {monitorInfo.publicQr || monitorInfo.localQr ? (
+            {monitorInfo.directQr || monitorInfo.publicQr || monitorInfo.localQr ? (
               <img
-                src={monitorInfo.publicQr || monitorInfo.localQr}
+                src={monitorInfo.directQr || monitorInfo.publicQr || monitorInfo.localQr}
                 alt="QR Monitor Dueño"
                 style={{ width: '96px', height: '96px', display: 'block' }}
               />
@@ -1355,9 +1362,9 @@ export default function Dashboard() {
               display: 'inline-block',
               margin: '0 auto 16px'
             }}>
-              {monitorInfo.publicQr || monitorInfo.localQr ? (
+              {monitorInfo.directQr || monitorInfo.publicQr || monitorInfo.localQr ? (
                 <img
-                  src={monitorInfo.publicQr || monitorInfo.localQr}
+                  src={monitorInfo.directQr || monitorInfo.publicQr || monitorInfo.localQr}
                   alt="QR Monitor Dueño"
                   style={{ width: '220px', height: '220px', display: 'block' }}
                 />
@@ -1369,24 +1376,24 @@ export default function Dashboard() {
             </div>
 
             <div style={{
-              background: '#fef3c7',
-              border: '1px solid #fde68a',
+              background: '#f0fdf4',
+              border: '1px solid #bbf7d0',
               borderRadius: '10px',
               padding: '10px 12px',
               fontSize: '0.8rem',
-              color: '#92400e',
+              color: '#15803d',
               fontWeight: '600',
               marginBottom: '16px',
               textAlign: 'left',
               lineHeight: '1.35'
             }}>
-              🔒 <strong>Seguridad:</strong> Solicitará la contraseña privada del dueño al entrar en el teléfono. Los empleados no pueden ver tus datos sin tu clave.
+              🔒 <strong>Cloudflare HTTPS:</strong> Enlace cifrado de alta velocidad. Abre directamente desde tu teléfono en cualquier parte con datos móviles (4G/5G).
             </div>
 
             <div style={{ display: 'flex', gap: '8px' }}>
               <button
                 type="button"
-                onClick={handleCopyLink}
+                onClick={() => handleCopyLink(true)}
                 style={{
                   flex: 1,
                   display: 'flex',
@@ -1404,7 +1411,7 @@ export default function Dashboard() {
                 }}
               >
                 {copiedLink ? <Check size={16} /> : <Copy size={16} />}
-                <span>{copiedLink ? '¡Copiado!' : 'Copiar enlace'}</span>
+                <span>{copiedLink ? '¡Enlace Copiado!' : 'Copiar enlace WhatsApp'}</span>
               </button>
               <button
                 type="button"

@@ -40,6 +40,10 @@
       {
         "from": "bin/bridge_fiscal.exe",
         "to": "bridge_fiscal.exe"
+      },
+      {
+        "from": "bin/cloudflared.exe",
+        "to": "cloudflared.exe"
       }
     ]
   },
