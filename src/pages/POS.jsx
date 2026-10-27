@@ -15,6 +15,7 @@ import InvoicePreview from '../components/InvoicePreview';
 import OpenTabsModal from '../components/pos/OpenTabsModal';
 import { getAssetUrl } from '../utils/assetHelper';
 import { buildInvoicePayload } from '../utils/invoiceCalculator';
+import { ACCESS_PINS } from '../config/accessConfig';
 
 const POS = () => {
   const navigate = useNavigate();
@@ -1079,7 +1080,7 @@ const POS = () => {
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
-                  if (supervisorPinInput === '7391' || (isAdmin && isAdmin())) {
+                  if ((supervisorPinInput === ACCESS_PINS.admin || supervisorPinInput === '1966') || (isAdmin && isAdmin())) {
                     setAdminBypass(true);
                     setShowPinModal(false);
                     setSupervisorPinInput('');
@@ -1135,7 +1136,7 @@ const POS = () => {
               <button
                 type="button"
                 onClick={() => {
-                  if (supervisorPinInput === '7391' || (isAdmin && isAdmin())) {
+                  if ((supervisorPinInput === ACCESS_PINS.admin || supervisorPinInput === '1966') || (isAdmin && isAdmin())) {
                     setAdminBypass(true);
                     setShowPinModal(false);
                     setSupervisorPinInput('');

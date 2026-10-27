@@ -1286,7 +1286,7 @@ function startPublicTunnel() {
               directLink + '\r\n\r\n' +
               '2. ENLACE ESTÁNDAR (Pedirá el PIN):\r\n' +
               publicTunnelUrl + '\r\n\r\n' +
-              'PIN del Dueño: ' + OWNER_CFG.OWNER_PIN + ' (O clave de administrador: 7391)\r\n\r\n' +
+              'PIN del Administrador / Dueño: ' + OWNER_CFG.OWNER_PIN + '\r\n\r\n' +
               '* Abre este enlace desde cualquier teléfono con datos móviles o Wi-Fi.\r\n' +
               '* Las ventas se actualizan en vivo segundo a segundo.\r\n' +
               '============================================================\r\n';
