@@ -796,12 +796,18 @@ function renderOwnerMonitorView() {
       }).join('');
 
       var openTabs = state.openTabs || [];
-      var tables = ((state.restaurant && state.restaurant.tables) || []).filter(function (t) {
-        return t.status === 'ocupada' && (t.items || []).length > 0;
-      });
+
+      // Órdenes activas de salón / mesas (desde activeOrders o orders abiertas)
+      var activeOrders = [];
+      if (state.restaurant) {
+        if (Array.isArray(state.restaurant.activeOrders)) {
+          activeOrders = state.restaurant.activeOrders;
+        } else if (Array.isArray(state.restaurant.orders)) {
+          activeOrders = state.restaurant.orders.filter(function (o) { return o.status === 'open'; });
+        }
+      }
 
       $('cnt-ventas').textContent = invoices.length;
-      $('cnt-pedidos').textContent = openTabs.length + tables.length;
       $('cnt-gastos').textContent = expenses.length;
 
       // Pestaña Ventas
@@ -835,23 +841,62 @@ function renderOwnerMonitorView() {
 
       // Pestaña En curso (Mesas y cuentas)
       var cards = [];
-      tables.forEach(function (t) {
-        var items = (t.items || []).map(function (i) { return (i.qty || i.quantity || 1) + 'x ' + i.name; }).join(', ');
-        cards.push('<div class="om-row"><div class="om-row-left"><div class="om-row-title">' + esc(t.name) +
-          ' <span class="om-badge" style="background:var(--accent-gold-soft);color:#b45309;">En sala</span></div>' +
-          '<div class="om-row-items">' + esc(items) + '</div><div class="om-row-meta">Mesero: ' + esc(t.waiterName || 'Asignado') + '</div></div>' +
-          '<div class="om-row-right"><div class="om-usd" style="color:#b45309;">' + formatUSD(t.totalUSD || 0) + '</div><div class="om-bs">' + formatBs((t.totalUSD || 0) * rate) + '</div></div></div>');
+
+      // 1. Mostrar mesas ocupadas con pedidos
+      activeOrders.forEach(function (ord) {
+        var itemsList = [];
+        var totalOrderUSD = 0;
+        (ord.rounds || []).forEach(function (rnd) {
+          (rnd.items || []).forEach(function (it) {
+            var q = Number(it.quantity || it.qty || 1);
+            var p = Number(it.priceUSD || it.unitPrice || it.price || 0);
+            totalOrderUSD += (p * q);
+            itemsList.push(q + 'x ' + (it.name || it.productName || 'Producto'));
+          });
+        });
+
+        var tableName = ord.tableName;
+        if (!tableName && state.restaurant && Array.isArray(state.restaurant.tables)) {
+          var foundT = state.restaurant.tables.find(function (t) { return t.id === ord.tableId; });
+          if (foundT) tableName = foundT.name;
+        }
+
+        cards.push('<div class="om-row">' +
+          '<div class="om-row-left">' +
+            '<div class="om-row-title">' + esc(tableName || 'Mesa') +
+              ' <span class="om-badge" style="background:var(--accent-gold-soft);color:#b45309;">En sala</span>' +
+            '</div>' +
+            '<div class="om-row-items">' + esc(itemsList.join(', ') || 'Sin ítems') + '</div>' +
+            '<div class="om-row-meta">👤 Mesero: ' + esc(ord.waiterName || 'Mesero') + (ord.createdAt ? ' · ' + new Date(ord.createdAt).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }) : '') + '</div>' +
+          '</div>' +
+          '<div class="om-row-right">' +
+            '<div class="om-usd" style="color:#b45309;">' + formatUSD(totalOrderUSD) + '</div>' +
+            '<div class="om-bs">' + formatBs(totalOrderUSD * rate) + '</div>' +
+          '</div>' +
+        '</div>');
       });
+
+      // 2. Mostrar cuentas abiertas de barra o delivery del POS
       openTabs.forEach(function (tab) {
         var total = (tab.items || []).reduce(function (s, i) {
           return s + ((Number(i.priceUSD || i.price) || 0) * (Number(i.quantity || i.qty) || 1));
         }, 0);
         var items = (tab.items || []).map(function (i) { return (i.quantity || i.qty || 1) + 'x ' + (i.name || i.productName); }).join(', ');
-        cards.push('<div class="om-row"><div class="om-row-left"><div class="om-row-title">' + esc(tab.name || 'Cuenta abierta') +
-          ' <span class="om-badge" style="background:#ede9fe;color:#6d28d9;">' + esc(tab.orderType || 'Abierta') + '</span></div>' +
-          '<div class="om-row-items">' + esc(items) + '</div></div>' +
-          '<div class="om-row-right"><div class="om-usd" style="color:#6d28d9;">' + formatUSD(total) + '</div><div class="om-bs">' + formatBs(total * rate) + '</div></div></div>');
+        cards.push('<div class="om-row">' +
+          '<div class="om-row-left">' +
+            '<div class="om-row-title">' + esc(tab.name || 'Cuenta abierta') +
+              ' <span class="om-badge" style="background:#ede9fe;color:#6d28d9;">' + esc(tab.orderType || 'Abierta') + '</span>' +
+            '</div>' +
+            '<div class="om-row-items">' + esc(items || 'Sin ítems') + '</div>' +
+          '</div>' +
+          '<div class="om-row-right">' +
+            '<div class="om-usd" style="color:#6d28d9;">' + formatUSD(total) + '</div>' +
+            '<div class="om-bs">' + formatBs(total * rate) + '</div>' +
+          '</div>' +
+        '</div>');
       });
+
+      $('cnt-pedidos').textContent = cards.length;
       $('view-pedidos').innerHTML = cards.length ? cards.join('') : '<div class="om-empty">No hay pedidos abiertos en este momento.</div>';
 
       // Pestaña Gastos

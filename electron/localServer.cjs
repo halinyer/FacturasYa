@@ -88,8 +88,30 @@ async function refreshServerIp(manualIp = null) {
   return currentIp;
 }
 
+function resolveDataFile(filename) {
+  const candidates = [];
+  if (userDataDir) candidates.push(path.join(userDataDir, filename));
+  try {
+    const { app } = require('electron');
+    if (app && typeof app.getPath === 'function') {
+      const uDir = app.getPath('userData');
+      if (uDir) candidates.push(path.join(uDir, filename));
+    }
+  } catch (e) {}
+  if (process.env.APPDATA) {
+    candidates.push(path.join(process.env.APPDATA, 'facturacion-pos', filename));
+  }
+  candidates.push(path.join(process.cwd(), filename));
+  candidates.push(path.resolve(__dirname, '..', filename));
+
+  for (const c of candidates) {
+    if (c && fs.existsSync(c)) return c;
+  }
+  return candidates[0] || path.join(process.cwd(), filename);
+}
+
 function getOrdersPath() {
-  return path.join(userDataDir || process.cwd(), 'facturapos_orders.json');
+  return resolveDataFile('facturapos_orders.json');
 }
 function getOrdersBackupPath() {
   return path.join(userDataDir || process.cwd(), 'facturapos_orders.json.bak');
@@ -200,7 +222,7 @@ let cachedExchangeRate = 876.80;
 let lastDbMtime = 0;
 
 function getMenuData() {
-  const dbFile = path.join(userDataDir || process.cwd(), 'facturapos_db.json');
+  const dbFile = resolveDataFile('facturapos_db.json');
   if (fs.existsSync(dbFile)) {
     try {
       const stat = fs.statSync(dbFile);
@@ -557,6 +579,7 @@ function createLocalServer() {
     io.emit('comanda:nueva', { order, round, table });
     io.emit('mesas:actualizadas', restaurantData.tables);
     io.emit('restaurante:sync', getFullRestaurantState());
+    io.to('owner').emit('monitor:sync', getMonitorState());
 
     res.json({ success: true, orderId: order.id, roundId: round.id, order });
   });
@@ -571,6 +594,7 @@ function createLocalServer() {
     io.emit('mesas:actualizadas', restaurantData.tables);
     io.emit('restaurante:sync', getFullRestaurantState());
     io.emit('cuenta:pedida', { tableId: table.id, tableName: table.name });
+    io.to('owner').emit('monitor:sync', getMonitorState());
     res.json({ success: true, table });
   });
 
@@ -990,7 +1014,7 @@ function createLocalServer() {
 }
 
 function getFullRestaurantState() {
-  if (!restaurantData) restaurantData = loadOrdersData();
+  restaurantData = loadOrdersData();
   const menu = getMenuData();
   const activeOrders = (restaurantData.orders || []).filter(o => o.status === 'open');
   const franchise = getFranchiseConfig(restaurantData.franchiseId || 'facturapos');
