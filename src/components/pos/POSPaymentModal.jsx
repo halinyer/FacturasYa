@@ -206,14 +206,14 @@ const POSPaymentModal = ({
             </span>
             {docType === 'fiscal' && (
               <span style={{ fontSize: '0.7rem', fontWeight: '700', color: '#059669' }}>
-                Imprime Razón Social y RIF/C.I.
+                {(!client || client.id === 'generic' || client.name === 'Consumidor Final') ? 'Ticket Anónimo (Consumidor Final)' : 'Factura con RIF / Cédula'}
               </span>
             )}
           </div>
           <ClientSearch onSelect={onSelectClient} selected={client} />
           {docType === 'fiscal' && (!client || client.id === 'generic' || client.name === 'Consumidor Final') && (
             <div style={{ fontSize: '0.72rem', color: '#047857', marginTop: '6px', fontWeight: '600' }}>
-              💡 Si el cliente pide factura personalizada con su RIF o Cédula, búscalo arriba o pulsa <strong>+ Nuevo</strong>.
+              💡 Venta rápida a Consumidor Final (ticket anónimo sin datos de cliente en papel, asentado en Libro de Ventas). Si requiere factura con RIF/Cédula, selecciónalo arriba o pulsa <strong>+ Nuevo</strong>.
             </div>
           )}
         </div>

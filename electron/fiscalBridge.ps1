@@ -384,22 +384,31 @@ switch ($Action) {
             } catch {}
 
             # 1. Datos del Cliente
-            $clientRif = if ($inv.clientCedula) { $inv.clientCedula } else { "V000000000" }
-            $clientRifClean = ($clientRif -replace '[^A-Za-z0-9]', '').ToUpper()
-            
-            $rawClientName = if ($inv.clientName) { $inv.clientName } else { "CLIENTE GENERAL" }
-            $clientNameClean = Clean-Ascii $rawClientName
-            if ($clientNameClean.Length -gt 40) { $clientNameClean = $clientNameClean.Substring(0, 40) }
-            if (-not $clientNameClean) { $clientNameClean = "CLIENTE GENERAL" }
+            $rawRif = if ($inv.clientCedula) { $inv.clientCedula } elseif ($inv.clientRif) { $inv.clientRif } else { "" }
+            $cleanRif = ($rawRif -replace '[^A-Za-z0-9]', '').ToUpper()
+            $rawName = if ($inv.clientName) { $inv.clientName } else { "" }
+            $upperName = $rawName.Trim().ToUpper()
 
-            $null = $printer.SendCmd("iR*$clientRifClean")
-            $null = $printer.SendCmd("iS*$clientNameClean")
+            # Si es venta anónima a Consumidor Final, según la Guía HKA (pág. 12),
+            # NO se envían comandos iR* ni iS*, saliendo el ticket fiscal limpio directamente con los ítems.
+            $isGenericRif = (-not $rawRif -or $cleanRif -eq "" -or $cleanRif -eq "0" -or $cleanRif -eq "V0" -or $cleanRif -eq "V00000000" -or $cleanRif -eq "V000000000")
+            $isGenericName = (-not $rawName -or $upperName -eq "" -or $upperName -eq "CONSUMIDOR FINAL" -or $upperName -eq "CLIENTE GENERICO" -or $upperName -eq "CLIENTE GENERAL" -or $upperName -eq "MOSTRADOR")
 
-            if ($inv.clientAddress) {
-                $addrClean = Clean-Ascii $inv.clientAddress
-                if ($addrClean.Length -gt 40) { $addrClean = $addrClean.Substring(0, 40) }
-                if ($addrClean) {
-                    $null = $printer.SendCmd("i01$addrClean")
+            if (-not ($isGenericRif -and $isGenericName)) {
+                $clientRifClean = if ($cleanRif) { $cleanRif } else { "V000000000" }
+                $clientNameClean = Clean-Ascii $rawName
+                if ($clientNameClean.Length -gt 40) { $clientNameClean = $clientNameClean.Substring(0, 40) }
+                if (-not $clientNameClean) { $clientNameClean = "CONSUMIDOR FINAL" }
+
+                $null = $printer.SendCmd("iR*$clientRifClean")
+                $null = $printer.SendCmd("iS*$clientNameClean")
+
+                if ($inv.clientAddress) {
+                    $addrClean = Clean-Ascii $inv.clientAddress
+                    if ($addrClean.Length -gt 40) { $addrClean = $addrClean.Substring(0, 40) }
+                    if ($addrClean) {
+                        $null = $printer.SendCmd("i01$addrClean")
+                    }
                 }
             }
 

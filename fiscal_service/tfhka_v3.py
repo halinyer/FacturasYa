@@ -805,66 +805,88 @@ class TfhkaV3:
             or client_obj.get("cedula")
             or client_obj.get("rif")
             or client_obj.get("document")
-            or "V-00000000"
+            or ""
         )
         clean_rif_raw = clean_fiscal_text(raw_rif, 25).replace(" ", "").replace(".", "")
-        if clean_rif_raw.isdigit():
-            client_rif = f"V-{clean_rif_raw}"
-        elif re.match(r"^[VEJGPC]\d+$", clean_rif_raw):
-            client_rif = f"{clean_rif_raw[0]}-{clean_rif_raw[1:]}"
-        elif not clean_rif_raw:
-            client_rif = "V-00000000"
-        else:
-            client_rif = clean_rif_raw[:20]
 
         raw_name = (
             data.get("clientName")
             or client_obj.get("name")
-            or "CONSUMIDOR FINAL"
-        )
-        if str(raw_name).strip().upper() == "CLIENTE GENERICO":
-            raw_name = "CONSUMIDOR FINAL"
-        client_name = clean_fiscal_text(raw_name, 40) or "CONSUMIDOR FINAL"
-
-        raw_address = (
-            data.get("clientAddress")
-            or client_obj.get("address")
-            or delivery_obj.get("address")
             or ""
         )
-        if str(raw_address).strip().upper() == "MOSTRADOR" and client_name == "CONSUMIDOR FINAL":
-            raw_address = ""
-        client_address = clean_fiscal_text(raw_address, 65)
 
-        raw_phone = (
-            data.get("clientPhone")
-            or client_obj.get("phone")
-            or delivery_obj.get("phone")
-            or ""
+        clean_rif_upper = str(raw_rif).strip().upper()
+        clean_name_upper = str(raw_name).strip().upper()
+
+        # Determinar si es ticket anónimo a Consumidor Final (Ventas al menor sin datos fiscales)
+        # Según el protocolo HKA y la Guía de Usuario (pág. 12), si NO se envían iR* ni iS*,
+        # la impresora NO imprime líneas de cliente en el papel, saliendo directamente a los ítems.
+        is_generic_rif = (
+            not clean_rif_upper
+            or clean_rif_raw in ["", "0", "00000000", "V00000000", "V000000000", "V0", "V-0"]
+            or clean_rif_upper in ["V-00000000", "V00000000", "V000000000", "NO APLICA", "S/N", "GENERICO", "CLIENTE GENERICO", "-"]
         )
-        client_phone = re.sub(r"[^0-9\+\-\s\(\)]", "", str(raw_phone)).strip()[:28]
+        is_generic_name = (
+            not clean_name_upper
+            or clean_name_upper in ["CONSUMIDOR FINAL", "CLIENTE GENERICO", "CLIENTE GENERAL", "MOSTRADOR", "NO IDENTIFICADO", "CONTADO", ""]
+        )
 
-        ok_r, msg_r = self.send_cmd(f"iR*{client_rif}", timeout_sec=8.0)
-        ok_s, msg_s = self.send_cmd(f"iS*{client_name}", timeout_sec=8.0)
-        if self.debug:
-            print(f"[Fiscal] Cliente Fiscal -> iR*{client_rif} (ok={ok_r}) | iS*{client_name} (ok={ok_s})")
+        is_anonymous = is_generic_rif and is_generic_name
 
-        # Líneas adicionales de encabezado del cliente (i01 a i09 según Manual HKA V8.5.0 pág. 34)
-        line_idx = 1
-        if client_address:
-            addr_full = f"DIRECCION: {client_address}"
-            addr_part1 = addr_full[:40]
-            self.send_cmd(f"i0{line_idx}{addr_part1}", timeout_sec=6.0)
-            line_idx += 1
-            if len(addr_full) > 40:
-                addr_part2 = addr_full[40:80].strip()
-                if addr_part2:
-                    self.send_cmd(f"i0{line_idx}{addr_part2}", timeout_sec=6.0)
-                    line_idx += 1
+        if is_anonymous:
+            client_rif = ""
+            client_name = ""
+            client_address = ""
+            client_phone = ""
+            if self.debug:
+                print("[Fiscal] Ticket anónimo a Consumidor Final: No se envían iR* ni iS* (ticket limpio sin datos de cliente).")
+        else:
+            if clean_rif_raw.isdigit():
+                client_rif = f"V-{clean_rif_raw}"
+            elif re.match(r"^[VEJGPC]\d+$", clean_rif_raw):
+                client_rif = f"{clean_rif_raw[0]}-{clean_rif_raw[1:]}"
+            else:
+                client_rif = clean_rif_raw[:20]
 
-        if client_phone and line_idx <= 9:
-            self.send_cmd(f"i0{line_idx}TELEFONO: {client_phone}"[:43], timeout_sec=6.0)
-            line_idx += 1
+            client_name = clean_fiscal_text(raw_name, 40) or "CONSUMIDOR FINAL"
+
+            raw_address = (
+                data.get("clientAddress")
+                or client_obj.get("address")
+                or delivery_obj.get("address")
+                or ""
+            )
+            client_address = clean_fiscal_text(raw_address, 65)
+
+            raw_phone = (
+                data.get("clientPhone")
+                or client_obj.get("phone")
+                or delivery_obj.get("phone")
+                or ""
+            )
+            client_phone = re.sub(r"[^0-9\+\-\s\(\)]", "", str(raw_phone)).strip()[:28]
+
+            ok_r, msg_r = self.send_cmd(f"iR*{client_rif}", timeout_sec=8.0)
+            ok_s, msg_s = self.send_cmd(f"iS*{client_name}", timeout_sec=8.0)
+            if self.debug:
+                print(f"[Fiscal] Cliente Fiscal Identificado -> iR*{client_rif} (ok={ok_r}) | iS*{client_name} (ok={ok_s})")
+
+            # Líneas adicionales de encabezado del cliente (i01 a i09 según Manual HKA V8.5.0 pág. 34)
+            line_idx = 1
+            if client_address:
+                addr_full = f"DIRECCION: {client_address}"
+                addr_part1 = addr_full[:40]
+                self.send_cmd(f"i0{line_idx}{addr_part1}", timeout_sec=6.0)
+                line_idx += 1
+                if len(addr_full) > 40:
+                    addr_part2 = addr_full[40:80].strip()
+                    if addr_part2:
+                        self.send_cmd(f"i0{line_idx}{addr_part2}", timeout_sec=6.0)
+                        line_idx += 1
+
+            if client_phone and line_idx <= 9:
+                self.send_cmd(f"i0{line_idx}TELEFONO: {client_phone}"[:43], timeout_sec=6.0)
+                line_idx += 1
 
         comments = data.get("comments") or []
         for c in comments[:3]:

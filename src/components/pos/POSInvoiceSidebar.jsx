@@ -356,7 +356,7 @@ const POSInvoiceSidebar = ({
         <ClientSearch onSelect={onSelectClient} selected={client} />
         {isFiscal && (!client || client.id === 'generic' || client.name === 'Consumidor Final') && (
           <div style={{ fontSize: '0.69rem', color: '#64748b', marginTop: '4px' }}>
-            ℹ️ Se emitirá a <strong>Consumidor Final (V-00000000)</strong> salvo que elijas cliente con RIF.
+            ℹ️ Ticket fiscal anónimo a <strong>Consumidor Final</strong> (sin datos en papel, registrado en Libro de Ventas). Si requiere factura con RIF, elija un cliente.
           </div>
         )}
       </div>
