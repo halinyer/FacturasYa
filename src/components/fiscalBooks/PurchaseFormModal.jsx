@@ -34,7 +34,7 @@ export default function PurchaseFormModal({
           </button>
         </div>
 
-        <form onSubmit={onSavePurchase}>
+        <form onSubmit={onSavePurchase} noValidate>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '4px' }}>Fecha Factura *</label>

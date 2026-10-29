@@ -933,7 +933,7 @@ export default function Inventory() {
               {editingItem ? 'Editar Insumo' : 'Registrar Nuevo Insumo'}
             </h3>
 
-            <form onSubmit={handleSaveItem}>
+            <form onSubmit={handleSaveItem} noValidate>
               <div style={{ marginBottom: '12px' }}>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '4px' }}>
                   Nombre del Insumo:
@@ -1072,7 +1072,7 @@ export default function Inventory() {
               </h3>
             </div>
 
-            <form onSubmit={handleSaveEntry}>
+            <form onSubmit={handleSaveEntry} noValidate>
               <div style={{ marginBottom: '12px' }}>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '4px' }}>
                   Insumo Recibido:
@@ -1183,7 +1183,7 @@ export default function Inventory() {
               </h3>
             </div>
 
-            <form onSubmit={handleSaveWaste}>
+            <form onSubmit={handleSaveWaste} noValidate>
               <div style={{ marginBottom: '12px' }}>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '4px' }}>
                   Insumo Dañado / Merma:

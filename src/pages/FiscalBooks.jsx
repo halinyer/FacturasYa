@@ -291,8 +291,21 @@ export default function FiscalBooks() {
 
   const handleSavePurchase = (e) => {
     e.preventDefault();
-    if (!purchaseForm.supplierRif || !purchaseForm.supplierName || !purchaseForm.totalAmountBs) {
-      showToast('Por favor completa los campos obligatorios (*)', 'error');
+    if (!purchaseForm.supplierRif || !purchaseForm.supplierRif.trim()) {
+      showToast('Debes ingresar el RIF del Proveedor (ej: J-12345678-0)', 'error');
+      return;
+    }
+    if (!purchaseForm.supplierName || !purchaseForm.supplierName.trim()) {
+      showToast('Debes ingresar la Razón Social del Proveedor', 'error');
+      return;
+    }
+    if (!purchaseForm.invoiceNumber || !purchaseForm.invoiceNumber.trim()) {
+      showToast('Debes ingresar el Número de Factura del Proveedor', 'error');
+      return;
+    }
+    const testTotal = parseFloat(purchaseForm.totalAmountBs);
+    if (isNaN(testTotal) || testTotal <= 0) {
+      showToast('Debes ingresar el Monto Total de la Factura en Bs.', 'error');
       return;
     }
 
