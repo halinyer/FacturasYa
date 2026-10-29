@@ -1,3 +1,4 @@
+import { DEFAULT_HAPPY_DAYS_INVENTORY, getProductRecipe } from '../config/inventoryDefaults';
 // In-memory cache for synchronous operations
 let memoryStore = null;
 
@@ -18,12 +19,20 @@ export const initDB = async () => {
           pos_cash_closes: localStorage.getItem('pos_cash_closes') ? JSON.parse(localStorage.getItem('pos_cash_closes')) : [],
           pos_open_tabs: localStorage.getItem('pos_open_tabs') ? JSON.parse(localStorage.getItem('pos_open_tabs')) : [],
           pos_expenses: localStorage.getItem('pos_expenses') ? JSON.parse(localStorage.getItem('pos_expenses')) : [],
+          pos_inventory: localStorage.getItem('pos_inventory') ? JSON.parse(localStorage.getItem('pos_inventory')) : DEFAULT_HAPPY_DAYS_INVENTORY,
+          pos_inventory_logs: localStorage.getItem('pos_inventory_logs') ? JSON.parse(localStorage.getItem('pos_inventory_logs')) : [],
           pos_settings: localStorage.getItem('pos_settings') ? JSON.parse(localStorage.getItem('pos_settings')) : {}
         };
         await window.electronAPI.saveDb(memoryStore);
       } else {
         memoryStore = fileData;
         if (!memoryStore.pos_expenses) memoryStore.pos_expenses = [];
+        if (!memoryStore.pos_inventory || !Array.isArray(memoryStore.pos_inventory) || memoryStore.pos_inventory.length === 0) {
+          memoryStore.pos_inventory = DEFAULT_HAPPY_DAYS_INVENTORY;
+        }
+        if (!memoryStore.pos_inventory_logs || !Array.isArray(memoryStore.pos_inventory_logs)) {
+          memoryStore.pos_inventory_logs = [];
+        }
       }
     } catch (e) {
       console.error("Failed to load from Electron fs, falling back to localStorage", e);
@@ -39,7 +48,9 @@ export const initDB = async () => {
       pos_payments: localStorage.getItem('pos_payments') ? JSON.parse(localStorage.getItem('pos_payments')) : [],
       pos_cash_closes: localStorage.getItem('pos_cash_closes') ? JSON.parse(localStorage.getItem('pos_cash_closes')) : [],
       pos_open_tabs: localStorage.getItem('pos_open_tabs') ? JSON.parse(localStorage.getItem('pos_open_tabs')) : [],
-      pos_expenses: localStorage.getItem('pos_expenses') ? JSON.parse(localStorage.getItem('pos_expenses')) : []
+      pos_expenses: localStorage.getItem('pos_expenses') ? JSON.parse(localStorage.getItem('pos_expenses')) : [],
+      pos_inventory: localStorage.getItem('pos_inventory') ? JSON.parse(localStorage.getItem('pos_inventory')) : DEFAULT_HAPPY_DAYS_INVENTORY,
+      pos_inventory_logs: localStorage.getItem('pos_inventory_logs') ? JSON.parse(localStorage.getItem('pos_inventory_logs')) : []
     };
   }
 };
@@ -141,6 +152,249 @@ export const db = {
     };
     setStorageItem('pos_settings', updated);
     return updated.fiscal;
+  },
+
+
+  // ==========================================
+  // INVENTORY & STOCK METHODS (HAPPY DAYS)
+  // ==========================================
+  getInventory: () => {
+    const list = getStorageItem('pos_inventory');
+    if (!list || !Array.isArray(list) || list.length === 0) {
+      setStorageItem('pos_inventory', DEFAULT_HAPPY_DAYS_INVENTORY);
+      return DEFAULT_HAPPY_DAYS_INVENTORY;
+    }
+    return list;
+  },
+
+  getInventoryLogs: (limit = 300) => {
+    const logs = getStorageItem('pos_inventory_logs') || [];
+    return [...logs].reverse().slice(0, limit);
+  },
+
+  createInventoryItem: (data) => {
+    const items = db.getInventory() || [];
+    const newItem = {
+      id: data.id || generateId('inv'),
+      name: (data.name || '').trim(),
+      category: data.category || 'General',
+      unit: data.unit || 'und',
+      currentStock: Number(data.currentStock) || 0,
+      minStock: Number(data.minStock) || 10,
+      costUSD: Number(data.costUSD) || 0,
+      active: data.active !== false,
+      updatedAt: new Date().toISOString()
+    };
+    const updated = [newItem, ...items];
+    setStorageItem('pos_inventory', updated);
+
+    if (newItem.currentStock > 0) {
+      db.recordInventoryLog({
+        inventoryId: newItem.id,
+        itemName: newItem.name,
+        type: 'initial',
+        delta: newItem.currentStock,
+        prevStock: 0,
+        newStock: newItem.currentStock,
+        reason: 'Stock inicial al crear insumo',
+        user: data.user || 'Administrador'
+      });
+    }
+    return newItem;
+  },
+
+  updateInventoryItem: (id, updates) => {
+    const items = db.getInventory() || [];
+    const index = items.findIndex(i => i.id === id);
+    if (index === -1) return null;
+    const old = items[index];
+    const updated = [...items];
+    updated[index] = {
+      ...old,
+      ...updates,
+      updatedAt: new Date().toISOString()
+    };
+    setStorageItem('pos_inventory', updated);
+    return updated[index];
+  },
+
+  deleteInventoryItem: (id) => {
+    const items = db.getInventory() || [];
+    const updated = items.filter(i => i.id !== id);
+    setStorageItem('pos_inventory', updated);
+    return true;
+  },
+
+  recordInventoryLog: (logData) => {
+    const logs = getStorageItem('pos_inventory_logs') || [];
+    const newLog = {
+      id: generateId('mov'),
+      date: new Date().toISOString(),
+      ...logData
+    };
+    const updated = [...logs, newLog];
+    if (updated.length > 1500) {
+      updated.splice(0, updated.length - 1500);
+    }
+    setStorageItem('pos_inventory_logs', updated);
+    return newLog;
+  },
+
+  adjustInventoryStock: ({ id, delta, newStock, type = 'adjustment', reason = 'Ajuste manual', user = 'Administrador' }) => {
+    const items = db.getInventory() || [];
+    const index = items.findIndex(i => i.id === id);
+    if (index === -1) return null;
+    const item = items[index];
+    const prevStock = Number(item.currentStock) || 0;
+    const finalStock = newStock !== undefined ? Number(newStock) : (prevStock + Number(delta));
+    const effectiveDelta = finalStock - prevStock;
+
+    const updated = [...items];
+    updated[index] = {
+      ...item,
+      currentStock: finalStock,
+      updatedAt: new Date().toISOString()
+    };
+    setStorageItem('pos_inventory', updated);
+
+    db.recordInventoryLog({
+      inventoryId: item.id,
+      itemName: item.name,
+      type,
+      delta: effectiveDelta,
+      prevStock,
+      newStock: finalStock,
+      reason,
+      user
+    });
+
+    return updated[index];
+  },
+
+  registerDailyCount: ({ counts = [], user = 'Administrador', notes = '' }) => {
+    // Decision 2: Conteo Diario al Cierre de Turno
+    const items = db.getInventory() || [];
+    const itemMap = new Map(items.map(it => [it.id, it]));
+    const updatedItems = [...items];
+    const results = [];
+
+    counts.forEach(({ id, countedStock }) => {
+      const it = itemMap.get(id);
+      if (!it) return;
+      const prevStock = Number(it.currentStock) || 0;
+      const physical = Number(countedStock);
+      const diff = physical - prevStock;
+
+      const idx = updatedItems.findIndex(x => x.id === id);
+      if (idx !== -1) {
+        updatedItems[idx] = {
+          ...it,
+          currentStock: physical,
+          lastCountAt: new Date().toISOString()
+        };
+      }
+
+      if (diff !== 0) {
+        db.recordInventoryLog({
+          inventoryId: it.id,
+          itemName: it.name,
+          type: 'daily_count',
+          delta: diff,
+          prevStock,
+          newStock: physical,
+          reason: `Conteo Diario de Cierre: ${diff > 0 ? 'Sobrante +' + diff : 'Merma/Faltante ' + diff}${notes ? ' - ' + notes : ''}`,
+          user
+        });
+      }
+
+      results.push({ id, name: it.name, prevStock, physical, diff });
+    });
+
+    setStorageItem('pos_inventory', updatedItems);
+    return results;
+  },
+
+  deductStockForSale: ({ items = [], invoiceNumber = '', user = 'Cajero' }) => {
+    // Decision 1: Opción A - SEGUIR VENDIENDO (permite números negativos, no detiene la caja)
+    const inventory = db.getInventory() || [];
+    const invMap = new Map(inventory.map(i => [i.id, { ...i }]));
+    const deductions = [];
+
+    items.forEach(cartItem => {
+      const qtySold = Number(cartItem.quantity || 1);
+      const recipe = getProductRecipe(cartItem);
+
+      recipe.forEach(ing => {
+        const invItem = invMap.get(ing.inventoryId);
+        if (invItem) {
+          const totalDeduct = ing.qty * qtySold;
+          const prev = Number(invItem.currentStock) || 0;
+          invItem.currentStock = prev - totalDeduct;
+          deductions.push({
+            inventoryId: invItem.id,
+            itemName: invItem.name,
+            delta: -totalDeduct,
+            prevStock: prev,
+            newStock: invItem.currentStock,
+            reason: `Venta Factura #${invoiceNumber || 'S/N'} (${cartItem.name || cartItem.productName} x${qtySold})`
+          });
+        }
+      });
+    });
+
+    if (deductions.length > 0) {
+      setStorageItem('pos_inventory', Array.from(invMap.values()));
+      deductions.forEach(d => {
+        db.recordInventoryLog({
+          ...d,
+          type: 'sale',
+          user
+        });
+      });
+    }
+
+    return deductions;
+  },
+
+  revertStockForVoid: ({ items = [], invoiceNumber = '', user = 'Administrador' }) => {
+    const inventory = db.getInventory() || [];
+    const invMap = new Map(inventory.map(i => [i.id, { ...i }]));
+    const reversions = [];
+
+    items.forEach(cartItem => {
+      const qtySold = Number(cartItem.quantity || 1);
+      const recipe = getProductRecipe(cartItem);
+
+      recipe.forEach(ing => {
+        const invItem = invMap.get(ing.inventoryId);
+        if (invItem) {
+          const totalRevert = ing.qty * qtySold;
+          const prev = Number(invItem.currentStock) || 0;
+          invItem.currentStock = prev + totalRevert;
+          reversions.push({
+            inventoryId: invItem.id,
+            itemName: invItem.name,
+            delta: totalRevert,
+            prevStock: prev,
+            newStock: invItem.currentStock,
+            reason: `Reintegro por Anulación Factura #${invoiceNumber || 'S/N'}`
+          });
+        }
+      });
+    });
+
+    if (reversions.length > 0) {
+      setStorageItem('pos_inventory', Array.from(invMap.values()));
+      reversions.forEach(r => {
+        db.recordInventoryLog({
+          ...r,
+          type: 'void_reversal',
+          user
+        });
+      });
+    }
+
+    return reversions;
   },
 
   // PRODUCTS

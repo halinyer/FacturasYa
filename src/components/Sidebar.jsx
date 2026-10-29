@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Users,
   Package,
+  Boxes,
   Calculator,
   LogOut,
   Database,
@@ -102,6 +103,10 @@ const Sidebar = () => {
             <NavLink to="/products" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
               <Package size={22} />
               <span className="nav-text">Productos</span>
+            </NavLink>
+            <NavLink to="/inventory" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <Boxes size={22} color="#D52829" />
+              <span className="nav-text">Inventario</span>
             </NavLink>
             <NavLink to="/cash-close" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
               <Calculator size={22} />

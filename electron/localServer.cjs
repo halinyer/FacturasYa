@@ -1067,6 +1067,9 @@ function getMonitorState() {
   const clients = (monitorCache && Array.isArray(monitorCache.clients))
     ? monitorCache.clients
     : (Array.isArray(dbObj.pos_clients) ? dbObj.pos_clients : []);
+  const inventory = (monitorCache && Array.isArray(monitorCache.inventory))
+    ? monitorCache.inventory
+    : (Array.isArray(dbObj.pos_inventory) ? dbObj.pos_inventory : []);
   const cloudMonitorSettings = {
     cloudSyncUrl: (dbObj.pos_settings && dbObj.pos_settings.cloudMonitor && dbObj.pos_settings.cloudMonitor.cloudSyncUrl) || ''
   };
@@ -1076,6 +1079,7 @@ function getMonitorState() {
     expenses: [...expenses].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0)).slice(0, 200),
     openTabs,
     clients,
+    inventory,
     exchangeRate: Number(cachedExchangeRate) || 876.80,
     cloudMonitorSettings,
     restaurant: getFullRestaurantState(),

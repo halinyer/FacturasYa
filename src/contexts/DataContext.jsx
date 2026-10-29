@@ -23,6 +23,8 @@ export const DataProvider = ({ children }) => {
   const [openTabs, setOpenTabs] = useState([]);
   const [purchases, setPurchases] = useState([]);
   const [expenses, setExpenses] = useState([]);
+  const [inventory, setInventory] = useState([]);
+  const [inventoryLogs, setInventoryLogs] = useState([]);
   const [cloudMonitorSettings, setCloudMonitorSettings] = useState(() => db.getCloudMonitorSettings());
   const [exchangeRate, setExchangeRate] = useState(() => {
     const cached = localStorage.getItem('pos_exchange_rate_cache');
@@ -80,6 +82,7 @@ export const DataProvider = ({ children }) => {
           openTabs: tabs,
           clients: clis,
           payments: pays.slice(0, 200),
+          inventory: (customData.inventory || db.getInventory() || []),
           exchangeRate: rate,
           cloudMonitorSettings: monCfg
         })
@@ -97,6 +100,8 @@ export const DataProvider = ({ children }) => {
       const tabs = [...(db.getOpenTabs() || [])];
       const pur = [...(db.getPurchases() || [])];
       const exps = [...(db.getExpenses() || [])];
+      const invItems = [...(db.getInventory() || [])];
+      const invLogs = [...(db.getInventoryLogs() || [])];
       const monCfg = { ...(db.getCloudMonitorSettings() || {}) };
 
       setProducts(prods);
@@ -107,6 +112,8 @@ export const DataProvider = ({ children }) => {
       setOpenTabs(tabs);
       setPurchases(pur);
       setExpenses(exps);
+      setInventory(invItems);
+      setInventoryLogs(invLogs);
       setCloudMonitorSettings(monCfg);
       setRestaurantMode(db.getRestaurantMode() || false);
       setFiscalSettings({ ...(db.getFiscalSettings() || { enabled: true, port: 'COM2', baudRate: 9600 }) });
@@ -248,6 +255,18 @@ export const DataProvider = ({ children }) => {
 
   const createInvoice = (invoiceData) => {
     const newInvoice = db.createInvoice(invoiceData);
+    // Descuento automático de inventario (Opción A: sigue vendiendo aunque baje de 0)
+    if (newInvoice && newInvoice.status !== 'voided' && Array.isArray(newInvoice.items)) {
+      try {
+        db.deductStockForSale({
+          items: newInvoice.items,
+          invoiceNumber: newInvoice.fiscalInvoiceNumber || newInvoice.invoiceNumber || newInvoice.id,
+          user: newInvoice.userName || 'Caja'
+        });
+      } catch (err) {
+        console.warn('Error descontando stock en venta:', err);
+      }
+    }
     refreshData();
     return newInvoice;
   };
@@ -333,7 +352,19 @@ export const DataProvider = ({ children }) => {
   };
 
   const voidInvoice = (id, reason) => {
+    const invToVoid = (invoices || []).find(i => i.id === id);
     const voided = db.voidInvoice(id, reason);
+    if (invToVoid && Array.isArray(invToVoid.items)) {
+      try {
+        db.revertStockForVoid({
+          items: invToVoid.items,
+          invoiceNumber: invToVoid.fiscalInvoiceNumber || invToVoid.invoiceNumber || invToVoid.id,
+          user: 'Administrador'
+        });
+      } catch (err) {
+        console.warn('Error revirtiendo stock de factura anulada:', err);
+      }
+    }
     refreshData();
     return voided;
   };
@@ -582,6 +613,38 @@ export const DataProvider = ({ children }) => {
   const deletePurchase = (id) => {
     const res = db.deletePurchase(id);
     setPurchases([...(db.getPurchases() || [])]);
+    return res;
+  };
+
+
+  // MÉTODOS DE INVENTARIO
+  const adjustInventoryStock = (params) => {
+    const res = db.adjustInventoryStock(params);
+    refreshData();
+    return res;
+  };
+
+  const addInventoryItem = (data) => {
+    const res = db.createInventoryItem(data);
+    refreshData();
+    return res;
+  };
+
+  const updateInventoryItem = (id, updates) => {
+    const res = db.updateInventoryItem(id, updates);
+    refreshData();
+    return res;
+  };
+
+  const deleteInventoryItem = (id) => {
+    const res = db.deleteInventoryItem(id);
+    refreshData();
+    return res;
+  };
+
+  const registerDailyCount = (params) => {
+    const res = db.registerDailyCount(params);
+    refreshData();
     return res;
   };
 

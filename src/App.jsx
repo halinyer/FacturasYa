@@ -13,6 +13,7 @@ import POS from './pages/POS';
 import Dashboard from './pages/Dashboard';
 import Clients from './pages/Clients';
 import Products from './pages/Products';
+import Inventory from './pages/Inventory';
 import CashClose from './pages/CashClose';
 import Tables from './pages/Tables';
 import FiscalBooks from './pages/FiscalBooks';
@@ -110,6 +111,17 @@ function App() {
             <Route path="/productos" element={
               <ProtectedRoute>
                 <Products />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/inventory" element={
+              <ProtectedRoute>
+                <Inventory />
+              </ProtectedRoute>
+            } />
+            <Route path="/inventario" element={
+              <ProtectedRoute>
+                <Inventory />
               </ProtectedRoute>
             } />
             
