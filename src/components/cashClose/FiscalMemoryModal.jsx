@@ -1,3 +1,4 @@
+import { exportZReportsToCSV } from '../../utils/seniatCsvExporter';
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   FileText, 
@@ -479,19 +480,47 @@ export default function FiscalMemoryModal({
         {/* Modal Footer */}
         <div style={{
           padding: '14px 24px', background: '#f8fafc', borderTop: '1px solid #e2e8f0',
-          display: 'flex', justifyContent: 'flex-end', gap: '10px'
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px'
         }}>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              padding: '9px 20px', background: '#0f172a', color: '#ffffff',
-              border: 'none', borderRadius: '8px', fontWeight: '700', fontSize: '0.85rem',
-              cursor: 'pointer'
-            }}
-          >
-            Cerrar Consulta
-          </button>
+          <div>
+            {resultData?.records && resultData.records.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  exportZReportsToCSV({
+                    selectedMonth: (startDate || '').split('-')[1] || '10',
+                    selectedYear: (startDate || '').split('-')[0] || '2026',
+                    zRecords: resultData.records,
+                    machineNumber: resultData.registeredMachineNumber,
+                    rif: resultData.rif
+                  });
+                  setSuccessMsg('¡Archivo CSV descargado con éxito! Listo para entregar al contador o importar a Excel.');
+                }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '8px',
+                  padding: '9px 18px', background: '#10b981', color: '#ffffff',
+                  border: 'none', borderRadius: '8px', fontWeight: '800', fontSize: '0.85rem',
+                  cursor: 'pointer', boxShadow: '0 2px 6px rgba(16,185,129,0.3)'
+                }}
+                title="Genera el archivo CSV con las columnas legales del SENIAT agrupado por Reportes Z diarios"
+              >
+                <Download size={16} /> 📥 Exportar Reportes Z para el Contador (.csv / Excel)
+              </button>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                padding: '9px 20px', background: '#0f172a', color: '#ffffff',
+                border: 'none', borderRadius: '8px', fontWeight: '700', fontSize: '0.85rem',
+                cursor: 'pointer'
+              }}
+            >
+              Cerrar Consulta
+            </button>
+          </div>
         </div>
 
       </div>
