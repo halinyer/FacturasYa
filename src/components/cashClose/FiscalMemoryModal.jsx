@@ -21,6 +21,7 @@ export default function FiscalMemoryModal({
   fiscalSettings,
   fiscalGetFiscalMemory,
   fiscalPrintFiscalMemory,
+  onSyncZReports,
   posInvoices = [],
   exchangeRate = 876.80
 }) {
@@ -482,30 +483,51 @@ export default function FiscalMemoryModal({
           padding: '14px 24px', background: '#f8fafc', borderTop: '1px solid #e2e8f0',
           display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px'
         }}>
-          <div>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             {resultData?.records && resultData.records.length > 0 && (
-              <button
-                type="button"
-                onClick={() => {
-                  exportZReportsToCSV({
-                    selectedMonth: (startDate || '').split('-')[1] || '10',
-                    selectedYear: (startDate || '').split('-')[0] || '2026',
-                    zRecords: resultData.records,
-                    machineNumber: resultData.registeredMachineNumber,
-                    rif: resultData.rif
-                  });
-                  setSuccessMsg('¡Archivo CSV descargado con éxito! Listo para entregar al contador o importar a Excel.');
-                }}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '8px',
-                  padding: '9px 18px', background: '#10b981', color: '#ffffff',
-                  border: 'none', borderRadius: '8px', fontWeight: '800', fontSize: '0.85rem',
-                  cursor: 'pointer', boxShadow: '0 2px 6px rgba(16,185,129,0.3)'
-                }}
-                title="Genera el archivo CSV con las columnas legales del SENIAT agrupado por Reportes Z diarios"
-              >
-                <Download size={16} /> 📥 Exportar Reportes Z para el Contador (.csv / Excel)
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    exportZReportsToCSV({
+                      selectedMonth: (startDate || '').split('-')[1] || '10',
+                      selectedYear: (startDate || '').split('-')[0] || '2026',
+                      zRecords: resultData.records,
+                      machineNumber: resultData.registeredMachineNumber,
+                      rif: resultData.rif
+                    });
+                    setSuccessMsg('¡Archivo oficial de Reportes Z exportado exitosamente!');
+                  }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    padding: '9px 16px', background: '#10b981', color: '#ffffff',
+                    border: 'none', borderRadius: '8px', fontWeight: '800', fontSize: '0.85rem',
+                    cursor: 'pointer', boxShadow: '0 2px 6px rgba(16,185,129,0.3)'
+                  }}
+                  title="Descargar archivo estructurado en Excel / CSV para el libro fiscal"
+                >
+                  <Download size={16} /> Exportar a Excel (.csv)
+                </button>
+
+                {onSyncZReports && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSyncZReports(resultData.records, resultData.registeredMachineNumber);
+                      setSuccessMsg(`¡${resultData.records.length} Reporte(s) Z asentados exitosamente en el Libro de Ventas!`);
+                    }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '8px',
+                      padding: '9px 16px', background: '#0284c7', color: '#ffffff',
+                      border: 'none', borderRadius: '8px', fontWeight: '800', fontSize: '0.85rem',
+                      cursor: 'pointer', boxShadow: '0 2px 6px rgba(2,132,199,0.3)'
+                    }}
+                    title="Asentar estos Reportes Z directamente en el Libro de Ventas del sistema"
+                  >
+                    <CheckCircle size={16} /> Asentar en Libro de Ventas
+                  </button>
+                )}
+              </>
             )}
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>

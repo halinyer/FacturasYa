@@ -1127,6 +1127,76 @@ export const db = {
     return true;
   },
 
+  // REPORTES Z (Libro de Ventas SENIAT para Maquinas Fiscales)
+  getZReports: () => {
+    return getStorageItem('pos_z_reports') || [];
+  },
+
+  addZReport: (zData) => {
+    const reports = getStorageItem('pos_z_reports') || [];
+    const newReport = {
+      ...zData,
+      id: zData.id || ('z_' + Date.now() + '_' + Math.random().toString(36).substring(7)),
+      createdAt: zData.createdAt || new Date().toISOString()
+    };
+    reports.unshift(newReport);
+    setStorageItem('pos_z_reports', reports);
+    return newReport;
+  },
+
+  updateZReport: (id, updateData) => {
+    const reports = getStorageItem('pos_z_reports') || [];
+    const idx = reports.findIndex(r => r.id === id);
+    if (idx === -1) return null;
+    reports[idx] = { ...reports[idx], ...updateData, updatedAt: new Date().toISOString() };
+    setStorageItem('pos_z_reports', reports);
+    return reports[idx];
+  },
+
+  deleteZReport: (id) => {
+    const reports = getStorageItem('pos_z_reports') || [];
+    const filtered = reports.filter(r => r.id !== id);
+    setStorageItem('pos_z_reports', filtered);
+    return true;
+  },
+
+  syncZReports: (printerRecords = [], machineSerial = '') => {
+    const reports = getStorageItem('pos_z_reports') || [];
+    let addedCount = 0;
+    printerRecords.forEach(rec => {
+      if (!rec || !rec.zNumber) return;
+      const zNum = parseInt(rec.zNumber, 10);
+      const existingIdx = reports.findIndex(r => parseInt(r.zNumber, 10) === zNum && (r.zDate === rec.zDate || !r.zDate));
+      const entry = {
+        id: existingIdx >= 0 ? reports[existingIdx].id : ('z_hw_' + zNum + '_' + Date.now()),
+        zNumber: zNum,
+        zDate: rec.zDate || new Date().toISOString().split('T')[0],
+        registeredMachineNumber: rec.registeredMachineNumber || machineSerial || 'N/A',
+        lastInvoiceNumber: rec.lastInvoiceNumber || 0,
+        firstInvoiceNumber: rec.firstInvoiceNumber || 1,
+        exemptSalesBs: Number(rec.exemptSalesBs || 0),
+        baseGeneral16Bs: Number(rec.baseGeneral16Bs || 0),
+        taxGeneral16Bs: Number(rec.taxGeneral16Bs || 0),
+        baseReduced8Bs: Number(rec.baseReduced8Bs || 0),
+        taxReduced8Bs: Number(rec.taxReduced8Bs || 0),
+        baseAdditionalBs: Number(rec.baseAdditionalBs || 0),
+        taxAdditionalBs: Number(rec.taxAdditionalBs || 0),
+        totalSalesBs: Number(rec.totalSalesBs || 0),
+        devolutionsBs: Number(rec.devolutionsBs || 0),
+        source: 'printer_hardware',
+        updatedAt: new Date().toISOString()
+      };
+      if (existingIdx >= 0) {
+        reports[existingIdx] = { ...reports[existingIdx], ...entry };
+      } else {
+        reports.unshift(entry);
+        addedCount++;
+      }
+    });
+    setStorageItem('pos_z_reports', reports);
+    return { success: true, count: reports.length, added: addedCount };
+  },
+
   // BACKUP & RESTORE (100% Offline Data Protection)
   exportBackupData: () => {
     const data = {

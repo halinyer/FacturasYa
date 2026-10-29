@@ -4,6 +4,8 @@ import { CLIENT_CONFIG } from '../config/clientConfig';
 import { formatVE, exportSeniatBookToCSV } from '../utils/seniatCsvExporter';
 import TaxSummaryForma30 from '../components/fiscalBooks/TaxSummaryForma30';
 import PurchaseFormModal from '../components/fiscalBooks/PurchaseFormModal';
+import ZReportFormModal from '../components/fiscalBooks/ZReportFormModal';
+import { exportZReportsToCSV } from '../utils/seniatCsvExporter';
 import { 
   BookOpen, 
   FileSpreadsheet, 
@@ -16,6 +18,7 @@ import {
   AlertCircle, 
   Receipt,
   Building2,
+  Cpu,
   FileText
 } from 'lucide-react';
 import FiscalMemoryModal from '../components/cashClose/FiscalMemoryModal';
@@ -26,9 +29,14 @@ export default function FiscalBooks() {
   const { 
     invoices = [], 
     purchases = [], 
+    zReports = [],
     addPurchase, 
     updatePurchase, 
     deletePurchase,
+    addZReport,
+    updateZReport,
+    deleteZReport,
+    syncZReports,
     voidInvoice,
     restoreInvoice,
     deleteInvoice,
@@ -38,7 +46,7 @@ export default function FiscalBooks() {
     exchangeRate = 876.80 
   } = useData() || {};
 
-  const [activeTab, setActiveTab] = useState('ventas'); // 'ventas' | 'compras' | 'resumen'
+  const [activeTab, setActiveTab] = useState('ventas_z'); // 'ventas_z' | 'ventas_detalle' | 'compras' | 'resumen'
   
   // Filtros de período
   const now = new Date();
@@ -54,6 +62,8 @@ export default function FiscalBooks() {
   // Modales
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [showFiscalMemoryModal, setShowFiscalMemoryModal] = useState(false);
+  const [showZReportModal, setShowZReportModal] = useState(false);
+  const [editingZReport, setEditingZReport] = useState(null);
   const [editingPurchase, setEditingPurchase] = useState(null);
   const [invoiceToVoidFiscal, setInvoiceToVoidFiscal] = useState(null);
   const [voidReasonFiscal, setVoidReasonFiscal] = useState('');
@@ -220,6 +230,133 @@ export default function FiscalBooks() {
     });
   }, [purchases, selectedYear, selectedMonth, selectedFortnight, exchangeRate]);
 
+  // 1.5. Consolidado Oficial por Reportes Z (Máquinas Fiscales SENIAT)
+  const zReportBookData = useMemo(() => {
+    // A. Z Reports registrados (manuales o leídos por hardware)
+    const savedList = (zReports || [])
+      .filter(z => filterByPeriod(z.zDate || z.createdAt))
+      .map(z => ({
+        ...z,
+        zNumber: parseInt(z.zNumber, 10),
+        isManualOrSynced: true
+      }));
+
+    // B. Agrupar facturas fiscales diarias para días que no tengan Z report guardado
+    const dailyInvoices = {};
+    (invoices || []).forEach(inv => {
+      const isFiscalDoc = Boolean(inv.isFiscalInvoice || inv.docType === 'fiscal' || inv.fiscalInvoiceNumber || inv.isFiscal || inv.formatType === 'seniat');
+      if (!isFiscalDoc) return;
+      if (!filterByPeriod(inv.date || inv.createdAt)) return;
+
+      const isVoided = (inv.status || '').toLowerCase() === 'voided' || (inv.status || '').toLowerCase() === 'anulada';
+      const d = (inv.date || inv.createdAt || '').split('T')[0];
+      if (!d) return;
+
+      if (!dailyInvoices[d]) {
+        dailyInvoices[d] = {
+          date: d,
+          invoices: [],
+          totalBs: 0,
+          exemptBs: 0,
+          baseBs: 0,
+          ivaBs: 0,
+          igtfBs: 0,
+          devolutionsBs: 0
+        };
+      }
+
+      const invRate = Number(inv.exchangeRate) || exchangeRate || 876.80;
+      const totalUSD = Number(inv.totalUSD || 0);
+      const totalBs = Number(inv.totalBs || (totalUSD * invRate));
+      const baseUSD = Number(inv.baseImponibleUSD || (totalUSD / 1.16));
+      const baseBs = Number((inv.baseImponibleBs || (baseUSD * invRate)).toFixed(2));
+      const ivaBs = Number((inv.ivaBs || (baseBs * 0.16)).toFixed(2));
+      const igtfBs = Number(inv.igtfBs || 0);
+      const exemptBs = Number(inv.exemptBs || 0);
+
+      const docNum = parseInt(inv.fiscalInvoiceNumber || inv.invoiceNumber || String(inv.id).slice(-4), 10) || 0;
+
+      if (!isVoided) {
+        if (docNum > 0) dailyInvoices[d].invoices.push(docNum);
+        dailyInvoices[d].totalBs += totalBs;
+        dailyInvoices[d].exemptBs += exemptBs;
+        dailyInvoices[d].baseBs += baseBs;
+        dailyInvoices[d].ivaBs += ivaBs;
+        dailyInvoices[d].igtfBs += igtfBs;
+      } else {
+        dailyInvoices[d].devolutionsBs += totalBs;
+      }
+    });
+
+    const combined = [...savedList];
+    const savedDates = new Set(savedList.map(z => z.zDate));
+
+    let autoZCount = 1;
+    Object.keys(dailyInvoices).sort().forEach(dateStr => {
+      if (!savedDates.has(dateStr)) {
+        const day = dailyInvoices[dateStr];
+        const nums = day.invoices.sort((a,b) => a - b);
+        const first = nums.length > 0 ? nums[0] : 1;
+        const last = nums.length > 0 ? nums[nums.length - 1] : first;
+
+        combined.push({
+          id: 'z_auto_' + dateStr,
+          zNumber: autoZCount++,
+          zDate: dateStr,
+          registeredMachineNumber: fiscalSettings?.registeredMachineNumber || 'Z1B1234567',
+          firstInvoiceNumber: first,
+          lastInvoiceNumber: last,
+          totalSalesBs: Number(day.totalBs.toFixed(2)),
+          exemptSalesBs: Number(day.exemptBs.toFixed(2)),
+          baseGeneral16Bs: Number(day.baseBs.toFixed(2)),
+          taxGeneral16Bs: Number(day.ivaBs.toFixed(2)),
+          igtfBs: Number(day.igtfBs.toFixed(2)),
+          devolutionsBs: Number(day.devolutionsBs.toFixed(2)),
+          source: 'pos_auto'
+        });
+      }
+    });
+
+    combined.sort((a, b) => (a.zDate || '').localeCompare(b.zDate || '') || (a.zNumber - b.zNumber));
+
+    let op = 1;
+    return combined.map(z => {
+      const dParts = (z.zDate || '').split('-');
+      const formattedDate = dParts.length === 3 ? `${dParts[2]}/${dParts[1]}/${dParts[0]}` : z.zDate;
+      const firstStr = String(z.firstInvoiceNumber || 1).padStart(6, '0');
+      const lastStr = String(z.lastInvoiceNumber || z.firstInvoiceNumber || 1).padStart(6, '0');
+      const invoiceRange = `${firstStr} a ${lastStr}`;
+      const count = Math.max(1, (z.lastInvoiceNumber || 1) - (z.firstInvoiceNumber || 1) + 1);
+      const netSalesBs = Number(z.totalSalesBs || 0) - Number(z.devolutionsBs || 0);
+
+      return {
+        ...z,
+        op: op++,
+        formattedDate,
+        zLabel: `Z-${String(z.zNumber || 0).padStart(4, '0')}`,
+        invoiceRange,
+        countInvoices: count,
+        netSalesBs: Number(netSalesBs.toFixed(2))
+      };
+    });
+  }, [zReports, invoices, selectedYear, selectedMonth, selectedFortnight, exchangeRate, fiscalSettings]);
+
+  // Totales Reportes Z
+  const zReportsTotals = useMemo(() => {
+    return zReportBookData.reduce((acc, row) => {
+      acc.totalSalesBs += Number(row.totalSalesBs || 0);
+      acc.exemptBs += Number(row.exemptSalesBs || 0);
+      acc.baseBs += Number(row.baseGeneral16Bs || 0);
+      acc.ivaBs += Number(row.taxGeneral16Bs || 0);
+      acc.igtfBs += Number(row.igtfBs || 0);
+      acc.devolutionsBs += Number(row.devolutionsBs || 0);
+      acc.netSalesBs += Number(row.netSalesBs || 0);
+      acc.count += 1;
+      return acc;
+    }, { totalSalesBs: 0, exemptBs: 0, baseBs: 0, ivaBs: 0, igtfBs: 0, devolutionsBs: 0, netSalesBs: 0, count: 0 });
+  }, [zReportBookData]);
+
+
   // Totales Ventas
   const salesTotals = useMemo(() => {
     return salesBookData.reduce((acc, row) => {
@@ -384,8 +521,21 @@ export default function FiscalBooks() {
 
   // 3. Exportación a Excel / CSV Oficial SENIAT (Formato Limpio Nativo Windows)
   const handleExportCSV = () => {
+    if (activeTab === 'ventas_z') {
+      const filename = exportZReportsToCSV({
+        selectedMonth,
+        selectedYear,
+        zRecords: zReportBookData,
+        machineNumber: fiscalSettings?.registeredMachineNumber || 'Z1B1234567',
+        rif: CLIENT_CONFIG.rif,
+        legalName: CLIENT_CONFIG.legalName
+      });
+      showToast(`¡Archivo descargado para Excel! (${filename})`);
+      return;
+    }
+
     const filename = exportSeniatBookToCSV({
-      isSales: activeTab === 'ventas',
+      isSales: activeTab === 'ventas_detalle',
       selectedMonth,
       selectedYear,
       selectedFortnight,
@@ -477,10 +627,29 @@ export default function FiscalBooks() {
               border: 'none', borderRadius: '10px', fontWeight: '700',
               cursor: 'pointer', fontSize: '0.88rem', boxShadow: '0 2px 4px rgba(2,132,199,0.2)'
             }}
-            title="Consultar los Reportes Z de la Memoria Fiscal grabados en el chip de la máquina física por rango de fechas"
+            title="Consultar y sincronizar los Reportes Z grabados en la memoria física de la máquina fiscal"
           >
-            <BookOpen size={16} /> Consultar Memoria Fiscal
+            <Cpu size={16} /> Consultar Memoria Fiscal
           </button>
+
+          {activeTab === 'ventas_z' && (
+            <button
+              type="button"
+              onClick={() => {
+                setEditingZReport(null);
+                setShowZReportModal(true);
+              }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                padding: '9px 16px', background: '#2563eb', color: '#ffffff',
+                border: 'none', borderRadius: '10px', fontWeight: '700',
+                cursor: 'pointer', fontSize: '0.88rem', boxShadow: '0 2px 4px rgba(37,99,235,0.2)'
+              }}
+              title="Registrar manualmente un Reporte Z emitido en papel"
+            >
+              <Plus size={16} /> Registrar Reporte Z
+            </button>
+          )}
 
           {activeTab === 'compras' && (
             <button
@@ -531,17 +700,32 @@ export default function FiscalBooks() {
         <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: '10px', padding: '3px', gap: '4px' }}>
           <button
             type="button"
-            onClick={() => setActiveTab('ventas')}
+            onClick={() => setActiveTab('ventas_z')}
             style={{
               display: 'flex', alignItems: 'center', gap: '6px',
               padding: '7px 16px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '700',
               border: 'none', cursor: 'pointer',
-              background: activeTab === 'ventas' ? '#ffffff' : 'transparent',
-              color: activeTab === 'ventas' ? '#1d4ed8' : '#64748b',
-              boxShadow: activeTab === 'ventas' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none'
+              background: activeTab === 'ventas_z' ? '#ffffff' : 'transparent',
+              color: activeTab === 'ventas_z' ? '#0284c7' : '#64748b',
+              boxShadow: activeTab === 'ventas_z' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none'
             }}
           >
-            <Receipt size={16} /> Libro de Ventas ({salesBookData.length})
+            <Cpu size={16} color={activeTab === 'ventas_z' ? '#0284c7' : '#64748b'} /> Libro de Ventas (Reportes Z) ({zReportBookData.length})
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('ventas_detalle')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              padding: '7px 16px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '700',
+              border: 'none', cursor: 'pointer',
+              background: activeTab === 'ventas_detalle' ? '#ffffff' : 'transparent',
+              color: activeTab === 'ventas_detalle' ? '#1d4ed8' : '#64748b',
+              boxShadow: activeTab === 'ventas_detalle' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none'
+            }}
+          >
+            <Receipt size={16} /> Detalle de Facturas ({salesBookData.length})
           </button>
 
           <button
@@ -635,17 +819,26 @@ export default function FiscalBooks() {
         <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px' }}>
           <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '600' }}>TOTAL FACTURADO (CON IVA)</span>
           <div style={{ fontSize: '1.3rem', fontWeight: '800', color: '#0f172a', marginTop: '4px' }}>
-            Bs. {formatVE(activeTab === 'ventas' ? salesTotals.totalBs : purchasesTotals.totalBs)}
+            Bs. {formatVE(
+              activeTab === 'ventas_z' ? zReportsTotals.totalSalesBs :
+              activeTab === 'ventas_detalle' ? salesTotals.totalBs : purchasesTotals.totalBs
+            )}
           </div>
           <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: '700' }}>
-            Equiv. {formatUSD(activeTab === 'ventas' ? salesTotals.totalUSD : purchasesTotals.totalUSD)}
+            Equiv. {formatUSD(
+              activeTab === 'ventas_z' ? (zReportsTotals.totalSalesBs / exchangeRate) :
+              activeTab === 'ventas_detalle' ? salesTotals.totalUSD : purchasesTotals.totalUSD
+            )}
           </span>
         </div>
 
         <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px' }}>
           <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '600' }}>BASE IMPONIBLE (G 16%)</span>
           <div style={{ fontSize: '1.3rem', fontWeight: '800', color: '#2563eb', marginTop: '4px' }}>
-            Bs. {formatVE(activeTab === 'ventas' ? salesTotals.baseBs : purchasesTotals.baseBs)}
+            Bs. {formatVE(
+              activeTab === 'ventas_z' ? zReportsTotals.baseBs :
+              activeTab === 'ventas_detalle' ? salesTotals.baseBs : purchasesTotals.baseBs
+            )}
           </div>
           <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
             Alícuota general 16%
@@ -654,21 +847,26 @@ export default function FiscalBooks() {
 
         <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px' }}>
           <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '600' }}>
-            {activeTab === 'ventas' ? 'DÉBITO FISCAL (IVA COBRADO)' : 'CRÉDITO FISCAL (IVA DEDUCIBLE)'}
+            {activeTab !== 'compras' ? 'DÉBITO FISCAL (IVA COBRADO)' : 'CRÉDITO FISCAL (IVA DEDUCIBLE)'}
           </span>
-          <div style={{ fontSize: '1.3rem', fontWeight: '800', color: activeTab === 'ventas' ? '#d97706' : '#059669', marginTop: '4px' }}>
-            Bs. {formatVE(activeTab === 'ventas' ? salesTotals.ivaBs : purchasesTotals.ivaBs)}
+          <div style={{ fontSize: '1.3rem', fontWeight: '800', color: activeTab !== 'compras' ? '#d97706' : '#059669', marginTop: '4px' }}>
+            Bs. {formatVE(
+              activeTab === 'ventas_z' ? zReportsTotals.ivaBs :
+              activeTab === 'ventas_detalle' ? salesTotals.ivaBs : purchasesTotals.ivaBs
+            )}
           </div>
           <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
             16% s/ Base Imponible
           </span>
         </div>
 
-        {activeTab === 'ventas' ? (
+        {activeTab !== 'compras' ? (
           <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px' }}>
             <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '600' }}>IGTF PERCIBIDO (3% DIVISAS)</span>
             <div style={{ fontSize: '1.3rem', fontWeight: '800', color: '#7c3aed', marginTop: '4px' }}>
-              Bs. {formatVE(salesTotals.igtfBs)}
+              Bs. {formatVE(
+                activeTab === 'ventas_z' ? zReportsTotals.igtfBs : salesTotals.igtfBs
+              )}
             </div>
             <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
               Enterable al SENIAT
@@ -687,8 +885,174 @@ export default function FiscalBooks() {
         )}
       </div>
 
-      {/* TAB 1: TABLA LIBRO DE VENTAS */}
-      {activeTab === 'ventas' && (
+            {/* TAB 1: LIBRO DE VENTAS - CONSOLIDADO OFICIAL POR REPORTES Z */}
+      {activeTab === 'ventas_z' && (
+        <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '14px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '800', color: '#0f172a' }}>
+                Libro de Ventas — Consolidado Diario por Reportes Z (Máquinas Fiscales)
+              </h3>
+              <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                Base Legal: Providencia Administrativa SENIAT SNAT/2011/00071 (Artículos 77 y 78)
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '4px 10px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: '700' }}>
+                {zReportBookData.length} Reporte(s) Z en el período
+              </span>
+            </div>
+          </div>
+
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', textAlign: 'left', minWidth: '1150px' }}>
+              <thead style={{ background: '#f8fafc', borderBottom: '1.5px solid #cbd5e1', color: '#475569' }}>
+                <tr>
+                  <th style={{ padding: '10px 12px' }}>Nº Op.</th>
+                  <th style={{ padding: '10px 12px' }}>Fecha Z</th>
+                  <th style={{ padding: '10px 12px' }}>Nº Reporte Z</th>
+                  <th style={{ padding: '10px 12px' }}>Serial Máquina</th>
+                  <th style={{ padding: '10px 12px' }}>Rango Facturas</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'center' }}>Cant.</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'right' }}>Ventas Exentas</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'right' }}>Base 16% (G)</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'center' }}>Alíc.</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'right' }}>Débito IVA 16%</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'right' }}>IGTF 3%</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'right' }}>Devoluciones</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'right' }}>Total Ventas (Bs.)</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'center' }}>Origen / Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {zReportBookData.length > 0 ? (
+                  zReportBookData.map((row, idx) => (
+                    <tr
+                      key={row.id || idx}
+                      style={{
+                        borderBottom: '1px solid #e2e8f0',
+                        background: idx % 2 === 0 ? '#ffffff' : '#f8fafc'
+                      }}
+                    >
+                      <td style={{ padding: '10px 12px', fontWeight: '800', color: '#64748b' }}>
+                        {row.op}
+                      </td>
+                      <td style={{ padding: '10px 12px', fontWeight: '700', color: '#0f172a' }}>
+                        {row.formattedDate}
+                      </td>
+                      <td style={{ padding: '10px 12px', fontWeight: '800', color: '#0284c7' }}>
+                        {row.zLabel}
+                      </td>
+                      <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontSize: '0.8rem', color: '#475569' }}>
+                        {row.registeredMachineNumber || fiscalSettings?.registeredMachineNumber || 'Z1B1234567'}
+                      </td>
+                      <td style={{ padding: '10px 12px', color: '#334155', fontWeight: '600' }}>
+                        {row.invoiceRange}
+                      </td>
+                      <td style={{ padding: '10px 12px', textAlign: 'center', color: '#64748b' }}>
+                        {row.countInvoices}
+                      </td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', color: '#64748b' }}>
+                        Bs. {formatVE(row.exemptSalesBs)}
+                      </td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '700', color: '#2563eb' }}>
+                        Bs. {formatVE(row.baseGeneral16Bs)}
+                      </td>
+                      <td style={{ padding: '10px 12px', textAlign: 'center', color: '#475569' }}>
+                        16%
+                      </td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '800', color: '#d97706' }}>
+                        Bs. {formatVE(row.taxGeneral16Bs)}
+                      </td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', color: row.igtfBs > 0 ? '#7c3aed' : '#94a3b8', fontWeight: row.igtfBs > 0 ? '700' : '400' }}>
+                        Bs. {formatVE(row.igtfBs)}
+                      </td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', color: row.devolutionsBs > 0 ? '#dc2626' : '#94a3b8' }}>
+                        Bs. {formatVE(row.devolutionsBs)}
+                      </td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '900', color: '#059669', fontSize: '0.88rem' }}>
+                        Bs. {formatVE(row.totalSalesBs)}
+                      </td>
+                      <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                          <span style={{
+                            fontSize: '0.7rem', padding: '2px 7px', borderRadius: '4px', fontWeight: '700',
+                            background: row.source === 'manual' ? '#fef3c7' : row.source === 'printer_hardware' ? '#e0f2fe' : '#f1f5f9',
+                            color: row.source === 'manual' ? '#92400e' : row.source === 'printer_hardware' ? '#0369a1' : '#475569'
+                          }}>
+                            {row.source === 'manual' ? 'Manual' : row.source === 'printer_hardware' ? 'Impresora' : 'POS'}
+                          </span>
+                          {row.isManualOrSynced && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (window.confirm(`¿Eliminar el Reporte ${row.zLabel} del libro?`)) {
+                                  deleteZReport(row.id);
+                                  showToast('Reporte Z eliminado del libro');
+                                }
+                              }}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '2px' }}
+                              title="Eliminar registro"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={14} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                        <Cpu size={32} color="#94a3b8" />
+                        <div>No hay Reportes Z registrados para este período fiscal.</div>
+                        <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+                          Puedes usar el botón <strong>"+ Registrar Reporte Z"</strong> para asentar un Z físico o <strong>"Consultar Memoria Fiscal"</strong> para leerlo de la máquina.
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+
+              {/* Pie de Totales Oficiales */}
+              {zReportBookData.length > 0 && (
+                <tfoot style={{ background: '#f8fafc', borderTop: '2px solid #cbd5e1', fontWeight: '800' }}>
+                  <tr>
+                    <td colSpan={6} style={{ padding: '12px', color: '#0f172a', textAlign: 'right', fontSize: '0.85rem' }}>
+                      TOTALES GENERALES (FORMA 30 SENIAT):
+                    </td>
+                    <td style={{ padding: '12px', textAlign: 'right', color: '#475569' }}>
+                      Bs. {formatVE(zReportsTotals.exemptBs)}
+                    </td>
+                    <td style={{ padding: '12px', textAlign: 'right', color: '#2563eb' }}>
+                      Bs. {formatVE(zReportsTotals.baseBs)}
+                    </td>
+                    <td style={{ padding: '12px', textAlign: 'center' }}>-</td>
+                    <td style={{ padding: '12px', textAlign: 'right', color: '#d97706' }}>
+                      Bs. {formatVE(zReportsTotals.ivaBs)}
+                    </td>
+                    <td style={{ padding: '12px', textAlign: 'right', color: '#7c3aed' }}>
+                      Bs. {formatVE(zReportsTotals.igtfBs)}
+                    </td>
+                    <td style={{ padding: '12px', textAlign: 'right', color: '#dc2626' }}>
+                      Bs. {formatVE(zReportsTotals.devolutionsBs)}
+                    </td>
+                    <td style={{ padding: '12px', textAlign: 'right', color: '#059669', fontSize: '0.92rem', fontWeight: '900' }}>
+                      Bs. {formatVE(zReportsTotals.totalSalesBs)}
+                    </td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 2: DETALLE DE FACTURAS */}
+      {activeTab === 'ventas_detalle' && (
         <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '14px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
           <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
             <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '800' }}>
@@ -1145,6 +1509,28 @@ export default function FiscalBooks() {
         </div>
       )}
 
+      {/* Modal para Registrar / Editar Reporte Z */}
+      {showZReportModal && (
+        <ZReportFormModal
+          isOpen={showZReportModal}
+          onClose={() => {
+            setShowZReportModal(false);
+            setEditingZReport(null);
+          }}
+          editingZ={editingZReport}
+          defaultMachineSerial={fiscalSettings?.registeredMachineNumber || 'Z1B1234567'}
+          onSave={(payload) => {
+            if (editingZReport) {
+              updateZReport(editingZReport.id, payload);
+              showToast('¡Reporte Z actualizado con éxito!');
+            } else {
+              addZReport(payload);
+              showToast('¡Reporte Z registrado con éxito en el Libro de Ventas!');
+            }
+          }}
+        />
+      )}
+
       {/* Modal Consulta de Memoria Fiscal SENIAT */}
       <FiscalMemoryModal
         isOpen={showFiscalMemoryModal}
@@ -1153,6 +1539,7 @@ export default function FiscalBooks() {
         fiscalSettings={fiscalSettings}
         fiscalGetFiscalMemory={fiscalGetFiscalMemory}
         fiscalPrintFiscalMemory={fiscalPrintFiscalMemory}
+        onSyncZReports={(records, serial) => syncZReports(records, serial)}
         posInvoices={invoices}
         exchangeRate={exchangeRate}
       />

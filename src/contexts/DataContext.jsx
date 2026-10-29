@@ -22,6 +22,7 @@ export const DataProvider = ({ children }) => {
   const [cashCloses, setCashCloses] = useState([]);
   const [openTabs, setOpenTabs] = useState([]);
   const [purchases, setPurchases] = useState([]);
+  const [zReports, setZReports] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [inventory, setInventory] = useState([]);
   const [inventoryLogs, setInventoryLogs] = useState([]);
@@ -99,6 +100,7 @@ export const DataProvider = ({ children }) => {
       const closes = [...(db.getCashCloses() || [])];
       const tabs = [...(db.getOpenTabs() || [])];
       const pur = [...(db.getPurchases() || [])];
+      const zReps = [...(db.getZReports() || [])];
       const exps = [...(db.getExpenses() || [])];
       const invItems = [...(db.getInventory() || [])];
       const invLogs = [...(db.getInventoryLogs() || [])];
@@ -111,6 +113,7 @@ export const DataProvider = ({ children }) => {
       setCashCloses(closes);
       setOpenTabs(tabs);
       setPurchases(pur);
+      setZReports(zReps);
       setExpenses(exps);
       setInventory(invItems);
       setInventoryLogs(invLogs);
@@ -616,6 +619,30 @@ export const DataProvider = ({ children }) => {
     return res;
   };
 
+  const addZReport = (zData) => {
+    const created = db.addZReport(zData);
+    setZReports([...(db.getZReports() || [])]);
+    return created;
+  };
+
+  const updateZReport = (id, zData) => {
+    const updated = db.updateZReport(id, zData);
+    setZReports([...(db.getZReports() || [])]);
+    return updated;
+  };
+
+  const deleteZReport = (id) => {
+    const res = db.deleteZReport(id);
+    setZReports([...(db.getZReports() || [])]);
+    return res;
+  };
+
+  const syncZReports = (printerRecords, machineSerial) => {
+    const res = db.syncZReports(printerRecords, machineSerial);
+    setZReports([...(db.getZReports() || [])]);
+    return res;
+  };
+
 
   // MÉTODOS DE INVENTARIO
   const adjustInventoryStock = (params) => {
@@ -659,6 +686,7 @@ export const DataProvider = ({ children }) => {
       cloudMonitorSettings,
       updateCloudMonitorSettings,
       purchases,
+      zReports,
       payments,
       cashCloses,
       openTabs,
