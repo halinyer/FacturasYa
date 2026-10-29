@@ -163,34 +163,49 @@ export default function Inventory() {
   };
 
   const handleSaveItem = (e) => {
-    e.preventDefault();
-    if (!itemForm.name.trim()) {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!itemForm.name || !itemForm.name.trim()) {
       showToast('El nombre del insumo es obligatorio', 'error');
       return;
     }
 
-    if (editingItem) {
-      updateInventoryItem(editingItem.id, {
-        name: itemForm.name.trim(),
-        category: itemForm.category,
-        unit: itemForm.unit,
-        minStock: Number(itemForm.minStock) || 10,
-        costUSD: Number(itemForm.costUSD) || 0
-      });
-      showToast('Insumo actualizado exitosamente');
-    } else {
-      addInventoryItem({
-        name: itemForm.name.trim(),
-        category: itemForm.category,
-        unit: itemForm.unit,
-        currentStock: Number(itemForm.currentStock) || 0,
-        minStock: Number(itemForm.minStock) || 10,
-        costUSD: Number(itemForm.costUSD) || 0,
-        user: currentUserName
-      });
-      showToast('Nuevo insumo registrado en el inventario');
+    try {
+      if (editingItem) {
+        if (typeof updateInventoryItem === 'function') {
+          updateInventoryItem(editingItem.id, {
+            name: itemForm.name.trim(),
+            category: itemForm.category,
+            unit: itemForm.unit,
+            minStock: Number(itemForm.minStock) || 10,
+            costUSD: Number(itemForm.costUSD) || 0
+          });
+          showToast('Insumo actualizado exitosamente');
+        } else {
+          showToast('Error: Servicio de inventario no disponible', 'error');
+          return;
+        }
+      } else {
+        if (typeof addInventoryItem === 'function') {
+          addInventoryItem({
+            name: itemForm.name.trim(),
+            category: itemForm.category,
+            unit: itemForm.unit,
+            currentStock: Number(itemForm.currentStock) || 0,
+            minStock: Number(itemForm.minStock) || 10,
+            costUSD: Number(itemForm.costUSD) || 0,
+            user: currentUserName
+          });
+          showToast('Nuevo insumo registrado en el inventario');
+        } else {
+          showToast('Error: Servicio de inventario no disponible', 'error');
+          return;
+        }
+      }
+      setShowItemModal(false);
+    } catch (err) {
+      console.error(err);
+      showToast('Error al guardar: ' + (err?.message || err), 'error');
     }
-    setShowItemModal(false);
   };
 
   const handleDeleteItem = (id, name) => {
@@ -212,29 +227,36 @@ export default function Inventory() {
   };
 
   const handleSaveEntry = (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     const qty = Number(entryForm.quantity);
     if (!entryForm.inventoryId || isNaN(qty) || qty <= 0) {
       showToast('Ingresa una cantidad válida mayor a 0', 'error');
       return;
     }
 
-    adjustInventoryStock({
-      id: entryForm.inventoryId,
-      delta: qty,
-      type: 'entry',
-      reason: entryForm.reason.trim() || 'Entrada de mercancía',
-      user: currentUserName
-    });
+    try {
+      if (typeof adjustInventoryStock === 'function') {
+        adjustInventoryStock({
+          id: entryForm.inventoryId,
+          delta: qty,
+          type: 'entry',
+          reason: entryForm.reason.trim() || 'Entrada de mercancía',
+          user: currentUserName
+        });
+      }
 
-    if (entryForm.costUSD && !isNaN(Number(entryForm.costUSD))) {
-      updateInventoryItem(entryForm.inventoryId, {
-        costUSD: Number(entryForm.costUSD)
-      });
+      if (entryForm.costUSD && !isNaN(Number(entryForm.costUSD)) && typeof updateInventoryItem === 'function') {
+        updateInventoryItem(entryForm.inventoryId, {
+          costUSD: Number(entryForm.costUSD)
+        });
+      }
+
+      showToast(`+${qty} unidades sumadas al inventario`);
+      setShowEntryModal(false);
+    } catch (err) {
+      console.error(err);
+      showToast('Error al registrar entrada: ' + (err?.message || err), 'error');
     }
-
-    showToast(`+${qty} unidades sumadas al inventario`);
-    setShowEntryModal(false);
   };
 
   // Registro de Merma / Desecho
@@ -248,23 +270,30 @@ export default function Inventory() {
   };
 
   const handleSaveWaste = (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     const qty = Number(wasteForm.quantity);
     if (!wasteForm.inventoryId || isNaN(qty) || qty <= 0) {
       showToast('Ingresa una cantidad válida mayor a 0', 'error');
       return;
     }
 
-    adjustInventoryStock({
-      id: wasteForm.inventoryId,
-      delta: -qty,
-      type: 'waste',
-      reason: wasteForm.reason.trim() || 'Merma / Desecho de cocina',
-      user: currentUserName
-    });
+    try {
+      if (typeof adjustInventoryStock === 'function') {
+        adjustInventoryStock({
+          id: wasteForm.inventoryId,
+          delta: -qty,
+          type: 'waste',
+          reason: wasteForm.reason.trim() || 'Merma / Desecho de cocina',
+          user: currentUserName
+        });
+      }
 
-    showToast(`Merma registrada: -${qty} unidades`);
-    setShowWasteModal(false);
+      showToast(`Merma registrada: -${qty} unidades`);
+      setShowWasteModal(false);
+    } catch (err) {
+      console.error(err);
+      showToast('Error al registrar merma: ' + (err?.message || err), 'error');
+    }
   };
 
   // Conteo Diario al Cierre de Turno (Decisión 2)
@@ -1041,6 +1070,7 @@ export default function Inventory() {
                 </button>
                 <button
                   type="submit"
+                  onClick={handleSaveItem}
                   style={{
                     padding: '9px 20px', borderRadius: '8px', border: 'none',
                     background: 'var(--brand-primary, #D52829)', color: '#ffffff', fontWeight: '800', cursor: 'pointer'
@@ -1152,6 +1182,7 @@ export default function Inventory() {
                 </button>
                 <button
                   type="submit"
+                  onClick={handleSaveEntry}
                   style={{
                     padding: '9px 20px', borderRadius: '8px', border: 'none',
                     background: '#16a34a', color: '#ffffff', fontWeight: '800', cursor: 'pointer'
@@ -1240,6 +1271,7 @@ export default function Inventory() {
                 </button>
                 <button
                   type="submit"
+                  onClick={handleSaveWaste}
                   style={{
                     padding: '9px 20px', borderRadius: '8px', border: 'none',
                     background: '#ca8a04', color: '#ffffff', fontWeight: '800', cursor: 'pointer'
