@@ -883,7 +883,15 @@ function createLocalServer() {
       start_url: '/monitor',
       display: 'standalone',
       background_color: '#f7f7f9',
-      theme_color: (fr.branding && fr.branding.colors && fr.branding.colors.primary) || '#D52829'
+      theme_color: (fr.branding && fr.branding.colors && fr.branding.colors.primary) || '#D52829',
+      icons: [
+        {
+          src: '/happydays/logo.png',
+          sizes: '192x192 512x512',
+          type: 'image/png',
+          purpose: 'any maskable'
+        }
+      ]
     });
   });
 

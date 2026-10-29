@@ -19,6 +19,8 @@ function renderOwnerMonitorView() {
   <meta name="apple-mobile-web-app-title" content="Dueño · Happy Days" />
   <meta name="theme-color" content="#D52829" id="theme-color" />
   <link rel="manifest" href="/monitor-manifest.json" />
+  <link rel="apple-touch-icon" href="/happydays/logo.png" />
+  <link rel="icon" type="image/png" href="/happydays/logo.png" />
   <title>Panel del Dueño · FacturaPOS</title>
 
   <!-- Tipografía oficial del sistema de escritorio -->
@@ -297,6 +299,7 @@ function renderOwnerMonitorView() {
         </div>
       </div>
       <div class="om-topbar-actions">
+        <button id="pwa-install-btn" style="display:none; align-items:center; gap:4px; padding:4px 8px; border-radius:8px; background:var(--brand-primary, #D52829); color:#fff; font-size:0.72rem; font-weight:800; border:none; cursor:pointer;" onclick="triggerPwaInstall()">📲 Instalar</button>
         <span class="om-conn" id="conn-badge"><span class="om-dot"></span><span id="conn-text">EN VIVO</span></span>
         <button onclick="refreshFromServer()" class="om-icon-btn" title="Actualizar datos">🔄</button>
         <button onclick="openReconnectModal()" class="om-icon-btn" title="Reconectar con nuevo enlace">🔗</button>
@@ -1165,6 +1168,29 @@ function renderOwnerMonitorView() {
         }
       });
     } catch (e) {}
+
+    var deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', function (e) {
+      e.preventDefault();
+      deferredPrompt = e;
+      var btn = document.getElementById('pwa-install-btn');
+      if (btn) btn.style.display = 'inline-flex';
+    });
+
+    window.triggerPwaInstall = function () {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then(function (choice) {
+          if (choice && choice.outcome === 'accepted') {
+            var btn = document.getElementById('pwa-install-btn');
+            if (btn) btn.style.display = 'none';
+          }
+          deferredPrompt = null;
+        });
+      } else {
+        alert('Para agregar el Monitor de Happy Days a la pantalla de inicio:\n\n• En Android (Chrome): Toca los 3 puntos (⋮) en la esquina superior derecha y selecciona "Agregar a la pantalla principal" o "Instalar aplicación".\n\n• En iPhone (Safari): Toca el botón Compartir (icono de cuadrado con flecha hacia arriba) y selecciona "Agregar al inicio".');
+      }
+    };
 
     window.addEventListener('online', function () { loadState(); });
     window.addEventListener('offline', function () { setOnline(false); render(); });
