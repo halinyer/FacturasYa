@@ -78,21 +78,35 @@ export default function PaywallLockScreen({
           letterSpacing: '0.5px',
           marginBottom: '10px'
         }}>
-          {subStatus?.isSuspended ? 'Servicio Suspendido' : 'Período de Suscripción Finalizado'}
+          {subStatus?.isClockTampered
+            ? ' Manipulación de Reloj Detectada'
+            : subStatus?.isSuspended
+              ? 'Servicio Suspendido'
+              : 'Período de Suscripción Finalizado'}
         </span>
 
         <h1 style={{ margin: '0 0 10px 0', fontSize: '1.65rem', fontWeight: '900', color: '#0f172a', letterSpacing: '-0.4px' }}>
-          Renueva tu Suscripción para Seguir Facturando
+          {subStatus?.isClockTampered
+            ? 'Sincroniza la Fecha y Hora de Windows'
+            : 'Renueva tu Suscripción para Seguir Facturando'}
         </h1>
 
         <p style={{ margin: '0 0 20px 0', fontSize: '0.92rem', color: '#475569', lineHeight: '1.5' }}>
-          La licencia de <strong>{tenant?.name || 'tu restaurante'}</strong> venció el{' '}
-          <strong>
-            {subStatus?.validUntilDate
-              ? subStatus.validUntilDate.toLocaleDateString('es-VE', { day: '2-digit', month: 'long', year: 'numeric' })
-              : 'día de corte'}
-          </strong>.
-          La emisión de nuevas facturas y comandas se encuentra temporalmente pausada.
+          {subStatus?.isClockTampered ? (
+            <>
+              El sistema de seguridad detectó que el reloj de esta computadora fue atrasado manualmente respecto al último registro verificado con el servidor. Ajusta la hora automática de Windows y conéctate a internet para desbloquear la caja.
+            </>
+          ) : (
+            <>
+              La licencia de <strong>{tenant?.name || 'tu restaurante'}</strong> venció el{' '}
+              <strong>
+                {subStatus?.validUntilDate
+                  ? subStatus.validUntilDate.toLocaleDateString('es-VE', { day: '2-digit', month: 'long', year: 'numeric' })
+                  : 'día de corte'}
+              </strong>.
+              La emisión de nuevas facturas y comandas se encuentra temporalmente pausada.
+            </>
+          )}
         </p>
 
         {/* Garantía de Seguridad de Datos */}

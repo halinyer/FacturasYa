@@ -5,6 +5,7 @@ const TENANT_STORAGE_KEY = 'saas_active_tenant';
 const CONFIG_STORAGE_KEY = 'saas_global_config';
 const PAYMENTS_STORAGE_KEY = 'saas_subscription_payments';
 const ALL_TENANTS_STORAGE_KEY = 'saas_all_tenants';
+const CLOCK_GUARD_STORAGE_KEY = 'saas_clock_guard';
 
 // Canal de tiempo real local (para sincronizar al instante entre pestañas/ventanas en la misma PC)
 const realtimeChannel = typeof BroadcastChannel !== 'undefined'
@@ -163,44 +164,161 @@ export async function saveSaasConfig(newCfg) {
   return merged;
 }
 
-// Calcula el estado exacto de la suscripción (Días restantes, aviso <= 3 días y bloqueo Kill Switch)
+// ============================================================================
+// SEGURIDAD DE RELOJ Y CÁLCULO DE LICENCIA EN BACKEND (ANTI-MANIPULACIÓN DE PC)
+// ============================================================================
+export function getClockGuard() {
+  try {
+    const raw = localStorage.getItem(CLOCK_GUARD_STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return {
+    max_seen_ms: Date.now(),
+    server_offset_ms: 0,
+    last_server_sync_ms: null,
+    server_now_iso: null
+  };
+}
+
+export function updateClockGuard(serverNowIso = null) {
+  const localNow = Date.now();
+  const prev = getClockGuard();
+
+  let serverOffsetMs = prev.server_offset_ms || 0;
+  let effectiveNowMs = localNow + serverOffsetMs;
+
+  if (serverNowIso) {
+    const parsedServerMs = new Date(serverNowIso).getTime();
+    if (!Number.isNaN(parsedServerMs) && parsedServerMs > 0) {
+      serverOffsetMs = parsedServerMs - localNow;
+      effectiveNowMs = parsedServerMs;
+    }
+  }
+
+  // Tolerancia de 15 minutos por desajustes menores de batería CMOS
+  const ROLLBACK_TOLERANCE_MS = 15 * 60 * 1000;
+  const maxSeenMs = Math.max(prev.max_seen_ms || 0, localNow, effectiveNowMs);
+  const isClockTampered = !serverNowIso && (localNow + ROLLBACK_TOLERANCE_MS < (prev.max_seen_ms || 0));
+
+  const nextGuard = {
+    max_seen_ms: maxSeenMs,
+    server_offset_ms: serverOffsetMs,
+    last_server_sync_ms: serverNowIso ? localNow : prev.last_server_sync_ms,
+    server_now_iso: serverNowIso || prev.server_now_iso,
+    is_tampered: isClockTampered
+  };
+
+  try {
+    localStorage.setItem(CLOCK_GUARD_STORAGE_KEY, JSON.stringify(nextGuard));
+  } catch (e) {}
+
+  return nextGuard;
+}
+
+// Verifica los días restantes directamente en el Backend PostgreSQL de Supabase (función RPC verify_tenant_license)
+export async function verifyLicenseWithBackend(tenantId) {
+  const active = getCurrentTenant();
+  const targetId = tenantId || active?.id;
+  if (!targetId) return null;
+
+  // 1. Si Supabase está configurado, el cálculo ocurre 100% en PostgreSQL usando NOW() del servidor
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      const { data, error } = await supabase.rpc('verify_tenant_license', {
+        p_tenant_id: targetId
+      });
+
+      if (!error && data && data.success) {
+        const guard = updateClockGuard(data.server_now);
+        const current = getCurrentTenant();
+        if (current && current.id === targetId) {
+          const updatedTenant = {
+            ...current,
+            status: data.status || current.status,
+            plan: data.plan || current.plan,
+            valid_until: data.valid_until || current.valid_until,
+            server_days_remaining: data.days_remaining,
+            server_raw_days_remaining: data.raw_days_remaining,
+            server_is_expired: data.is_expired,
+            server_verified_at: data.server_now
+          };
+          setCurrentTenant(updatedTenant);
+          return { ...data, guard };
+        }
+        return { ...data, guard };
+      }
+    } catch (e) {
+      console.warn('Verificación RPC en espera de conexión a internet, aplicando guardia monotónica local:', e);
+    }
+  }
+
+  // 2. Si está offline o en modo local, actualizar la marca de agua monotónica para detectar atraso de reloj
+  const guard = updateClockGuard(null);
+  return {
+    success: true,
+    offline: true,
+    guard
+  };
+}
+
+// Calcula el estado exacto de la suscripción priorizando el veredicto del Backend + Guardia Anti-Atraso de Reloj
 export function evaluateSubscriptionStatus(tenant) {
   if (!tenant) {
     return {
       isLinked: false,
       isExpired: false,
       isSuspended: false,
+      isClockTampered: false,
       isWarningSoon: false,
       daysRemaining: 14,
       statusLabel: 'Sin vincular'
     };
   }
 
-  const now = Date.now();
-  const validUntilMs = tenant.valid_until ? new Date(tenant.valid_until).getTime() : now + 14 * 86400 * 1000;
-  const diffMs = validUntilMs - now;
-  const daysRemaining = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  const guard = updateClockGuard(null);
+  const isClockTampered = Boolean(guard.is_tampered);
+
+  // Hora efectiva: usa el desfase oficial del servidor o la marca de agua máxima vista (impide ganar días atrasando el reloj de Windows)
+  const effectiveNowMs = Math.max(
+    Date.now() + (guard.server_offset_ms || 0),
+    guard.max_seen_ms || Date.now()
+  );
+
+  const validUntilMs = tenant.valid_until
+    ? new Date(tenant.valid_until).getTime()
+    : effectiveNowMs + 14 * 86400 * 1000;
+
+  const diffMs = validUntilMs - effectiveNowMs;
+  const computedDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+  // Si el backend de Supabase devolvió recientemente el cálculo oficial, respetarlo
+  const daysRemaining = typeof tenant.server_days_remaining === 'number' && !isSupabaseConfigured() === false
+    ? tenant.server_days_remaining
+    : computedDays;
 
   const isSuspended = tenant.status === 'suspended';
-  const isPastDue = tenant.status === 'past_due' || diffMs <= 0;
-  const isExpired = isSuspended || isPastDue;
+  const isPastDue = tenant.status === 'past_due' || diffMs <= 0 || Boolean(tenant.server_is_expired);
+  const isExpired = isSuspended || isPastDue || isClockTampered;
   const isWarningSoon = !isExpired && daysRemaining <= 3;
 
   let statusLabel = 'Activa';
-  if (isSuspended) statusLabel = 'Suspendida por Administración';
+  if (isClockTampered) statusLabel = 'Bloqueado: Reloj de Windows Atrasado';
+  else if (isSuspended) statusLabel = 'Suspendida por Administración';
   else if (isExpired) statusLabel = 'Suscripción Vencida';
-  else if (tenant.plan === 'trial') statusLabel = `Prueba Gratis (${daysRemaining} días restantes)`;
-  else if (tenant.plan === 'annual') statusLabel = `Plan Anual (${daysRemaining} días restantes)`;
-  else statusLabel = `Plan Mensual (${daysRemaining} días restantes)`;
+  else if (tenant.plan === 'trial') statusLabel = `Prueba Gratis (${Math.max(0, daysRemaining)} días restantes)`;
+  else if (tenant.plan === 'annual') statusLabel = `Plan Anual (${Math.max(0, daysRemaining)} días restantes)`;
+  else statusLabel = `Plan Mensual (${Math.max(0, daysRemaining)} días restantes)`;
 
   return {
     isLinked: true,
     isExpired,
     isSuspended,
+    isClockTampered,
     isWarningSoon,
     daysRemaining: Math.max(0, daysRemaining),
     rawDaysRemaining: daysRemaining,
     validUntilDate: new Date(validUntilMs),
+    serverVerifiedAt: tenant.server_verified_at || guard.server_now_iso || null,
     statusLabel
   };
 }
@@ -230,9 +348,11 @@ export async function loginTenantAccount(email, password) {
 
     if (tenantRow) {
       setCurrentTenant(tenantRow);
+      // Verificar licencia oficial contra el reloj del servidor de Supabase
+      await verifyLicenseWithBackend(tenantRow.id);
       // Restaurar datos desde la nube si existen
       await pullCloudSnapshotToLocal(tenantRow.id);
-      return tenantRow;
+      return getCurrentTenant() || tenantRow;
     }
   }
 

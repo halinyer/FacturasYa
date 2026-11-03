@@ -5,6 +5,7 @@ import {
   setCurrentTenant,
   getLocalTenantsList,
   evaluateSubscriptionStatus,
+  verifyLicenseWithBackend,
   loginTenantAccount,
   registerTenantAccount,
   subscribeToSaasRealtime
@@ -37,11 +38,24 @@ export const AuthProvider = ({ children }) => {
   });
 
   // Escuchar cambios en tiempo real de la suscripción (Supabase Realtime + Broadcast local)
+  // y verificar contra el reloj oficial del Backend (Supabase RPC verify_tenant_license)
   useEffect(() => {
     const unsubscribe = subscribeToSaasRealtime(tenant?.id, () => {
       const fresh = getCurrentTenant();
       setTenantState(fresh ? { ...fresh } : null);
     });
+
+    if (tenant?.id) {
+      verifyLicenseWithBackend(tenant.id).catch(() => {});
+      const interval = setInterval(() => {
+        verifyLicenseWithBackend(tenant.id).catch(() => {});
+      }, 5 * 60 * 1000); // Revalidar con el reloj del servidor cada 5 minutos
+      return () => {
+        clearInterval(interval);
+        unsubscribe();
+      };
+    }
+
     return () => unsubscribe();
   }, [tenant?.id]);
 

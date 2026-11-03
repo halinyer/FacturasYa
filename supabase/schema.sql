@@ -157,6 +157,57 @@ BEGIN
 END;
 $$;
 
+-- 5.B FUNCIÓN RPC DE AUTORIDAD DE TIEMPO EN EL SERVIDOR (PREVIENE TRAMPA DE RELOJ EN WINDOWS)
+-- Calcula los días restantes usando exclusivamente NOW() del servidor de Supabase y actualiza el estatus si venció
+CREATE OR REPLACE FUNCTION public.verify_tenant_license(
+  p_tenant_id UUID
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_tenant public.tenants%ROWTYPE;
+  v_days_remaining INT;
+  v_is_expired BOOLEAN;
+BEGIN
+  SELECT * INTO v_tenant FROM public.tenants WHERE id = p_tenant_id;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Restaurante no encontrado');
+  END IF;
+
+  -- Si la fecha de corte ya pasó según el reloj del servidor y seguía en 'active', pasarlo a 'past_due' en BD
+  IF v_tenant.valid_until <= NOW() AND v_tenant.status = 'active' THEN
+    UPDATE public.tenants
+    SET status = 'past_due',
+        last_online_at = NOW(),
+        updated_at = NOW()
+    WHERE id = p_tenant_id
+    RETURNING * INTO v_tenant;
+  ELSE
+    UPDATE public.tenants
+    SET last_online_at = NOW()
+    WHERE id = p_tenant_id;
+  END IF;
+
+  v_days_remaining := CEIL(EXTRACT(EPOCH FROM (v_tenant.valid_until - NOW())) / 86400.0)::INT;
+  v_is_expired := (v_tenant.status IN ('past_due', 'suspended')) OR (v_tenant.valid_until <= NOW());
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'server_now', NOW(),
+    'tenant_id', v_tenant.id,
+    'status', v_tenant.status,
+    'plan', v_tenant.plan,
+    'valid_until', v_tenant.valid_until,
+    'days_remaining', GREATEST(0, v_days_remaining),
+    'raw_days_remaining', v_days_remaining,
+    'is_expired', v_is_expired,
+    'is_suspended', (v_tenant.status = 'suspended')
+  );
+END;
+$$;
+
 -- 6. TRIGGER AUTOMÁTICO: CREAR TENANT CON 14 DÍAS DE PRUEBA AL REGISTRARSE EN SUPABASE AUTH
 CREATE OR REPLACE FUNCTION public.handle_new_user_tenant()
 RETURNS TRIGGER
