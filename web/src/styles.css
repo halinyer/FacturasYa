@@ -36,3 +36,90 @@ small { color:var(--mute); }
 .banner { background:#fee2e2; padding:10px 14px; border-radius:10px; cursor:pointer; }
 .config .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; margin:12px 0 16px; }
 .config label span { display:block; font-size:.78rem; color:var(--mute); margin-bottom:4px; }
+
+/* === LANDING VENEZUELA (FACTURASYA) === */
+.fy-landing { background:#faf7f2; color:#141413; min-height:100vh; }
+.fy-container { max-width:1160px; margin:0 auto; padding:0 20px; }
+.fy-topbar { background:#141413; color:#f8fafc; font-size:.78rem; padding:8px 0; }
+.fy-topbar-inner { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+.fy-topbar-left { display:flex; align-items:center; gap:8px; }
+.fy-live-dot { width:8px; height:8px; border-radius:99px; background:#22c55e; display:inline-block; }
+.fy-rate-pill { display:inline-flex; align-items:center; gap:6px; background:#262624; padding:4px 10px; border-radius:8px; }
+.fy-rate-pill input { width:78px; padding:2px 6px; background:transparent; color:#fff; border:1px dashed #52524e; font-weight:800; text-align:right; }
+.fy-nav { position:sticky; top:0; z-index:30; background:rgba(250,247,242,.92); backdrop-filter:blur(8px); border-bottom:1px solid #e5e0d5; }
+.fy-nav-inner { display:flex; justify-content:space-between; align-items:center; padding:12px 20px; gap:16px; }
+.fy-brand { display:flex; align-items:center; gap:10px; }
+.fy-logo { width:36px; height:36px; border-radius:9px; background:#c83e2b; color:#fff; font-weight:900; display:flex; align-items:center; justify-content:center; }
+.fy-brand strong { display:block; font-size:1rem; }
+.fy-brand span { display:block; font-size:.74rem; color:#64748b; }
+.fy-links { display:flex; gap:20px; font-size:.86rem; font-weight:600; }
+.fy-links a { color:#475569; text-decoration:none; }
+.fy-links a:hover { color:#141413; }
+.fy-nav-cta { display:flex; gap:8px; align-items:center; }
+.fy-btn-red { background:#c83e2b; border-color:#c83e2b; color:#fff; }
+.fy-btn-dark { background:#141413; border-color:#141413; color:#fff; }
+.fy-btn-lg { padding:11px 18px; font-size:.9rem; border-radius:10px; text-decoration:none; display:inline-block; }
+.fy-main { padding-top:36px; padding-bottom:64px; display:flex; flex-direction:column; gap:64px; }
+.fy-hero-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); gap:32px; align-items:start; }
+.fy-pill { display:inline-flex; align-items:center; gap:8px; background:#fff; border:1px solid #e5e0d5; border-radius:999px; padding:5px 12px; font-size:.76rem; font-weight:600; }
+.fy-pill-tag { color:#c83e2b; font-weight:800; }
+.fy-hero-copy h1 { font-size:2.15rem; line-height:1.15; margin:14px 0; letter-spacing:-.02em; }
+.fy-lead { color:#475569; line-height:1.6; font-size:.98rem; }
+.fy-highlights { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:10px; margin:18px 0; }
+.fy-highlight-card { background:#fff; border:1px solid #e5e0d5; border-radius:12px; padding:12px; }
+.fy-highlight-card strong { font-size:.84rem; display:block; margin-bottom:4px; }
+.fy-highlight-card p { margin:0; font-size:.76rem; color:#64748b; line-height:1.4; }
+.fy-hero-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+.fy-micro-note { font-size:.75rem; color:#64748b; margin-top:10px; }
+.fy-sim-card { background:#fff; border:1px solid #e5e0d5; border-radius:18px; padding:20px; box-shadow:0 8px 24px rgba(20,20,19,.05); display:flex; flex-direction:column; gap:14px; }
+.fy-sim-header { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; border-bottom:1px solid #e5e0d5; padding-bottom:10px; }
+.fy-eyebrow { font-size:.72rem; font-weight:800; text-transform:uppercase; color:#c83e2b; letter-spacing:.04em; display:block; }
+.fy-sim-header h2 { margin:2px 0 0; font-size:1rem; }
+.fy-rate-badge { background:#dcfce7; color:#166534; font-weight:800; font-size:.76rem; padding:4px 9px; border-radius:6px; white-space:nowrap; }
+.fy-sim-label { font-size:.76rem; color:#64748b; margin:0 0 8px; font-weight:600; }
+.fy-sim-products { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
+.fy-prod-btn { background:#faf7f2; border:1px solid #e5e0d5; border-radius:10px; padding:9px 11px; text-align:left; cursor:pointer; }
+.fy-prod-btn.active { border-color:#c83e2b; background:#fff5f3; }
+.fy-prod-top { display:flex; justify-content:space-between; font-size:.8rem; font-weight:700; margin-bottom:3px; }
+.fy-mix-box { background:#faf7f2; border:1px solid #e5e0d5; border-radius:12px; padding:12px; }
+.fy-mix-header { display:flex; justify-content:space-between; align-items:center; font-size:.78rem; margin-bottom:10px; flex-wrap:wrap; gap:8px; }
+.fy-check { display:inline-flex; align-items:center; gap:6px; cursor:pointer; }
+.fy-check input { width:auto; }
+.fy-mix-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; align-items:end; }
+.fy-cash-pills { display:flex; gap:6px; margin-top:4px; }
+.fy-remaining-bs { background:#fff; border:1px solid #e5e0d5; border-radius:8px; padding:6px 10px; font-weight:800; font-size:.86rem; margin-top:4px; }
+.fy-ticket { background:#faf7f2; border:1px dashed #cbd5e1; border-radius:12px; padding:14px; font-family:ui-monospace,Consolas,monospace; font-size:.76rem; }
+.fy-ticket-head { text-align:center; border-bottom:1px dashed #cbd5e1; padding-bottom:8px; margin-bottom:8px; }
+.fy-ticket-lines { display:flex; flex-direction:column; gap:4px; padding:4px 0 8px; }
+.fy-ticket-row { display:flex; justify-content:space-between; gap:8px; }
+.fy-ticket-totals { border-top:1px dashed #cbd5e1; padding-top:8px; display:flex; flex-direction:column; gap:4px; }
+.fy-igtf { color:#b45309; font-weight:700; }
+.fy-ticket-grand { font-weight:900; font-size:.88rem; border-top:1px solid #cbd5e1; padding-top:6px; margin-top:4px; }
+.fy-ticket-foot { border-top:1px dashed #cbd5e1; margin-top:8px; padding-top:8px; display:flex; justify-content:space-between; color:#64748b; }
+.fy-ok { color:#15803d; font-weight:800; }
+.fy-section { display:flex; flex-direction:column; gap:20px; }
+.fy-sec-head h2 { margin:4px 0 6px; font-size:1.65rem; }
+.fy-sec-head p { margin:0; color:#475569; max-width:680px; font-size:.92rem; }
+.fy-features-grid, .fy-pricing-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; }
+.fy-features-grid h3, .fy-price-card h3 { margin:6px 0; font-size:1.05rem; }
+.fy-features-grid p, .fy-price-card p { color:#475569; font-size:.84rem; line-height:1.5; margin:0; }
+.fy-price-card { display:flex; flex-direction:column; justify-content:space-between; gap:18px; }
+.fy-price-featured { border:2px solid #c83e2b; }
+.fy-price-top { display:flex; justify-content:space-between; align-items:center; }
+.fy-price-num { font-size:2rem; font-weight:900; margin:8px 0; }
+.fy-price-num small { font-size:.8rem; color:#64748b; font-weight:500; }
+.fy-price-card ul { list-style:none; padding:0; margin:12px 0 0; display:flex; flex-direction:column; gap:6px; font-size:.82rem; }
+.fy-modal-backdrop { position:fixed; inset:0; background:rgba(15,23,42,.6); display:flex; align-items:center; justify-content:center; padding:16px; z-index:60; }
+.fy-modal { max-width:460px; width:100%; }
+.fy-modal-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:12px; }
+.fy-modal-head h3 { margin:2px 0 0; }
+.fy-form { display:flex; flex-direction:column; gap:10px; }
+.fy-form label span { display:block; font-size:.76rem; font-weight:600; color:#475569; margin-bottom:4px; }
+.fy-form-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.fy-download-box { display:flex; flex-direction:column; gap:14px; }
+.fy-success-banner { background:#dcfce7; color:#166534; padding:12px; border-radius:10px; font-size:.82rem; }
+.fy-success-banner p { margin:4px 0 0; }
+.fy-download-btn { text-align:center; font-weight:800; }
+.fy-steps-mini { background:#faf7f2; border:1px solid #e5e0d5; border-radius:10px; padding:12px; font-size:.8rem; }
+.fy-steps-mini p { margin:4px 0 0; color:#475569; }
+@media (max-width:768px) { .fy-links, .fy-hide-mobile { display:none; } }
