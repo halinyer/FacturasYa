@@ -1,35 +1,65 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import {
+  Printer,
+  WifiOff,
+  QrCode,
+  FileSpreadsheet,
+  Smartphone,
+  ShieldCheck,
+  CheckCircle2,
+  ArrowRight,
+  Download,
+  Layers,
+  ChevronRight,
+  ExternalLink,
+  DollarSign,
+  TrendingUp,
+  Store,
+  Clock,
+  Sparkles,
+  Lock,
+  Receipt,
+  HelpCircle,
+  X
+} from 'lucide-react';
 import { supabase, isConfigured } from '../../lib/supabase';
 
-const INITIAL_ITEMS = [
-  { id: 'burger', name: 'Hamburguesa Doble', priceUsd: 6.50, qty: 2 },
-  { id: 'pepito', name: 'Pepito Mixto 40cm', priceUsd: 8.00, qty: 1 },
-  { id: 'papas', name: 'Ración de Papas', priceUsd: 3.00, qty: 1 },
-  { id: 'malta', name: 'Malta / Refresco', priceUsd: 1.50, qty: 2 }
+// Datos de productos para el simulador interactivo
+const DEMO_PRODUCTS = [
+  { id: 'burger', name: 'Hamburguesa Smash Doble', category: 'Cocina', priceUsd: 6.50, qty: 2 },
+  { id: 'pepito', name: 'Pepito Mixto Especial 35cm', category: 'Cocina', priceUsd: 8.50, qty: 1 },
+  { id: 'papas', name: 'Papas Rústicas con Queso', category: 'Entradas', priceUsd: 3.50, qty: 1 },
+  { id: 'bebida', name: 'Refresco / Té Frío 500ml', category: 'Bebidas', priceUsd: 1.50, qty: 2 }
 ];
 
 const INSTALLER_URL =
   import.meta.env.VITE_INSTALLER_URL || 'https://github.com/halinyer/FacturasYa/releases/latest';
 
 function formatBs(val) {
-  return (
-    'Bs ' +
-    Number(val || 0).toLocaleString('es-VE', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    })
-  );
+  return 'Bs. ' + Number(val || 0).toLocaleString('es-VE', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
+function formatUsd(val) {
+  return '$' + Number(val || 0).toFixed(2);
 }
 
 export default function LandingPage() {
+  // Simulador de Tasa BCV y Caja
   const [bcvRate, setBcvRate] = useState(876.80);
-  const [items, setItems] = useState(INITIAL_ITEMS);
-  const [cashUsd, setCashUsd] = useState(10);
+  const [cartItems, setCartItems] = useState(DEMO_PRODUCTS);
+  const [cashUsdReceived, setCashUsdReceived] = useState(10);
   const [applyIgtf, setApplyIgtf] = useState(true);
+  const [viewReceiptTab, setViewReceiptTab] = useState('ticket'); // 'ticket' | 'breakdown'
 
-  // Estado del modal de registro de 14 días + descarga del .EXE
-  const [modalOpen, setModalOpen] = useState(false);
+  // Planes de precio: 'monthly' | 'annual'
+  const [billingCycle, setBillingCycle] = useState('monthly');
+
+  // Modal de Prueba 14 Días
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [form, setForm] = useState({
     businessName: '',
     rif: '',
@@ -42,24 +72,31 @@ export default function LandingPage() {
   const [registeredAccount, setRegisteredAccount] = useState(null);
 
   const rate = Math.max(1, Number(bcvRate) || 876.80);
-  const activeItems = items.filter((i) => i.qty > 0);
-  const totalBaseUsd = activeItems.reduce((sum, i) => sum + i.priceUsd * i.qty, 0);
-  const appliedUsd = Math.min(cashUsd, totalBaseUsd);
-  const igtfUsd = applyIgtf ? appliedUsd * 0.03 : 0;
-  const finalUsd = totalBaseUsd + igtfUsd;
+  const activeItems = cartItems.filter((i) => i.qty > 0);
+  const totalBaseUsd = activeItems.reduce((acc, i) => acc + i.priceUsd * i.qty, 0);
 
-  const subBs = (totalBaseUsd / 1.16) * rate;
-  const ivaBs = (totalBaseUsd - totalBaseUsd / 1.16) * rate;
+  // Cobro mixto: Dólares en efectivo + Pago Móvil en Bs
+  const appliedCashUsd = Math.min(cashUsdReceived, totalBaseUsd);
+  const igtfUsd = applyIgtf ? appliedCashUsd * 0.03 : 0;
+  const finalTotalUsd = totalBaseUsd + igtfUsd;
+
+  const baseImponibleBs = (totalBaseUsd / 1.16) * rate;
+  const iva16Bs = (totalBaseUsd - totalBaseUsd / 1.16) * rate;
   const igtfBs = igtfUsd * rate;
-  const totalBs = finalUsd * rate;
-  const remainingUsd = Math.max(0, totalBaseUsd - appliedUsd);
+  const finalTotalBs = finalTotalUsd * rate;
+
+  const remainingUsd = Math.max(0, totalBaseUsd - appliedCashUsd);
   const remainingBs = remainingUsd * rate;
 
-  const toggleItemQty = (id) => {
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, qty: item.qty >= 3 ? 0 : item.qty + 1 } : item
-      )
+  const handleQtyChange = (id, delta) => {
+    setCartItems((prev) =>
+      prev.map((item) => {
+        if (item.id === id) {
+          const nextQty = Math.max(0, Math.min(10, item.qty + delta));
+          return { ...item, qty: nextQty };
+        }
+        return item;
+      })
     );
   };
 
@@ -91,489 +128,796 @@ export default function LandingPage() {
         businessName: form.businessName.trim(),
         rif: cleanRif,
         email: cleanEmail,
-        validUntil: new Date(Date.now() + 14 * 86400000).toLocaleDateString('es-VE')
+        validUntil: new Date(Date.now() + 14 * 86400000).toLocaleDateString('es-VE', {
+          day: '2-digit',
+          month: 'long',
+          year: 'numeric'
+        })
       });
     } catch (err) {
-      setFormError(err.message || 'No se pudo completar el registro.');
+      setFormError(err.message || 'Ocurrió un error al registrar la cuenta.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const openModal = () => {
+  const openTrialModal = () => {
     setFormError('');
     setRegisteredAccount(null);
-    setModalOpen(true);
+    setIsModalOpen(true);
   };
 
   return (
-    <div className="fy-landing">
-      {/* Barra superior operativa con tasa BCV editable en vivo */}
-      <div className="fy-topbar">
-        <div className="fy-container fy-topbar-inner">
-          <div className="fy-topbar-left">
-            <span className="fy-live-dot" />
-            <strong>Hecho para operar en Venezuela</strong>
-            <span className="fy-hide-mobile">
-              · Compatible con <strong>The Factory HKA80</strong>, Bixolon y Bematech
+    <div className="min-h-screen bg-white text-zinc-900 font-sans antialiased selection:bg-zinc-900 selection:text-white">
+
+      {/* TOP STATUS BAR: Transparente y elegante con Tasa Oficial BCV */}
+      <div className="border-b border-zinc-100 bg-zinc-50/60 backdrop-blur-xs text-xs text-zinc-600">
+        <div className="max-w-6xl mx-auto px-4 py-2 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-medium text-[11px] border border-emerald-200/60">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              Operatividad en Venezuela
+            </span>
+            <span className="text-zinc-300 hidden sm:inline">|</span>
+            <span className="text-zinc-600 hidden sm:inline">
+              Homologado para impresoras fiscales <strong className="text-zinc-900 font-semibold">The Factory HKA80</strong>, Bixolon y Bematech
             </span>
           </div>
-          <label className="fy-rate-pill">
-            <span>Tasa BCV hoy:</span>
-            <input
-              type="number"
-              step="0.01"
-              value={bcvRate}
-              onChange={(e) => setBcvRate(e.target.value)}
-            />
-            <span>Bs/$</span>
-          </label>
+
+          <div className="flex items-center gap-2">
+            <label className="inline-flex items-center gap-1.5 bg-white border border-zinc-200/80 rounded-md px-2.5 py-0.5 shadow-2xs">
+              <span className="text-zinc-500 font-medium text-[11px]">Tasa BCV referencial:</span>
+              <input
+                type="number"
+                step="0.01"
+                value={bcvRate}
+                onChange={(e) => setBcvRate(e.target.value)}
+                className="w-18 bg-transparent text-right font-semibold text-zinc-900 mono-num focus:outline-none"
+              />
+              <span className="text-[11px] font-semibold text-zinc-400">Bs/$</span>
+            </label>
+          </div>
         </div>
       </div>
 
-      {/* Navegación principal */}
-      <header className="fy-nav">
-        <div className="fy-container fy-nav-inner">
-          <div className="fy-brand">
-            <div className="fy-logo">FY</div>
+      {/* NAVIGATION BAR (Apple / Stripe style) */}
+      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-zinc-200/70 transition-all">
+        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-zinc-950 text-white font-extrabold text-sm flex items-center justify-center shadow-xs">
+              FY
+            </div>
             <div>
-              <strong>FacturasYa</strong>
-              <span>POS Fiscal + Nube · Venezuela</span>
+              <span className="font-bold text-base tracking-tight text-zinc-950">FacturasYa</span>
+              <span className="hidden sm:inline-block ml-2 text-xs text-zinc-500 font-normal">
+                POS Fiscal & Cloud
+              </span>
             </div>
           </div>
 
-          <nav className="fy-links">
-            <a href="#simulador">Probar Caja en Vivo</a>
-            <a href="#realidad-vzla">¿Por qué cambiar?</a>
-            <a href="#funciones">Funciones</a>
-            <a href="#precios">Precios</a>
+          <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-zinc-600">
+            <a href="#simulador" className="hover:text-zinc-950 transition-colors">Simulador en Vivo</a>
+            <a href="#comparativa" className="hover:text-zinc-950 transition-colors">¿Por qué FacturasYa?</a>
+            <a href="#caracteristicas" className="hover:text-zinc-950 transition-colors">Características</a>
+            <a href="#precios" className="hover:text-zinc-950 transition-colors">Planes</a>
           </nav>
 
-          <div className="fy-nav-cta">
-            <Link to="/monitor" className="btn">
-              Entrar al Monitor
+          <div className="flex items-center gap-3">
+            <Link
+              to="/monitor"
+              className="text-xs font-semibold text-zinc-700 hover:text-zinc-950 px-3 py-1.5 rounded-lg hover:bg-zinc-100 transition-colors"
+            >
+              Monitor del Dueño
             </Link>
-            <button type="button" className="btn fy-btn-red" onClick={openModal}>
-              Descargar Prueba 14 Días
+            <button
+              type="button"
+              onClick={openTrialModal}
+              className="bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold px-4 py-2 rounded-full shadow-xs hover:shadow transition-all inline-flex items-center gap-1.5 active:scale-98"
+            >
+              <span>Descargar 14 Días Gratis</span>
+              <ArrowRight size={13} />
             </button>
           </div>
         </div>
       </header>
 
-      <main className="fy-container fy-main">
-        {/* HERO + SIMULADOR EN VIVO */}
-        <section id="simulador" className="fy-hero-grid">
-          <div className="fy-hero-copy">
-            <div className="fy-pill">
-              <span className="fy-pill-tag">NUEVO</span>
-              <span>Sin pagar $800 de instalación · Descargas, instalas y facturas hoy</span>
+      {/* HERO SECTION */}
+      <section className="relative pt-16 pb-20 overflow-hidden bg-gradient-to-b from-zinc-50/50 via-white to-white">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="text-center max-w-3xl mx-auto space-y-5">
+            {/* Announcement badge */}
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-zinc-200 bg-white/90 text-xs font-medium text-zinc-700 shadow-2xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+              <span>Sin costos de instalación de $800 ni visitas técnicas forzadas</span>
             </div>
 
-            <h1>
-              El punto de venta para restaurantes en Venezuela que no se tranca cuando se cae el internet.
+            <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-zinc-950 leading-[1.1]">
+              El punto de venta fiscal que no se detiene si se cae el internet.
             </h1>
 
-            <p className="fy-lead">
-              Precios protegidos en <strong>dólares ($)</strong>, cobro mixto en{' '}
-              <strong>Bolívares a tasa BCV</strong>, conexión directa por USB a tu{' '}
-              <strong>máquina fiscal HKA80</strong> y el dueño viendo las ventas en vivo desde su
-              teléfono donde quiera que esté.
+            <p className="text-lg text-zinc-600 leading-relaxed max-w-2xl mx-auto font-normal">
+              Precios blindados en <strong className="text-zinc-900 font-semibold">dólares ($)</strong>, cobro mixto con{' '}
+              <strong className="text-zinc-900 font-semibold">Pago Móvil a tasa BCV</strong>, conexión directa con{' '}
+              <strong className="text-zinc-900 font-semibold">impresoras fiscales The Factory</strong> y acceso en tiempo real a tus ventas desde el celular.
             </p>
 
-            <div className="fy-highlights">
-              <div className="fy-highlight-card">
-                <strong>1. Corre en tu PC (Offline-First)</strong>
-                <p>Si el internet falla en pleno almuerzo, la caja y las comandas siguen facturando sin pausa.</p>
-              </div>
-              <div className="fy-highlight-card">
-                <strong>2. Respaldo en la Nube</strong>
-                <p>¿Se dañó la PC de la caja? Instalas en otra, inicias sesión con tu correo y recuperas todo.</p>
-              </div>
-              <div className="fy-highlight-card">
-                <strong>3. Monitor Fijo en tu Celular</strong>
-                <p>Entras con tu correo desde tu casa. El link nunca vence aunque reinicien la PC del local.</p>
-              </div>
-              <div className="fy-highlight-card">
-                <strong>4. Pagas en Bs por Pago Móvil</strong>
-                <p>Suscripción mensual accesible sin tarjetas en divisas. Reportas los 6 dígitos y tu caja se activa.</p>
-              </div>
-            </div>
-
-            <div className="fy-hero-actions">
-              <button type="button" className="btn fy-btn-red fy-btn-lg" onClick={openModal}>
-                Probar 14 días gratis (Descargar .EXE) →
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-3">
+              <button
+                type="button"
+                onClick={openTrialModal}
+                className="bg-zinc-950 hover:bg-zinc-800 text-white font-medium text-sm px-6 py-3.5 rounded-xl shadow-sm hover:shadow transition-all inline-flex items-center gap-2 active:scale-98"
+              >
+                <Download size={16} />
+                <span>Descargar FacturaPOS para Windows</span>
+                <span className="text-xs text-zinc-400 font-normal">(.EXE nativo)</span>
               </button>
-              <a href="#precios" className="btn fy-btn-lg">
-                Ver planes ($30/mes)
+
+              <a
+                href="#simulador"
+                className="bg-white hover:bg-zinc-50 text-zinc-900 font-medium text-sm px-5 py-3.5 rounded-xl border border-zinc-200 shadow-2xs transition-all inline-flex items-center gap-2"
+              >
+                <span>Probar simulador de caja</span>
+                <ArrowRight size={15} className="text-zinc-500" />
               </a>
             </div>
 
-            <p className="fy-micro-note">
-              Instalador directo para Windows 10 / 11 (64-bit) · Incluye puente fiscal HKA80 listo para usar.
-            </p>
+            {/* Micro guarantees */}
+            <div className="flex flex-wrap items-center justify-center gap-6 pt-4 text-xs text-zinc-500">
+              <span className="inline-flex items-center gap-1.5">
+                <CheckCircle2 size={14} className="text-emerald-600" /> 14 días de prueba completa
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <CheckCircle2 size={14} className="text-emerald-600" /> Sin tarjeta internacional
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <CheckCircle2 size={14} className="text-emerald-600" /> Arquitectura 100% Offline-First
+              </span>
+            </div>
           </div>
 
-          {/* SIMULADOR INTERACTIVO DE COBRO MIXTO Y TICKET FISCAL */}
-          <div className="fy-sim-card">
-            <div className="fy-sim-header">
-              <div>
-                <span className="fy-eyebrow">Pruébalo aquí mismo</span>
-                <h2>Simulador de Caja: Cobro Mixto + Máquina Fiscal</h2>
-              </div>
-              <span className="fy-rate-badge">BCV: {rate.toFixed(2)} Bs/$</span>
-            </div>
+          {/* SIMULADOR INTERACTIVO DE CAJA (Apple/Stripe Terminal Showcase) */}
+          <div id="simulador" className="mt-16 max-w-5xl mx-auto">
+            <div className="rounded-2xl border border-zinc-200/80 bg-white shadow-[0_4px_24px_rgba(0,0,0,0.06),0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+              
+              {/* Terminal Window Header (macOS style) */}
+              <div className="bg-zinc-50/80 px-4 py-3 border-b border-zinc-200/70 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded-full bg-zinc-300"></span>
+                    <span className="w-3 h-3 rounded-full bg-zinc-300"></span>
+                    <span className="w-3 h-3 rounded-full bg-zinc-300"></span>
+                  </div>
+                  <span className="text-xs font-semibold text-zinc-600 ml-2">
+                    Terminal POS · FacturasYa v1.0 (Windows)
+                  </span>
+                </div>
 
-            <div>
-              <p className="fy-sim-label">
-                Toca para agregar o quitar productos a la cuenta de la Mesa 4:
-              </p>
-              <div className="fy-sim-products">
-                {items.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => toggleItemQty(item.id)}
-                    className={`fy-prod-btn ${item.qty > 0 ? 'active' : ''}`}
-                  >
-                    <div className="fy-prod-top">
-                      <span>{item.name}</span>
-                      <strong>{item.qty}x</strong>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold bg-emerald-50 border border-emerald-200/60 rounded px-2 py-0.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    HKA80 Conectada (COM3)
+                  </span>
+                  <span className="text-zinc-500 font-medium">Tasa BCV: {rate.toFixed(2)} Bs/$</span>
+                </div>
+              </div>
+
+              {/* Terminal Content: 2 Columns */}
+              <div className="grid lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-zinc-200">
+                
+                {/* Columna Izquierda: Menú y Productos de Prueba */}
+                <div className="lg:col-span-7 p-6 space-y-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-bold text-zinc-950">Mesa 4 · Comanda Activa</h3>
+                      <p className="text-xs text-zinc-500">Haz clic en los productos para simular la cuenta en vivo:</p>
                     </div>
-                    <small>
-                      ${item.priceUsd.toFixed(2)} · {formatBs(item.priceUsd * rate)}
-                    </small>
-                  </button>
-                ))}
-              </div>
-            </div>
+                    <span className="text-xs text-zinc-500 font-medium">
+                      {activeItems.length} {activeItems.length === 1 ? 'ítem' : 'ítems'} agregados
+                    </span>
+                  </div>
 
-            <div className="fy-mix-box">
-              <div className="fy-mix-header">
-                <strong>¿Cómo paga el cliente? (Pago Mixto)</strong>
-                <label className="fy-check">
-                  <input
-                    type="checkbox"
-                    checked={applyIgtf}
-                    onChange={(e) => setApplyIgtf(e.target.checked)}
-                  />
-                  <span>Aplicar IGTF 3% a divisas</span>
-                </label>
-              </div>
-
-              <div className="fy-mix-grid">
-                <div>
-                  <small>Efectivo en Dólares ($ recibidos):</small>
-                  <div className="fy-cash-pills">
-                    {[0, 5, 10, 20].map((amt) => (
-                      <button
-                        key={amt}
-                        type="button"
-                        onClick={() => setCashUsd(amt)}
-                        className={`btn ${cashUsd === amt ? 'fy-btn-dark' : ''}`}
+                  {/* Product Cards */}
+                  <div className="grid sm:grid-cols-2 gap-2.5">
+                    {cartItems.map((prod) => (
+                      <div
+                        key={prod.id}
+                        className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between gap-2 ${
+                          prod.qty > 0
+                            ? 'border-zinc-950 bg-zinc-50/50 shadow-2xs'
+                            : 'border-zinc-200/70 hover:border-zinc-300 bg-white'
+                        }`}
                       >
-                        ${amt}
-                      </button>
+                        <div>
+                          <div className="flex items-center justify-between gap-1 text-xs font-semibold text-zinc-900">
+                            <span className="truncate">{prod.name}</span>
+                            <span className="text-[11px] text-zinc-500 font-normal">{prod.category}</span>
+                          </div>
+                          <div className="text-xs text-zinc-600 mono-num mt-1">
+                            {formatUsd(prod.priceUsd)} · <span className="text-zinc-500">{formatBs(prod.priceUsd * rate)}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-1 border-t border-zinc-100">
+                          <span className="text-xs font-bold text-zinc-900">
+                            {prod.qty > 0 ? `${prod.qty}x en cuenta` : 'Sin agregar'}
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => handleQtyChange(prod.id, -1)}
+                              className="w-6 h-6 rounded-md border border-zinc-200 hover:bg-zinc-100 text-zinc-700 flex items-center justify-center font-bold text-xs"
+                              disabled={prod.qty === 0}
+                            >
+                              -
+                            </button>
+                            <span className="w-5 text-center text-xs font-bold mono-num">{prod.qty}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleQtyChange(prod.id, 1)}
+                              className="w-6 h-6 rounded-md bg-zinc-900 hover:bg-zinc-800 text-white flex items-center justify-center font-bold text-xs"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                      </div>
                     ))}
                   </div>
-                </div>
-                <div>
-                  <small>Resto por Pago Móvil / Punto (Bs):</small>
-                  <div className="fy-remaining-bs">
-                    {formatBs(remainingBs)} <small>(${remainingUsd.toFixed(2)})</small>
-                  </div>
-                </div>
-              </div>
-            </div>
 
-            {/* Ticket Fiscal SENIAT */}
-            <div className="fy-ticket">
-              <div className="fy-ticket-head">
-                <strong>SENIAT · J-50123456-0</strong>
-                <div>BURGER & GRILL CARACAS C.A.</div>
-                <div>
-                  FACTURA FISCAL NRO: <strong>00048291</strong>
-                </div>
-              </div>
-
-              <div className="fy-ticket-lines">
-                {activeItems.length > 0 ? (
-                  activeItems.map((i) => (
-                    <div key={i.id} className="fy-ticket-row">
-                      <span>
-                        {i.qty}x {i.name.toUpperCase()} (${(i.priceUsd * i.qty).toFixed(2)})
-                      </span>
-                      <span>{formatBs(i.priceUsd * i.qty * rate)}</span>
+                  {/* Cobro Mixto Controls */}
+                  <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200/70 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-zinc-950">Modalidad de Pago Mixto:</span>
+                      <label className="inline-flex items-center gap-1.5 text-xs text-zinc-600 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={applyIgtf}
+                          onChange={(e) => setApplyIgtf(e.target.checked)}
+                          className="rounded border-zinc-300 text-zinc-900 focus:ring-0"
+                        />
+                        <span>IGTF 3% a divisas en efectivo</span>
+                      </label>
                     </div>
-                  ))
-                ) : (
-                  <div className="fy-ticket-empty">
-                    Toca un producto arriba para simular la factura
+
+                    <div className="grid sm:grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <span className="text-zinc-500 block mb-1">Efectivo en $ recibidos:</span>
+                        <div className="flex gap-1.5">
+                          {[0, 5, 10, 20].map((amt) => (
+                            <button
+                              key={amt}
+                              type="button"
+                              onClick={() => setCashUsdReceived(amt)}
+                              className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-all ${
+                                cashUsdReceived === amt
+                                  ? 'bg-zinc-900 text-white border-zinc-900 shadow-2xs'
+                                  : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-100'
+                              }`}
+                            >
+                              ${amt}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="text-zinc-500 block mb-1">Resto a cobrar por Pago Móvil (Bs):</span>
+                        <div className="p-1.5 px-3 rounded-lg bg-white border border-zinc-200 font-bold mono-num text-sm text-zinc-950 flex items-center justify-between">
+                          <span>{formatBs(remainingBs)}</span>
+                          <span className="text-xs text-zinc-400 font-normal">({formatUsd(remainingUsd)})</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                )}
+                </div>
+
+                {/* Columna Derecha: Vista Previa Comprobante Fiscal SENIAT */}
+                <div className="lg:col-span-5 p-6 bg-zinc-50/40 flex flex-col justify-between space-y-4">
+                  <div>
+                    <div className="flex items-center justify-between pb-3 border-b border-zinc-200">
+                      <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+                        Comprobante Fiscal SENIAT
+                      </span>
+                      <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-2 py-0.5">
+                        Impresora HKA80
+                      </span>
+                    </div>
+
+                    {/* Receipt Body */}
+                    <div className="mt-4 p-4 rounded-xl bg-white border border-zinc-200/90 shadow-2xs font-mono text-[11px] leading-relaxed text-zinc-700 space-y-2">
+                      <div className="text-center pb-2 border-b border-dashed border-zinc-200">
+                        <div className="font-bold text-zinc-950 text-xs">RESTAURANTE EL PORTÓN C.A.</div>
+                        <div>RIF: J-50123456-0</div>
+                        <div>FACTURA FISCAL NRO: <strong className="text-zinc-950">00048291</strong></div>
+                        <div className="text-zinc-400 text-[10px]">MÁQUINA FISCAL: Z1B8049210</div>
+                      </div>
+
+                      <div className="py-1 space-y-1">
+                        {activeItems.length > 0 ? (
+                          activeItems.map((item) => (
+                            <div key={item.id} className="flex justify-between items-start">
+                              <span className="truncate pr-2">
+                                {item.qty}x {item.name.toUpperCase()}
+                              </span>
+                              <span className="mono-num text-zinc-950 font-medium shrink-0">
+                                {formatBs(item.priceUsd * item.qty * rate)}
+                              </span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-center text-zinc-400 py-4 font-sans text-xs">
+                            Selecciona productos a la izquierda para generar la factura
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="pt-2 border-t border-dashed border-zinc-200 space-y-1">
+                        <div className="flex justify-between text-zinc-500">
+                          <span>SUBTOTAL (BASE 16%):</span>
+                          <span className="mono-num">{formatBs(baseImponibleBs)}</span>
+                        </div>
+                        <div className="flex justify-between text-zinc-500">
+                          <span>IVA (16.00%):</span>
+                          <span className="mono-num">{formatBs(iva16Bs)}</span>
+                        </div>
+                        {igtfUsd > 0 && (
+                          <div className="flex justify-between text-amber-700 font-semibold">
+                            <span>IGTF 3% ({formatUsd(appliedCashUsd)}):</span>
+                            <span className="mono-num">{formatBs(igtfBs)}</span>
+                          </div>
+                        )}
+                        <div className="pt-1.5 border-t border-zinc-200 flex justify-between font-bold text-xs text-zinc-950">
+                          <span>TOTAL ({formatUsd(finalTotalUsd)}):</span>
+                          <span className="mono-num text-sm">{formatBs(finalTotalBs)}</span>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-dashed border-zinc-200 text-center text-[10px] text-zinc-400">
+                        PAGO DIVISAS: {formatUsd(appliedCashUsd)} | RESTO PAGO MÓVIL: {formatBs(remainingBs)}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={openTrialModal}
+                      className="w-full py-2.5 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white font-semibold text-xs shadow-xs transition-all flex items-center justify-center gap-2"
+                    >
+                      <Printer size={14} />
+                      <span>Probar Facturación Fiscal en tu Local →</span>
+                    </button>
+                  </div>
+                </div>
+
               </div>
 
-              <div className="fy-ticket-totals">
-                <div className="fy-ticket-row">
-                  <span>BASE IMPONIBLE (16%):</span>
-                  <span>{formatBs(subBs)}</span>
-                </div>
-                <div className="fy-ticket-row">
-                  <span>IVA 16%:</span>
-                  <span>{formatBs(ivaBs)}</span>
-                </div>
-                {igtfUsd > 0 && (
-                  <div className="fy-ticket-row fy-igtf">
-                    <span>IGTF 3% (SOBRE ${appliedUsd.toFixed(2)}):</span>
-                    <span>{formatBs(igtfBs)}</span>
-                  </div>
-                )}
-                <div className="fy-ticket-row fy-ticket-grand">
-                  <span>TOTAL (${finalUsd.toFixed(2)}):</span>
-                  <span>{formatBs(totalBs)}</span>
-                </div>
-              </div>
-
-              <div className="fy-ticket-foot">
-                <span>MH · Z1B8049210 (HKA80)</span>
-                <span className="fy-ok">✓ Lista para imprimir</span>
-              </div>
             </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* COMPARATIVA VENEZUELA */}
-        <section id="realidad-vzla" className="fy-section">
-          <div className="fy-sec-head">
-            <span className="fy-eyebrow">Sin letras chiquitas</span>
-            <h2>¿Por qué los restaurantes en Venezuela se están pasando a FacturasYa?</h2>
-            <p>
-              Los sistemas viejos cobran cientos de dólares de entrada y requieren un técnico presencial.
-              Las apps web extranjeras no imprimen en máquinas fiscales del SENIAT ni sirven cuando falla ABA.
+      {/* COMPARATIVA TRANSPARENTE: VENEZUELA (Apple / Stripe style) */}
+      <section id="comparativa" className="py-20 border-t border-zinc-100 bg-zinc-50/50">
+        <div className="max-w-6xl mx-auto px-4 space-y-12">
+          <div className="text-center max-w-2xl mx-auto space-y-3">
+            <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+              Hecho para la realidad comercial
+            </span>
+            <h2 className="text-3xl font-extrabold text-zinc-950 tracking-tight">
+              ¿Por qué los restaurantes en Venezuela eligen FacturasYa?
+            </h2>
+            <p className="text-sm text-zinc-600 leading-relaxed">
+              Los sistemas antiguos te amarran a costos de entrada de \$800 a \$1,200. Las apps extranjeras en la nube no se comunican con máquinas fiscales del SENIAT. FacturasYa es el híbrido moderno.
             </p>
           </div>
 
-          <div className="card table-wrap">
-            <table>
+          <div className="overflow-x-auto rounded-2xl border border-zinc-200 bg-white shadow-2xs">
+            <table className="w-full text-left border-collapse text-xs sm:text-sm">
               <thead>
-                <tr>
-                  <th>Situación real en el local</th>
-                  <th>Sistemas viejos (ej. Xetux / Saint)</th>
-                  <th>Apps genéricas en la nube</th>
-                  <th>FacturasYa (Híbrido)</th>
+                <tr className="border-b border-zinc-200 bg-zinc-50/80 text-zinc-500 uppercase text-[11px] font-semibold">
+                  <th className="py-4 px-5">Situación en el negocio</th>
+                  <th className="py-4 px-5">Sistemas tradicionales (Saint, Xetux)</th>
+                  <th className="py-4 px-5">Apps extranjeras (Square, Loyverse)</th>
+                  <th className="py-4 px-5 bg-zinc-900 text-white font-bold">FacturasYa</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-zinc-100 text-zinc-700">
                 <tr>
-                  <td><strong>Costo para empezar hoy</strong></td>
-                  <td>$450 a $1,200 + visita técnica</td>
-                  <td>Tarjeta internacional obligatoria</td>
-                  <td><strong className="fy-ok">14 días gratis · Luego $30/mes en Pago Móvil</strong></td>
+                  <td className="py-4 px-5 font-semibold text-zinc-900">Inversión inicial para empezar</td>
+                  <td className="py-4 px-5 text-zinc-500">\$400 – \$1,200 + costo de visita técnica</td>
+                  <td className="py-4 px-5 text-zinc-500">Tarjeta en divisas obligatoria mensual</td>
+                  <td className="py-4 px-5 bg-zinc-50 font-bold text-emerald-700">
+                    \$0 por 14 días · Luego \$30/mes por Pago Móvil
+                  </td>
                 </tr>
                 <tr>
-                  <td><strong>Se cae el internet al mediodía</strong></td>
-                  <td>Funciona local, dueño a ciegas</td>
-                  <td>Se paraliza la caja, no puedes cobrar</td>
-                  <td><strong>La caja sigue facturando y sincroniza al volver</strong></td>
+                  <td className="py-4 px-5 font-semibold text-zinc-900">Falla de internet en hora pico</td>
+                  <td className="py-4 px-5 text-zinc-500">Funciona local, pero dueño queda a ciegas</td>
+                  <td className="py-4 px-5 text-red-600 font-medium">Se detiene la caja; no puedes facturar</td>
+                  <td className="py-4 px-5 bg-zinc-50 font-semibold text-zinc-900">
+                    100% Offline-First (Sigue facturando sin internet)
+                  </td>
                 </tr>
                 <tr>
-                  <td><strong>Máquina Fiscal SENIAT (HKA80)</strong></td>
-                  <td>Licencias y módulos aparte</td>
-                  <td>No soportan máquinas fiscales de Venezuela</td>
-                  <td><strong>Incluido directo por USB/Serial (Facturas, X, Z)</strong></td>
+                  <td className="py-4 px-5 font-semibold text-zinc-900">Máquina fiscal SENIAT (HKA80)</td>
+                  <td className="py-4 px-5 text-zinc-500">Requiere drivers y licencias adicionales</td>
+                  <td className="py-4 px-5 text-red-600 font-medium">Incompatible con máquinas fiscales venezolanas</td>
+                  <td className="py-4 px-5 bg-zinc-50 font-semibold text-zinc-900">
+                    Puente nativo directo incluido (Facturas, X, Z)
+                  </td>
                 </tr>
                 <tr>
-                  <td><strong>Ver las ventas desde tu teléfono</strong></td>
-                  <td>Requiere IP fija o servidor caro</td>
-                  <td>Sí, pero sin control fiscal</td>
-                  <td><strong>Link permanente con tu correo y clave</strong></td>
+                  <td className="py-4 px-5 font-semibold text-zinc-900">Monitoreo del dueño en el celular</td>
+                  <td className="py-4 px-5 text-zinc-500">Requiere IP pública o módulo web costoso</td>
+                  <td className="py-4 px-5 text-zinc-500">Dashboard web disponible</td>
+                  <td className="py-4 px-5 bg-zinc-50 font-semibold text-zinc-900">
+                    Enlace permanente seguro con tu correo y clave
+                  </td>
                 </tr>
                 <tr>
-                  <td><strong>Se daña o formatean la PC</strong></td>
-                  <td>Pierdes datos o pagas soporte técnico</td>
-                  <td>Guardado en la nube</td>
-                  <td><strong>Instalas el .EXE en otra PC y todo baja solo</strong></td>
+                  <td className="py-4 px-5 font-semibold text-zinc-900">Si se daña o formatean la PC</td>
+                  <td className="py-4 px-5 text-red-600 font-medium">Riesgo de perder datos; costo de reinstalación</td>
+                  <td className="py-4 px-5 text-zinc-500">Almacenado en la nube</td>
+                  <td className="py-4 px-5 bg-zinc-50 font-semibold text-zinc-900">
+                    Descargas el .EXE, inicias sesión y restauras todo
+                  </td>
                 </tr>
               </tbody>
             </table>
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* LAS 6 FUNCIONES */}
-        <section id="funciones" className="fy-section">
-          <div className="fy-sec-head">
-            <span className="fy-eyebrow">Todo en un solo instalador</span>
-            <h2>Diseñado para que tu cajero aprenda en 10 minutos</h2>
+      {/* BENTO GRID DE CARACTERÍSTICAS (Notion style) */}
+      <section id="caracteristicas" className="py-20 border-t border-zinc-100 bg-white">
+        <div className="max-w-6xl mx-auto px-4 space-y-12">
+          <div className="text-center max-w-2xl mx-auto space-y-3">
+            <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+              Arquitectura Robusta
+            </span>
+            <h2 className="text-3xl font-extrabold text-zinc-950 tracking-tight">
+              Todo lo que necesita tu restaurante, sin módulos de pago ocultos
+            </h2>
           </div>
 
-          <div className="fy-features-grid">
-            <div className="card">
-              <span className="fy-eyebrow">01 · Facturación Fiscal SENIAT</span>
-              <h3>Puente directo con The Factory HKA80</h3>
-              <p>Emite facturas fiscales con RIF/Cédula, Notas de Crédito, Reporte X y Cierre Z diario sin salir de la pantalla.</p>
-            </div>
-            <div className="card">
-              <span className="fy-eyebrow">02 · Mesas y Comandas QR</span>
-              <h3>Toma pedidos desde tablets o teléfonos</h3>
-              <p>Enlaza los teléfonos de tus mesoneros por Wi-Fi local. Toman el pedido en la mesa y sale impreso en cocina al instante.</p>
-            </div>
-            <div className="card">
-              <span className="fy-eyebrow">03 · Contabilidad Lista</span>
-              <h3>Libros de Compra y Venta en Excel</h3>
-              <p>Registra compras a proveedores con retenciones y descarga a fin de mes el Excel exacto que pide tu contador.</p>
-            </div>
-            <div className="card">
-              <span className="fy-eyebrow">04 · Inventario en 2 Minutos</span>
-              <h3>Control de vasos, carnes e insumos</h3>
-              <p>Sin recetas eternas. Registra entradas, mermas y el conteo físico de cierre de turno para detectar faltantes al instante.</p>
-            </div>
-            <div className="card">
-              <span className="fy-eyebrow">05 · Monitor del Dueño</span>
-              <h3>Revisa tu negocio desde el celular</h3>
-              <p>Consulta cuánto efectivo en dólares hay en caja, cuánto entró por Pago Móvil o Punto y qué mesas están abiertas.</p>
-            </div>
-            <div className="card">
-              <span className="fy-eyebrow">06 · Arqueo Cuadrado</span>
-              <h3>Cierre por método de pago y turno</h3>
-              <p>Separa Efectivo USD, Efectivo Bs, Pago Móvil, Punto de Venta, Zelle y gastos de caja chica sin usar hojas sueltas.</p>
-            </div>
-          </div>
-        </section>
-
-        {/* PRECIOS */}
-        <section id="precios" className="fy-section">
-          <div className="fy-sec-head">
-            <span className="fy-eyebrow">Precios transparentes</span>
-            <h2>Un solo sistema completo, sin cobros ocultos por módulo</h2>
-          </div>
-
-          <div className="fy-pricing-grid">
-            <div className="card fy-price-card">
-              <div>
-                <span className="badge">Para probar en tu caja</span>
-                <h3>Prueba de 14 Días</h3>
-                <div className="fy-price-num">$0 <small>/ 14 días</small></div>
-                <p>Instálalo en tu computadora, conecta tu máquina fiscal y pruébalo con tu equipo sin compromiso.</p>
-                <ul>
-                  <li>✓ Instalador completo para Windows (.EXE)</li>
-                  <li>✓ Conexión con máquina fiscal HKA80</li>
-                  <li>✓ Mesas, comandas QR e inventario</li>
-                  <li>✓ Monitor del dueño en tiempo real</li>
-                </ul>
+          <div className="grid md:grid-cols-3 gap-5">
+            {/* Box 1 */}
+            <div className="p-6 rounded-2xl border border-zinc-200/80 bg-zinc-50/50 hover:bg-white hover:border-zinc-300 transition-all space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-white border border-zinc-200 flex items-center justify-center text-zinc-900 shadow-2xs">
+                <Printer size={20} />
               </div>
-              <button type="button" className="btn" onClick={openModal}>
-                Descargar prueba gratis
-              </button>
+              <h3 className="font-bold text-base text-zinc-950">Impresión Fiscal SENIAT</h3>
+              <p className="text-xs text-zinc-600 leading-relaxed">
+                Emisión de comprobantes fiscales con RIF del cliente, Notas de Crédito referenciadas, Reporte X y Cierre Z diario por puerto USB/Serial con The Factory HKA80.
+              </p>
             </div>
 
-            <div className="card fy-price-card fy-price-featured">
-              <div>
-                <div className="fy-price-top">
-                  <span className="badge red">Más elegido</span>
-                  <strong className="fy-ok">≈ {formatBs(30 * rate)} / mes</strong>
-                </div>
-                <h3>Plan Mensual</h3>
-                <div className="fy-price-num">$30 <small>/ mes (a tasa BCV)</small></div>
-                <p>Renueva mes a mes desde la misma caja reportando los últimos 6 dígitos de tu Pago Móvil.</p>
-                <ul>
-                  <li>✓ <strong>Todo ilimitado</strong> sin límite de facturas</li>
-                  <li>✓ Respaldo automático en la nube</li>
-                  <li>✓ Libros de Compra y Venta SENIAT en Excel</li>
-                  <li>✓ Activación al reportar Pago Móvil</li>
-                  <li>✓ Soporte directo por WhatsApp</li>
-                </ul>
+            {/* Box 2 */}
+            <div className="p-6 rounded-2xl border border-zinc-200/80 bg-zinc-50/50 hover:bg-white hover:border-zinc-300 transition-all space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-white border border-zinc-200 flex items-center justify-center text-zinc-900 shadow-2xs">
+                <QrCode size={20} />
               </div>
-              <button type="button" className="btn fy-btn-red" onClick={openModal}>
-                Empezar con 14 días gratis →
-              </button>
+              <h3 className="font-bold text-base text-zinc-950">Comandas Móviles por QR</h3>
+              <p className="text-xs text-zinc-600 leading-relaxed">
+                Tus mesoneros enlazan sus teléfonos escaneando un código QR en la red local. Toman el pedido en la mesa y la comanda sale en cocina al instante.
+              </p>
             </div>
 
-            <div className="card fy-price-card">
-              <div>
-                <span className="badge green">Ahorras 2 meses ($60)</span>
-                <h3>Plan Anual</h3>
-                <div className="fy-price-num">$300 <small>/ año completo</small></div>
-                <p>Olvídate de renovaciones mensuales durante todo un año y congela el precio de tu licencia.</p>
-                <ul>
-                  <li>✓ 365 días continuos de licencia activa</li>
-                  <li>✓ Acompañamiento en configuración inicial</li>
-                  <li>✓ Actualizaciones prioritarias incluidas</li>
-                  <li>✓ Pago Móvil BCV, Zelle o Binance</li>
-                </ul>
+            {/* Box 3 */}
+            <div className="p-6 rounded-2xl border border-zinc-200/80 bg-zinc-50/50 hover:bg-white hover:border-zinc-300 transition-all space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-white border border-zinc-200 flex items-center justify-center text-zinc-900 shadow-2xs">
+                <FileSpreadsheet size={20} />
               </div>
-              <button type="button" className="btn" onClick={openModal}>
-                Elegir plan anual
-              </button>
+              <h3 className="font-bold text-base text-zinc-950">Libros de Compra y Venta</h3>
+              <p className="text-xs text-zinc-600 leading-relaxed">
+                Exporta al cierre de mes el archivo Excel con el formato exacto que exige el SENIAT y tu contador, incluyendo retenciones de IVA aplicadas a proveedores.
+              </p>
+            </div>
+
+            {/* Box 4 */}
+            <div className="p-6 rounded-2xl border border-zinc-200/80 bg-zinc-50/50 hover:bg-white hover:border-zinc-300 transition-all space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-white border border-zinc-200 flex items-center justify-center text-zinc-900 shadow-2xs">
+                <Layers size={20} />
+              </div>
+              <h3 className="font-bold text-base text-zinc-950">Inventario Práctico en 2 Minutos</h3>
+              <p className="text-xs text-zinc-600 leading-relaxed">
+                Sin recetas infinitas que nadie actualiza. Controla carnes, panes, vasos y bebidas con conteos físicos de cierre de turno y alertas de reposición.
+              </p>
+            </div>
+
+            {/* Box 5 */}
+            <div className="p-6 rounded-2xl border border-zinc-200/80 bg-zinc-50/50 hover:bg-white hover:border-zinc-300 transition-all space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-white border border-zinc-200 flex items-center justify-center text-zinc-900 shadow-2xs">
+                <Smartphone size={20} />
+              </div>
+              <h3 className="font-bold text-base text-zinc-950">Dashboard en la Nube</h3>
+              <p className="text-xs text-zinc-600 leading-relaxed">
+                Abre el monitor desde tu celular en cualquier parte. Visualiza las ventas en vivo, mesas abiertas, ventas anuladas y arqueo de caja sin estar en el local.
+              </p>
+            </div>
+
+            {/* Box 6 */}
+            <div className="p-6 rounded-2xl border border-zinc-200/80 bg-zinc-50/50 hover:bg-white hover:border-zinc-300 transition-all space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-white border border-zinc-200 flex items-center justify-center text-zinc-900 shadow-2xs">
+                <ShieldCheck size={20} />
+              </div>
+              <h3 className="font-bold text-base text-zinc-950">Cierre de Caja Cuadrado</h3>
+              <p className="text-xs text-zinc-600 leading-relaxed">
+                Arqueo automático separado por Efectivo USD, Efectivo Bs, Pago Móvil, Punto de Venta y Zelle para evitar diferencias y descuadres de dinero al final del día.
+              </p>
             </div>
           </div>
-        </section>
-      </main>
+        </div>
+      </section>
 
-      {/* MODAL DE REGISTRO + DESCARGA DEL INSTALADOR */}
-      {modalOpen && (
-        <div className="fy-modal-backdrop" onClick={() => setModalOpen(false)}>
-          <div className="card fy-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="fy-modal-head">
-              <div>
-                <span className="fy-eyebrow">
-                  {registeredAccount ? 'Paso 2 de 2 · Descarga lista' : 'Paso 1 de 2 · 14 días gratis'}
+      {/* PLANES DE PRECIO (Stripe style) */}
+      <section id="precios" className="py-20 border-t border-zinc-100 bg-zinc-50/50">
+        <div className="max-w-6xl mx-auto px-4 space-y-10">
+          <div className="text-center max-w-xl mx-auto space-y-3">
+            <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+              Precios Transparentes
+            </span>
+            <h2 className="text-3xl font-extrabold text-zinc-950 tracking-tight">
+              Un único plan con todas las funciones incluidas
+            </h2>
+            <p className="text-sm text-zinc-600">
+              Pagas mes a mes en Bolívares por Pago Móvil a tasa oficial BCV. Sin contratos de permanencia ni cobros ocultos por mesa.
+            </p>
+
+            {/* Switch Mensual / Anual */}
+            <div className="pt-2 inline-flex items-center gap-2 p-1 rounded-full bg-zinc-200/60 border border-zinc-200 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setBillingCycle('monthly')}
+                className={`px-4 py-1.5 rounded-full transition-all ${
+                  billingCycle === 'monthly'
+                    ? 'bg-white text-zinc-950 shadow-2xs'
+                    : 'text-zinc-600 hover:text-zinc-950'
+                }`}
+              >
+                Pago Mensual
+              </button>
+              <button
+                type="button"
+                onClick={() => setBillingCycle('annual')}
+                className={`px-4 py-1.5 rounded-full transition-all inline-flex items-center gap-1.5 ${
+                  billingCycle === 'annual'
+                    ? 'bg-white text-zinc-950 shadow-2xs'
+                    : 'text-zinc-600 hover:text-zinc-950'
+                }`}
+              >
+                <span>Pago Anual</span>
+                <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded-full">
+                  Ahorra 2 meses
                 </span>
-                <h3>
-                  {registeredAccount
-                    ? '¡Todo listo para instalar en tu caja!'
-                    : 'Crea la cuenta de tu restaurante'}
+              </button>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto items-stretch">
+            
+            {/* Card 1: Prueba Gratuita */}
+            <div className="p-7 rounded-2xl bg-white border border-zinc-200/90 shadow-2xs flex flex-col justify-between space-y-6">
+              <div className="space-y-4">
+                <span className="inline-block text-xs font-semibold px-2.5 py-1 rounded-full bg-zinc-100 text-zinc-700">
+                  Para probar en tu local
+                </span>
+                <div>
+                  <h3 className="text-lg font-bold text-zinc-950">Prueba Gratuita 14 Días</h3>
+                  <div className="mt-2 flex items-baseline gap-1">
+                    <span className="text-3xl font-extrabold text-zinc-950 mono-num">$0</span>
+                    <span className="text-xs text-zinc-500 font-medium">/ 14 días completos</span>
+                  </div>
+                </div>
+                <p className="text-xs text-zinc-600 leading-relaxed">
+                  Descarga el instalador, conéctalo a tu impresora fiscal y opera tus mesas sin ningún compromiso.
+                </p>
+                <ul className="space-y-2 text-xs text-zinc-600 pt-2 border-t border-zinc-100">
+                  <li className="flex items-center gap-2"><CheckCircle2 size={14} className="text-emerald-600" /> Instalador nativo para Windows (.EXE)</li>
+                  <li className="flex items-center gap-2"><CheckCircle2 size={14} className="text-emerald-600" /> Conexión con The Factory HKA80</li>
+                  <li className="flex items-center gap-2"><CheckCircle2 size={14} className="text-emerald-600" /> Comandas QR ilimitadas</li>
+                  <li className="flex items-center gap-2"><CheckCircle2 size={14} className="text-emerald-600" /> Monitor del dueño en la nube</li>
+                </ul>
+              </div>
+
+              <button
+                type="button"
+                onClick={openTrialModal}
+                className="w-full py-2.5 px-4 rounded-xl border border-zinc-300 hover:bg-zinc-50 font-semibold text-xs text-zinc-900 transition-colors"
+              >
+                Comenzar Prueba Gratis
+              </button>
+            </div>
+
+            {/* Card 2: Plan Mensual (Destacado) */}
+            <div className="p-7 rounded-2xl bg-white border-2 border-zinc-950 shadow-md flex flex-col justify-between space-y-6 relative">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="inline-block text-xs font-semibold px-2.5 py-1 rounded-full bg-zinc-950 text-white">
+                    Recomendado
+                  </span>
+                  <span className="text-xs font-bold text-emerald-700 mono-num">
+                    ≈ {formatBs((billingCycle === 'annual' ? 25 : 30) * rate)} / mes
+                  </span>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-bold text-zinc-950">Suscripción SaaS</h3>
+                  <div className="mt-2 flex items-baseline gap-1">
+                    <span className="text-3xl font-extrabold text-zinc-950 mono-num">
+                      {billingCycle === 'annual' ? '$25' : '$30'}
+                    </span>
+                    <span className="text-xs text-zinc-500 font-medium">/ mes (a tasa BCV)</span>
+                  </div>
+                  {billingCycle === 'annual' && (
+                    <span className="text-[11px] text-zinc-500 block mt-0.5">
+                      Cobrado como \$300 al año (Ahorras \$60)
+                    </span>
+                  )}
+                </div>
+
+                <p className="text-xs text-zinc-600 leading-relaxed">
+                  Renueva directamente desde la app reportando la referencia de tu Pago Móvil. Desbloqueo inmediato.
+                </p>
+
+                <ul className="space-y-2 text-xs text-zinc-700 pt-2 border-t border-zinc-100 font-medium">
+                  <li className="flex items-center gap-2"><CheckCircle2 size={14} className="text-emerald-600" /> Facturación fiscal ilimitada</li>
+                  <li className="flex items-center gap-2"><CheckCircle2 size={14} className="text-emerald-600" /> Respaldo automático en PostgreSQL Cloud</li>
+                  <li className="flex items-center gap-2"><CheckCircle2 size={14} className="text-emerald-600" /> Libros de Compra y Venta SENIAT (Excel)</li>
+                  <li className="flex items-center gap-2"><CheckCircle2 size={14} className="text-emerald-600" /> Soporte directo vía WhatsApp</li>
+                </ul>
+              </div>
+
+              <button
+                type="button"
+                onClick={openTrialModal}
+                className="w-full py-2.5 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 font-semibold text-xs text-white shadow-xs transition-all"
+              >
+                Activar 14 Días y Descargar →
+              </button>
+            </div>
+
+            {/* Card 3: Soporte y Personalización */}
+            <div className="p-7 rounded-2xl bg-white border border-zinc-200/90 shadow-2xs flex flex-col justify-between space-y-6">
+              <div className="space-y-4">
+                <span className="inline-block text-xs font-semibold px-2.5 py-1 rounded-full bg-zinc-100 text-zinc-700">
+                  Cadenas y Múltiples Cajas
+                </span>
+                <div>
+                  <h3 className="text-lg font-bold text-zinc-950">Multi-Caja / Franquicia</h3>
+                  <div className="mt-2 flex items-baseline gap-1">
+                    <span className="text-2xl font-extrabold text-zinc-950">A la medida</span>
+                  </div>
+                </div>
+                <p className="text-xs text-zinc-600 leading-relaxed">
+                  Para locales con múltiples puntos de facturación fiscal, impresoras de comandas remotas o varias sucursales.
+                </p>
+                <ul className="space-y-2 text-xs text-zinc-600 pt-2 border-t border-zinc-100">
+                  <li className="flex items-center gap-2"><CheckCircle2 size={14} className="text-emerald-600" /> Múltiples cajas fiscales en red</li>
+                  <li className="flex items-center gap-2"><CheckCircle2 size={14} className="text-emerald-600" /> Consolidación contable de sucursales</li>
+                  <li className="flex items-center gap-2"><CheckCircle2 size={14} className="text-emerald-600" /> Asesoría presencial para instalación</li>
+                  <li className="flex items-center gap-2"><CheckCircle2 size={14} className="text-emerald-600" /> Soporte técnico con SLA garantizado</li>
+                </ul>
+              </div>
+
+              <a
+                href="https://wa.me/584120000000?text=Hola,%20me%20interesa%20FacturasYa%20para%20mi%20restaurante"
+                target="_blank"
+                rel="noreferrer"
+                className="w-full py-2.5 px-4 rounded-xl border border-zinc-300 hover:bg-zinc-50 font-semibold text-xs text-zinc-900 transition-colors text-center block"
+              >
+                Contactar por WhatsApp
+              </a>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* FOOTER */}
+      <footer className="py-12 border-t border-zinc-200 bg-white text-xs text-zinc-500">
+        <div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-6 h-6 rounded-md bg-zinc-950 text-white font-black text-xs flex items-center justify-center">
+              FY
+            </div>
+            <span>© {new Date().getFullYear()} FacturasYa · Hecho en Venezuela para el sector gastronómico.</span>
+          </div>
+
+          <div className="flex items-center gap-5 font-medium text-zinc-600">
+            <a href="#simulador" className="hover:text-zinc-950">Simulador</a>
+            <a href="#comparativa" className="hover:text-zinc-950">Comparativa</a>
+            <a href="#precios" className="hover:text-zinc-950">Precios</a>
+            <Link to="/super-admin" className="hover:text-zinc-950">Acceso Admin</Link>
+          </div>
+        </div>
+      </footer>
+
+      {/* MODAL DE REGISTRO (14 DÍAS GRATIS) Y DESCARGA DEL .EXE (Linear/Notion style) */}
+      {isModalOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-zinc-950/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+          onClick={() => setIsModalOpen(false)}
+        >
+          <div
+            className="bg-white rounded-2xl border border-zinc-200 shadow-xl max-w-md w-full p-6 space-y-5 animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-zinc-100 pb-3">
+              <div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
+                  {registeredAccount ? 'Paso 2 de 2 · Descarga de Software' : 'Paso 1 de 2 · 14 Días Gratis'}
+                </span>
+                <h3 className="text-base font-bold text-zinc-950 mt-0.5">
+                  {registeredAccount ? '¡Tu licencia ha sido creada!' : 'Activa la cuenta de tu restaurante'}
                 </h3>
               </div>
-              <button type="button" className="btn" onClick={() => setModalOpen(false)}>
-                Cerrar
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="p-1 rounded-lg hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 transition-colors"
+              >
+                <X size={18} />
               </button>
             </div>
 
             {!registeredAccount ? (
-              <form className="fy-form" onSubmit={handleRegisterSubmit}>
-                <label>
-                  <span>Nombre del restaurante o comercio</span>
+              <form onSubmit={handleRegisterSubmit} className="space-y-3.5 text-xs">
+                <div>
+                  <label className="block text-zinc-700 font-semibold mb-1">Nombre comercial del restaurante</label>
                   <input
                     type="text"
                     required
-                    placeholder="Ej. Arepera El Fogón"
+                    placeholder="Ej. Arepera Caracas Grill"
                     value={form.businessName}
                     onChange={(e) => setForm({ ...form, businessName: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:border-zinc-950 focus:outline-none text-zinc-900 bg-zinc-50/50"
                   />
-                </label>
-                <div className="fy-form-row">
-                  <label>
-                    <span>RIF Fiscal</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-zinc-700 font-semibold mb-1">RIF Fiscal</label>
                     <input
                       type="text"
                       required
                       placeholder="J-50123456-0"
                       value={form.rif}
                       onChange={(e) => setForm({ ...form, rif: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:border-zinc-950 focus:outline-none text-zinc-900 bg-zinc-50/50 uppercase"
                     />
-                  </label>
-                  <label>
-                    <span>WhatsApp / Teléfono</span>
+                  </div>
+                  <div>
+                    <label className="block text-zinc-700 font-semibold mb-1">Teléfono / WhatsApp</label>
                     <input
                       type="text"
                       required
                       placeholder="0412-1234567"
                       value={form.phone}
                       onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:border-zinc-950 focus:outline-none text-zinc-900 bg-zinc-50/50"
                     />
-                  </label>
+                  </div>
                 </div>
-                <label>
-                  <span>Correo electrónico (será tu usuario en la caja y en el celular)</span>
+
+                <div>
+                  <label className="block text-zinc-700 font-semibold mb-1">Correo electrónico del dueño</label>
                   <input
                     type="email"
                     required
-                    placeholder="dueno@mirestaurante.com"
+                    placeholder="admin@mirestaurante.com"
                     value={form.email}
                     onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:border-zinc-950 focus:outline-none text-zinc-900 bg-zinc-50/50"
                   />
-                </label>
-                <label>
-                  <span>Contraseña</span>
+                  <span className="text-[10px] text-zinc-400 block mt-0.5">
+                    Este correo será tu usuario para entrar en la PC y en el celular.
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block text-zinc-700 font-semibold mb-1">Contraseña de acceso</label>
                   <input
                     type="password"
                     required
@@ -581,46 +925,60 @@ export default function LandingPage() {
                     placeholder="Mínimo 6 caracteres"
                     value={form.password}
                     onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:border-zinc-950 focus:outline-none text-zinc-900 bg-zinc-50/50"
                   />
-                </label>
+                </div>
 
-                {formError && <p className="error">{formError}</p>}
+                {formError && (
+                  <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-red-600 text-xs font-medium">
+                    {formError}
+                  </div>
+                )}
 
-                <button type="submit" className="btn fy-btn-red fy-btn-lg" disabled={submitting}>
-                  {submitting ? 'Activando licencia…' : 'Activar 14 días gratis y bajar instalador →'}
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="w-full py-3 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 font-semibold text-xs text-white shadow-xs transition-all flex items-center justify-center gap-2 mt-2"
+                >
+                  {submitting ? 'Creando licencia...' : 'Activar 14 Días y Descargar Instalador →'}
                 </button>
               </form>
             ) : (
-              <div className="fy-download-box">
-                <div className="fy-success-banner">
-                  <strong>✓ ¡Cuenta activada con 14 días de prueba!</strong>
-                  <p>
-                    {registeredAccount.businessName} ({registeredAccount.rif}) · Usuario:{' '}
-                    <strong>{registeredAccount.email}</strong> · Activa hasta el{' '}
-                    {registeredAccount.validUntil}.
-                  </p>
+              <div className="space-y-4">
+                <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200/80 text-xs text-emerald-800 space-y-1">
+                  <div className="font-bold flex items-center gap-1.5 text-emerald-900">
+                    <CheckCircle2 size={16} /> ¡Licencia activada con éxito!
+                  </div>
+                  <div>
+                    {registeredAccount.businessName} ({registeredAccount.rif})
+                  </div>
+                  <div className="text-emerald-700">
+                    Usuario: <strong>{registeredAccount.email}</strong> · Válido hasta el <strong>{registeredAccount.validUntil}</strong>.
+                  </div>
                 </div>
 
                 <a
                   href={INSTALLER_URL}
                   target="_blank"
                   rel="noreferrer"
-                  className="btn primary fy-btn-lg fy-download-btn"
+                  className="w-full py-3.5 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 font-bold text-xs text-white shadow-xs flex items-center justify-center gap-2 transition-all block text-center"
                 >
-                  ⬇ Descargar Instalador para Windows (FacturaPOS-Setup.exe)
+                  <Download size={16} />
+                  <span>Descargar FacturaPOS-Setup.exe para Windows</span>
                 </a>
 
-                <div className="fy-steps-mini">
-                  <strong>¿Qué hacer al terminar la descarga?</strong>
-                  <p>1. Ejecuta el instalador en la PC de tu caja.</p>
-                  <p>2. Inicia sesión con el correo y contraseña que acabas de crear.</p>
-                  <p>3. Conecta tu máquina fiscal HKA80 por USB o empieza en modo comanda.</p>
+                <div className="p-3 rounded-xl bg-zinc-50 border border-zinc-200 text-xs text-zinc-600 space-y-1.5">
+                  <strong className="text-zinc-900 block font-semibold">Pasos siguientes:</strong>
+                  <div>1. Abre el instalador en la computadora de tu caja.</div>
+                  <div>2. Inicia sesión con el correo y contraseña que acabas de registrar.</div>
+                  <div>3. Conecta el cable USB de tu máquina fiscal HKA80 y empieza a facturar.</div>
                 </div>
               </div>
             )}
           </div>
         </div>
       )}
+
     </div>
   );
 }
