@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Shield, User, Lock, ArrowRight } from 'lucide-react';
+import { Shield, User, Lock, ArrowRight, Building2, Mail, KeyRound, Sparkles, RefreshCw } from 'lucide-react';
 import { CLIENT_CONFIG } from '../config/clientConfig';
 import { getAssetUrl } from '../utils/assetHelper';
 
@@ -10,12 +10,27 @@ const Login = () => {
   const [pin, setPin] = useState(['', '', '', '']);
   const [error, setError] = useState(false);
   const inputRefs = [useRef(), useRef(), useRef(), useRef()];
-  const { login } = useAuth();
+  const { login, tenant, subStatus, loginTenant, registerTenant } = useAuth();
   const navigate = useNavigate();
 
+  // Estado para vinculación de cuenta SaaS (Correo / Contraseña del Restaurante)
+  const [showTenantModal, setShowTenantModal] = useState(!tenant);
+  const [tenantMode, setTenantMode] = useState('login'); // 'login' | 'register'
+  const [tenantForm, setTenantForm] = useState({
+    businessName: '',
+    rif: 'J-',
+    phone: '',
+    email: tenant?.owner_email || 'admin@happydays.com',
+    password: ''
+  });
+  const [tenantError, setTenantError] = useState('');
+  const [tenantLoading, setTenantLoading] = useState(false);
+
   useEffect(() => {
-    inputRefs[0].current?.focus();
-  }, [role]);
+    if (!showTenantModal) {
+      inputRefs[0].current?.focus();
+    }
+  }, [role, showTenantModal]);
 
   const handlePinChange = (index, value) => {
     if (!/^\d*$/.test(value)) return;
@@ -62,11 +77,72 @@ const Login = () => {
     inputRefs[0].current?.focus();
   };
 
+  const handleTenantSubmit = async (e) => {
+    e.preventDefault();
+    setTenantError('');
+    setTenantLoading(true);
+    try {
+      if (tenantMode === 'register') {
+        await registerTenant(tenantForm);
+      } else {
+        await loginTenant(tenantForm.email, tenantForm.password || '123456');
+      }
+      setShowTenantModal(false);
+    } catch (err) {
+      setTenantError(err?.message || 'Error al autenticar la cuenta del restaurante');
+    } finally {
+      setTenantLoading(false);
+    }
+  };
+
   return (
     <div className="login-container">
       <div className="login-background"></div>
       
       <div className={`login-card ${error ? 'shake-animation' : ''}`}>
+        {/* Insignia Superior de Cuenta SaaS Vinculada */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '8px 12px',
+          background: '#f8fafc',
+          borderRadius: '10px',
+          border: '1px solid #e2e8f0',
+          fontSize: '0.78rem'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700', color: '#0f172a' }}>
+            <Building2 size={15} color="#2563eb" />
+            <span>{tenant?.name || CLIENT_CONFIG.branding.logoText}</span>
+            <span style={{
+              padding: '2px 7px',
+              borderRadius: '999px',
+              fontSize: '0.68rem',
+              fontWeight: '800',
+              background: subStatus?.isExpired ? '#fef2f2' : '#f0fdf4',
+              color: subStatus?.isExpired ? '#dc2626' : '#15803d',
+              border: `1px solid ${subStatus?.isExpired ? '#fecaca' : '#bbf7d0'}`
+            }}>
+              {subStatus?.isExpired ? 'Vencida' : `${subStatus?.daysRemaining ?? 14}d activos`}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowTenantModal(!showTenantModal)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#2563eb',
+              fontWeight: '700',
+              fontSize: '0.75rem',
+              cursor: 'pointer',
+              textDecoration: 'underline'
+            }}
+          >
+            {showTenantModal ? 'Volver al PIN' : 'Cambiar Cuenta'}
+          </button>
+        </div>
+
         <div className="login-header">
           {CLIENT_CONFIG.branding.logoImage && (
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
@@ -78,59 +154,172 @@ const Login = () => {
             </div>
           )}
           <div className="logo-container">
-            <h1 className="logo-text glow-animation">{CLIENT_CONFIG.branding.logoText}</h1>
+            <h1 className="logo-text glow-animation">{tenant?.name || CLIENT_CONFIG.branding.logoText}</h1>
           </div>
           <p className="login-subtitle">{CLIENT_CONFIG.subtitle}</p>
         </div>
 
-        <div className="role-selector">
-          <button 
-            type="button"
-            className={`role-btn ${role === 'admin' ? 'active' : ''}`}
-            onClick={() => { setRole('admin'); setPin(['','','','']); setError(false); }}
-          >
-            <Shield size={20} />
-            <span>Administrador</span>
-          </button>
-          <button 
-            type="button"
-            className={`role-btn ${role === 'cajero' ? 'active' : ''}`}
-            onClick={() => { setRole('cajero'); setPin(['','','','']); setError(false); }}
-          >
-            <User size={20} />
-            <span>Cajero</span>
-          </button>
-        </div>
+        {showTenantModal ? (
+          /* FORMULARIO DE CUENTA DEL RESTAURANTE (SUPABASE SAAS) */
+          <form onSubmit={handleTenantSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }} noValidate>
+            <div style={{ display: 'flex', gap: '6px', background: '#f1f5f9', padding: '4px', borderRadius: '10px' }}>
+              <button
+                type="button"
+                onClick={() => { setTenantMode('login'); setTenantError(''); }}
+                style={{
+                  flex: 1, padding: '8px', borderRadius: '8px', border: 'none', fontWeight: '700', fontSize: '0.82rem', cursor: 'pointer',
+                  background: tenantMode === 'login' ? '#ffffff' : 'transparent',
+                  color: tenantMode === 'login' ? '#0f172a' : '#64748b',
+                  boxShadow: tenantMode === 'login' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                }}
+              >
+                Iniciar Sesión Local
+              </button>
+              <button
+                type="button"
+                onClick={() => { setTenantMode('register'); setTenantError(''); }}
+                style={{
+                  flex: 1, padding: '8px', borderRadius: '8px', border: 'none', fontWeight: '700', fontSize: '0.82rem', cursor: 'pointer',
+                  background: tenantMode === 'register' ? '#ffffff' : 'transparent',
+                  color: tenantMode === 'register' ? '#16a34a' : '#64748b',
+                  boxShadow: tenantMode === 'register' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                }}
+              >
+                Crear Cuenta (14d Gratis)
+              </button>
+            </div>
 
-        <form onSubmit={handleSubmit} className="pin-form">
-          <div className="pin-label">
-            <Lock size={16} />
-            <span>Ingrese PIN de acceso</span>
-          </div>
-          
-          <div className="pin-inputs">
-            {pin.map((digit, index) => (
+            {tenantMode === 'register' && (
+              <>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: '#334155', marginBottom: '4px' }}>
+                    Nombre del Restaurante:
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ej: Burger King / Pizzería Napoli"
+                    value={tenantForm.businessName}
+                    onChange={(e) => setTenantForm({ ...tenantForm, businessName: e.target.value })}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }}
+                  />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: '#334155', marginBottom: '4px' }}>
+                      RIF:
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="J-12345678-9"
+                      value={tenantForm.rif}
+                      onChange={(e) => setTenantForm({ ...tenantForm, rif: e.target.value })}
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: '#334155', marginBottom: '4px' }}>
+                      Teléfono:
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="0412-0000000"
+                      value={tenantForm.phone}
+                      onChange={(e) => setTenantForm({ ...tenantForm, phone: e.target.value })}
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: '#334155', marginBottom: '4px' }}>
+                Correo del Restaurante:
+              </label>
               <input
-                key={index}
-                ref={inputRefs[index]}
-                type="password"
-                className={`pin-digit ${error ? 'error' : ''}`}
-                value={digit}
-                onChange={(e) => handlePinChange(index, e.target.value)}
-                onKeyDown={(e) => handleKeyDown(index, e)}
-                maxLength={1}
-                autoComplete="off"
+                type="email"
+                placeholder="admin@turestaurante.com"
+                value={tenantForm.email}
+                onChange={(e) => setTenantForm({ ...tenantForm, email: e.target.value })}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }}
               />
-            ))}
-          </div>
+            </div>
 
-          {error && <p className="error-message">PIN incorrecto. Intente de nuevo.</p>}
+            <div>
+              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: '#334155', marginBottom: '4px' }}>
+                Contraseña:
+              </label>
+              <input
+                type="password"
+                placeholder="••••••••"
+                value={tenantForm.password}
+                onChange={(e) => setTenantForm({ ...tenantForm, password: e.target.value })}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }}
+              />
+            </div>
 
-          <button type="submit" className="submit-btn" disabled={pin.join('').length !== 4}>
-            <span>Ingresar</span>
-            <ArrowRight size={20} />
-          </button>
-        </form>
+            {tenantError && (
+              <p className="error-message">{tenantError}</p>
+            )}
+
+            <button type="submit" className="submit-btn" disabled={tenantLoading}>
+              <span>{tenantLoading ? 'Conectando...' : (tenantMode === 'register' ? 'Activar 14 Días Gratis' : 'Vincular Restaurante')}</span>
+              <ArrowRight size={20} />
+            </button>
+          </form>
+        ) : (
+          /* ACCESO DIARIO RÁPIDO POR PIN (CAJERO / ADMIN) */
+          <>
+            <div className="role-selector">
+              <button 
+                type="button"
+                className={`role-btn ${role === 'admin' ? 'active' : ''}`}
+                onClick={() => { setRole('admin'); setPin(['','','','']); setError(false); }}
+              >
+                <Shield size={20} />
+                <span>Administrador</span>
+              </button>
+              <button 
+                type="button"
+                className={`role-btn ${role === 'cajero' ? 'active' : ''}`}
+                onClick={() => { setRole('cajero'); setPin(['','','','']); setError(false); }}
+              >
+                <User size={20} />
+                <span>Cajero</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="pin-form">
+              <div className="pin-label">
+                <Lock size={16} />
+                <span>Ingrese PIN de acceso</span>
+              </div>
+              
+              <div className="pin-inputs">
+                {pin.map((digit, index) => (
+                  <input
+                    key={index}
+                    ref={inputRefs[index]}
+                    type="password"
+                    className={`pin-digit ${error ? 'error' : ''}`}
+                    value={digit}
+                    onChange={(e) => handlePinChange(index, e.target.value)}
+                    onKeyDown={(e) => handleKeyDown(index, e)}
+                    maxLength={1}
+                    autoComplete="off"
+                  />
+                ))}
+              </div>
+
+              {error && <p className="error-message">PIN incorrecto. Intente de nuevo.</p>}
+
+              <button type="submit" className="submit-btn" disabled={pin.join('').length !== 4}>
+                <span>Ingresar</span>
+                <ArrowRight size={20} />
+              </button>
+            </form>
+          </>
+        )}
       </div>
 
       <style dangerouslySetInnerHTML={{__html: `
@@ -173,7 +362,7 @@ const Login = () => {
         .login-card {
           width: 100%;
           max-width: 420px;
-          padding: 2.5rem;
+          padding: 2rem 2.25rem;
           background: var(--card-bg);
           backdrop-filter: blur(12px);
           -webkit-backdrop-filter: blur(12px);
@@ -183,7 +372,7 @@ const Login = () => {
           z-index: 10;
           display: flex;
           flex-direction: column;
-          gap: 2rem;
+          gap: 1.5rem;
         }
 
         .login-header {
@@ -191,7 +380,7 @@ const Login = () => {
         }
 
         .logo-text {
-          font-size: 2.5rem;
+          font-size: 2.25rem;
           font-weight: 800;
           color: #111827;
           margin: 0;
@@ -210,8 +399,8 @@ const Login = () => {
 
         .login-subtitle {
           color: var(--text-muted);
-          font-size: 1.1rem;
-          margin-top: 0.5rem;
+          font-size: 1rem;
+          margin-top: 0.35rem;
         }
 
         .role-selector {
@@ -312,8 +501,8 @@ const Login = () => {
           color: #111827;
           border: none;
           border-radius: 0.75rem;
-          font-size: 1.1rem;
-          font-weight: 600;
+          font-size: 1.05rem;
+          font-weight: 700;
           cursor: pointer;
           transition: all 0.2s ease;
         }

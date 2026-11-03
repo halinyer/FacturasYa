@@ -1,3 +1,4 @@
+import { getVenezuelaISOString, getVenezuelaDateString } from '../utils/dateUtils';
 import { DEFAULT_HAPPY_DAYS_INVENTORY, getProductRecipe } from '../config/inventoryDefaults';
 // In-memory cache for synchronous operations
 let memoryStore = null;
@@ -26,6 +27,25 @@ export const initDB = async () => {
         await window.electronAPI.saveDb(memoryStore);
       } else {
         memoryStore = fileData;
+      // AUTO-MIGRACIÓN DE ZONA HORARIA (Venezuela America/Caracas)
+      // Ajusta fechas UTC antiguas que terminaban en 'Z' para corregir ventas nocturnas
+      if (memoryStore && memoryStore.pos_invoices && Array.isArray(memoryStore.pos_invoices)) {
+        let migrated = false;
+        memoryStore.pos_invoices.forEach(inv => {
+          if (inv.date && typeof inv.date === 'string' && inv.date.endsWith('Z')) {
+            const d = new Date(inv.date);
+            if (!isNaN(d.getTime())) {
+              inv.date = getVenezuelaISOString(d);
+              migrated = true;
+            }
+          }
+        });
+        if (migrated && window.electronAPI && typeof window.electronAPI.saveDb === 'function') {
+          console.log('[AutoMigration] Fechas de facturas migradas automáticamente a hora de Venezuela (-04:00).');
+          window.electronAPI.saveDb(memoryStore).catch(err => console.warn('Migration save warning:', err));
+        }
+      }
+
         if (!memoryStore.pos_expenses) memoryStore.pos_expenses = [];
         if (!memoryStore.pos_inventory || !Array.isArray(memoryStore.pos_inventory) || memoryStore.pos_inventory.length === 0) {
           memoryStore.pos_inventory = DEFAULT_HAPPY_DAYS_INVENTORY;
@@ -600,7 +620,7 @@ export const db = {
     const newInvoice = {
       id: generateId('inv'),
       invoiceNumber: db.getNextInvoiceNumber(),
-      date: new Date().toISOString(),
+      date: data.date || getVenezuelaISOString(),
       ...data
     };
     invoices.push(newInvoice);

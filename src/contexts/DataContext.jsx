@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
 import { db, initDB } from '../services/dataService';
 import { initializeSeedData } from '../data/seedData';
+import { pushLocalSnapshotToCloud } from '../lib/syncEngine';
 
 export const getTodayLocalDateStr = () => {
   const d = new Date();
@@ -144,6 +145,22 @@ export const DataProvider = ({ children }) => {
         payments: pays,
         cloudMonitorSettings: monCfg
       });
+
+      // Sincronizar snapshot hacia Supabase Cloud (Local-First Sync Engine)
+      pushLocalSnapshotToCloud({
+        products: prods,
+        clients: clis,
+        invoices: invs,
+        purchases: pur,
+        payments: pays,
+        cashCloses: closes,
+        openTabs: tabs,
+        expenses: exps,
+        inventory: invItems,
+        inventoryLogs: invLogs,
+        zReports: zReps,
+        exchangeRate: exchangeRateRef.current
+      }).catch(() => {});
     } catch (error) {
       console.error("Error refreshing data:", error);
     }

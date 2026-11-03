@@ -20,12 +20,14 @@ import InvoicePreview from '../components/InvoicePreview';
 import FiscalMachineLivePanel from '../components/cashClose/FiscalMachineLivePanel';
 import DailyInvoicesTable from '../components/cashClose/DailyInvoicesTable';
 import FiscalMemoryModal from '../components/cashClose/FiscalMemoryModal';
+import { getVenezuelaDateString } from '../utils/dateUtils';
 
 export default function CashClose() {
   const { 
     invoices = [], 
     cashCloses = [], 
     createCashClose, 
+    addZReport,
     voidInvoice,
     restoreInvoice,
     deleteInvoice,
@@ -45,13 +47,7 @@ export default function CashClose() {
   } = useData() || {};
 
   const getLocalDateStr = (dateInput = new Date()) => {
-    if (!dateInput) return '';
-    const d = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
-    if (isNaN(d.getTime())) return '';
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
+    return getVenezuelaDateString(dateInput);
   };
 
   const [activeTab, setActiveTab] = useState('cierre'); // 'cierre' or 'historial'
@@ -318,7 +314,37 @@ export default function CashClose() {
           const updated = { ...fiscalZDoneDates, [selectedDate]: new Date().toLocaleTimeString('es-VE') };
           setFiscalZDoneDates(updated);
           localStorage.setItem('pos_fiscal_z_done_dates', JSON.stringify(updated));
-          setToast('¡Cierre Z ejecutado e impreso exitosamente en la impresora fiscal!');
+
+          // Auto-registro oficial del Reporte Z en la Base de Datos para el Libro SENIAT
+          const zNum = Number(res.s1?.z_counter || res.s1_before?.z_counter || 0);
+          const lastInv = Number(res.s1_before?.last_invoice_number || res.s1?.last_invoice_number || 0);
+          const qtyInv = Number(res.s1_before?.quantity_of_invoices_today || res.s1_before?.invoices_today || 1);
+          const firstInv = Math.max(1, lastInv - qtyInv + 1);
+          const totalSales = Number(res.u0x_before?.total_accumulated_bs || res.s1_before?.total_daily_sales_bs || 0);
+          const exemptSales = Number(res.u0x_before?.exempt_sales_bs || 0);
+          const base16 = Number(res.u0x_before?.bi_general_bs || (totalSales > 0 ? (totalSales - exemptSales) / 1.16 : 0));
+          const tax16 = Number(res.u0x_before?.iva_general_bs || (base16 * 0.16));
+          const igtf = Number(res.u0x_before?.imp_igtf_bs || 0);
+          const machineSerial = res.s1?.registered_machine_number || res.s1_before?.registered_machine_number || fiscalSettings?.registeredMachineNumber || 'Z1B1234567';
+
+          if (addZReport && zNum > 0) {
+            addZReport({
+              zNumber: zNum,
+              zDate: selectedDate || getLocalDateStr(new Date()),
+              registeredMachineNumber: machineSerial,
+              firstInvoiceNumber: firstInv,
+              lastInvoiceNumber: lastInv,
+              totalSalesBs: Number(totalSales.toFixed(2)),
+              exemptSalesBs: Number(exemptSales.toFixed(2)),
+              baseGeneral16Bs: Number(base16.toFixed(2)),
+              taxGeneral16Bs: Number(tax16.toFixed(2)),
+              igtfBs: Number(igtf.toFixed(2)),
+              devolutionsBs: 0,
+              source: 'printer_hardware'
+            });
+          }
+
+          setToast(`¡Cierre Z-${String(zNum || '').padStart(4, '0')} emitido y guardado exitosamente en el Libro SENIAT!`);
         } else {
           const errStr = (res?.error || '').toLowerCase();
           if (errStr.includes('ya fue emitido') || errStr.includes('rechazo') || errStr.includes('ya se imprimio') || res?.alreadyPrinted) {

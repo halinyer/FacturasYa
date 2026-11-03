@@ -22,6 +22,7 @@ import {
   FileText
 } from 'lucide-react';
 import FiscalMemoryModal from '../components/cashClose/FiscalMemoryModal';
+import { getVenezuelaDateString, formatVenezuelaDate, getVenezuelaYearMonth } from '../utils/dateUtils';
 
 const formatUSD = (num) => `$${(Number(num) || 0).toFixed(2)}`;
 
@@ -100,15 +101,8 @@ export default function FiscalBooks() {
   // Cálculo de fechas del período seleccionado
   const filterByPeriod = (dateVal) => {
     if (!dateVal) return false;
-    const d = new Date(dateVal);
-    if (isNaN(d.getTime())) return false;
-    
-    const year = String(d.getFullYear());
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = d.getDate();
-
+    const { year, month, day } = getVenezuelaYearMonth(dateVal);
     if (year !== selectedYear || month !== selectedMonth) return false;
-
     if (selectedFortnight === 'q1') return day <= 15;
     if (selectedFortnight === 'q2') return day >= 16;
     return true;
@@ -135,7 +129,7 @@ export default function FiscalBooks() {
 
       // Totales
       const totalUSD = Number(inv.totalUSD || 0);
-      const totalBs = Number(inv.totalBs || (totalUSD * invRate));
+      const totalBsRaw = Number(inv.totalBs || (totalUSD * invRate));
 
       // Determinación de Contribuyente
       const ced = (inv.clientCedula || '').trim().toUpperCase();
@@ -148,9 +142,11 @@ export default function FiscalBooks() {
       const ivaBs = isVoided ? 0 : Number((inv.ivaBs || (baseBs * 0.16)).toFixed(2));
       const igtfBs = isVoided ? 0 : Number(inv.igtfBs || 0);
       const exemptBs = isVoided ? 0 : (inv.exemptBs ? Number(inv.exemptBs) : 0);
+      // En normativa SENIAT, el Total Facturado oficial es Base + IVA + Exento + IGTF
+      const calculatedTotalBs = Number((baseBs + ivaBs + exemptBs + igtfBs).toFixed(2));
+      const totalBs = isVoided ? 0 : (calculatedTotalBs > 0 ? calculatedTotalBs : totalBsRaw);
 
-      const d = new Date(inv.date || inv.createdAt || Date.now());
-      const dateFormatted = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+      const dateFormatted = formatVenezuelaDate(inv.date || inv.createdAt);
 
       const docNumber = inv.fiscalInvoiceNumber || inv.invoiceNumber || String(inv.id).slice(-6);
       const ctrlNumber = inv.fiscalControlNumber || `00-${String(docNumber).padStart(6, '0')}`;
@@ -201,8 +197,7 @@ export default function FiscalBooks() {
       const igtfBs = Number(p.igtfBs || 0);
       const totalUSD = Number(p.totalAmountUSD || (totalBs / pRate));
 
-      const d = new Date(p.date || p.createdAt || Date.now());
-      const dateFormatted = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+      const dateFormatted = formatVenezuelaDate(p.date || p.createdAt);
 
       return {
         op: opNum++,
@@ -249,7 +244,7 @@ export default function FiscalBooks() {
       if (!filterByPeriod(inv.date || inv.createdAt)) return;
 
       const isVoided = (inv.status || '').toLowerCase() === 'voided' || (inv.status || '').toLowerCase() === 'anulada';
-      const d = (inv.date || inv.createdAt || '').split('T')[0];
+      const d = getVenezuelaDateString(inv.date || inv.createdAt);
       if (!d) return;
 
       if (!dailyInvoices[d]) {
@@ -291,7 +286,10 @@ export default function FiscalBooks() {
     const combined = [...savedList];
     const savedDates = new Set(savedList.map(z => z.zDate));
 
-    let autoZCount = 1;
+    // Respetar la numeración de Z que lleva la máquina o los Z guardados
+    const maxSavedZ = savedList.reduce((max, z) => Math.max(max, Number(z.zNumber) || 0), 0);
+    const startZNum = maxSavedZ > 0 ? (maxSavedZ + 1) : Math.max(1, Number(fiscalSettings?.lastKnownZNumber || 1));
+    let autoZCount = startZNum;
     Object.keys(dailyInvoices).sort().forEach(dateStr => {
       if (!savedDates.has(dateStr)) {
         const day = dailyInvoices[dateStr];
@@ -306,7 +304,7 @@ export default function FiscalBooks() {
           registeredMachineNumber: fiscalSettings?.registeredMachineNumber || 'Z1B1234567',
           firstInvoiceNumber: first,
           lastInvoiceNumber: last,
-          totalSalesBs: Number(day.totalBs.toFixed(2)),
+          totalSalesBs: Number((day.totalBs + day.igtfBs).toFixed(2)),
           exemptSalesBs: Number(day.exemptBs.toFixed(2)),
           baseGeneral16Bs: Number(day.baseBs.toFixed(2)),
           taxGeneral16Bs: Number(day.ivaBs.toFixed(2)),

@@ -16,6 +16,7 @@ import OpenTabsModal from '../components/pos/OpenTabsModal';
 import { getAssetUrl } from '../utils/assetHelper';
 import { buildInvoicePayload } from '../utils/invoiceCalculator';
 import { ACCESS_PINS } from '../config/accessConfig';
+import { getVenezuelaISOString } from '../utils/dateUtils';
 
 const POS = () => {
   const navigate = useNavigate();
@@ -454,7 +455,7 @@ const POS = () => {
               status: 'voided',
               wasFiscalAnnulled: true,
               voidReason: `ANULADA POR IMPRESORA FISCAL: ${errReason}`,
-              voidDate: new Date().toISOString(),
+              voidDate: getVenezuelaISOString(),
               receivedAmount: 0,
               fiscalS1Snapshot: res?.s1 || null
             });
@@ -472,12 +473,13 @@ const POS = () => {
 
         const verifiedFiscalPayload = {
           ...invoicePayload,
+          invoiceNumber: officialFiscalNum || invoicePayload.invoiceNumber,
           fiscalInvoiceNumber: officialFiscalNum,
           fiscalControlNumber: officialFiscalNum || fiscalControlNumber,
           fiscalSerial: machineSerial,
           fiscalZNumber: nextZ,
           fiscalVerified: true,
-          fiscalPrintedAt: new Date().toISOString(),
+          fiscalPrintedAt: getVenezuelaISOString(),
           fiscalS1Snapshot: res.s1 || null
         };
 
