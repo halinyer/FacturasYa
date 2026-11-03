@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './features/auth/AuthProvider';
 import LandingPage from './features/landing/LandingPage';
+import OwnerMonitorPage from './features/monitor/OwnerMonitorPage';
 import SuperAdminPage from './features/super-admin/SuperAdminPage';
 import { isConfigured } from './lib/supabase';
 
@@ -37,7 +38,7 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/" element={<LandingPage />} />
-          <Route path="/monitor" element={<NeedsSupabase><Soon title="Monitor del dueño" /></NeedsSupabase>} />
+          <Route path="/monitor" element={<NeedsSupabase><OwnerMonitorPage /></NeedsSupabase>} />
           <Route path="/super-admin" element={<NeedsSupabase><SuperAdminPage /></NeedsSupabase>} />
         </Routes>
       </AuthProvider>

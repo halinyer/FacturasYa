@@ -471,10 +471,10 @@ CREATE POLICY "payments_owner_insert" ON public.subscription_payments FOR INSERT
     AND tenant_id IN (SELECT id FROM public.tenants WHERE owner_id = auth.uid())
   );
 
--- tenant_snapshots: solo el dueno de ese restaurante
+-- tenant_snapshots: el dueño del restaurante tiene acceso total; el super admin tiene lectura para soporte
 DROP POLICY IF EXISTS "snapshots_owner_all" ON public.tenant_snapshots;
 CREATE POLICY "snapshots_owner_all" ON public.tenant_snapshots FOR ALL
-  USING (tenant_id IN (SELECT id FROM public.tenants WHERE owner_id = auth.uid()))
+  USING (public.is_super_admin() OR tenant_id IN (SELECT id FROM public.tenants WHERE owner_id = auth.uid()))
   WITH CHECK (tenant_id IN (SELECT id FROM public.tenants WHERE owner_id = auth.uid()));
 
 -- super_admins: cada usuario solo puede ver su propia fila (para saber si es admin)
