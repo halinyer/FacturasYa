@@ -1,6 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
+﻿import { createClient } from '@supabase/supabase-js';
 
-// Lee las credenciales desde variables de entorno (.env) o desde configuración guardada en la app
+// Lee las credenciales desde variables de entorno (.env) o desde configuraciÃ³n guardada en la app
 const getStoredCreds = () => {
   try {
     const raw = localStorage.getItem('saas_supabase_creds');
@@ -35,10 +35,9 @@ export const saveSupabaseCreds = (url, anonKey) => {
   window.location.reload();
 };
 
-// Configuración por defecto de tus planes y Pago Móvil receptor
+// ConfiguraciÃ³n por defecto de tus planes y Pago MÃ³vil receptor
 export const DEFAULT_SAAS_CONFIG = {
   id: 1,
-  super_admin_emails: ['admin@facturapos.com', 'halinyer@gmail.com'],
   monthly_price_usd: 30.00,
   annual_price_usd: 300.00,
   trial_days: 14,

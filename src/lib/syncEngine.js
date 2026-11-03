@@ -102,19 +102,6 @@ export function getLocalTenantsList() {
   return initialTenants;
 }
 
-export function saveLocalTenantsList(list) {
-  localStorage.setItem(ALL_TENANTS_STORAGE_KEY, JSON.stringify(list));
-  // Si el tenant activo está en la lista, sincronizarlo también
-  const active = getCurrentTenant();
-  if (active) {
-    const updatedActive = list.find((t) => t.id === active.id || t.owner_email === active.owner_email);
-    if (updatedActive) {
-      localStorage.setItem(TENANT_STORAGE_KEY, JSON.stringify(updatedActive));
-    }
-  }
-  broadcastEvent({ type: 'TENANTS_UPDATED', tenants: list });
-}
-
 export function getCurrentTenant() {
   try {
     const raw = localStorage.getItem(TENANT_STORAGE_KEY);
@@ -147,21 +134,6 @@ export function getSaasConfig() {
     if (raw) return { ...DEFAULT_SAAS_CONFIG, ...JSON.parse(raw) };
   } catch (e) {}
   return DEFAULT_SAAS_CONFIG;
-}
-
-export async function saveSaasConfig(newCfg) {
-  const merged = { ...getSaasConfig(), ...newCfg, updated_at: new Date().toISOString() };
-  localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(merged));
-
-  if (isSupabaseConfigured() && supabase) {
-    try {
-      await supabase.from('saas_config').upsert({ id: 1, ...merged });
-    } catch (e) {
-      console.warn('Error guardando saas_config en Supabase:', e);
-    }
-  }
-  broadcastEvent({ type: 'CONFIG_UPDATED', config: merged });
-  return merged;
 }
 
 // ============================================================================
@@ -462,8 +434,7 @@ export async function submitPagoMovilReport({
   rateBcv,
   bankOrigin,
   phoneOrigin,
-  referenceLast6,
-  autoApproveSimulation = false
+  referenceLast6
 }) {
   const cleanRef = String(referenceLast6 || '').replace(/\D/g, '').slice(-6);
   if (!bankOrigin || !phoneOrigin || cleanRef.length < 4) {
@@ -517,22 +488,24 @@ export async function submitPagoMovilReport({
         bank_origin: bankOrigin,
         phone_origin: phoneOrigin,
         reference_last6: cleanRef,
-        status: autoApproveSimulation ? 'approved' : 'pending'
+        status: 'pending',
+        verified_by: 'pending'
       })
       .select()
       .single();
 
     if (dbErr) throw new Error(dbErr.message);
 
-    if (autoApproveSimulation && inserted) {
-      await supabase.rpc('approve_subscription_payment', {
-        p_payment_id: inserted.id,
-        p_verified_by: 'api_auto'
-      });
-    }
+    // La aprobación NO ocurre aquí: la hace el servidor (API bancaria) o el Super Admin desde la web.
+    return {
+      success: true,
+      status: 'PENDING_VERIFICATION',
+      payment: inserted,
+      message: 'Pago Móvil reportado. Tu servicio se activará automáticamente al verificarse la referencia.'
+    };
   }
 
-  // 2. Guardar registro en almacenamiento local / espejo y notificar en tiempo real
+  // 2. Modo local sin Supabase: solo se registra el reporte (no se puede aprobar desde el POS)
   const newPayment = {
     id: 'pay_' + Date.now(),
     tenant_id: tenantId,
@@ -554,149 +527,12 @@ export async function submitPagoMovilReport({
   localStorage.setItem(PAYMENTS_STORAGE_KEY, JSON.stringify(updatedPayments));
   broadcastEvent({ type: 'PAYMENT_REPORTED', payment: newPayment });
 
-  // Si se activó la validación automática (API Bancaria Pabilo/Cobrix simulada o activa)
-  if (autoApproveSimulation) {
-    return approveSubscriptionPayment(newPayment.id, 'api_auto');
-  }
-
   return {
     success: true,
     status: 'PENDING_VERIFICATION',
     payment: newPayment,
-    message: 'Pago Móvil reportado. Tu servicio se activará automáticamente en segundos al verificarse la referencia.'
+    message: 'Pago Móvil reportado. Tu servicio se activará automáticamente al verificarse la referencia.'
   };
-}
-
-// Aprobar un Pago Móvil (desde API automática o desde tu botón en Super Admin)
-export async function approveSubscriptionPayment(paymentId, verifiedBy = 'super_admin') {
-  const payments = getSubscriptionPayments();
-  const idx = payments.findIndex((p) => p.id === paymentId);
-  if (idx === -1) throw new Error('Pago no encontrado.');
-
-  const payment = payments[idx];
-  const daysToAdd = Number(payment.days_to_add) || (payment.plan === 'annual' ? 365 : 30);
-
-  payments[idx] = {
-    ...payment,
-    status: 'approved',
-    verified_by: verifiedBy,
-    verified_at: new Date().toISOString()
-  };
-  localStorage.setItem(PAYMENTS_STORAGE_KEY, JSON.stringify(payments));
-
-  // Extender la fecha del restaurante
-  const updatedTenant = await extendTenantSubscription(payment.tenant_id, daysToAdd, payment.plan);
-
-  if (isSupabaseConfigured() && supabase) {
-    try {
-      await supabase.rpc('approve_subscription_payment', {
-        p_payment_id: paymentId,
-        p_verified_by: verifiedBy
-      });
-    } catch (e) {}
-  }
-
-  broadcastEvent({
-    type: 'PAYMENT_APPROVED',
-    payment: payments[idx],
-    tenant: updatedTenant
-  });
-
-  return {
-    success: true,
-    status: 'APPROVED',
-    payment: payments[idx],
-    tenant: updatedTenant
-  };
-}
-
-// Extender días o cambiar estado de un restaurante (Super Admin / Kill Switch)
-export async function extendTenantSubscription(tenantId, daysToAdd = 30, newPlan = 'monthly') {
-  const list = getLocalTenantsList();
-  const idx = list.findIndex((t) => t.id === tenantId);
-  const currentActive = getCurrentTenant();
-
-  let target = idx >= 0 ? list[idx] : currentActive;
-  if (!target) return null;
-
-  const now = Date.now();
-  const currentValidMs = target.valid_until ? new Date(target.valid_until).getTime() : now;
-  const baseMs = currentValidMs > now ? currentValidMs : now;
-  const newValidUntil = new Date(baseMs + daysToAdd * 86400 * 1000).toISOString();
-
-  const updated = {
-    ...target,
-    plan: newPlan || target.plan,
-    status: 'active',
-    valid_until: newValidUntil,
-    updated_at: new Date().toISOString()
-  };
-
-  if (idx >= 0) {
-    list[idx] = updated;
-    saveLocalTenantsList(list);
-  }
-  if (currentActive && currentActive.id === updated.id) {
-    setCurrentTenant(updated);
-  }
-
-  if (isSupabaseConfigured() && supabase) {
-    try {
-      await supabase
-        .from('tenants')
-        .update({
-          plan: updated.plan,
-          status: 'active',
-          valid_until: newValidUntil,
-          updated_at: updated.updated_at
-        })
-        .eq('id', tenantId);
-    } catch (e) {}
-  }
-
-  broadcastEvent({ type: 'TENANT_UNLOCKED', tenant: updated });
-  return updated;
-}
-
-// Activar o desactivar el Kill Switch (Suspender / Vencer / Reactivar)
-export async function updateTenantStatus(tenantId, newStatus, customValidUntil = null) {
-  const list = getLocalTenantsList();
-  const idx = list.findIndex((t) => t.id === tenantId);
-  const currentActive = getCurrentTenant();
-
-  let target = idx >= 0 ? list[idx] : currentActive;
-  if (!target) return null;
-
-  const updated = {
-    ...target,
-    status: newStatus,
-    valid_until: customValidUntil || target.valid_until,
-    updated_at: new Date().toISOString()
-  };
-
-  if (idx >= 0) {
-    list[idx] = updated;
-    saveLocalTenantsList(list);
-  }
-  if (currentActive && currentActive.id === updated.id) {
-    setCurrentTenant(updated);
-  }
-
-  if (isSupabaseConfigured() && supabase) {
-    try {
-      await supabase
-        .from('tenants')
-        .update({
-          status: updated.status,
-          valid_until: updated.valid_until,
-          updated_at: updated.updated_at
-        })
-        .eq('id', tenantId);
-    } catch (e) {}
-  }
-
-  broadcastEvent({ type: 'TENANT_STATUS_CHANGED', tenant: updated });
-  return updated;
 }
 
 // Suscribirse a cambios en tiempo real (Supabase Realtime + BroadcastChannel local)

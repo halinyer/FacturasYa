@@ -47,7 +47,6 @@ export default function PagoMovilModal({
   const [bankOrigin, setBankOrigin] = useState(VENEZUELA_BANKS[0]);
   const [phoneOrigin, setPhoneOrigin] = useState('');
   const [referenceLast6, setReferenceLast6] = useState('');
-  const [simulateInstantApi, setSimulateInstantApi] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [resultMsg, setResultMsg] = useState(null);
@@ -96,8 +95,7 @@ export default function PagoMovilModal({
         rateBcv: rate,
         bankOrigin,
         phoneOrigin: cleanPhone,
-        referenceLast6: cleanRef,
-        autoApproveSimulation: simulateInstantApi
+        referenceLast6: cleanRef
       });
 
       setResultMsg({
@@ -405,31 +403,6 @@ export default function PagoMovilModal({
                   }}
                 />
               </div>
-            </div>
-
-            {/* Opción de Simulador API Bancaria para tus pruebas */}
-            <div style={{
-              background: '#f0f9ff',
-              border: '1px dashed #7dd3fc',
-              borderRadius: '10px',
-              padding: '9px 12px',
-              marginBottom: '14px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              fontSize: '0.78rem',
-              color: '#0369a1'
-            }}>
-              <input
-                type="checkbox"
-                id="simApiCheck"
-                checked={simulateInstantApi}
-                onChange={(e) => setSimulateInstantApi(e.target.checked)}
-                style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-              />
-              <label htmlFor="simApiCheck" style={{ cursor: 'pointer', fontWeight: '700' }}>
-                ⚡ Modo Prueba API (Pabilo/Cobrix): Validar y desbloquear automáticamente al confirmar
-              </label>
             </div>
 
             {error && (

@@ -7,9 +7,8 @@ import {
   RefreshCw,
   CheckCircle2,
   Clock,
-  Sparkles
 } from 'lucide-react';
-import { extendTenantSubscription, getSaasConfig } from '../../lib/syncEngine';
+import { getSaasConfig } from '../../lib/syncEngine';
 
 export default function PaywallLockScreen({
   tenant,
@@ -18,12 +17,6 @@ export default function PaywallLockScreen({
   onAllowFiscalBooksOnly
 }) {
   const saasConfig = getSaasConfig();
-
-  const handleQuickRestoreTrial = async () => {
-    if (tenant?.id) {
-      await extendTenantSubscription(tenant.id, 14, 'trial');
-    }
-  };
 
   return (
     <div style={{
@@ -201,39 +194,6 @@ export default function PaywallLockScreen({
           }} />
           <span>Conectado a Supabase Realtime · Esperando validación de pago en vivo</span>
         </div>
-      </div>
-
-      {/* Barra de Simulador para Pruebas de Desarrollo */}
-      <div style={{
-        marginTop: '18px',
-        background: 'rgba(255,255,255,0.08)',
-        border: '1px solid rgba(255,255,255,0.18)',
-        borderRadius: '12px',
-        padding: '10px 18px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '12px',
-        fontSize: '0.8rem',
-        color: '#cbd5e1'
-      }}>
-        <Sparkles size={16} color="#38bdf8" />
-        <span><strong>Modo Prueba Desarrollador:</strong> ¿Quieres salir de la pantalla de bloqueo sin llenar el formulario?</span>
-        <button
-          type="button"
-          onClick={handleQuickRestoreTrial}
-          style={{
-            padding: '5px 12px',
-            borderRadius: '8px',
-            border: '1px solid #38bdf8',
-            background: 'rgba(56, 189, 248, 0.15)',
-            color: '#38bdf8',
-            fontWeight: '800',
-            cursor: 'pointer',
-            fontSize: '0.78rem'
-          }}
-        >
-          ⚡ Restaurar +14 Días Ahora
-        </button>
       </div>
     </div>
   );
