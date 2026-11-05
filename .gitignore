@@ -55,3 +55,6 @@ Thumbs.db
 web/.env
 web/.env.local
 web/.env.*.local
+
+# Binarios pesados no requeridos en SaaS
+bin/cloudflared.exe
