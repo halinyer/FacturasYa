@@ -7,12 +7,14 @@ import TenantsPanel from './TenantsPanel';
 import PaymentsPanel from './PaymentsPanel';
 import ConfigPanel from './ConfigPanel';
 import AuditPanel from './AuditPanel';
+import RunbookPanel from './RunbookPanel';
 
 const TABS = [
   ['tenants', 'Restaurantes'],
   ['payments', 'Pagos'],
   ['config', 'Configuración'],
-  ['audit', 'Auditoría']
+  ['audit', 'Auditoría'],
+  ['runbook', 'Mapa & Runbook']
 ];
 
 function Dashboard() {
@@ -62,6 +64,7 @@ function Dashboard() {
       {tab === 'payments' && <PaymentsPanel payments={data.payments} tenants={data.tenants} onChange={refresh} onError={setError} />}
       {tab === 'config' && <ConfigPanel config={data.config} onChange={refresh} onError={setError} />}
       {tab === 'audit' && <AuditPanel audit={data.audit} tenants={data.tenants} />}
+      {tab === 'runbook' && <RunbookPanel />}
     </div>
   );
 }
