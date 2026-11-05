@@ -1,6 +1,6 @@
-﻿import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 
-// Lee las credenciales desde variables de entorno (.env) o desde configuraciÃ³n guardada en la app
+// Lee las credenciales desde variables de entorno (.env) o desde configuración guardada en la app
 const getStoredCreds = () => {
   try {
     const raw = localStorage.getItem('saas_supabase_creds');
@@ -11,7 +11,11 @@ const getStoredCreds = () => {
 
 const stored = getStoredCreds();
 export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || stored?.url || '';
-export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || stored?.anonKey || '';
+export const SUPABASE_ANON_KEY =
+  import.meta.env.VITE_SUPABASE_ANON_KEY ||
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+  stored?.anonKey ||
+  '';
 
 export const isSupabaseConfigured = () => {
   return Boolean(SUPABASE_URL && SUPABASE_ANON_KEY && SUPABASE_URL.startsWith('https://'));
@@ -35,7 +39,7 @@ export const saveSupabaseCreds = (url, anonKey) => {
   window.location.reload();
 };
 
-// ConfiguraciÃ³n por defecto de tus planes y Pago MÃ³vil receptor
+// Configuración por defecto de tus planes y Pago Móvil receptor
 export const DEFAULT_SAAS_CONFIG = {
   id: 1,
   monthly_price_usd: 30.00,

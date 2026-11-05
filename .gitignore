@@ -50,3 +50,8 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+# Web env
+web/.env
+web/.env.local
+web/.env.*.local
