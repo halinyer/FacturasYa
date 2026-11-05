@@ -486,6 +486,16 @@ function createWindow() {
     mainWindow.webContents.openDevTools({ mode: 'detach' });
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    // Bloquear atajos para abrir DevTools en producción empaquetada (F12, Ctrl+Shift+I/J, etc.)
+    mainWindow.webContents.on('before-input-event', (event, input) => {
+      if (
+        input.key === 'F12' ||
+        (input.control && input.shift && (input.key === 'I' || input.key === 'i' || input.key === 'J' || input.key === 'j')) ||
+        (input.control && (input.key === 'U' || input.key === 'u'))
+      ) {
+        event.preventDefault();
+      }
+    });
   }
 
   mainWindow.on('closed', () => {

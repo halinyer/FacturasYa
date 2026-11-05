@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Printer,
   WifiOff,
@@ -48,6 +48,7 @@ function formatUsd(val) {
 }
 
 export default function LandingPage() {
+  const navigate = useNavigate();
   // Simulador de Tasa BCV y Caja
   const [bcvRate, setBcvRate] = useState(876.80);
   const [cartItems, setCartItems] = useState(DEMO_PRODUCTS);
@@ -58,18 +59,22 @@ export default function LandingPage() {
   // Planes de precio: 'monthly' | 'annual'
   const [billingCycle, setBillingCycle] = useState('monthly');
 
-  // Modal de Prueba 14 Días
+  // Modal de Autenticación Notion-style
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [authTab, setAuthTab] = useState('signup'); // 'signup' | 'login'
   const [form, setForm] = useState({
-    businessName: '',
-    rif: '',
-    phone: '',
     email: '',
     password: ''
   });
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
-  const [registeredAccount, setRegisteredAccount] = useState(null);
+
+  const openAuthModal = (tab = 'signup') => {
+    setAuthTab(tab);
+    setFormError('');
+    setIsModalOpen(true);
+  };
+  const openTrialModal = () => openAuthModal('signup');
 
   const rate = Math.max(1, Number(bcvRate) || 876.80);
   const activeItems = cartItems.filter((i) => i.qty > 0);
@@ -100,51 +105,43 @@ export default function LandingPage() {
     );
   };
 
-  const handleRegisterSubmit = async (e) => {
+  const handleAuthSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
     setFormError('');
 
     try {
       const cleanEmail = form.email.trim().toLowerCase();
-      const cleanRif = form.rif.trim().toUpperCase();
-
-      if (isConfigured && supabase) {
-        const { error } = await supabase.auth.signUp({
-          email: cleanEmail,
-          password: form.password,
-          options: {
-            data: {
-              business_name: form.businessName.trim(),
-              rif: cleanRif,
-              phone: form.phone.trim()
-            }
-          }
-        });
-        if (error) throw new Error(error.message);
+      if (!cleanEmail || !form.password) {
+        throw new Error('Ingresa tu correo y contraseña.');
       }
 
-      setRegisteredAccount({
-        businessName: form.businessName.trim(),
-        rif: cleanRif,
-        email: cleanEmail,
-        validUntil: new Date(Date.now() + 14 * 86400000).toLocaleDateString('es-VE', {
-          day: '2-digit',
-          month: 'long',
-          year: 'numeric'
-        })
-      });
+      if (isConfigured && supabase) {
+        if (authTab === 'signup') {
+          const { error } = await supabase.auth.signUp({
+            email: cleanEmail,
+            password: form.password
+          });
+          if (error) throw new Error(error.message);
+        } else {
+          const { error } = await supabase.auth.signInWithPassword({
+            email: cleanEmail,
+            password: form.password
+          });
+          if (error) throw new Error(error.message);
+        }
+      }
+
+      if (cleanEmail === 'signalnotestudio@gmail.com') {
+        navigate('/super-admin');
+      } else {
+        navigate('/monitor');
+      }
     } catch (err) {
-      setFormError(err.message || 'Ocurrió un error al registrar la cuenta.');
+      setFormError(err.message || 'Error al autenticar la cuenta.');
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const openTrialModal = () => {
-    setFormError('');
-    setRegisteredAccount(null);
-    setIsModalOpen(true);
   };
 
   return (
@@ -202,19 +199,20 @@ export default function LandingPage() {
             <a href="#precios" className="hover:text-zinc-950 transition-colors">Planes</a>
           </nav>
 
-          <div className="flex items-center gap-3">
-            <Link
-              to="/monitor"
-              className="text-xs font-semibold text-zinc-700 hover:text-zinc-950 px-3 py-1.5 rounded-lg hover:bg-zinc-100 transition-colors"
-            >
-              Monitor del Dueño
-            </Link>
+          <div className="flex items-center gap-2 sm:gap-3">
             <button
               type="button"
-              onClick={openTrialModal}
+              onClick={() => openAuthModal('login')}
+              className="text-xs font-semibold text-zinc-700 hover:text-zinc-950 px-3 py-1.5 rounded-lg hover:bg-zinc-100 transition-colors"
+            >
+              Iniciar Sesión
+            </button>
+            <button
+              type="button"
+              onClick={() => openAuthModal('signup')}
               className="bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold px-4 py-2 rounded-full shadow-xs hover:shadow transition-all inline-flex items-center gap-1.5 active:scale-98"
             >
-              <span>Descargar 14 Días Gratis</span>
+              <span>14 Días Gratis</span>
               <ArrowRight size={13} />
             </button>
           </div>
@@ -834,24 +832,29 @@ export default function LandingPage() {
         </div>
       </footer>
 
-      {/* MODAL DE REGISTRO (14 DÍAS GRATIS) Y DESCARGA DEL .EXE (Linear/Notion style) */}
+      {/* MODAL DE AUTENTICACIÓN (NOTION STYLE: ENTRADA ULTRA-RÁPIDA EN 5 SEGUNDOS) */}
       {isModalOpen && (
         <div
           className="fixed inset-0 z-50 bg-zinc-950/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
           onClick={() => setIsModalOpen(false)}
         >
           <div
-            className="bg-white rounded-2xl border border-zinc-200 shadow-xl max-w-md w-full p-6 space-y-5 animate-in zoom-in-95 duration-150"
+            className="bg-white rounded-2xl border border-zinc-200 shadow-xl max-w-sm w-full p-6 space-y-4 animate-in zoom-in-95 duration-150"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-4 border-b border-zinc-100 pb-3">
-              <div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
-                  {registeredAccount ? 'Paso 2 de 2 · Descarga de Software' : 'Paso 1 de 2 · 14 Días Gratis'}
-                </span>
-                <h3 className="text-base font-bold text-zinc-950 mt-0.5">
-                  {registeredAccount ? '¡Tu licencia ha sido creada!' : 'Activa la cuenta de tu restaurante'}
-                </h3>
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-zinc-950 text-white font-extrabold text-xs flex items-center justify-center shadow-xs">
+                  FY
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-zinc-950">
+                    FacturasYa Cloud
+                  </h3>
+                  <span className="text-[11px] text-zinc-500">
+                    {authTab === 'signup' ? 'Empieza en 5 segundos sin tarjeta' : 'Accede a tu Monitor Cloud'}
+                  </span>
+                </div>
               </div>
               <button
                 type="button"
@@ -862,123 +865,87 @@ export default function LandingPage() {
               </button>
             </div>
 
-            {!registeredAccount ? (
-              <form onSubmit={handleRegisterSubmit} className="space-y-3.5 text-xs">
-                <div>
-                  <label className="block text-zinc-700 font-semibold mb-1">Nombre comercial del restaurante</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ej. Arepera Caracas Grill"
-                    value={form.businessName}
-                    onChange={(e) => setForm({ ...form, businessName: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:border-zinc-950 focus:outline-none text-zinc-900 bg-zinc-50/50"
-                  />
-                </div>
+            {/* PESTAÑAS NOTION-STYLE */}
+            <div className="grid grid-cols-2 p-1 bg-zinc-100 rounded-xl text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => { setAuthTab('signup'); setFormError(''); }}
+                className={`py-1.5 rounded-lg transition-all ${
+                  authTab === 'signup'
+                    ? 'bg-white text-zinc-950 shadow-2xs'
+                    : 'text-zinc-500 hover:text-zinc-900'
+                }`}
+              >
+                Crear cuenta
+              </button>
+              <button
+                type="button"
+                onClick={() => { setAuthTab('login'); setFormError(''); }}
+                className={`py-1.5 rounded-lg transition-all ${
+                  authTab === 'login'
+                    ? 'bg-white text-zinc-950 shadow-2xs'
+                    : 'text-zinc-500 hover:text-zinc-900'
+                }`}
+              >
+                Iniciar sesión
+              </button>
+            </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-zinc-700 font-semibold mb-1">RIF Fiscal</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="J-50123456-0"
-                      value={form.rif}
-                      onChange={(e) => setForm({ ...form, rif: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:border-zinc-950 focus:outline-none text-zinc-900 bg-zinc-50/50 uppercase"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-zinc-700 font-semibold mb-1">Teléfono / WhatsApp</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="0412-1234567"
-                      value={form.phone}
-                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:border-zinc-950 focus:outline-none text-zinc-900 bg-zinc-50/50"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-zinc-700 font-semibold mb-1">Correo electrónico del dueño</label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="admin@mirestaurante.com"
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:border-zinc-950 focus:outline-none text-zinc-900 bg-zinc-50/50"
-                  />
-                  <span className="text-[10px] text-zinc-400 block mt-0.5">
-                    Este correo será tu usuario para entrar en la PC y en el celular.
-                  </span>
-                </div>
-
-                <div>
-                  <label className="block text-zinc-700 font-semibold mb-1">Contraseña de acceso</label>
-                  <input
-                    type="password"
-                    required
-                    minLength={6}
-                    placeholder="Mínimo 6 caracteres"
-                    value={form.password}
-                    onChange={(e) => setForm({ ...form, password: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:border-zinc-950 focus:outline-none text-zinc-900 bg-zinc-50/50"
-                  />
-                </div>
-
-                {formError && (
-                  <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-red-600 text-xs font-medium">
-                    {formError}
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="w-full py-3 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 font-semibold text-xs text-white shadow-xs transition-all flex items-center justify-center gap-2 mt-2"
-                >
-                  {submitting ? 'Creando licencia...' : 'Activar 14 Días y Descargar Instalador →'}
-                </button>
-              </form>
-            ) : (
-              <div className="space-y-4">
-                <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200/80 text-xs text-emerald-800 space-y-1">
-                  <div className="font-bold flex items-center gap-1.5 text-emerald-900">
-                    <CheckCircle2 size={16} /> ¡Licencia activada con éxito!
-                  </div>
-                  <div>
-                    {registeredAccount.businessName} ({registeredAccount.rif})
-                  </div>
-                  <div className="text-emerald-700">
-                    Usuario: <strong>{registeredAccount.email}</strong> · Válido hasta el <strong>{registeredAccount.validUntil}</strong>.
-                  </div>
-                </div>
-
-                <a
-                  href={INSTALLER_URL}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="w-full py-3.5 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 font-bold text-xs text-white shadow-xs flex items-center justify-center gap-2 transition-all block text-center"
-                >
-                  <Download size={16} />
-                  <span>Descargar FacturaPOS-Setup.exe para Windows</span>
-                </a>
-
-                <div className="p-3 rounded-xl bg-zinc-50 border border-zinc-200 text-xs text-zinc-600 space-y-1.5">
-                  <strong className="text-zinc-900 block font-semibold">Pasos siguientes:</strong>
-                  <div>1. Abre el instalador en la computadora de tu caja.</div>
-                  <div>2. Inicia sesión con el correo y contraseña que acabas de registrar.</div>
-                  <div>3. Conecta el cable USB de tu máquina fiscal HKA80 y empieza a facturar.</div>
-                </div>
+            <form onSubmit={handleAuthSubmit} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block text-zinc-700 font-semibold mb-1">Correo electrónico</label>
+                <input
+                  type="email"
+                  required
+                  placeholder="admin@mirestaurante.com"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:border-zinc-950 focus:outline-none text-zinc-900 bg-zinc-50/50"
+                  autoFocus
+                />
               </div>
-            )}
+
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-zinc-700 font-semibold">Contraseña</label>
+                  <span className="text-[10px] text-zinc-400">Mínimo 6 caracteres</span>
+                </div>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  placeholder="••••••••"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:border-zinc-950 focus:outline-none text-zinc-900 bg-zinc-50/50"
+                />
+              </div>
+
+              {formError && (
+                <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-red-600 text-xs font-medium">
+                  {formError}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full py-2.5 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 font-semibold text-xs text-white shadow-xs transition-all flex items-center justify-center gap-2 mt-2 active:scale-98"
+              >
+                {submitting
+                  ? (authTab === 'signup' ? 'Creando cuenta...' : 'Iniciando sesión...')
+                  : (authTab === 'signup' ? 'Crear cuenta y comenzar 14 días →' : 'Entrar a mi monitor →')}
+              </button>
+
+              <p className="text-[10px] text-center text-zinc-400">
+                {authTab === 'signup'
+                  ? 'Configurarás tu RIF y Razón Social al entrar a tu Monitor del Dueño.'
+                  : '¿Olvidaste tu contraseña? Escríbenos a soporte.'}
+              </p>
+            </form>
           </div>
         </div>
       )}
-
     </div>
   );
 }

@@ -113,3 +113,51 @@ export const submitOwnerPagoMovil = async ({
 
   return unwrap(res);
 };
+
+// Completa la verificación fiscal estilo Binance (1 prueba por RIF anti-abuso)
+export const completeFiscalVerification = async ({
+  tenantId,
+  name,
+  legalName,
+  rif,
+  fiscalAddress,
+  phone,
+  fiscalSerial,
+  instagram
+}) => {
+  const res = await supabase.rpc('complete_tenant_fiscal_verification', {
+    p_tenant_id: tenantId,
+    p_name: name,
+    p_legal_name: legalName,
+    p_rif: rif,
+    p_fiscal_address: fiscalAddress,
+    p_phone: phone || '',
+    p_fiscal_serial: fiscalSerial || '',
+    p_instagram: instagram || ''
+  });
+
+  if (res.error) throw new Error(res.error.message);
+  if (!res.data?.success) throw new Error(res.data?.error || 'Error al completar la verificación fiscal.');
+  return res.data.tenant;
+};
+
+// Actualiza los datos fiscales del negocio una vez verificado
+export const updateTenantFiscalProfile = async (tenantId, updates) => {
+  const res = await supabase
+    .from('tenants')
+    .update({
+      name: updates.name,
+      legal_name: updates.legal_name,
+      rif: updates.rif,
+      fiscal_address: updates.fiscal_address,
+      fiscal_serial: updates.fiscal_serial,
+      phone: updates.phone,
+      instagram: updates.instagram,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', tenantId)
+    .select()
+    .single();
+
+  return unwrap(res);
+};

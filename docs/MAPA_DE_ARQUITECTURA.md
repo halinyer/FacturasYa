@@ -68,3 +68,24 @@ cd "c:\Users\halin\OneDrive\Escritorio\Finanzas personales\facturacion-pos\web"
 npm run dev
 # Abre http://localhost:5180
 ```
+
+
+---
+
+## 5. Flujo de Onboarding & Seguridad Anti-Abuso (Estilo Notion + Binance)
+
+1. **Entrada Fricción-Cero (Landing `/`)**:
+   - Registro en 5 segundos con solo `email` y `password` (estilo Notion).
+   - Genera el inquilino en estado preliminar (`is_fiscal_verified = false`) y redirige de inmediato a `/monitor`.
+
+2. **Verificación Progresiva (Monitor `/monitor`)**:
+   - Banner y Modal de Verificación Fiscal estilo Binance KYC (`complete_tenant_fiscal_verification` RPC).
+   - Exige RIF, Razón Social SENIAT, Domicilio Fiscal y Serial Máquina Fiscal HKA80 (opcional).
+   - **Gating de Seguridad**: La descarga del instalador `.exe` permanece bloqueada hasta que la empresa complete la verificación fiscal.
+
+3. **Candados Anti-Fraude Implementados**:
+   - **1 Prueba Gratuita por RIF**: La función PostgreSQL `complete_tenant_fiscal_verification` normaliza el RIF y rechaza tenants duplicados para impedir crear cuentas infinitas de 14 días.
+   - **Anti-Replay en Pago Móvil**: Índice único `uq_sub_payments_active_ref` en `public.subscription_payments` impide que dos clientes reporten la misma referencia bancaria del mismo banco.
+   - **Sello de Integridad de Licencia**: `src/lib/syncEngine.js` firma el tenant local con `computeLicenseSeal()`. Modificar manualmente `localStorage` invalida la licencia.
+   - **Límite Offline 72 Horas**: Si el POS pasa más de 72 horas sin sincronizar con Supabase, solicita conexión a internet para revalidar la licencia.
+   - **Bloqueo de DevTools en Windows**: En versiones de producción de Electron (`electron/main.cjs`), se anula el atajo `F12` y `Ctrl+Shift+I/J`.

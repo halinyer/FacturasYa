@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS public.saas_config (
   pago_movil_bank TEXT DEFAULT '0172 - Bancamiga',
   pago_movil_rif_ci TEXT DEFAULT 'V-00000000',
   pago_movil_phone TEXT DEFAULT '0412-0000000',
-  pago_movil_holder TEXT DEFAULT 'Halinyer - FacturasYa',
+  pago_movil_holder TEXT DEFAULT 'FacturasYa - Cobranzas SaaS',
   binance_email TEXT DEFAULT '',
   support_whatsapp TEXT DEFAULT '+584120000000',
   auto_verify_provider TEXT DEFAULT 'manual', -- 'manual' | 'pabilo' | 'cobrix'
@@ -34,9 +34,14 @@ CREATE TABLE IF NOT EXISTS public.tenants (
   owner_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   owner_email TEXT UNIQUE,
   name TEXT NOT NULL,
+  legal_name TEXT DEFAULT '',
   slug TEXT UNIQUE,
-  rif TEXT DEFAULT 'J-00000000-0',
+  rif TEXT DEFAULT '',
+  fiscal_address TEXT DEFAULT '',
+  fiscal_serial TEXT DEFAULT '',
   phone TEXT DEFAULT '',
+  instagram TEXT DEFAULT '',
+  is_fiscal_verified BOOLEAN DEFAULT false,
   plan TEXT DEFAULT 'trial' CHECK (plan IN ('trial', 'monthly', 'annual')),
   status TEXT DEFAULT 'active' CHECK (status IN ('active', 'past_due', 'suspended')),
   valid_until TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '14 days'),
@@ -51,6 +56,13 @@ CREATE TABLE IF NOT EXISTS public.tenants (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Migraciones idempotentes para bases de datos ya existentes
+ALTER TABLE public.tenants ADD COLUMN IF NOT EXISTS legal_name TEXT DEFAULT '';
+ALTER TABLE public.tenants ADD COLUMN IF NOT EXISTS fiscal_address TEXT DEFAULT '';
+ALTER TABLE public.tenants ADD COLUMN IF NOT EXISTS fiscal_serial TEXT DEFAULT '';
+ALTER TABLE public.tenants ADD COLUMN IF NOT EXISTS instagram TEXT DEFAULT '';
+ALTER TABLE public.tenants ADD COLUMN IF NOT EXISTS is_fiscal_verified BOOLEAN DEFAULT false;
 
 -- 3. TABLA DE PAGOS DE SUSCRIPCIÓN (PAGO MÓVIL / BINANCE)
 CREATE TABLE IF NOT EXISTS public.subscription_payments (
@@ -72,8 +84,10 @@ CREATE TABLE IF NOT EXISTS public.subscription_payments (
   verified_at TIMESTAMPTZ
 );
 
--- Índice para evitar que usen la misma referencia bancaria dos veces el mismo día
-CREATE INDEX IF NOT EXISTS idx_sub_payments_ref ON public.subscription_payments (reference_last6, bank_origin);
+-- Candado anti-fraude: ninguna referencia bancaria puede reusarse en estado pendiente o aprobado
+CREATE UNIQUE INDEX IF NOT EXISTS uq_sub_payments_active_ref
+  ON public.subscription_payments (bank_origin, reference_last6)
+  WHERE status IN ('pending', 'approved');
 
 -- 4. TABLA DE RESPALDO Y SINCRONIZACIÓN EN TIEMPO REAL DEL LOCAL (SNAPSHOT + MONITOR)
 -- Almacena el estado sincronizado del POS para restaurar si se daña la PC y alimentar el Monitor del Dueño
@@ -105,7 +119,7 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
-DECLARE
+DECLARe
   v_payment public.subscription_payments%ROWTYPE;
   v_tenant public.tenants%ROWTYPE;
   v_base_date TIMESTAMPTZ;
@@ -206,6 +220,14 @@ BEGIN
     'tenant_id', v_tenant.id,
     'status', v_tenant.status,
     'plan', v_tenant.plan,
+    'name', v_tenant.name,
+    'legal_name', v_tenant.legal_name,
+    'rif', v_tenant.rif,
+    'fiscal_address', v_tenant.fiscal_address,
+    'fiscal_serial', v_tenant.fiscal_serial,
+    'phone', v_tenant.phone,
+    'instagram', v_tenant.instagram,
+    'is_fiscal_verified', COALESCE(v_tenant.is_fiscal_verified, false),
     'valid_until', v_tenant.valid_until,
     'days_remaining', GREATEST(0, v_days_remaining),
     'raw_days_remaining', v_days_remaining,
@@ -215,7 +237,7 @@ BEGIN
 END;
 $$;
 
--- 6. TRIGGER AUTOMÁTICO: CREAR TENANT CON 14 DÍAS DE PRUEBA AL REGISTRARSE EN SUPABASE AUTH
+-- 6. TRIGGER AUTOMÁTICO: CREAR TENANT AL REGISTRARSE EN SUPABASE AUTH (FLUJO NOTION ULTRA-RÁPIDO)
 CREATE OR REPLACE FUNCTION public.handle_new_user_tenant()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -224,21 +246,22 @@ SET search_path = public
 AS $$
 DECLARE
   v_business_name TEXT;
-  v_rif TEXT;
-  v_phone TEXT;
   v_new_tenant_id UUID;
 BEGIN
-  v_business_name := COALESCE(NEW.raw_user_meta_data->>'business_name', 'Mi Restaurante');
-  v_rif := COALESCE(NEW.raw_user_meta_data->>'rif', 'J-00000000-0');
-  v_phone := COALESCE(NEW.raw_user_meta_data->>'phone', '');
+  v_business_name := COALESCE(NULLIF(NEW.raw_user_meta_data->>'business_name', ''), 'Mi Negocio');
 
   INSERT INTO public.tenants (
     owner_id,
     owner_email,
     name,
+    legal_name,
     slug,
     rif,
+    fiscal_address,
+    fiscal_serial,
     phone,
+    instagram,
+    is_fiscal_verified,
     plan,
     status,
     valid_until
@@ -246,9 +269,14 @@ BEGIN
     NEW.id,
     NEW.email,
     v_business_name,
+    '',
     LOWER(REGEXP_REPLACE(v_business_name, '[^a-zA-Z0-9]+', '-', 'g')) || '-' || SUBSTRING(NEW.id::TEXT, 1, 4),
-    v_rif,
-    v_phone,
+    '',
+    '',
+    '',
+    COALESCE(NEW.raw_user_meta_data->>'phone', ''),
+    '',
+    false,
     'trial',
     'active',
     NOW() + INTERVAL '14 days'
@@ -269,6 +297,100 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user_tenant();
+
+-- 6.B FUNCIÓN RPC: VERIFICACIÓN FISCAL ESTILO BINANCE (1 PRUEBA POR RIF ANTI-ABUSO)
+CREATE OR REPLACE FUNCTION public.complete_tenant_fiscal_verification(
+  p_tenant_id UUID,
+  p_name TEXT,
+  p_legal_name TEXT,
+  p_rif TEXT,
+  p_fiscal_address TEXT,
+  p_phone TEXT,
+  p_fiscal_serial TEXT DEFAULT '',
+  p_instagram TEXT DEFAULT ''
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_clean_rif TEXT;
+  v_tenant public.tenants%ROWTYPE;
+  v_existing_id UUID;
+  v_new_valid TIMESTAMPTZ;
+BEGIN
+  -- Permisos: Super Admin o Dueño del restaurante
+  IF NOT (public.is_super_admin() OR EXISTS (SELECT 1 FROM public.tenants WHERE id = p_tenant_id AND owner_id = auth.uid())) THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Acceso denegado: no tienes permiso para verificar este restaurante.');
+  END IF;
+
+  -- Validaciones de obligatoriedad SENIAT
+  IF TRIM(COALESCE(p_name, '')) = '' THEN
+    RETURN jsonb_build_object('success', false, 'error', 'El nombre comercial del negocio es obligatorio.');
+  END IF;
+  IF TRIM(COALESCE(p_legal_name, '')) = '' THEN
+    RETURN jsonb_build_object('success', false, 'error', 'La Razón Social fiscal registrada ante el SENIAT es obligatoria.');
+  END IF;
+  IF TRIM(COALESCE(p_fiscal_address, '')) = '' THEN
+    RETURN jsonb_build_object('success', false, 'error', 'El domicilio fiscal es obligatorio para los libros y reportes SENIAT.');
+  END IF;
+
+  -- Normalizar RIF (Mayúsculas sin caracteres raros)
+  v_clean_rif := UPPER(REGEXP_REPLACE(COALESCE(p_rif, ''), '[^A-Z0-9]', '', 'g'));
+  IF LENGTH(v_clean_rif) < 7 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'El RIF ingresado no es válido (ejemplo: J-12345678-9).');
+  END IF;
+
+  -- Anti-abuso: Comprobar si otra empresa ya utilizó este RIF para evitar cuentas infinitas de 14 días
+  SELECT id INTO v_existing_id
+  FROM public.tenants
+  WHERE UPPER(REGEXP_REPLACE(rif, '[^A-Z0-9]', '', 'g')) = v_clean_rif
+    AND id <> p_tenant_id
+  LIMIT 1;
+
+  IF v_existing_id IS NOT NULL THEN
+    RETURN jsonb_build_object(
+      'success', false,
+      'error', 'Este RIF ya se encuentra registrado con otra cuenta en FacturasYa. Cada empresa tiene derecho a 1 periodo de prueba único. Si necesitas soporte o migrar tu cuenta, comunícate con soporte.'
+    );
+  END IF;
+
+  SELECT * INTO v_tenant FROM public.tenants WHERE id = p_tenant_id;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Restaurante no encontrado.');
+  END IF;
+
+  -- Si es la primera verificación fiscal y está en trial, garantizar los 14 días a partir de hoy
+  IF NOT COALESCE(v_tenant.is_fiscal_verified, false) AND v_tenant.plan = 'trial' THEN
+    v_new_valid := NOW() + INTERVAL '14 days';
+  ELSE
+    v_new_valid := v_tenant.valid_until;
+  END IF;
+
+  UPDATE public.tenants
+  SET name = TRIM(p_name),
+      legal_name = TRIM(p_legal_name),
+      rif = TRIM(p_rif),
+      fiscal_address = TRIM(p_fiscal_address),
+      phone = COALESCE(TRIM(p_phone), v_tenant.phone, ''),
+      fiscal_serial = COALESCE(TRIM(p_fiscal_serial), v_tenant.fiscal_serial, ''),
+      instagram = COALESCE(TRIM(p_instagram), v_tenant.instagram, ''),
+      is_fiscal_verified = true,
+      valid_until = v_new_valid,
+      status = CASE WHEN v_new_valid > NOW() AND status = 'past_due' THEN 'active' ELSE status END,
+      updated_at = NOW()
+  WHERE id = p_tenant_id
+  RETURNING * INTO v_tenant;
+
+  PERFORM public.log_admin_action('fiscal_verification', p_tenant_id, jsonb_build_object('rif', p_rif, 'legal_name', p_legal_name));
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'tenant', row_to_json(v_tenant)
+  );
+END;
+$$;
 
 -- 7. ADMINISTRACION Y SEGURIDAD (RLS)
 -- Principio: cada regla vive en un solo lugar. Quien es admin se define SOLO en super_admins;
@@ -455,9 +577,9 @@ CREATE POLICY "tenants_select" ON public.tenants FOR SELECT
 DROP POLICY IF EXISTS "tenants_owner_update" ON public.tenants;
 CREATE POLICY "tenants_owner_update" ON public.tenants FOR UPDATE
   USING (owner_id = auth.uid()) WITH CHECK (owner_id = auth.uid());
--- El dueno solo puede editar datos del negocio, nunca plan, estado ni fecha de vencimiento
+-- El dueno solo puede editar datos del negocio, nunca plan, estado, is_fiscal_verified ni fecha de vencimiento directamente
 REVOKE UPDATE ON public.tenants FROM authenticated, anon;
-GRANT UPDATE (name, phone, rif, branding, exchange_rate, local_ip, last_online_at) ON public.tenants TO authenticated;
+GRANT UPDATE (name, legal_name, phone, rif, fiscal_address, fiscal_serial, instagram, branding, exchange_rate, local_ip, last_online_at) ON public.tenants TO authenticated;
 
 -- subscription_payments: el dueno reporta (solo 'pending') y consulta los suyos; el admin ve todos
 DROP POLICY IF EXISTS "payments_select" ON public.subscription_payments;
@@ -490,7 +612,8 @@ CREATE POLICY "audit_admin_select" ON public.admin_audit_log FOR SELECT USING (p
 CREATE OR REPLACE VIEW public.admin_tenants_overview
 WITH (security_invoker = true) AS
 SELECT
-  t.id, t.name, t.owner_email, t.phone, t.rif, t.plan, t.status, t.valid_until, t.created_at, t.last_online_at,
+  t.id, t.name, t.legal_name, t.owner_email, t.phone, t.rif, t.fiscal_address, t.fiscal_serial, t.instagram,
+  t.is_fiscal_verified, t.plan, t.status, t.valid_until, t.created_at, t.last_online_at,
   GREATEST(0, CEIL(EXTRACT(EPOCH FROM (t.valid_until - NOW())) / 86400.0))::INT AS days_remaining,
   (t.status IN ('past_due', 'suspended') OR t.valid_until <= NOW()) AS is_expired
 FROM public.tenants t;

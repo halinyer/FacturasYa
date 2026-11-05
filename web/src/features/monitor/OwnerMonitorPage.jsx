@@ -31,8 +31,12 @@ import {
   fetchTenantSnapshot,
   fetchSaasConfig,
   fetchMyPayments,
-  submitOwnerPagoMovil
+  submitOwnerPagoMovil,
+  completeFiscalVerification,
+  updateTenantFiscalProfile
 } from './api';
+
+const INSTALLER_URL = import.meta.env.VITE_INSTALLER_URL || 'https://github.com/halinyer/FacturasYa/releases/latest';
 
 const VENEZUELA_BANKS = [
   '0102 - Banco de Venezuela',
@@ -73,6 +77,75 @@ export default function OwnerMonitorPage() {
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'tables' | 'invoices' | 'inventory' | 'subscription'
   const [lastSyncTime, setLastSyncTime] = useState(null);
   const [invoiceFilter, setInvoiceFilter] = useState('all');
+
+  // Verificación Fiscal Estilo Binance (Onboarding Progresivo)
+  const [fiscalModalOpen, setFiscalModalOpen] = useState(false);
+  const [fiscalForm, setFiscalForm] = useState({
+    name: '',
+    legalName: '',
+    rif: '',
+    fiscalAddress: '',
+    phone: '',
+    fiscalSerial: '',
+    instagram: ''
+  });
+  const [fiscalSubmitting, setFiscalSubmitting] = useState(false);
+  const [fiscalError, setFiscalError] = useState('');
+  const [fiscalSuccessMsg, setFiscalSuccessMsg] = useState('');
+
+  // Sincronizar formulario cuando se cargue el restaurante
+  useEffect(() => {
+    if (tenant) {
+      setFiscalForm({
+        name: tenant.name || '',
+        legalName: tenant.legal_name || '',
+        rif: tenant.rif || '',
+        fiscalAddress: tenant.fiscal_address || '',
+        phone: tenant.phone || '',
+        fiscalSerial: tenant.fiscal_serial || '',
+        instagram: tenant.instagram || ''
+      });
+    }
+  }, [tenant]);
+
+  const handleFiscalSubmit = async (e) => {
+    e.preventDefault();
+    setFiscalSubmitting(true);
+    setFiscalError('');
+    setFiscalSuccessMsg('');
+
+    try {
+      const updated = await completeFiscalVerification({
+        tenantId: tenant.id,
+        name: fiscalForm.name.trim(),
+        legalName: fiscalForm.legalName.trim(),
+        rif: fiscalForm.rif.trim().toUpperCase(),
+        fiscalAddress: fiscalForm.fiscalAddress.trim(),
+        phone: fiscalForm.phone.trim(),
+        fiscalSerial: fiscalForm.fiscalSerial.trim().toUpperCase(),
+        instagram: fiscalForm.instagram.trim()
+      });
+
+      setTenant(updated);
+      setFiscalSuccessMsg('¡Datos fiscales SENIAT verificados! Tu periodo de 14 días y la descarga de FacturaPOS están desbloqueados.');
+      setTimeout(() => {
+        setFiscalModalOpen(false);
+        setFiscalSuccessMsg('');
+      }, 2200);
+    } catch (err) {
+      setFiscalError(err.message || 'Error al verificar datos fiscales.');
+    } finally {
+      setFiscalSubmitting(false);
+    }
+  };
+
+  const handleDownloadInstaller = () => {
+    if (!tenant?.is_fiscal_verified) {
+      setFiscalModalOpen(true);
+      return;
+    }
+    window.open(INSTALLER_URL, '_blank');
+  };
 
   // Modal de Pago Móvil para el dueño
   const [pagoModalOpen, setPagoModalOpen] = useState(false);
@@ -458,8 +531,57 @@ export default function OwnerMonitorPage() {
           >
             Suscripción SaaS
           </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('fiscal')}
+            className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-all flex items-center gap-1.5 ${
+              activeTab === 'fiscal'
+                ? 'bg-zinc-950 text-white shadow-2xs'
+                : 'text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100'
+            }`}
+          >
+            <ShieldCheck size={13} className={tenant?.is_fiscal_verified ? 'text-emerald-500' : 'text-amber-500'} />
+            <span>Datos Fiscales SENIAT</span>
+            {!tenant?.is_fiscal_verified && (
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+            )}
+          </button>
         </div>
       </header>
+
+      {/* BANNER DE VERIFICACIÓN FISCAL (ESTILO BINANCE KYC / ONBOARDING PROGRESIVO) */}
+      {!tenant?.is_fiscal_verified && (
+        <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border-b border-amber-200/80 px-4 py-3">
+          <div className="max-w-5xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start sm:items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-700 flex items-center justify-center shrink-0">
+                <ShieldCheck size={20} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-xs font-bold text-amber-950">
+                    Verificación Fiscal del Negocio Pendiente
+                  </h4>
+                  <span className="px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">
+                    Modo Exploración
+                  </span>
+                </div>
+                <p className="text-[11px] text-amber-800/90 leading-tight mt-0.5">
+                  Registra tu RIF, Razón Social SENIAT y Domicilio Fiscal para activar tus 14 días de prueba y descargar el instalador .exe de tu caja.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setFiscalModalOpen(true)}
+              className="px-3.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-xs hover:shadow transition-all shrink-0 inline-flex items-center justify-center gap-1.5 active:scale-98"
+            >
+              <Sparkles size={13} />
+              <span>Verificar Negocio (1 min)</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* BANNER DE AVISO SI FALTA POCO O VENCIÓ */}
       {subStatus?.isExpired && (
@@ -543,20 +665,41 @@ export default function OwnerMonitorPage() {
               <Download size={22} />
             </div>
             <div className="max-w-md mx-auto space-y-1">
-              <h3 className="font-bold text-sm text-zinc-950">Esperando primer inicio de sesión en tu PC</h3>
+              <div className="flex items-center justify-center gap-2">
+                <h3 className="font-bold text-sm text-zinc-950">Esperando primer inicio de sesión en tu PC</h3>
+                {tenant?.is_fiscal_verified ? (
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200">
+                    Verificado SENIAT
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[10px] font-bold border border-amber-200">
+                    Verificación Requerida
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-zinc-500 leading-relaxed">
-                Abre el instalador en la computadora de tu caja e inicia sesión con este mismo correo (<strong>{session.user.email}</strong>). Al facturar la primera cuenta, verás los datos en vivo aquí.
+                {tenant?.is_fiscal_verified
+                  ? <>Abre el instalador en la computadora de tu caja e inicia sesión con tu correo (<strong>{session.user.email}</strong>). Al facturar la primera cuenta, verás los datos en vivo aquí.</>
+                  : <>Completa la verificación fiscal de tu RIF y Razón Social para desbloquear la descarga del instalador de caja y activar tu periodo de 14 días.</>}
               </p>
             </div>
-            <a
-              href="https://github.com/halinyer/FacturasYa/releases/latest"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-950 text-white font-semibold text-xs shadow-xs hover:bg-zinc-800 transition-all"
+            
+            <button
+              type="button"
+              onClick={handleDownloadInstaller}
+              className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs shadow-xs transition-all ${
+                tenant?.is_fiscal_verified
+                  ? 'bg-zinc-950 text-white hover:bg-zinc-800'
+                  : 'bg-amber-600 text-white hover:bg-amber-700'
+              }`}
             >
-              <Download size={14} />
-              <span>Descargar FacturaPOS para Windows</span>
-            </a>
+              <Download size={15} />
+              <span>
+                {tenant?.is_fiscal_verified
+                  ? 'Descargar FacturaPOS para Windows (.exe)'
+                  : 'Completar Verificación para Descargar (.exe)'}
+              </span>
+            </button>
           </div>
         )}
 
@@ -869,6 +1012,79 @@ export default function OwnerMonitorPage() {
                   No hay insumos registrados en el módulo de inventario.
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* PESTAÑA 6: DATOS FISCALES SENIAT (SINGLE SOURCE OF TRUTH) */}
+        {activeTab === 'fiscal' && (
+          <div className="space-y-6">
+            <div className="p-6 rounded-2xl bg-white border border-zinc-200/90 shadow-2xs space-y-5">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-100 pb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-zinc-950">Datos Fiscales SENIAT del Negocio</h3>
+                    {tenant?.is_fiscal_verified ? (
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200 flex items-center gap-1">
+                        <CheckCircle2 size={11} /> Verificado
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[10px] font-bold border border-amber-200">
+                        Pendiente de Verificación
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-zinc-500 mt-0.5">
+                    Estos datos se reflejan automáticamente en el libro de ventas SENIAT en Excel, la Forma 30 y las facturas fiscales HKA80.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setFiscalModalOpen(true)}
+                  className="px-3.5 py-1.5 rounded-xl bg-zinc-950 text-white font-semibold text-xs shadow-xs hover:bg-zinc-800 transition-all flex items-center gap-1.5"
+                >
+                  <Sparkles size={13} />
+                  <span>{tenant?.is_fiscal_verified ? 'Editar Datos Fiscales' : 'Completar Verificación'}</span>
+                </button>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-4 text-xs">
+                <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200/70 space-y-1">
+                  <span className="text-zinc-500 font-medium">Nombre Comercial:</span>
+                  <div className="font-bold text-sm text-zinc-950">{tenant?.name || '—'}</div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200/70 space-y-1">
+                  <span className="text-zinc-500 font-medium">Razón Social SENIAT:</span>
+                  <div className="font-bold text-sm text-zinc-950">{tenant?.legal_name || '—'}</div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200/70 space-y-1">
+                  <span className="text-zinc-500 font-medium">RIF Fiscal:</span>
+                  <div className="font-mono font-bold text-sm text-zinc-950">{tenant?.rif || '—'}</div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200/70 space-y-1">
+                  <span className="text-zinc-500 font-medium">Serial Máquina Fiscal HKA80:</span>
+                  <div className="font-mono font-bold text-sm text-zinc-950">{tenant?.fiscal_serial || 'Sin impresora asignada'}</div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200/70 space-y-1 sm:col-span-2">
+                  <span className="text-zinc-500 font-medium">Domicilio Fiscal SENIAT:</span>
+                  <div className="text-zinc-900 leading-relaxed">{tenant?.fiscal_address || '—'}</div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200/70 space-y-1">
+                  <span className="text-zinc-500 font-medium">Teléfono / WhatsApp:</span>
+                  <div className="font-bold text-zinc-950">{tenant?.phone || '—'}</div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200/70 space-y-1">
+                  <span className="text-zinc-500 font-medium">Instagram:</span>
+                  <div className="font-bold text-zinc-950">{tenant?.instagram || '—'}</div>
+                </div>
+              </div>
             </div>
           </div>
         )}

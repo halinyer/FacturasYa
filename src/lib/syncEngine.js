@@ -110,22 +110,39 @@ export function getCurrentTenant() {
   return null;
 }
 
+export function computeLicenseSeal(t) {
+  if (!t || !t.id) return '';
+  const payload = `${t.id}:${t.owner_email}:${t.status}:${t.plan}:${t.valid_until}:facturasya_salt_ve_2026`;
+  let hash = 0;
+  for (let i = 0; i < payload.length; i++) {
+    hash = ((hash << 5) - hash) + payload.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash).toString(36);
+}
+
 export function setCurrentTenant(tenant) {
   if (!tenant) {
     localStorage.removeItem(TENANT_STORAGE_KEY);
+    broadcastEvent({ type: 'ACTIVE_TENANT_CHANGED', tenant: null });
   } else {
-    localStorage.setItem(TENANT_STORAGE_KEY, JSON.stringify(tenant));
+    const sealedTenant = {
+      ...tenant,
+      license_seal: computeLicenseSeal(tenant)
+    };
+    localStorage.setItem(TENANT_STORAGE_KEY, JSON.stringify(sealedTenant));
     // Asegurar que exista en la lista general
     const list = getLocalTenantsList();
     const idx = list.findIndex((t) => t.id === tenant.id || t.owner_email === tenant.owner_email);
     if (idx >= 0) {
-      list[idx] = { ...list[idx], ...tenant };
+      list[idx] = { ...list[idx], ...sealedTenant };
     } else {
-      list.unshift(tenant);
+      list.unshift(sealedTenant);
     }
     localStorage.setItem(ALL_TENANTS_STORAGE_KEY, JSON.stringify(list));
+    broadcastEvent({ type: 'ACTIVE_TENANT_CHANGED', tenant: sealedTenant });
+    return sealedTenant;
   }
-  broadcastEvent({ type: 'ACTIVE_TENANT_CHANGED', tenant });
 }
 
 export function getSaasConfig() {
@@ -208,6 +225,14 @@ export async function verifyLicenseWithBackend(tenantId) {
             ...current,
             status: data.status || current.status,
             plan: data.plan || current.plan,
+            name: data.name || current.name,
+            legal_name: data.legal_name || current.legal_name,
+            rif: data.rif || current.rif,
+            fiscal_address: data.fiscal_address || current.fiscal_address,
+            fiscal_serial: data.fiscal_serial || current.fiscal_serial,
+            phone: data.phone || current.phone,
+            instagram: data.instagram || current.instagram,
+            is_fiscal_verified: typeof data.is_fiscal_verified === 'boolean' ? data.is_fiscal_verified : current.is_fiscal_verified,
             valid_until: data.valid_until || current.valid_until,
             server_days_remaining: data.days_remaining,
             server_raw_days_remaining: data.raw_days_remaining,
@@ -268,13 +293,27 @@ export function evaluateSubscriptionStatus(tenant) {
     ? tenant.server_days_remaining
     : computedDays;
 
+  // Candado de integridad: verificar si alguien alteró el localStorage manualmente
+  const expectedSeal = computeLicenseSeal(tenant);
+  const isSealTampered = Boolean(tenant.license_seal && tenant.license_seal !== expectedSeal);
+
+  // Período de gracia offline máximo de 72 horas para instalaciones enlazadas a la nube
+  const MAX_OFFLINE_GRACE_MS = 72 * 60 * 60 * 1000;
+  const isOfflineGraceExceeded = Boolean(
+    isSupabaseConfigured() &&
+    guard.last_server_sync_ms &&
+    (Date.now() - guard.last_server_sync_ms > MAX_OFFLINE_GRACE_MS)
+  );
+
   const isSuspended = tenant.status === 'suspended';
   const isPastDue = tenant.status === 'past_due' || diffMs <= 0 || Boolean(tenant.server_is_expired);
-  const isExpired = isSuspended || isPastDue || isClockTampered;
+  const isExpired = isSuspended || isPastDue || isClockTampered || isSealTampered || isOfflineGraceExceeded;
   const isWarningSoon = !isExpired && daysRemaining <= 3;
 
   let statusLabel = 'Activa';
   if (isClockTampered) statusLabel = 'Bloqueado: Reloj de Windows Atrasado';
+  else if (isSealTampered) statusLabel = 'Bloqueado: Integridad de Licencia Violada';
+  else if (isOfflineGraceExceeded) statusLabel = 'Bloqueado: Más de 72h Offline (Requiere Sincronización)';
   else if (isSuspended) statusLabel = 'Suspendida por Administración';
   else if (isExpired) statusLabel = 'Suscripción Vencida';
   else if (tenant.plan === 'trial') statusLabel = `Prueba Gratis (${Math.max(0, daysRemaining)} días restantes)`;
@@ -286,6 +325,9 @@ export function evaluateSubscriptionStatus(tenant) {
     isExpired,
     isSuspended,
     isClockTampered,
+    isSealTampered,
+    isOfflineGraceExceeded,
+    isFiscalVerified: Boolean(tenant.is_fiscal_verified),
     isWarningSoon,
     daysRemaining: Math.max(0, daysRemaining),
     rawDaysRemaining: daysRemaining,
