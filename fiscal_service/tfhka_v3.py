@@ -433,10 +433,10 @@ class TfhkaV3:
             # Detectar dinámicamente si es formato de 16 campos (HKA80 donde RIF está en índice 12)
             # o formato de 12-14 campos (donde RIF está en índice 8 o 10)
             if len(parts) >= 15:
-                # HKA80 16 campos (Manual Pág. 55-56):
+                # HKA80 16 campos (Manual Pág. 55-56 y SDK S1PrinterData.py):
                 # 0:Cajero, 1:VentasDia, 2:UltFactura, 3:CantFacturasHoy,
                 # 4:UltND, 5:CantNDHoy, 6:UltNC, 7:CantNCHoy,
-                # 8:UltDNF, 9:CantDNFHoy, 10:ContadorZ, 11:ContadorRepFiscales,
+                # 8:UltDNF, 9:CantDNFHoy, 10:ContadorRepAuditoria, 11:ContadorZ,
                 # 12:RIF, 13:SerialMaquina, 14:Hora, 15:Fecha
                 last_nd = int(re.sub(r"[^0-9]", "", parts[4]) or "0")
                 qty_nd_today = int(re.sub(r"[^0-9]", "", parts[5]) or "0")
@@ -444,8 +444,8 @@ class TfhkaV3:
                 qty_nc_today = int(re.sub(r"[^0-9]", "", parts[7]) or "0")
                 last_dnf = int(re.sub(r"[^0-9]", "", parts[8]) or "0")
                 qty_dnf_today = int(re.sub(r"[^0-9]", "", parts[9]) or "0")
-                z_counter = int(re.sub(r"[^0-9]", "", parts[10]) or "0")
-                fiscal_rep_counter = int(re.sub(r"[^0-9]", "", parts[11]) or "0")
+                fiscal_rep_counter = int(re.sub(r"[^0-9]", "", parts[10]) or "0")
+                z_counter = int(re.sub(r"[^0-9]", "", parts[11]) or "0")
                 rif = parts[12].strip()
                 machine_serial = parts[13].strip()
                 printer_time = parts[14].strip() if len(parts) > 14 else ""

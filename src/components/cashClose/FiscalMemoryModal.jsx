@@ -14,7 +14,7 @@ import {
   Download
 } from 'lucide-react';
 
-export default function FiscalMemoryModal({
+function FiscalMemoryModalInner({
   isOpen,
   onClose,
   initialDate,
@@ -44,8 +44,6 @@ export default function FiscalMemoryModal({
     }
   }, [isOpen, initialDate]);
 
-  if (!isOpen) return null;
-
   const handleQueryFiscalMemory = async () => {
     if (!fiscalGetFiscalMemory) return;
     setLoading(true);
@@ -64,11 +62,17 @@ export default function FiscalMemoryModal({
 
       const res = await fiscalGetFiscalMemory(options);
       if (res && res.success) {
-        setResultData(res);
-        if (res.records?.length === 0) {
+        // PowerShell 5.1 serializa listas vacías como {} y de 1 elemento como objeto.
+        // Normalizamos SIEMPRE a arreglo para evitar que la pantalla se caiga.
+        let records = res.records;
+        if (!Array.isArray(records)) {
+          records = (records && typeof records === 'object' && Object.keys(records).length > 0) ? [records] : [];
+        }
+        setResultData({ ...res, records });
+        if (records.length === 0) {
           setSuccessMsg('Consulta exitosa: No se encontraron cierres Z registrados en ese rango específico en la máquina fiscal.');
         } else {
-          setSuccessMsg(`¡Consulta exitosa! Se recuperaron ${res.records.length} reporte(s) Z directamente de la memoria fiscal.`);
+          setSuccessMsg(`¡Consulta exitosa! Se recuperaron ${records.length} reporte(s) Z directamente de la memoria fiscal.`);
         }
       } else {
         setErrorMsg(res?.error || 'No se pudo leer la memoria fiscal. Verifique que la impresora esté conectada o el emulador en verde.');
@@ -153,6 +157,9 @@ export default function FiscalMemoryModal({
   }, [resultData]);
 
   const formatBs = (val) => `Bs. ${(Number(val) || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  // IMPORTANTE: este return va DESPUÉS de todos los hooks (useMemo) para evitar el error React #310
+  if (!isOpen) return null;
 
   return (
     <div style={{
@@ -358,6 +365,19 @@ export default function FiscalMemoryModal({
                 </span>
               </div>
 
+              {(!resultData.records || resultData.records.length === 0) && resultData.diagnostic && (
+                <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '10px', padding: '12px 16px', color: '#92400e', fontSize: '0.8rem' }}>
+                  <b>Diagnóstico de la consulta (envíame esto si no aparecen Z):</b>
+                  <div>Contador Z (S1): {resultData.diagnostic.zCounter} · Contador Auditoría (S1): {resultData.diagnostic.auditCounter}</div>
+                  <div>Z devueltos por fecha: {resultData.diagnostic.byDateCount} · por número: {resultData.diagnostic.byNumberCount} · total leídos: {resultData.diagnostic.rawCount ?? 0}</div>
+                  {resultData.diagnostic.byDateError && <div>Error por fecha: {resultData.diagnostic.byDateError}</div>}
+                  {resultData.diagnostic.byNumberError && <div>Error por número: {resultData.diagnostic.byNumberError}</div>}
+                  {resultData.diagnostic.samples && resultData.diagnostic.samples.length > 0 && (
+                    <div>Muestra leída de la máquina: {[].concat(resultData.diagnostic.samples).join(' | ')}</div>
+                  )}
+                </div>
+              )}
+
               {/* Auditoria Comparativa: Máquina Fiscal vs Sistema POS */}
               <div style={{
                 display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px'
@@ -424,7 +444,7 @@ export default function FiscalMemoryModal({
                       <tr>
                         <th style={{ padding: '10px 12px' }}>N° Z</th>
                         <th style={{ padding: '10px 12px' }}>Fecha Z</th>
-                        <th style={{ padding: '10px 12px' }}>Última Factura</th>
+                        <th style={{ padding: '10px 12px' }}>Serie Facturas (Desde – Hasta)</th>
                         <th style={{ padding: '10px 12px', textAlign: 'right' }}>Ventas Exentas</th>
                         <th style={{ padding: '10px 12px', textAlign: 'right' }}>Base 16%</th>
                         <th style={{ padding: '10px 12px', textAlign: 'right' }}>IVA 16%</th>
@@ -443,7 +463,7 @@ export default function FiscalMemoryModal({
                               {z.zDate}
                             </td>
                             <td style={{ padding: '10px 12px' }}>
-                              N° {String(z.lastInvoiceNumber || 0).padStart(8, '0')}
+                              {z.firstInvoiceNumber ? String(z.firstInvoiceNumber).padStart(8, '0') : 'N/D'} – {String(z.lastInvoiceNumber || 0).padStart(8, '0')}
                             </td>
                             <td style={{ padding: '10px 12px', textAlign: 'right', color: '#64748b' }}>
                               {formatBs(z.exemptSalesBs)}
@@ -547,5 +567,37 @@ export default function FiscalMemoryModal({
 
       </div>
     </div>
+  );
+}
+
+
+class FiscalMemoryErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(error) { return { error }; }
+  componentDidCatch(error, info) { console.error('[FiscalMemoryModal] Error de render:', error, info); }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.8)', zIndex: 2800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div style={{ background: '#fff', borderRadius: '14px', padding: '24px', maxWidth: '520px', color: '#0f172a' }}>
+            <h3 style={{ marginTop: 0, color: '#991b1b' }}>Error al mostrar la memoria fiscal</h3>
+            <p style={{ fontSize: '0.85rem', wordBreak: 'break-word' }}>{String(this.state.error?.message || this.state.error)}</p>
+            <button type="button" onClick={() => { this.setState({ error: null }); this.props.onClose && this.props.onClose(); }}
+              style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', background: '#0284c7', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+              Cerrar
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+export default function FiscalMemoryModal(props) {
+  return (
+    <FiscalMemoryErrorBoundary onClose={props.onClose}>
+      <FiscalMemoryModalInner {...props} />
+    </FiscalMemoryErrorBoundary>
   );
 }

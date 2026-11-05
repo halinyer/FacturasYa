@@ -1,4 +1,4 @@
-const { execFile } = require('child_process');
+﻿const { execFile } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -7,15 +7,15 @@ const { app } = require('electron');
 let defaultPort = 'COM2';
 
 /**
- * Resuelve y auto-repara (Self-Healing) el ejecutable binario autónomo bridge_fiscal.exe.
- * - Protege contra el borrado automático de carpetas temporales (%TEMP%) de Windows en modo Portable.
+ * Resuelve y auto-repara (Self-Healing) el ejecutable binario autÃ³nomo bridge_fiscal.exe.
+ * - Protege contra el borrado automÃ¡tico de carpetas temporales (%TEMP%) de Windows en modo Portable.
  * - Si el archivo externo fue borrado accidentalmente o por limpiadores del sistema, lo restaura
- *   automáticamente leyendo la copia sellada dentro de app.asar (bin/bridge_fiscal.exe).
+ *   automÃ¡ticamente leyendo la copia sellada dentro de app.asar (bin/bridge_fiscal.exe).
  */
 function getBridgeExePath() {
   const diskCandidates = [];
 
-  // Ubicación persistente segura fuera de %TEMP% (AppData/Roaming/facturacion-pos/bin/bridge_fiscal.exe)
+  // UbicaciÃ³n persistente segura fuera de %TEMP% (AppData/Roaming/facturacion-pos/bin/bridge_fiscal.exe)
   let persistentBinPath = null;
   try {
     if (app && typeof app.getPath === 'function') {
@@ -27,7 +27,7 @@ function getBridgeExePath() {
   } catch (e) {}
 
   if (app && app.isPackaged) {
-    // 1. En resources/ (configuración extraResources de electron-builder)
+    // 1. En resources/ (configuraciÃ³n extraResources de electron-builder)
     if (process.resourcesPath) {
       diskCandidates.push(path.join(process.resourcesPath, 'bridge_fiscal.exe'));
       diskCandidates.push(path.join(process.resourcesPath, 'bin', 'bridge_fiscal.exe'));
@@ -56,7 +56,7 @@ function getBridgeExePath() {
   for (const candidate of diskCandidates) {
     try {
       if (fs.existsSync(candidate) && !candidate.includes('app.asar' + path.sep)) {
-        // Si estamos en modo empaquetado y aún no existe copia de respaldo en userData/bin, crearla preventivamente
+        // Si estamos en modo empaquetado y aÃºn no existe copia de respaldo en userData/bin, crearla preventivamente
         if (persistentBinPath && candidate !== persistentBinPath && !fs.existsSync(persistentBinPath)) {
           try {
             fs.mkdirSync(path.dirname(persistentBinPath), { recursive: true });
@@ -68,7 +68,7 @@ function getBridgeExePath() {
     } catch (e) {}
   }
 
-  // AUTO-REPARACIÓN (SELF-HEALING):
+  // AUTO-REPARACIÃ“N (SELF-HEALING):
   // Si el archivo externo fue borrado (por limpiador de %TEMP% de Windows o borrado accidental),
   // extraemos la copia sellada dentro de app.asar (bin/bridge_fiscal.exe) hacia una ruta persistente.
   const asarEmbeddedSource = path.join(__dirname, '..', 'bin', 'bridge_fiscal.exe');
@@ -84,7 +84,7 @@ function getBridgeExePath() {
         try {
           fs.mkdirSync(path.dirname(target), { recursive: true });
           fs.writeFileSync(target, binaryBuffer);
-          console.log(`[Fiscal Bridge Self-Heal] bridge_fiscal.exe restaurado automáticamente en: ${target}`);
+          console.log(`[Fiscal Bridge Self-Heal] bridge_fiscal.exe restaurado automÃ¡ticamente en: ${target}`);
           return target;
         } catch (restoreErr) {
           console.warn(`[Fiscal Bridge Self-Heal] No se pudo restaurar en ${target}:`, restoreErr.message);
@@ -177,7 +177,7 @@ function runPsBridge(action, options = {}, timeoutMs = 25000) {
           console.error(`[PS Fiscal Bridge ${action} Error]:`, error.message);
           return resolve({
             success: false,
-            error: error.killed ? 'Timeout al consultar la memoria fiscal de la máquina.' : error.message
+            error: error.killed ? 'Timeout al consultar la memoria fiscal de la mÃ¡quina.' : error.message
           });
         }
         try {
@@ -187,7 +187,7 @@ function runPsBridge(action, options = {}, timeoutMs = 25000) {
           console.error(`[PS Fiscal Bridge JSON Error]:`, stdout);
           resolve({
             success: false,
-            error: `Respuesta inválida al consultar memoria fiscal: ${stdout.slice(0, 150)}`
+            error: `Respuesta invÃ¡lida al consultar memoria fiscal: ${stdout.slice(0, 150)}`
           });
         }
       }
@@ -196,7 +196,7 @@ function runPsBridge(action, options = {}, timeoutMs = 25000) {
 }
 
 /**
- * Ejecuta el binario autónomo bridge_fiscal.exe pasando argumentos y parseando la salida JSON.
+ * Ejecuta el binario autÃ³nomo bridge_fiscal.exe pasando argumentos y parseando la salida JSON.
  */
 function runBridge(args, timeoutMs = 35000) {
   return new Promise((resolve) => {
@@ -207,7 +207,7 @@ function runBridge(args, timeoutMs = 35000) {
       console.error(`[Fiscal Bridge] Binario no encontrado en: ${bridgeExe}`);
       return resolve({
         success: false,
-        error: `No se encontró el ejecutable bridge_fiscal.exe en: ${bridgeExe}`
+        error: `No se encontrÃ³ el ejecutable bridge_fiscal.exe en: ${bridgeExe}`
       });
     }
 
@@ -238,7 +238,7 @@ function runBridge(args, timeoutMs = 35000) {
           return resolve({
             success: false,
             error: error.killed
-              ? 'La impresora fiscal no respondió en el tiempo límite (Timeout)'
+              ? 'La impresora fiscal no respondiÃ³ en el tiempo lÃ­mite (Timeout)'
               : `Error ejecutando bridge_fiscal: ${error.message}`
           });
         }
@@ -246,7 +246,7 @@ function runBridge(args, timeoutMs = 35000) {
         if (!stdout || stdout.trim().length === 0) {
           return resolve({
             success: false,
-            error: 'El servicio fiscal no retornó respuesta.'
+            error: 'El servicio fiscal no retornÃ³ respuesta.'
           });
         }
 
@@ -260,7 +260,7 @@ function runBridge(args, timeoutMs = 35000) {
           console.error('[Fiscal Bridge JSON Parse Error]:', jsonErr.message, 'Output:', stdout);
           resolve({
             success: false,
-            error: `Respuesta fiscal no válida: ${stdout.slice(0, 200)}`
+            error: `Respuesta fiscal no vÃ¡lida: ${stdout.slice(0, 200)}`
           });
         }
       }
@@ -293,7 +293,7 @@ const fiscalService = {
     return {
       success: false,
       ports: res?.ports || [],
-      error: res?.error || 'No se detectó ninguna impresora fiscal HKA respondiendo en los puertos COM.'
+      error: res?.error || 'No se detectÃ³ ninguna impresora fiscal HKA respondiendo en los puertos COM.'
     };
   },
 
@@ -337,7 +337,7 @@ const fiscalService = {
 
   getFiscalMemory: async (port, options = {}) => {
     const targetPort = port || defaultPort || 'COM2';
-    return await runPsBridge('getFiscalMemory', { ...options, port: targetPort }, 30000);
+    return await runPsBridge('getFiscalMemory', { ...options, port: targetPort }, 180000);
   },
 
   printFiscalMemory: async (port, options = {}) => {
@@ -348,7 +348,7 @@ const fiscalService = {
   printInvoice: async (port, invoiceData) => {
     const targetPort = port || defaultPort || 'COM2';
     
-    // Guardar payload en archivo temporal para evitar límites de longitud en CLI de Windows
+    // Guardar payload en archivo temporal para evitar lÃ­mites de longitud en CLI de Windows
     const tempDir = os.tmpdir();
     const tempFilePath = path.join(tempDir, `fiscal_inv_${Date.now()}_${Math.random().toString(36).substring(7)}.json`);
     

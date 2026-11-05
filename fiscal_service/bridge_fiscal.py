@@ -400,6 +400,8 @@ def report_z_action(port):
     driver = TfhkaV3(port=port, baudrate=9600)
     driver.debug = True
     s1_before = driver.get_s1_status()
+    # Capturar desglose de impuestos exacto vía U0X antes de cerrar el día
+    u0x_before = driver.get_x_report_data()
     ok, msg = driver.print_report_z()
     s1_after = driver.get_s1_status() if ok else {}
     driver.close_port()
@@ -409,9 +411,17 @@ def report_z_action(port):
         "success": ok,
         "message": msg,
         "s1_before": s1_before,
-        "s1_after": s1_after
+        "s1_after": s1_after,
+        "u0x_before": u0x_before
     })
-    return {"success": ok, "message": msg, "s1_before": s1_before, "s1": s1_after, "error": None if ok else msg}
+    return {
+        "success": ok,
+        "message": msg,
+        "s1_before": s1_before,
+        "s1": s1_after,
+        "u0x_before": u0x_before,
+        "error": None if ok else msg
+    }
 
 def cancel_action(port):
     """Cancela cualquier factura abierta en el puerto dado."""

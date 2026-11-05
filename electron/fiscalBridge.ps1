@@ -257,74 +257,167 @@ switch ($Action) {
             Open-Printer $Port
             Start-Sleep -Milliseconds 200
             $s1 = $printer.GetS1PrinterData()
-            $totalZ = [int]$s1.DailyClosureCounter
+            $zCounter = [int]$s1.DailyClosureCounter
+            $auditCounter = [int]$s1.AuditReportsCounter
+            # La DLL puede mapear los contadores distinto segun modelo/firmware: usamos el mayor como tope
+            $totalZ = [Math]::Max($zCounter, $auditCounter)
 
+            $diag = @{
+                zCounter = $zCounter
+                auditCounter = $auditCounter
+                byDateCount = -1
+                byNumberCount = -1
+                byDateError = ""
+                byNumberError = ""
+                samples = @()
+            }
+
+            $inv = [System.Globalization.CultureInfo]::InvariantCulture
+            $dStart = $null
+            $dEnd = $null
+            if ($StartDate) { try { $dStart = [DateTime]::ParseExact($StartDate, 'yyyy-MM-dd', $inv) } catch {} }
+            if ($EndDate)   { try { $dEnd   = [DateTime]::ParseExact($EndDate,   'yyyy-MM-dd', $inv) } catch {} }
+
+            $raw = @()
+
+            # 1) Consulta por FECHA (comando U2 del SDK). Se pide 10 dias antes para conocer el Z anterior
+            if ($dStart -and $dEnd -and $StartZ -le 0 -and $EndZ -le 0) {
+                try {
+                    $r = $printer.GetZReport($dStart.AddDays(-10), $dEnd)
+                    if ($r) { $raw = @($r | Where-Object { $_ }) }
+                    $diag.byDateCount = $raw.Count
+                } catch {
+                    $diag.byDateError = $_.Exception.Message
+                }
+            }
+
+            # 2) Consulta por NUMERO de Z (comando U3 del SDK)
+            if ($raw.Count -eq 0) {
+                try {
+                    $qs = 1
+                    $qe = $totalZ + 1
+                    if ($totalZ -le 0) { $qe = 200 }
+                    if ($StartZ -gt 0) { $qs = [Math]::Max(1, $StartZ - 1) }
+                    if ($EndZ -gt 0 -and $EndZ -ge $StartZ) { $qe = $EndZ + 1 }
+                    if (($qe - $qs) -gt 350) { $qs = [Math]::Max(1, $qe - 350) }
+                    $r = $printer.GetZReport($qs, $qe)
+                    if ($r) { $raw = @($r | Where-Object { $_ }) }
+                    $diag.byNumberCount = $raw.Count
+                } catch {
+                    $diag.byNumberError = $_.Exception.Message
+                }
+            }
+
+            # Normalizar, ordenar, quitar duplicados
+            $list = @()
+            foreach ($item in $raw) {
+                $zDt = $item.ZReportDate
+                if (-not $zDt -or $zDt.Year -lt 2000) { $zDt = $item.LastInvoiceDate }
+                if (-not $zDt -or $zDt.Year -lt 2000) { $zDt = [DateTime]::MinValue }
+
+                $exempt = [Math]::Round([double]$item.FreeSalesTax, 2)
+                $base16 = [Math]::Round([double]$item.GeneralRate1Sale, 2)
+                $tax16  = [Math]::Round([double]$item.GeneralRate1Tax, 2)
+                $base8  = [Math]::Round([double]$item.ReducedRate2Sale, 2)
+                $tax8   = [Math]::Round([double]$item.ReducedRate2Tax, 2)
+                $baseAdd = [Math]::Round([double]$item.AdditionalRate3Sale, 2)
+                $taxAdd  = [Math]::Round([double]$item.AdditionalRate3Tax, 2)
+                $totSales = [Math]::Round($exempt + $base16 + $tax16 + $base8 + $tax8 + $baseAdd + $taxAdd, 2)
+                $devs = [Math]::Round([double]$item.FreeTaxDevolution + [double]$item.GeneralRateDevolution + [double]$item.GeneralRateTaxDevolution + [double]$item.ReducedRateDevolution + [double]$item.ReducedRateTaxDevolution, 2)
+
+                $list += [pscustomobject]@{
+                    zNumber = [int]$item.NumberOfLastZReport
+                    zDt = $zDt
+                    lastInvoiceNumber = [int]$item.NumberOfLastInvoice
+                    exemptSalesBs = $exempt
+                    baseGeneral16Bs = $base16
+                    taxGeneral16Bs = $tax16
+                    baseReduced8Bs = $base8
+                    taxReduced8Bs = $tax8
+                    baseAdditionalBs = $baseAdd
+                    taxAdditionalBs = $taxAdd
+                    totalSalesBs = $totSales
+                    devolutionsBs = $devs
+                    lastCreditNote = [int]$item.NumberOfLastCreditNote
+                    lastDebitNote = [int]$item.NumberOfLastDebitNote
+                    lastNonFiscal = [int]$item.NumberOfLastNonFiscal
+                }
+            }
+            $list = @($list | Sort-Object zNumber -Unique)
+
+            $diag.rawCount = $list.Count
+            $sampleItems = @()
+            foreach ($x in ($list | Select-Object -First 3)) { $sampleItems += ("Z" + $x.zNumber + " " + $x.zDt.ToString("yyyy-MM-dd") + " total=" + $x.totalSalesBs) }
+            foreach ($x in ($list | Select-Object -Last 2)) { $sampleItems += ("Z" + $x.zNumber + " " + $x.zDt.ToString("yyyy-MM-dd") + " total=" + $x.totalSalesBs) }
+            $diag.samples = @($sampleItems)
+
+            # Serie (primera/ultima factura) de cada Z: la primera = ultima factura del Z anterior + 1
             $allReports = @()
-            if ($totalZ -gt 0) {
-                $queryStart = 1
-                $queryEnd = $totalZ + 1
-                if ($StartZ -gt 0) { $queryStart = $StartZ }
-                if ($EndZ -gt 0 -and $EndZ -ge $queryStart) { $queryEnd = $EndZ + 1 }
+            $prevLast = -1
+            foreach ($x in $list) {
+                $first = 0
+                $count = 0
+                if ($prevLast -ge 0) {
+                    if ($x.lastInvoiceNumber -gt $prevLast) {
+                        $first = $prevLast + 1
+                        $count = $x.lastInvoiceNumber - $prevLast
+                    } else {
+                        $first = $x.lastInvoiceNumber
+                        $count = 0
+                    }
+                } elseif ($x.zNumber -le 1) {
+                    $first = 1
+                    $count = $x.lastInvoiceNumber
+                } else {
+                    $first = 0
+                    $count = 0
+                }
+                $prevLast = $x.lastInvoiceNumber
 
-                # Limitar lote a un máximo razonable para proteger tiempo de respuesta
-                if (($queryEnd - $queryStart) -gt 350) {
-                    $queryStart = [Math]::Max(1, $queryEnd - 350)
+                $zDateStr = $x.zDt.ToString("yyyy-MM-dd")
+                if ($StartDate -and $EndDate -and $StartZ -le 0 -and $EndZ -le 0) {
+                    if ($zDateStr -lt $StartDate) { continue }
+                    if ($zDateStr -gt $EndDate) { continue }
+                } else {
+                    if ($StartZ -gt 0 -and $x.zNumber -lt $StartZ) { continue }
+                    if ($EndZ -gt 0 -and $x.zNumber -gt $EndZ) { continue }
                 }
 
-                $rawZList = $printer.GetZReport($queryStart, $queryEnd)
-                if ($rawZList) {
-                    foreach ($item in $rawZList) {
-                        if (-not $item) { continue }
-                        $zDateStr = $item.ZReportDate.ToString("yyyy-MM-dd")
-                        
-                        # Filtro opcional por rango de fechas
-                        if ($StartDate -and $zDateStr -lt $StartDate) { continue }
-                        if ($EndDate -and $zDateStr -gt $EndDate) { continue }
-
-                        $exempt = [Math]::Round([double]$item.FreeSalesTax, 2)
-                        $base16 = [Math]::Round([double]$item.GeneralRate1Sale, 2)
-                        $tax16  = [Math]::Round([double]$item.GeneralRate1Tax, 2)
-                        $base8  = [Math]::Round([double]$item.ReducedRate2Sale, 2)
-                        $tax8   = [Math]::Round([double]$item.ReducedRate2Tax, 2)
-                        $baseAdd = [Math]::Round([double]$item.AdditionalRate3Sale, 2)
-                        $taxAdd  = [Math]::Round([double]$item.AdditionalRate3Tax, 2)
-                        $totSales = [Math]::Round($exempt + $base16 + $tax16 + $base8 + $tax8 + $baseAdd + $taxAdd, 2)
-
-                        $devs = [Math]::Round([double]$item.FreeTaxDevolution + [double]$item.GeneralRateDevolution + [double]$item.GeneralRateTaxDevolution + [double]$item.ReducedRateDevolution + [double]$item.ReducedRateTaxDevolution, 2)
-
-                        $allReports += @{
-                            zNumber = $item.NumberOfLastZReport
-                            zDate = $zDateStr
-                            zDateTime = $item.ZReportDate.ToString("yyyy-MM-dd HH:mm:ss")
-                            lastInvoiceNumber = $item.NumberOfLastInvoice
-                            exemptSalesBs = $exempt
-                            baseGeneral16Bs = $base16
-                            taxGeneral16Bs = $tax16
-                            baseReduced8Bs = $base8
-                            taxReduced8Bs = $tax8
-                            baseAdditionalBs = $baseAdd
-                            taxAdditionalBs = $taxAdd
-                            totalSalesBs = $totSales
-                            devolutionsBs = $devs
-                            lastCreditNote = $item.NumberOfLastCreditNote
-                            lastDebitNote = $item.NumberOfLastDebitNote
-                            lastNonFiscal = $item.NumberOfLastNonFiscal
-                        }
-                    }
+                $allReports += @{
+                    zNumber = $x.zNumber
+                    zDate = $zDateStr
+                    zDateTime = $x.zDt.ToString("yyyy-MM-dd HH:mm:ss")
+                    firstInvoiceNumber = $first
+                    lastInvoiceNumber = $x.lastInvoiceNumber
+                    invoiceCount = $count
+                    exemptSalesBs = $x.exemptSalesBs
+                    baseGeneral16Bs = $x.baseGeneral16Bs
+                    taxGeneral16Bs = $x.taxGeneral16Bs
+                    baseReduced8Bs = $x.baseReduced8Bs
+                    taxReduced8Bs = $x.taxReduced8Bs
+                    baseAdditionalBs = $x.baseAdditionalBs
+                    taxAdditionalBs = $x.taxAdditionalBs
+                    totalSalesBs = $x.totalSalesBs
+                    devolutionsBs = $x.devolutionsBs
+                    lastCreditNote = $x.lastCreditNote
+                    lastDebitNote = $x.lastDebitNote
+                    lastNonFiscal = $x.lastNonFiscal
                 }
             }
 
             $printer.CloseFpctrl()
 
-            Out-JsonResult @{
+            $result = @{
                 success = $true
-                records = $allReports
+                records = @($allReports)
                 totalRecords = $allReports.Count
                 totalZInPrinter = $totalZ
                 registeredMachineNumber = $s1.RegisteredMachineNumber
                 rif = $s1.RIF
                 currentPrinterDateTime = $s1.CurrentPrinterDateTime.ToString("yyyy-MM-dd HH:mm:ss")
+                diagnostic = $diag
             }
+            Write-Output ($result | ConvertTo-Json -Compress -Depth 6)
         } catch {
             try { $printer.CloseFpctrl() } catch {}
             Out-JsonResult @{ success = $false; error = $_.Exception.Message }
