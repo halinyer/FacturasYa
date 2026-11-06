@@ -67,14 +67,17 @@ function formatUsd(val) {
   return '$' + Number(val || 0).toFixed(2);
 }
 
-export default function OwnerMonitorPage() {
+export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overview' }) {
   const { session, loading: authLoading, signOut } = useAuth();
   const [tenant, setTenant] = useState(null);
   const [snapshot, setSnapshot] = useState(null);
   const [saasConfig, setSaasConfig] = useState(null);
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'tables' | 'invoices' | 'inventory' | 'subscription'
+  const [activeTab, setActiveTab] = useState(defaultTab);
+  useEffect(() => {
+    if (defaultTab) setActiveTab(defaultTab);
+  }, [defaultTab]); // 'overview' | 'tables' | 'invoices' | 'inventory' | 'subscription'
   const [lastSyncTime, setLastSyncTime] = useState(null);
   const [invoiceFilter, setInvoiceFilter] = useState('all');
 
@@ -407,6 +410,7 @@ export default function OwnerMonitorPage() {
     <div className="min-h-screen bg-zinc-50 text-zinc-900 font-sans antialiased pb-16">
       
       {/* HEADER PRINCIPAL */}
+      {!embedded && (
       <header className="sticky top-0 z-30 bg-white/85 backdrop-blur-md border-b border-zinc-200/80">
         <div className="max-w-5xl mx-auto px-4 h-15 flex items-center justify-between gap-3">
           
@@ -548,6 +552,7 @@ export default function OwnerMonitorPage() {
           </button>
         </div>
       </header>
+      )}
 
       {/* BANNER DE VERIFICACIÓN FISCAL (ESTILO BINANCE KYC / ONBOARDING PROGRESIVO) */}
       {!tenant?.is_fiscal_verified && (
