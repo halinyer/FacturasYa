@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   ShoppingCart,
@@ -56,27 +56,27 @@ const INSTALLER_URL =
 function AppShellInner() {
   const { session, signOut } = useWebAuth();
   const posData = useData();
-  const isElectron = typeof window !== 'undefined' && (Boolean(window?.electronAPI) || window.location.protocol === 'file:');
-  const [searchParams, setSearchParams] = useSearchParams();
+  const refreshDataRef = useRef(posData?.refreshData);
+  useEffect(() => {
+    refreshDataRef.current = posData?.refreshData;
+  }, [posData?.refreshData]);
+  const hydratedUserIdRef = useRef(null);
 
-  // Estado de navegación: 'pos' | 'tables' | 'dashboard' | 'fiscal' | 'cash-close' | 'inventory' | 'products' | 'clients' | 'monitor'
+  const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'pos';
   const setActiveTab = (tab) => {
     setSearchParams({ tab });
   };
 
-  // Datos del Tenant y Snapshot
   const [tenant, setTenant] = useState(null);
   const [snapshot, setSnapshot] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Estados visuales
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
-  // Cargar datos del restaurante y sincronizar aislamiento multi-tenant con Supabase
   const loadTenantData = useCallback(async () => {
     try {
       setLoading(true);
@@ -91,10 +91,14 @@ function AppShellInner() {
         const isSwitchingTenant = prevTenantId && prevTenantId !== tData.id;
         const isLocalEmpty = (db.getProducts() || []).length === 0 && (db.getInvoices() || []).length === 0;
 
-        // Si cambió de cuenta en la misma PC o es una PC nueva con datos en la nube, hidratar desde el snapshot de este usuario
-        if (isSwitchingTenant || (isLocalEmpty && snap)) {
+        if (isSwitchingTenant || (isLocalEmpty && snap && hydratedUserIdRef.current !== tData.id)) {
+          hydratedUserIdRef.current = tData.id;
           localStorage.setItem('pos_active_tenant_id', tData.id);
-          db.rawSet('pos_products', Array.isArray(snap?.products) ? snap.products : []);
+          if (Array.isArray(snap?.products) && snap.products.length > 0) {
+            db.rawSet('pos_products', snap.products);
+          } else if (isSwitchingTenant) {
+            db.rawSet('pos_products', []);
+          }
           db.rawSet('pos_clients', Array.isArray(snap?.clients) && snap.clients.length > 0 ? snap.clients : [
             { id: 'cli_default', name: 'Consumidor Final', cedula: 'V-00000000', phone: '', type: 'normal', address: 'Mostrador', createdAt: new Date().toISOString() }
           ]);
@@ -108,8 +112,8 @@ function AppShellInner() {
           if (isSwitchingTenant) {
             localStorage.removeItem('facturasya_restaurant_tables');
           }
-          if (posData?.refreshData) {
-            posData.refreshData();
+          if (refreshDataRef.current) {
+            refreshDataRef.current();
           }
         } else if (!prevTenantId) {
           localStorage.setItem('pos_active_tenant_id', tData.id);
@@ -120,13 +124,13 @@ function AppShellInner() {
     } finally {
       setLoading(false);
     }
-  }, [posData]);
+  }, []);
 
   useEffect(() => {
-    if (session) {
+    if (session?.user?.id) {
       loadTenantData();
     }
-  }, [session, loadTenantData]);
+  }, [session?.user?.id, loadTenantData]);
 
   // Días de suscripción restantes
   const subStatus = useMemo(() => {

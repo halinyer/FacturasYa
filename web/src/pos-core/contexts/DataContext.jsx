@@ -239,6 +239,14 @@ export const DataProvider = ({ children }) => {
     return updated;
   };
 
+  const saveProduct = (prodData) => {
+    const existing = (db.getProducts() || []).find((p) => p.id === prodData.id);
+    if (existing) {
+      return updateProduct(prodData.id, prodData);
+    }
+    return addProduct(prodData);
+  };
+
   const deleteProduct = (id) => {
     db.deleteProduct(id);
     const fresh = [...(db.getProducts() || [])];
@@ -260,6 +268,14 @@ export const DataProvider = ({ children }) => {
     setClients(fresh);
     refreshData();
     return updated;
+  };
+
+  const saveClient = (cliData) => {
+    const existing = (db.getClients() || []).find((c) => c.id === cliData.id);
+    if (existing) {
+      return updateClient(cliData.id, cliData);
+    }
+    return addClient(cliData);
   };
 
   const deleteClient = (id) => {
@@ -727,9 +743,11 @@ export const DataProvider = ({ children }) => {
       loading,
       addProduct,
       updateProduct,
+      saveProduct,
       deleteProduct,
       addClient,
       updateClient,
+      saveClient,
       deleteClient,
       searchClients,
       createInvoice,

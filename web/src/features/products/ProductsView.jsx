@@ -107,19 +107,27 @@ export default function ProductsView() {
     e.preventDefault();
     if (!name.trim() || !priceUsd) return;
 
+    const numericPrice = Number(priceUsd) || 0;
     const prodData = {
-      id: editingProduct?.id || 'prod-' + Date.now(),
+      id: editingProduct?.id || 'prod_' + Date.now(),
       name: name.trim(),
-      category: category.trim(),
-      priceUsd: Number(priceUsd),
-      price: Number(priceUsd),
+      category: category.trim() || 'General',
+      priceUsd: numericPrice,
+      priceUSD: numericPrice,
+      price: numericPrice,
       sku: sku.trim(),
-      isExempt,
+      isExempt: Boolean(isExempt),
+      taxRate: isExempt ? 0 : 0.16,
       description: description.trim(),
-      image: imageUrl.trim()
+      image: imageUrl.trim(),
+      active: true
     };
 
-    if (data?.saveProduct) {
+    if (editingProduct && data?.updateProduct) {
+      data.updateProduct(editingProduct.id, prodData);
+    } else if (data?.addProduct) {
+      data.addProduct(prodData);
+    } else if (data?.saveProduct) {
       data.saveProduct(prodData);
     }
 

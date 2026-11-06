@@ -22,6 +22,7 @@ import {
   ToggleRight
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useData } from '../../pos-core/contexts/DataContext';
 
 const VENEZUELA_BANKS = [
   '0102 - Banco de Venezuela',
@@ -44,7 +45,14 @@ export default function NotionSettingsModal({
 }) {
   if (!isOpen) return null;
 
-  const [activeTab, setActiveTab] = useState('fiscal'); // 'fiscal' | 'hardware' | 'subscription' | 'restaurant' | 'account' | 'backup'
+  const data = useData();
+  const isElectron = typeof window !== 'undefined' && (Boolean(window?.electronAPI) || window.location.protocol === 'file:');
+  const [activeTab, setActiveTab] = useState('fiscal');
+  const [fiscalPort, setFiscalPort] = useState(() => data?.fiscalSettings?.port || 'COM2');
+  const [fiscalEnabled, setFiscalEnabled] = useState(() => data?.fiscalSettings?.enabled !== false);
+  const [testingFiscal, setTestingFiscal] = useState(false);
+  const [detectingPort, setDetectingPort] = useState(false);
+  const [s1Preview, setS1Preview] = useState(null); // 'fiscal' | 'hardware' | 'subscription' | 'restaurant' | 'account' | 'backup'
   const [toast, setToast] = useState(null);
 
   const showToast = (msg, type = 'success') => {
@@ -527,37 +535,188 @@ export default function NotionSettingsModal({
                   </div>
                 </div>
 
-                {/* 2. SECCIÓN MÁQUINA FISCAL SENIAT */}
+                                {/* 2. SECCIÓN MÁQUINA FISCAL SENIAT */}
                 <div className="border border-zinc-200 rounded-2xl p-4 space-y-4 bg-white shadow-2xs">
-                  <div className="flex items-center gap-2.5 border-b border-zinc-100 pb-3">
-                    <div className="p-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      <Printer size={18} />
+                  <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <Printer size={18} />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-zinc-950">Máquina Fiscal SENIAT (The Factory HKA80 / Serial)</h4>
+                        <p className="text-[11px] text-zinc-500">
+                          {isElectron
+                            ? `Comunicación serial directa activa en ${fiscalPort} (9600 baud)`
+                            : 'Conexión física por cable RS232 COM2 a 9600 baudios'}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-zinc-950">Máquina Fiscal SENIAT (The Factory HKA80 / Serial)</h4>
-                      <p className="text-[11px] text-zinc-500">Conexión física por cable RS232 COM2 a 9600 baudios</p>
-                    </div>
+
+                    {isElectron && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = !fiscalEnabled;
+                          setFiscalEnabled(next);
+                          if (data?.updateFiscalSettings) {
+                            data.updateFiscalSettings({ enabled: next, port: fiscalPort });
+                          }
+                          showToast(next ? 'Impresora fiscal habilitada' : 'Impresora fiscal deshabilitada');
+                        }}
+                        className="text-zinc-700 hover:text-zinc-950 cursor-pointer flex items-center gap-1.5 text-xs font-bold"
+                      >
+                        {fiscalEnabled ? (
+                          <ToggleRight size={28} className="text-emerald-600" />
+                        ) : (
+                          <ToggleLeft size={28} className="text-zinc-400" />
+                        )}
+                        <span>{fiscalEnabled ? 'Activa' : 'Inactiva'}</span>
+                      </button>
+                    )}
                   </div>
 
-                  <div className="p-3.5 rounded-xl bg-sky-50 border border-sky-100 text-xs text-sky-900 space-y-2">
-                    <p className="leading-relaxed">
-                      <strong>Diferencia Nube vs Mostrador:</strong> La versión Web en la nube permite registrar ventas, monitorear mesas y ver reportes desde cualquier lugar. La <strong>emisión de facturas fiscales legales por cable serial, cierres Z oficiales y la consulta física de la memoria del chip</strong> se realizan a través de la aplicación nativa para Windows instalada en la computadora de tu caja.
-                    </p>
-                  </div>
+                  {isElectron ? (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-bold text-zinc-700 mb-1.5">
+                            Puerto Serial (RS232 / USB-Serial)
+                          </label>
+                          <div className="flex gap-2">
+                            <select
+                              value={fiscalPort}
+                              onChange={(e) => {
+                                const p = e.target.value;
+                                setFiscalPort(p);
+                                if (data?.updateFiscalSettings) {
+                                  data.updateFiscalSettings({ port: p, enabled: fiscalEnabled });
+                                }
+                                showToast(`Puerto fiscal cambiado a ${p}`);
+                              }}
+                              className="flex-1 px-3 py-2 rounded-xl border border-zinc-300 text-xs font-bold text-zinc-900 bg-white focus:outline-none focus:border-zinc-900"
+                            >
+                              {['COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8'].map((p) => (
+                                <option key={p} value={p}>{p}</option>
+                              ))}
+                            </select>
 
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 bg-zinc-50 rounded-xl border border-zinc-200">
-                    <div className="space-y-0.5">
-                      <span className="font-bold text-xs text-zinc-900 block">FacturasYa para Windows (.exe)</span>
-                      <span className="text-[11px] text-zinc-500 block">Incluye drivers HKA80, lector de memoria fiscal Z para contador y soporte gaveta</span>
+                            <button
+                              type="button"
+                              disabled={detectingPort}
+                              onClick={async () => {
+                                setDetectingPort(true);
+                                try {
+                                  const res = await window.electronAPI?.fiscal?.autoDetectPort?.(fiscalPort);
+                                  const found = res?.activePort || res?.port;
+                                  if (res?.success && found) {
+                                    setFiscalPort(found);
+                                    data?.updateFiscalSettings?.({ port: found, enabled: true });
+                                    showToast(`Impresora fiscal detectada en ${found}`);
+                                  } else {
+                                    showToast(res?.message || 'No se detectó respuesta automática; verifica que esté encendida.', 'error');
+                                  }
+                                } catch (err) {
+                                  showToast(err.message, 'error');
+                                } finally {
+                                  setDetectingPort(false);
+                                }
+                              }}
+                              className="px-3 py-2 rounded-xl border border-zinc-300 bg-zinc-50 hover:bg-zinc-100 text-xs font-bold text-zinc-800 cursor-pointer flex items-center gap-1.5"
+                            >
+                              <RefreshCw size={13} className={detectingPort ? 'animate-spin' : ''} />
+                              <span>Auto-Detectar</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-zinc-700 mb-1.5">
+                            Diagnóstico de Conexión y Estado S1
+                          </label>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              disabled={testingFiscal}
+                              onClick={async () => {
+                                setTestingFiscal(true);
+                                try {
+                                  const s1 = await window.electronAPI?.fiscal?.getS1Status?.(fiscalPort);
+                                  if (s1 && s1.success !== false) {
+                                    setS1Preview(s1);
+                                    showToast(`Conectada en ${fiscalPort} · Serial ${s1.registeredMachineNumber || s1.registered_machine_number || 'HKA80'}`);
+                                  } else {
+                                    showToast(s1?.error || `Sin respuesta en ${fiscalPort}`, 'error');
+                                  }
+                                } catch (err) {
+                                  showToast(err.message, 'error');
+                                } finally {
+                                  setTestingFiscal(false);
+                                }
+                              }}
+                              className="flex-1 py-2 px-3 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-bold cursor-pointer flex items-center justify-center gap-1.5"
+                            >
+                              <RefreshCw size={13} className={testingFiscal ? 'animate-spin' : ''} />
+                              <span>Probar Conexión S1</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => window.electronAPI?.fiscal?.openLogFile?.()}
+                              className="py-2 px-3 rounded-xl border border-zinc-300 hover:bg-zinc-50 text-zinc-700 text-xs font-bold cursor-pointer"
+                            >
+                              Ver Log
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {s1Preview && (
+                        <div className="grid grid-cols-3 gap-2 p-3 rounded-xl bg-emerald-50/70 border border-emerald-200 text-xs">
+                          <div>
+                            <span className="text-[10px] font-bold text-emerald-700 uppercase block">Serial Máquina</span>
+                            <span className="font-mono font-black text-emerald-950">
+                              {s1Preview.registeredMachineNumber || s1Preview.registered_machine_number || 'HKA80'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-bold text-emerald-700 uppercase block">Última Factura</span>
+                            <span className="font-mono font-black text-emerald-950">
+                              #{String(s1Preview.lastInvoiceNumber ?? s1Preview.last_invoice_number ?? 0).padStart(8, '0')}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-bold text-emerald-700 uppercase block">Cierres Z Acumulados</span>
+                            <span className="font-mono font-black text-emerald-950">
+                              Z #{Number(s1Preview.dailyClosureCounter ?? s1Preview.z_counter ?? 0)}
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <a
-                      href="https://github.com/halinyer/FacturasYa/releases/latest/download/FacturaPOS-1.0.0.exe" download="FacturaPOS-1.0.0.exe"
-                      className="px-4 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
-                    >
-                      <Download size={13} />
-                      <span>Descargar Windows (.exe)</span>
-                    </a>
-                  </div>
+                  ) : (
+                    <>
+                      <div className="p-3.5 rounded-xl bg-sky-50 border border-sky-100 text-xs text-sky-900 space-y-2">
+                        <p className="leading-relaxed">
+                          <strong>Modo Web en la Nube:</strong> Para conectar físicamente la impresora fiscal por cable serial RS232/USB y consultar la memoria Z desde el chip, abre la aplicación instalada en tu PC de caja.
+                        </p>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 bg-zinc-50 rounded-xl border border-zinc-200">
+                        <div className="space-y-0.5">
+                          <span className="font-bold text-xs text-zinc-900 block">FacturasYa para Windows (.exe)</span>
+                          <span className="text-[11px] text-zinc-500 block">Instalador directo para tu computadora de mostrador</span>
+                        </div>
+                        <a
+                          href="https://github.com/halinyer/FacturasYa/releases/latest/download/FacturaPOS-1.0.0.exe"
+                          download="FacturaPOS-1.0.0.exe"
+                          className="px-4 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+                        >
+                          <Download size={13} />
+                          <span>Descargar Windows (.exe)</span>
+                        </a>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             )}
