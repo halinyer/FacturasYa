@@ -1,6 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Lee las credenciales desde variables de entorno (.env) o desde configuración guardada en la app
+const DEFAULT_URL = 'https://fqdvaxfkyzqznialttlr.supabase.co';
+const DEFAULT_ANON_KEY = 'sb_publishable_RM-Ta1zk2NNQlTY-ZjbKZQ_mFGifuc9';
+
+// Lee las credenciales desde variables de entorno (.env), configuración guardada o proyecto público por defecto
 const getStoredCreds = () => {
   try {
     const raw = localStorage.getItem('saas_supabase_creds');
@@ -10,12 +13,19 @@ const getStoredCreds = () => {
 };
 
 const stored = getStoredCreds();
-export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || stored?.url || '';
+export const SUPABASE_URL =
+  import.meta.env.VITE_SUPABASE_URL ||
+  import.meta.env.SUPABASE_URL ||
+  stored?.url ||
+  DEFAULT_URL;
+
 export const SUPABASE_ANON_KEY =
   import.meta.env.VITE_SUPABASE_ANON_KEY ||
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+  import.meta.env.SUPABASE_ANON_KEY ||
+  import.meta.env.SUPABASE_PUBLISHABLE_KEY ||
   stored?.anonKey ||
-  '';
+  DEFAULT_ANON_KEY;
 
 export const isSupabaseConfigured = () => {
   return Boolean(SUPABASE_URL && SUPABASE_ANON_KEY && SUPABASE_URL.startsWith('https://'));
