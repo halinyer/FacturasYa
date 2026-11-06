@@ -81,3 +81,19 @@ small { color: #71717a; }
 .banner { background: #fef2f2; border: 1px solid #fecaca; padding: 12px 16px; border-radius: 12px; cursor: pointer; }
 .config .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin: 16px 0 20px; }
 .config label span { display: block; font-size: 0.8rem; font-weight: 600; color: #3f3f46; margin-bottom: 6px; }
+
+
+/* Barra de título integrada sin marco estilo Notion Desktop */
+.app-drag-region {
+  -webkit-app-region: drag;
+}
+
+.app-no-drag,
+button,
+input,
+select,
+textarea,
+a,
+[role="button"] {
+  -webkit-app-region: no-drag;
+}

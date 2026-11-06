@@ -53,6 +53,7 @@ const INSTALLER_URL =
 
 function AppShellInner() {
   const { session, signOut } = useWebAuth();
+  const isElectron = typeof window !== 'undefined' && (Boolean(window?.electronAPI) || window.location.protocol === 'file:');
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Estado de navegación: 'pos' | 'tables' | 'dashboard' | 'fiscal' | 'cash-close' | 'inventory' | 'products' | 'clients' | 'monitor'
@@ -374,23 +375,40 @@ function AppShellInner() {
         {/* PIE DEL SIDEBAR: BOTÓN DESCARGA WINDOWS + USUARIO CON ACCESO A AJUSTES */}
         <div className="p-2 border-t border-zinc-800 shrink-0 space-y-2">
           
-          {/* BOTÓN DESCARGA WINDOWS ESTILO NOTION */}
-          <button
-            type="button"
-            onClick={() => setIsDownloadModalOpen(true)}
-            className={`w-full py-2 px-2.5 rounded-lg bg-zinc-800/90 hover:bg-zinc-800 text-zinc-200 text-xs font-semibold border border-zinc-700/80 transition-all flex items-center gap-2 shadow-2xs group ${
-              isSidebarCollapsed ? 'justify-center' : ''
-            }`}
-            title="Descargar FacturasYa para Windows"
-          >
-            <Laptop size={15} className="text-sky-400 group-hover:scale-110 transition-transform" />
-            {!isSidebarCollapsed && (
-              <div className="text-left leading-tight truncate">
-                <span className="block font-bold text-white text-[11px]">App para Windows</span>
-                <span className="block text-[9px] text-zinc-400">Para tu PC de caja física</span>
-              </div>
-            )}
-          </button>
+          {/* BOTÓN DESCARGA WINDOWS SOLO EN WEB; EN DESKTOP MUESTRA BADGE DE HARDWARE ACTIVO */}
+          {isElectron ? (
+            <div
+              className={`w-full py-2 px-2.5 rounded-lg bg-zinc-800/80 border border-emerald-500/40 text-zinc-300 text-xs font-semibold flex items-center gap-2 ${
+                isSidebarCollapsed ? 'justify-center' : ''
+              }`}
+              title="FacturasYa Desktop — Conexión directa a Impresora Fiscal COM2"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+              {!isSidebarCollapsed && (
+                <div className="text-left leading-tight truncate">
+                  <span className="block font-bold text-white text-[11px]">Desktop Nativo</span>
+                  <span className="block text-[9px] text-emerald-400 font-mono font-bold">Hardware Fiscal COM2</span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsDownloadModalOpen(true)}
+              className={`w-full py-2 px-2.5 rounded-lg bg-zinc-800/90 hover:bg-zinc-800 text-zinc-200 text-xs font-semibold border border-zinc-700/80 transition-all flex items-center gap-2 shadow-2xs group ${
+                isSidebarCollapsed ? 'justify-center' : ''
+              }`}
+              title="Descargar FacturasYa para Windows"
+            >
+              <Laptop size={15} className="text-sky-400 group-hover:scale-110 transition-transform" />
+              {!isSidebarCollapsed && (
+                <div className="text-left leading-tight truncate">
+                  <span className="block font-bold text-white text-[11px]">App para Windows</span>
+                  <span className="block text-[9px] text-zinc-400">Para tu PC de caja física</span>
+                </div>
+              )}
+            </button>
+          )}
 
           {/* PERFIL CON APERTURA DE CONFIGURACIÓN ESTILO NOTION */}
           <div
@@ -441,7 +459,10 @@ function AppShellInner() {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-slate-100/80">
         
         {/* BARRA SUPERIOR FIJA ESTILO NOTION (CON TASA BCV EN VIVO) */}
-        <header className="h-14 bg-zinc-900 border-b border-zinc-800 px-4 flex items-center justify-between shrink-0 text-white select-none">
+        <header
+          className="h-12 bg-zinc-900 border-b border-zinc-800 px-4 flex items-center justify-between shrink-0 text-white select-none app-drag-region"
+          style={isElectron ? { paddingRight: '144px' } : undefined}
+        >
           <div className="flex items-center gap-3">
             <button
               type="button"

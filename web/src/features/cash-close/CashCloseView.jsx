@@ -1,3 +1,4 @@
+import FiscalMemoryModal from '../../pos-core/components/cashClose/FiscalMemoryModal';
 import React, { useState, useMemo } from 'react';
 import {
   Calculator,
@@ -292,6 +293,14 @@ export default function CashCloseView() {
             <div className="flex items-center gap-2">
               <button
                 type="button"
+                onClick={() => setIsFiscalMemoryModalOpen(true)}
+                className="px-2.5 py-1 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 text-[11px] font-bold cursor-pointer transition-colors flex items-center gap-1 shadow-2xs"
+                title="Consultar Reportes Z directamente de la memoria fiscal HKA80 por rango de fechas (Auditoría para el Contador)"
+              >
+                <span>📜 Auditoría Memoria Z (Contador)</span>
+              </button>
+              <button
+                type="button"
                 onClick={handleTestFiscalConnection}
                 disabled={isProcessingFiscal}
                 className="px-2.5 py-1 rounded-lg border border-zinc-300 bg-white hover:bg-zinc-50 text-zinc-800 text-[11px] font-bold cursor-pointer transition-colors flex items-center gap-1"
@@ -518,6 +527,17 @@ export default function CashCloseView() {
           </div>
         </div>
       )}
+
+      {/* MODAL DE AUDITORÍA DE MEMORIA FISCAL Z */}
+      <FiscalMemoryModal
+        isOpen={isFiscalMemoryModalOpen}
+        onClose={() => setIsFiscalMemoryModalOpen(false)}
+        fiscalSettings={fiscalSettings}
+        fiscalGetFiscalMemory={data?.fiscalGetFiscalMemory}
+        fiscalPrintFiscalMemory={data?.fiscalPrintFiscalMemory}
+        posInvoices={invoices}
+        exchangeRate={exchangeRate}
+      />
     </div>
   );
 }

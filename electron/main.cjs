@@ -466,7 +466,13 @@ function createWindow() {
       backgroundThrottling: false,
     },
     autoHideMenuBar: true,
-    backgroundColor: '#0a0e1a',
+    backgroundColor: '#09090b',
+    titleBarStyle: 'hidden',
+    titleBarOverlay: {
+      color: '#18181b',
+      symbolColor: '#e4e4e7',
+      height: 48
+    },
   };
 
   if (fs.existsSync(iconPath)) {
