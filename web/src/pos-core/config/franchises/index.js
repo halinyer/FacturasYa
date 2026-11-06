@@ -17,7 +17,7 @@ export const FRANCHISES = {
  * del inquilino autenticado en Supabase (`saas_active_tenant`).
  */
 export function getActiveFranchise() {
-  let baseFranchise = FRANCHISES.happydays;
+  let baseFranchise = FRANCHISES.facturapos;
   const savedId = typeof window !== 'undefined' ? localStorage.getItem('pos_active_franchise') : null;
   if (savedId && FRANCHISES[savedId] && savedId !== 'facturapos') {
     baseFranchise = FRANCHISES[savedId];

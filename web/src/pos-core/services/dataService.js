@@ -1,5 +1,5 @@
 import { getVenezuelaISOString, getVenezuelaDateString } from '../utils/dateUtils';
-import { DEFAULT_HAPPY_DAYS_INVENTORY, getProductRecipe } from '../config/inventoryDefaults';
+import { [], getProductRecipe } from '../config/inventoryDefaults';
 // In-memory cache for synchronous operations
 let memoryStore = null;
 
@@ -20,7 +20,7 @@ export const initDB = async () => {
           pos_cash_closes: localStorage.getItem('pos_cash_closes') ? JSON.parse(localStorage.getItem('pos_cash_closes')) : [],
           pos_open_tabs: localStorage.getItem('pos_open_tabs') ? JSON.parse(localStorage.getItem('pos_open_tabs')) : [],
           pos_expenses: localStorage.getItem('pos_expenses') ? JSON.parse(localStorage.getItem('pos_expenses')) : [],
-          pos_inventory: localStorage.getItem('pos_inventory') ? JSON.parse(localStorage.getItem('pos_inventory')) : DEFAULT_HAPPY_DAYS_INVENTORY,
+          pos_inventory: localStorage.getItem('pos_inventory') ? JSON.parse(localStorage.getItem('pos_inventory')) : [],
           pos_inventory_logs: localStorage.getItem('pos_inventory_logs') ? JSON.parse(localStorage.getItem('pos_inventory_logs')) : [],
           pos_settings: localStorage.getItem('pos_settings') ? JSON.parse(localStorage.getItem('pos_settings')) : {}
         };
@@ -48,7 +48,7 @@ export const initDB = async () => {
 
         if (!memoryStore.pos_expenses) memoryStore.pos_expenses = [];
         if (!memoryStore.pos_inventory || !Array.isArray(memoryStore.pos_inventory) || memoryStore.pos_inventory.length === 0) {
-          memoryStore.pos_inventory = DEFAULT_HAPPY_DAYS_INVENTORY;
+          memoryStore.pos_inventory = [];
         }
         if (!memoryStore.pos_inventory_logs || !Array.isArray(memoryStore.pos_inventory_logs)) {
           memoryStore.pos_inventory_logs = [];
@@ -69,7 +69,7 @@ export const initDB = async () => {
       pos_cash_closes: localStorage.getItem('pos_cash_closes') ? JSON.parse(localStorage.getItem('pos_cash_closes')) : [],
       pos_open_tabs: localStorage.getItem('pos_open_tabs') ? JSON.parse(localStorage.getItem('pos_open_tabs')) : [],
       pos_expenses: localStorage.getItem('pos_expenses') ? JSON.parse(localStorage.getItem('pos_expenses')) : [],
-      pos_inventory: localStorage.getItem('pos_inventory') ? JSON.parse(localStorage.getItem('pos_inventory')) : DEFAULT_HAPPY_DAYS_INVENTORY,
+      pos_inventory: localStorage.getItem('pos_inventory') ? JSON.parse(localStorage.getItem('pos_inventory')) : [],
       pos_inventory_logs: localStorage.getItem('pos_inventory_logs') ? JSON.parse(localStorage.getItem('pos_inventory_logs')) : []
     };
   }
@@ -181,8 +181,8 @@ export const db = {
   getInventory: () => {
     const list = getStorageItem('pos_inventory');
     if (!list || !Array.isArray(list) || list.length === 0) {
-      setStorageItem('pos_inventory', DEFAULT_HAPPY_DAYS_INVENTORY);
-      return DEFAULT_HAPPY_DAYS_INVENTORY;
+      setStorageItem('pos_inventory', []);
+      return [];
     }
     return list;
   },

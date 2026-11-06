@@ -26,55 +26,14 @@ import QRConnectModal from '../../pos-core/components/QRConnectModal';
 import { printIsolatedTicket } from '../../pos-core/utils/printIsolatedTicket';
 
 const INITIAL_LOCAL_TABLES = [
-  {
-    id: 't-1',
-    name: 'Mesa 1',
-    zone: 'Salón',
-    capacity: 4,
-    status: 'occupied',
-    openedAt: '12:15 PM',
-    waiter: 'Carlos M.',
-    items: [
-      { id: 'hd-1', name: 'Hamburguesa Smash Clásica', price: 4.50, priceUSD: 4.50, qty: 2, quantity: 2 },
-      { id: 'hd-13', name: 'Papas Rústicas con Queso', price: 3.50, priceUSD: 3.50, qty: 1, quantity: 1 },
-      { id: 'hd-21', name: 'Refresco / Té Frío 500ml', price: 1.50, priceUSD: 1.50, qty: 2, quantity: 2 }
-    ]
-  },
-  { id: 't-2', name: 'Mesa 2', zone: 'Salón', capacity: 2, status: 'free', openedAt: null, waiter: null, items: [] },
-  {
-    id: 't-3',
-    name: 'Mesa 3',
-    zone: 'Salón',
-    capacity: 4,
-    status: 'bill_requested',
-    openedAt: '11:45 AM',
-    waiter: 'Ana R.',
-    items: [
-      { id: 'hd-5', name: 'Combo Full Burger Happy + Papas', price: 8.50, priceUSD: 8.50, qty: 2, quantity: 2 },
-      { id: 'hd-8', name: 'Pepito Mixto Especial 35cm', price: 8.50, priceUSD: 8.50, qty: 1, quantity: 1 },
-      { id: 'hd-21', name: 'Refresco / Té Frío 500ml', price: 1.50, priceUSD: 1.50, qty: 3, quantity: 3 }
-    ]
-  },
-  { id: 't-4', name: 'Mesa 4', zone: 'Salón', capacity: 6, status: 'free', openedAt: null, waiter: null, items: [] },
-  {
-    id: 't-5',
-    name: 'Terraza 1',
-    zone: 'Terraza',
-    capacity: 4,
-    status: 'occupied',
-    openedAt: '12:30 PM',
-    waiter: 'Carlos M.',
-    items: [
-      { id: 'hd-6', name: 'Combo Club House Happy 4 Pisos', price: 9.00, priceUSD: 9.00, qty: 1, quantity: 1 },
-      { id: 'hd-14', name: 'Aros de Cebolla Crujientes', price: 3.00, priceUSD: 3.00, qty: 1, quantity: 1 },
-      { id: 'hd-22', name: 'Malteada Especial Happy Days', price: 3.50, priceUSD: 3.50, qty: 1, quantity: 1 }
-    ]
-  },
-  { id: 't-6', name: 'Terraza 2', zone: 'Terraza', capacity: 4, status: 'free', openedAt: null, waiter: null, items: [] },
-  { id: 't-7', name: 'Barra 1', zone: 'Barra', capacity: 2, status: 'occupied', openedAt: '12:40 PM', waiter: 'Barman', items: [
-    { id: 'hd-22', name: 'Malteada Especial Happy Days', price: 3.50, priceUSD: 3.50, qty: 2, quantity: 2 }
-  ]},
-  { id: 't-8', name: 'Barra 2', zone: 'Barra', capacity: 2, status: 'free', openedAt: null, waiter: null, items: [] }
+  { id: "t-1", name: "Mesa 1", zone: "Salón", capacity: 4, status: "free", openedAt: null, waiter: null, items: [] },
+  { id: "t-2", name: "Mesa 2", zone: "Salón", capacity: 4, status: "free", openedAt: null, waiter: null, items: [] },
+  { id: "t-3", name: "Mesa 3", zone: "Salón", capacity: 4, status: "free", openedAt: null, waiter: null, items: [] },
+  { id: "t-4", name: "Mesa 4", zone: "Salón", capacity: 6, status: "free", openedAt: null, waiter: null, items: [] },
+  { id: "t-5", name: "Terraza 1", zone: "Terraza", capacity: 4, status: "free", openedAt: null, waiter: null, items: [] },
+  { id: "t-6", name: "Terraza 2", zone: "Terraza", capacity: 4, status: "free", openedAt: null, waiter: null, items: [] },
+  { id: "t-7", name: "Barra 1", zone: "Barra", capacity: 2, status: "free", openedAt: null, waiter: null, items: [] },
+  { id: "t-8", name: "Barra 2", zone: "Barra", capacity: 2, status: "free", openedAt: null, waiter: null, items: [] }
 ];
 
 export default function TablesView({ onGoToPos }) {

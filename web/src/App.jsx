@@ -1,7 +1,6 @@
 import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './features/auth/AuthProvider';
-import { isConfigured } from './lib/supabase';
 
 // Code-Splitting estilo Notion: La landing carga ultra-ligera en <300ms,
 // y la aplicación POS compartida se descarga solo cuando el usuario entra.
@@ -80,8 +79,11 @@ const PageLoader = () => (
   </div>
 );
 
-// Passthrough seguro: si Supabase no está disponible, la app sigue abriendo en modo offline/local
-const NeedsSupabase = ({ children }) => {
+// Guardián de Autenticación Obligatoria: Nadie puede entrar al POS sin iniciar sesión
+const RequireAuth = ({ children }) => {
+  const { session, loading } = useAuth() || {};
+  if (loading) return <PageLoader />;
+  if (!session) return <Navigate to="/login" replace />;
   return children;
 };
 
@@ -127,89 +129,89 @@ export default function App() {
               <Route path="/descargar" element={<DownloadPage />} />
               <Route path="/desktop" element={<DownloadPage />} />
 
-              {/* Monitor Cloud del Dueño */}
+              {/* Monitor Cloud del Dueño (Requiere sesión iniciada) */}
               <Route
                 path="/monitor"
                 element={
-                  <NeedsSupabase>
+                  <RequireAuth>
                     <OwnerMonitorPage />
-                  </NeedsSupabase>
+                  </RequireAuth>
                 }
               />
 
-              {/* Panel Super Admin (Solo signalnotestudio@gmail.com) */}
+              {/* Panel Super Admin (Requiere sesión iniciada) */}
               <Route
                 path="/super-admin"
                 element={
-                  <NeedsSupabase>
+                  <RequireAuth>
                     <SuperAdminPage />
-                  </NeedsSupabase>
+                  </RequireAuth>
                 }
               />
 
-              {/* Espacio de Trabajo SaaS estilo Notion (AppShell con POS, Mesas, Monitor y Ajustes) */}
+              {/* Espacio de Trabajo SaaS estilo Notion (Requiere sesión iniciada) */}
               <Route
                 path="/app"
                 element={
-                  <NeedsSupabase>
+                  <RequireAuth>
                     <AppShell />
-                  </NeedsSupabase>
+                  </RequireAuth>
                 }
               />
               <Route
                 path="/app/*"
                 element={
-                  <NeedsSupabase>
+                  <RequireAuth>
                     <AppShell />
-                  </NeedsSupabase>
+                  </RequireAuth>
                 }
               />
               <Route
                 path="/pos"
                 element={
-                  <NeedsSupabase>
+                  <RequireAuth>
                     <AppShell />
-                  </NeedsSupabase>
+                  </RequireAuth>
                 }
               />
               <Route
                 path="/pos/*"
                 element={
-                  <NeedsSupabase>
+                  <RequireAuth>
                     <AppShell />
-                  </NeedsSupabase>
+                  </RequireAuth>
                 }
               />
               <Route
                 path="/tables"
                 element={
-                  <NeedsSupabase>
+                  <RequireAuth>
                     <AppShell />
-                  </NeedsSupabase>
+                  </RequireAuth>
                 }
               />
               <Route
                 path="/tables/*"
                 element={
-                  <NeedsSupabase>
+                  <RequireAuth>
                     <AppShell />
-                  </NeedsSupabase>
+                  </RequireAuth>
                 }
               />
               <Route
                 path="/mesas"
                 element={
-                  <NeedsSupabase>
+                  <RequireAuth>
                     <AppShell />
-                  </NeedsSupabase>
+                  </RequireAuth>
                 }
               />
               <Route
                 path="/mesas/*"
                 element={
-                  <NeedsSupabase>
+                  <RequireAuth>
                     <AppShell />
-                  </NeedsSupabase>
+                  </RequireAuth>
                 }
               />
 

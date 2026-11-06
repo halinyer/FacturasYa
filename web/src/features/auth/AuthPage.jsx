@@ -295,25 +295,7 @@ export default function AuthPage() {
           </button>
         </form>
 
-        {/* Separador con botón de acceso offline */}
-        <div className="relative pt-2">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-zinc-800" />
-          </div>
-          <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-wider">
-            <span className="bg-zinc-900 px-2 text-zinc-500">¿Sin Internet en Caja?</span>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={handleOfflineAccess}
-          className="w-full py-2 px-3 rounded-xl bg-zinc-800/80 hover:bg-zinc-800 border border-zinc-700/80 text-zinc-300 text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer group"
-          title="Ingresar en modo local con almacenamiento en disco seguro contra cortes de luz"
-        >
-          <WifiOff size={14} className="text-amber-400 group-hover:scale-110 transition-transform" />
-          <span>Continuar en Modo Local / Offline</span>
-        </button>
+        
 
         {/* Pie de página con información y links */}
         <div className="text-center pt-2 text-[11px] text-zinc-500 space-y-1">

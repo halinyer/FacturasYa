@@ -224,7 +224,7 @@ function AppShellInner() {
             {!isSidebarCollapsed && (
               <div className="min-w-0">
                 <h2 className="text-xs font-bold text-white tracking-tight truncate">
-                  {tenant?.name || 'Happy Days / FacturasYa'}
+                  {tenant?.name || 'Mi Negocio'}
                 </h2>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>

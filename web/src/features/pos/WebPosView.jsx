@@ -36,152 +36,7 @@ import KitchenTicketModal from './KitchenTicketModal';
 import ClientSelectorModal from './ClientSelectorModal';
 import { printIsolatedTicket } from '../../pos-core/utils/printIsolatedTicket';
 
-// Catálogo por defecto oficial de Happy Days con fotos reales de la carpeta /happydays/
-const DEFAULT_HAPPY_PRODUCTS = [
-  {
-    id: 'hd-1',
-    name: 'Burger Doble Bacon Deluxe',
-    category: 'Hamburguesas',
-    priceUsd: 7.50,
-    price: 7.50,
-    description: 'Doble carne smash, tocineta crujiente, queso fundido y salsa especial',
-    sku: 'HBG-010',
-    isExempt: false,
-    image: '/happydays/platos/plato_wa0020.jpg'
-  },
-  {
-    id: 'hd-2',
-    name: 'Cheeseburger Clásica con Tocineta',
-    category: 'Hamburguesas',
-    priceUsd: 6.00,
-    price: 6.00,
-    description: 'Carne 150g a la parrilla, tocineta ahumada, queso cheddar y cebolla grillé',
-    sku: 'HBG-011',
-    isExempt: false,
-    image: '/happydays/platos/plato_wa0024.jpg'
-  },
-  {
-    id: 'hd-3',
-    name: 'Hamburguesa Monster Happy',
-    category: 'Hamburguesas',
-    priceUsd: 9.50,
-    price: 9.50,
-    description: 'Doble carne, huevo frito, tocineta, queso blanco a la plancha y salsa tártara',
-    sku: 'HBG-012',
-    isExempt: false,
-    image: '/happydays/platos/plato_wa0027.jpg'
-  },
-  {
-    id: 'hd-4',
-    name: 'Doble Smash Burger Cheddar',
-    category: 'Hamburguesas',
-    priceUsd: 7.50,
-    price: 7.50,
-    description: 'Doble carne smash con bordes crujientes y abundante queso cheddar fundido',
-    sku: 'HBG-013',
-    isExempt: false,
-    image: '/happydays/platos/plato_wa0048.jpg'
-  },
-  {
-    id: 'hd-5',
-    name: 'Combo Full Burger Happy + Papas + Refresco',
-    category: 'Combos',
-    priceUsd: 8.50,
-    price: 8.50,
-    description: 'Hamburguesa clásica, ración de papas fritas rústicas y refresco de lata frío',
-    sku: 'CMB-001',
-    isExempt: false,
-    image: '/happydays/combo_full_burger_happy.jpg'
-  },
-  {
-    id: 'hd-6',
-    name: 'Combo Club House Happy 4 Pisos',
-    category: 'Combos',
-    priceUsd: 9.00,
-    price: 9.00,
-    description: 'Club house tradicional de 4 cuartos, jamón, queso, pollo, tocineta y papas',
-    sku: 'CMB-002',
-    isExempt: false,
-    image: '/happydays/combo_club_house_happy.jpg'
-  },
-  {
-    id: 'hd-7',
-    name: 'Combo 2 Burger Mini Pana',
-    category: 'Combos',
-    priceUsd: 6.50,
-    price: 6.50,
-    description: '2 mini burgers con queso cheddar y tocineta acompañadas de papas fritas',
-    sku: 'CMB-003',
-    isExempt: false,
-    image: '/happydays/combo_2_burger_mini.jpg'
-  },
-  {
-    id: 'hd-8',
-    name: 'Pepito Mixto Especial 35cm',
-    category: 'Pizzas & Pepitos',
-    priceUsd: 8.50,
-    price: 8.50,
-    description: 'Carne y pollo a la plancha, queso blanco rallado, tocineta, maíz y papitas',
-    sku: 'PEP-001',
-    isExempt: false,
-    image: '/happydays/platos/plato_wa0032.jpg'
-  },
-  {
-    id: 'hd-9',
-    name: 'Ración de Tequeños Tradicionales (6 uds)',
-    category: 'Entradas & Snacks',
-    priceUsd: 4.00,
-    price: 4.00,
-    description: 'Tequeños crocantes de queso semi-duro acompañados de salsa tártara de la casa',
-    sku: 'TEQ-001',
-    isExempt: false,
-    image: '/happydays/platos/plato_wa0038.jpg'
-  },
-  {
-    id: 'hd-10',
-    name: 'Papas Rústicas con Queso Cheddar & Bacon',
-    category: 'Entradas & Snacks',
-    priceUsd: 3.50,
-    price: 3.50,
-    description: 'Papas fritas con piel, salsa de queso cheddar tibia fundida y lluvia de tocineta',
-    sku: 'PAP-001',
-    isExempt: false,
-    image: '/happydays/platos/plato_wa0042.jpg'
-  },
-  {
-    id: 'hd-11',
-    name: 'Coca-Cola Sabor Original Lata 355ml',
-    category: 'Bebidas',
-    priceUsd: 1.50,
-    price: 1.50,
-    description: 'Refresco frío de lata',
-    sku: 'BEB-001',
-    isExempt: false,
-    image: '/happydays/drinks/coca_cola_lata_355ml.jpg'
-  },
-  {
-    id: 'hd-12',
-    name: 'Malta Polar 355ml Helada',
-    category: 'Bebidas',
-    priceUsd: 1.50,
-    price: 1.50,
-    description: 'Malta tradicional bien helada',
-    sku: 'BEB-002',
-    isExempt: false,
-    image: '/happydays/drinks/maltin_polar_botella.jpg'
-  },
-  {
-    id: 'hd-13',
-    name: 'Agua Mineral Minalba 600ml',
-    category: 'Bebidas',
-    priceUsd: 1.00,
-    price: 1.00,
-    description: 'Agua pura sin gas',
-    sku: 'BEB-003',
-    isExempt: true,
-    image: '/happydays/drinks/agua_mineral_botella.jpg'
-  }
-];
+const DEFAULT_HAPPY_PRODUCTS = [];
 
 // Bancos Oficiales de Venezuela (SUDEBAN)
 const VENEZUELA_BANKS = [
@@ -210,17 +65,23 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
     }
   }, [data?.exchangeRate]);
 
-  // Catálogo de Productos
+  // Catálogo de Productos del negocio autenticado
   const products = useMemo(() => {
+    const cleanList = (arr) =>
+      arr.filter(
+        (p) =>
+          p &&
+          !String(p.id || "").startsWith("hd_") &&
+          !String(p.id || "").startsWith("hd-") &&
+          !String(p.image || "").includes("happydays")
+      );
     if (data?.products && data.products.length > 0) {
-      return data.products.map((p, idx) => ({
-        ...p,
-        image: p.image || DEFAULT_HAPPY_PRODUCTS[idx % DEFAULT_HAPPY_PRODUCTS.length]?.image
-      }));
+      return cleanList(data.products);
     }
-    const custom = snapshot?.products;
-    if (Array.isArray(custom) && custom.length > 0) return custom;
-    return DEFAULT_HAPPY_PRODUCTS;
+    if (Array.isArray(snapshot?.products) && snapshot.products.length > 0) {
+      return cleanList(snapshot.products);
+    }
+    return [];
   }, [data?.products, snapshot?.products]);
 
   // Categorías
@@ -649,6 +510,26 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
 
       {/* CATÁLOGO VISUAL DE PRODUCTOS (FOTOS REALES) */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 pb-24 sm:pb-24">
+        {products.length === 0 && (
+          <div className="max-w-md mx-auto my-16 bg-white rounded-2xl border border-zinc-200/80 p-8 text-center shadow-xs space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-zinc-100 border border-zinc-200 flex items-center justify-center mx-auto text-zinc-500">
+              <Store size={22} />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold text-zinc-950">Tu catálogo de productos está limpio</h3>
+              <p className="text-xs text-zinc-500 leading-relaxed">
+                Registra los productos, platos o servicios de tu negocio en el módulo de Menú & Productos para comenzar a facturar.
+              </p>
+            </div>
+            <a
+              href="?tab=products"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-bold transition-colors shadow-xs"
+            >
+              <Plus size={14} />
+              <span>Ir a Menú & Productos</span>
+            </a>
+          </div>
+        )}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
           {filteredProducts.map((p) => {
             const price = Number(p.priceUsd || p.price || 0);

@@ -67,12 +67,12 @@ export default function ProductsView() {
   const handleOpenCreateModal = () => {
     setEditingProduct(null);
     setName('');
-    setCategory('Hamburguesas');
+    setCategory('General');
     setPriceUsd('');
     setSku('PRD-' + Math.floor(100 + Math.random() * 900));
     setIsExempt(false);
     setDescription('');
-    setImageUrl('/happydays/platos/plato_wa0020.jpg');
+    setImageUrl('');
     setIsModalOpen(true);
   };
 
@@ -319,14 +319,20 @@ export default function ProductsView() {
                     return (
                       <tr key={p.id} className="hover:bg-zinc-50/50 transition-colors">
                         <td className="py-3 px-4">
-                          <img
-                            src={p.image || '/happydays/platos/plato_wa0020.jpg'}
-                            alt={p.name}
-                            className="w-10 h-10 rounded-lg object-cover border border-zinc-200"
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                            }}
-                          />
+                          {p.image ? (
+                            <img
+                              src={p.image}
+                              alt={p.name}
+                              className="w-10 h-10 rounded-lg object-cover border border-zinc-200"
+                              onError={(e) => {
+                                e.target.style.display = "none";
+                              }}
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-lg bg-zinc-100 border border-zinc-200 flex items-center justify-center text-zinc-400">
+                              <Package size={16} />
+                            </div>
+                          )}
                         </td>
                         <td className="py-3 px-4 font-mono text-zinc-500 font-semibold">{p.sku || 'N/A'}</td>
                         <td className="py-3 px-4">
@@ -428,7 +434,7 @@ export default function ProductsView() {
                     </label>
                     <input
                       type="text"
-                      placeholder="O ingresa ruta (/happydays/platos/...) o URL"
+                      placeholder="O pega la URL de una imagen (opcional)"
                       value={imageUrl}
                       onChange={(e) => setImageUrl(e.target.value)}
                       className="w-full px-2.5 py-1 rounded-lg border border-zinc-200 text-[11px] font-mono"

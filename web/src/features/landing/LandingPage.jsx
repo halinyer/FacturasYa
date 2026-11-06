@@ -280,12 +280,7 @@ export default function LandingPage() {
               </>
             ) : (
               <>
-                <Link
-                  to="/app"
-                  className="text-xs font-semibold text-zinc-700 hover:text-zinc-950 px-3 py-1.5 rounded-lg hover:bg-zinc-100 transition-colors"
-                >
-                  Entrar al POS →
-                </Link>
+                
                 <button
                   type="button"
                   onClick={() => openAuthModal('login')}
@@ -328,23 +323,33 @@ export default function LandingPage() {
             </p>
 
             <div className="flex flex-wrap items-center justify-center gap-3 pt-3">
-              <button
-                type="button"
-                onClick={openTrialModal}
+              <Link
+                to="/download"
                 className="bg-zinc-950 hover:bg-zinc-800 text-white font-medium text-sm px-6 py-3.5 rounded-xl shadow-sm hover:shadow transition-all inline-flex items-center gap-2 active:scale-98"
               >
                 <Download size={16} />
                 <span>Descargar FacturaPOS para Windows</span>
                 <span className="text-xs text-zinc-400 font-normal">(.EXE nativo)</span>
-              </button>
-
-              <Link
-                to="/app"
-                className="bg-white hover:bg-zinc-50 text-zinc-900 font-medium text-sm px-5 py-3.5 rounded-xl border border-zinc-200 shadow-2xs transition-all inline-flex items-center gap-2"
-              >
-                <span>Entrar al POS Web</span>
-                <ArrowRight size={15} className="text-zinc-500" />
               </Link>
+
+              {session ? (
+                <Link
+                  to="/app"
+                  className="bg-white hover:bg-zinc-50 text-zinc-900 font-medium text-sm px-5 py-3.5 rounded-xl border border-zinc-200 shadow-2xs transition-all inline-flex items-center gap-2"
+                >
+                  <span>Ir a mi POS</span>
+                  <ArrowRight size={15} className="text-zinc-500" />
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => openAuthModal("login")}
+                  className="bg-white hover:bg-zinc-50 text-zinc-900 font-medium text-sm px-5 py-3.5 rounded-xl border border-zinc-200 shadow-2xs transition-all inline-flex items-center gap-2 cursor-pointer"
+                >
+                  <span>Iniciar Sesión</span>
+                  <ArrowRight size={15} className="text-zinc-500" />
+                </button>
+              )}
               <a
                 href="#simulador"
                 className="bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-medium text-sm px-4 py-3.5 rounded-xl transition-all inline-flex items-center gap-2"
@@ -921,7 +926,7 @@ export default function LandingPage() {
             <a href="#simulador" className="hover:text-zinc-950">Simulador</a>
             <a href="#comparativa" className="hover:text-zinc-950">Comparativa</a>
             <a href="#precios" className="hover:text-zinc-950">Precios</a>
-            <Link to="/super-admin" className="hover:text-zinc-950">Acceso Admin</Link>
+            {isAdmin && <Link to="/super-admin" className="hover:text-zinc-950">Super Admin</Link>}
           </div>
         </div>
       </footer>
