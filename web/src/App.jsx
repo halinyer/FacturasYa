@@ -9,6 +9,7 @@ const LandingPage = lazy(() => import('./features/landing/LandingPage'));
 const AppShell = lazy(() => import('./features/app-shell/AppShell'));
 const SuperAdminPage = lazy(() => import('./features/super-admin/SuperAdminPage'));
 const OwnerMonitorPage = lazy(() => import('./features/monitor/OwnerMonitorPage'));
+const DownloadPage = lazy(() => import('./features/download/DownloadPage'));
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -92,6 +93,11 @@ export default function App() {
             <Routes>
               {/* Landing Comercial (Ultraligera <300ms) */}
               <Route path="/" element={<LandingPage />} />
+
+              {/* Página de Descarga Desktop estilo Notion */}
+              <Route path="/download" element={<DownloadPage />} />
+              <Route path="/descargar" element={<DownloadPage />} />
+              <Route path="/desktop" element={<DownloadPage />} />
 
               {/* Monitor Cloud del Dueño */}
               <Route
