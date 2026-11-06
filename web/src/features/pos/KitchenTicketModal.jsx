@@ -111,6 +111,41 @@ export default function KitchenTicketModal({
           </button>
         </div>
 
+        {/* SELECTOR DE FORMATO DE ROLLO TÉRMICO (58mm vs 80mm) */}
+        <div className="flex items-center justify-between p-2 bg-zinc-50 rounded-xl border border-zinc-200 text-xs">
+          <span className="font-bold text-zinc-600">Rollo Térmico:</span>
+          <div className="flex items-center bg-zinc-200/80 p-0.5 rounded-lg text-[11px] font-bold">
+            <button
+              type="button"
+              onClick={() => {
+                setPaperSize('58mm');
+                localStorage.setItem('pos_comanda_paper_size', '58mm');
+              }}
+              className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                paperSize === '58mm'
+                  ? 'bg-white text-zinc-950 shadow-2xs font-extrabold'
+                  : 'text-zinc-600 hover:text-zinc-950'
+              }`}
+            >
+              58 mm (Estrecho)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPaperSize('80mm');
+                localStorage.setItem('pos_comanda_paper_size', '80mm');
+              }}
+              className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                paperSize === '80mm'
+                  ? 'bg-white text-zinc-950 shadow-2xs font-extrabold'
+                  : 'text-zinc-600 hover:text-zinc-950'
+              }`}
+            >
+              80 mm (Ancho)
+            </button>
+          </div>
+        </div>
+
         {/* SELECTOR DE IMPRESORA TÉRMICA (SI EN ELECTRON DESKTOP) */}
         {printers.length > 0 && (
           <div className="p-2 bg-zinc-50 rounded-xl border border-zinc-200 text-xs flex items-center justify-between">
@@ -135,7 +170,9 @@ export default function KitchenTicketModal({
         {/* TICKET TÉRMICO DE COCINA (REF PARA IMPRESIÓN AISLADA 1:1) */}
         <div
           ref={ticketRef}
-          className="kitchen-paper bg-zinc-50 p-4 rounded-xl border border-dashed border-zinc-300 font-mono text-xs space-y-3"
+          className={`kitchen-paper bg-zinc-50 p-4 rounded-xl border border-dashed border-zinc-300 font-mono text-xs space-y-3 mx-auto transition-all ${
+            paperSize === '80mm' ? 'max-w-[320px]' : 'max-w-[230px]'
+          }`}
         >
           <div className="text-center border-b border-dashed border-zinc-300 pb-2">
             <span className="font-black text-sm block">*** PEDIDO DE COCINA ***</span>
@@ -177,7 +214,7 @@ export default function KitchenTicketModal({
           )}
 
           <div className="text-center border-t border-dashed border-zinc-300 pt-2 text-[10px] text-zinc-400">
-            FacturasYa · Comandera de Cocina
+            FacturasYa · Comandera ({paperSize})
           </div>
         </div>
 
@@ -206,7 +243,7 @@ export default function KitchenTicketModal({
             className="w-full py-2.5 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 disabled:opacity-50 text-white text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-98"
           >
             <Printer size={15} />
-            <span>{isPrinting ? 'Enviando...' : 'Imprimir en Comandera Térmica'}</span>
+            <span>{isPrinting ? 'Enviando...' : `Imprimir Comanda (${paperSize})`}</span>
           </button>
 
           <button

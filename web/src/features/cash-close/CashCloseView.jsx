@@ -31,6 +31,7 @@ export default function CashCloseView() {
   const [activeReceiptModal, setActiveReceiptModal] = useState(null); // 'x' | 'z'
   const [fiscalActionStatus, setFiscalActionStatus] = useState(null);
   const [isProcessingFiscal, setIsProcessingFiscal] = useState(false);
+  const [isFiscalMemoryModalOpen, setIsFiscalMemoryModalOpen] = useState(false);
 
   // Ventas del turno / día de hoy (excluyendo facturas anuladas)
   const todayInvoices = useMemo(() => {

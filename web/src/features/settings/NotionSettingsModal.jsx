@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import {
   Building2,
   Printer,
+  ChefHat,
+  CheckCircle2,
+  RefreshCw,
   CreditCard,
   Utensils,
   User,
   Database,
   X,
-  CheckCircle2,
   AlertCircle,
   Download,
   Laptop,
@@ -464,37 +466,100 @@ export default function NotionSettingsModal({
               </form>
             )}
 
-            {/* TAB 2: MÁQUINA FISCAL */}
+            {/* TAB 2: HARDWARE FISCAL Y COMANDERA DE COCINA */}
             {activeTab === 'hardware' && (
-              <div className="space-y-4">
-                <div className="p-4 rounded-xl bg-sky-50 border border-sky-100 text-xs text-sky-900 space-y-2">
-                  <div className="flex items-center gap-2 font-bold text-sky-950">
-                    <Printer size={16} />
-                    <span>Conexión de Impresoras Fiscales SENIAT (HKA80 / Bixolon / Dascom)</span>
+              <div className="space-y-5">
+                {/* 1. SECCIÓN COMANDERA DE COCINA (58mm vs 80mm) */}
+                <div className="border border-zinc-200 rounded-2xl p-4 space-y-4 bg-white shadow-2xs">
+                  <div className="flex items-center gap-2.5 border-b border-zinc-100 pb-3">
+                    <div className="p-2 rounded-xl bg-amber-50 text-amber-700 border border-amber-200">
+                      <ChefHat size={18} />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-zinc-950">Impresora Térmica de Comandas (Cocina / Barra)</h4>
+                      <p className="text-[11px] text-zinc-500">Configura el ancho de papel y la impresora de tickets de comandas</p>
+                    </div>
                   </div>
-                  <p className="text-[11px] leading-relaxed">
-                    Las impresoras fiscales en Venezuela requieren un <strong>puerto Serial (COM) o USB directo</strong> con el protocolo fiscal HKA.
-                  </p>
-                  <p className="text-[11px] leading-relaxed font-semibold">
-                    Para imprimir facturas fiscales legales por cable, utiliza la <strong>App de Escritorio FacturasYa para Windows</strong> en la computadora de tu mostrador. La versión Web sincroniza todas las ventas en la nube automáticamente.
-                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-zinc-700 mb-1.5">
+                        Ancho del Rollo Térmico
+                      </label>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            localStorage.setItem('pos_comanda_paper_size', '58mm');
+                            showToast('Rollo de comanda configurado en 58mm (Estándar)');
+                          }}
+                          className="flex-1 py-2 px-3 rounded-xl border border-zinc-300 text-xs font-bold hover:bg-zinc-100 text-zinc-800 text-center transition-all cursor-pointer"
+                        >
+                          📄 58 mm (Estrecho)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            localStorage.setItem('pos_comanda_paper_size', '80mm');
+                            showToast('Rollo de comanda configurado en 80mm (Ancho)');
+                          }}
+                          className="flex-1 py-2 px-3 rounded-xl border border-zinc-300 text-xs font-bold hover:bg-zinc-100 text-zinc-800 text-center transition-all cursor-pointer"
+                        >
+                          📜 80 mm (Ancho cocina)
+                        </button>
+                      </div>
+                      <span className="text-[10px] text-zinc-400 mt-1 block">
+                        58mm para comanderas estándar pequeñas; 80mm para comanderas industriales de cocina.
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-zinc-700 mb-1.5">
+                        Comportamiento de Impresión
+                      </label>
+                      <div className="p-2.5 bg-zinc-50 rounded-xl border border-zinc-200 text-xs text-zinc-600 space-y-1">
+                        <p className="font-semibold text-zinc-900">⚡ Impresión Térmica Aislada 1:1</p>
+                        <p className="text-[11px] text-zinc-500">
+                          Las comandas no se reducen ni se escalan; imprimen en el tamaño exacto del rollo sin diálogo del navegador en Desktop.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="border border-zinc-200 rounded-xl p-4 space-y-3">
-                  <h4 className="text-xs font-bold text-zinc-950">Descarga del Conector Fiscal para Windows</h4>
-                  <p className="text-xs text-zinc-600">
-                    Incluye drivers HKA80, soporte para gaveta de dinero y detección automática de puertos COM2/COM3/COM4.
-                  </p>
-                  <a
-                    href="https://github.com/halinyer/FacturasYa/releases/latest"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold shadow-xs transition-all"
-                  >
-                    <Download size={14} />
-                    <span>Descargar Instalador de Windows (.exe)</span>
-                    <ExternalLink size={12} className="opacity-70" />
-                  </a>
+                {/* 2. SECCIÓN MÁQUINA FISCAL SENIAT */}
+                <div className="border border-zinc-200 rounded-2xl p-4 space-y-4 bg-white shadow-2xs">
+                  <div className="flex items-center gap-2.5 border-b border-zinc-100 pb-3">
+                    <div className="p-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      <Printer size={18} />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-zinc-950">Máquina Fiscal SENIAT (The Factory HKA80 / Serial)</h4>
+                      <p className="text-[11px] text-zinc-500">Conexión física por cable RS232 COM2 a 9600 baudios</p>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-sky-50 border border-sky-100 text-xs text-sky-900 space-y-2">
+                    <p className="leading-relaxed">
+                      <strong>Diferencia Nube vs Mostrador:</strong> La versión Web en la nube permite registrar ventas, monitorear mesas y ver reportes desde cualquier lugar. La <strong>emisión de facturas fiscales legales por cable serial, cierres Z oficiales y la consulta física de la memoria del chip</strong> se realizan a través de la aplicación nativa para Windows instalada en la computadora de tu caja.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 bg-zinc-50 rounded-xl border border-zinc-200">
+                    <div className="space-y-0.5">
+                      <span className="font-bold text-xs text-zinc-900 block">FacturasYa para Windows (.exe)</span>
+                      <span className="text-[11px] text-zinc-500 block">Incluye drivers HKA80, lector de memoria fiscal Z para contador y soporte gaveta</span>
+                    </div>
+                    <a
+                      href="https://github.com/halinyer/FacturasYa/releases/latest"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-4 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+                    >
+                      <Download size={13} />
+                      <span>Descargar Windows (.exe)</span>
+                    </a>
+                  </div>
                 </div>
               </div>
             )}

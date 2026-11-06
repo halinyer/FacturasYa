@@ -12,6 +12,8 @@ import {
   Layers
 } from 'lucide-react';
 import { useData } from '../../pos-core/contexts/DataContext';
+import FiscalMemoryModal from '../../pos-core/components/cashClose/FiscalMemoryModal';
+import { exportZReportsToCSV } from '../../pos-core/utils/seniatCsvExporter';
 
 export default function FiscalBooksView() {
   const data = useData();
@@ -19,6 +21,8 @@ export default function FiscalBooksView() {
   const invoices = data?.invoices || [];
   const purchases = data?.purchases || [];
   const zReports = data?.zReports || [];
+  const isElectron = Boolean(window?.electronAPI?.fiscal);
+  const [isFiscalMemoryModalOpen, setIsFiscalMemoryModalOpen] = useState(false);
 
   const [activeTab, setActiveTab] = useState('sales'); // 'sales' | 'purchases' | 'zreports'
   const [selectedMonth, setSelectedMonth] = useState(() => {
