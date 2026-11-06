@@ -1,5 +1,5 @@
 import { getVenezuelaISOString, getVenezuelaDateString } from '../utils/dateUtils';
-import { [], getProductRecipe } from '../config/inventoryDefaults';
+import { getProductRecipe } from '../config/inventoryDefaults';
 // In-memory cache for synchronous operations
 let memoryStore = null;
 
