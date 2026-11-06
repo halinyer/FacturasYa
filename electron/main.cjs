@@ -491,7 +491,39 @@ function createWindow() {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools({ mode: 'detach' });
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    const CLOUD_UI_URL = 'https://facturaya-git-main-halinyer1612-5872s-projects.vercel.app';
+    const localIndexFile = path.join(__dirname, '../dist/index.html');
+    let fellBackToLocal = false;
+
+    const loadLocalFallback = () => {
+      if (fellBackToLocal || !mainWindowRef) return;
+      fellBackToLocal = true;
+      console.log('[Modo Notion Offline] Sin internet detectado, cargando copia local en disco...');
+      mainWindow.loadFile(localIndexFile);
+    };
+
+    // Si falla la carga remota o se corta el internet al arrancar, caer de inmediato al bundle local en disco
+    mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+      if (isMainFrame && validatedURL && validatedURL.startsWith('http')) {
+        loadLocalFallback();
+      }
+    });
+
+    // Verificar conectividad rápida (2s) para cargar la última versión en vivo estilo Notion o usar respaldo local
+    const https = require('https');
+    const req = https.get(CLOUD_UI_URL, { timeout: 2200 }, (res) => {
+      req.destroy();
+      if (res.statusCode && res.statusCode < 500) {
+        mainWindow.loadURL(CLOUD_UI_URL);
+      } else {
+        loadLocalFallback();
+      }
+    });
+    req.on('error', () => loadLocalFallback());
+    req.on('timeout', () => {
+      req.destroy();
+      loadLocalFallback();
+    });
     // Bloquear atajos para abrir DevTools en producción empaquetada (F12, Ctrl+Shift+I/J, etc.)
     mainWindow.webContents.on('before-input-event', (event, input) => {
       if (

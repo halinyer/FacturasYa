@@ -87,10 +87,12 @@ const RequireAuth = ({ children }) => {
   return children;
 };
 
-// Detección automática: en Electron / file:// usamos HashRouter para máxima compatibilidad con el sistema operativo
+// Detección de protocolo file:// vs entorno Desktop Electron (híbrido estilo Notion)
+const isFileProtocol =
+  typeof window !== 'undefined' && window.location.protocol === 'file:';
 const isElectronOrFile =
   typeof window !== 'undefined' &&
-  (window.location.protocol === 'file:' || Boolean(window?.electronAPI));
+  (isFileProtocol || Boolean(window?.electronAPI));
 
 // En Desktop (Electron), la ruta raíz muestra el login o va directo a la app si ya está autenticado
 function RootRouteHandler() {
@@ -106,7 +108,7 @@ function RootRouteHandler() {
 }
 
 export default function App() {
-  const Router = isElectronOrFile ? HashRouter : BrowserRouter;
+  const Router = isFileProtocol ? HashRouter : BrowserRouter;
 
   return (
     <ErrorBoundary>

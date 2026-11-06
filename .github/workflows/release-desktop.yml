@@ -1,0 +1,46 @@
+name: Compilar y Publicar FacturaPOS Desktop (.exe)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'electron/**'
+      - 'bin/**'
+      - 'package.json'
+      - 'scripts/build.cjs'
+      - '.github/workflows/release-desktop.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Instalar dependencias (Root y Web)
+        run: |
+          npm install
+          npm --prefix web install
+
+      - name: Compilar Web y Empaquetar Instalador Windows (FacturaPOS-1.0.0.exe)
+        run: node scripts/build.cjs
+
+      - name: Publicar automaticamente en GitHub Releases (v1.0.0-stable)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.0-stable
+          name: FacturasYa para Windows v1.0.0
+          files: dist-electron/FacturaPOS-1.0.0.exe
+          overwrite_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
