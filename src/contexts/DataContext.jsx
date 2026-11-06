@@ -45,7 +45,7 @@ export const DataProvider = ({ children }) => {
     }
     return 876.80;
   });
-  const [restaurantMode, setRestaurantMode] = useState(false);
+  const [restaurantMode, setRestaurantMode] = useState(true);
   const [loading, setLoading] = useState(true);
 
   const exchangeRateRef = React.useRef(exchangeRate);
@@ -119,7 +119,7 @@ export const DataProvider = ({ children }) => {
       setInventory(invItems);
       setInventoryLogs(invLogs);
       setCloudMonitorSettings(monCfg);
-      setRestaurantMode(db.getRestaurantMode() || false);
+      setRestaurantMode(db.getRestaurantMode() !== false);
       setFiscalSettings({ ...(db.getFiscalSettings() || { enabled: true, port: 'COM2', baudRate: 9600 }) });
 
       // Auto-sync products with local restaurant server for tablets

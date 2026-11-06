@@ -22,6 +22,7 @@ import {
 import QRConnectModal from './QRConnectModal';
 import BackupModal from './BackupModal';
 import FiscalConfigModal from './fiscal/FiscalConfigModal';
+import SettingsModal from './settings/SettingsModal';
 import { CLIENT_CONFIG } from '../config/clientConfig';
 import { getAssetUrl } from '../utils/assetHelper';
 import './Sidebar.css';
@@ -32,6 +33,7 @@ const Sidebar = () => {
   const [showBackupModal, setShowBackupModal] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
   const [showConfigModal, setShowConfigModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [toast, setToast] = useState(null);
 
   const showToast = (msg, type) => {
@@ -124,29 +126,19 @@ const Sidebar = () => {
 
             <button
               type="button"
-              onClick={() => setShowBackupModal(true)}
+              onClick={() => setShowSettingsModal(true)}
               className="nav-item"
               style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit' }}
             >
-              <Database size={22} color="#f59e0b" />
-              <span className="nav-text" style={{ color: '#b45309', fontWeight: '700' }}>Copias de Seguridad</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setShowConfigModal(true)}
-              className="nav-item"
-              style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit' }}
-            >
-              <Sliders size={22} color="#6b7280" />
-              <span className="nav-text" style={{ color: '#4b5563', fontWeight: '700' }}>Configuración</span>
+              <Sliders size={22} color="#475569" />
+              <span className="nav-text" style={{ color: '#334155', fontWeight: '700' }}>Ajustes & Hardware</span>
             </button>
           </>
         )}
       </nav>
 
       <div className="sidebar-footer">
-        <div className="user-info">
+        <div className="user-info" onClick={() => setShowSettingsModal(true)} style={{ cursor: 'pointer' }} title="Abrir Ajustes de Cuenta">
           <div className="user-avatar">
             {user?.name?.charAt(0) || 'U'}
           </div>
@@ -168,6 +160,8 @@ const Sidebar = () => {
       {showQRModal && (
         <QRConnectModal onClose={() => setShowQRModal(false)} />
       )}
+
+      <SettingsModal isOpen={showSettingsModal} onClose={() => setShowSettingsModal(false)} showToast={showToast} />
 
       {showConfigModal && (
         <FiscalConfigModal onClose={() => setShowConfigModal(false)} showToast={showToast} />
