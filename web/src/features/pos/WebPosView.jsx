@@ -12,169 +12,246 @@ import {
   CheckCircle2,
   X,
   RefreshCw,
-  QrCode,
   Tag,
   Receipt,
   AlertCircle,
   Share2,
   Sparkles,
   Store,
-  Layers
+  Layers,
+  ChefHat,
+  ShieldCheck,
+  ChevronRight,
+  Filter,
+  User,
+  Utensils
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useData } from '../../pos-core/contexts/DataContext';
+import KitchenTicketModal from './KitchenTicketModal';
+import FiscalInvoiceModal from './FiscalInvoiceModal';
 
-// Catálogo por defecto optimizado para restaurantes, cafeterías y comida rápida en Venezuela
-const DEFAULT_PRODUCTS = [
+// Catálogo por defecto oficial de Happy Days con fotos reales de la carpeta /happydays/
+const DEFAULT_HAPPY_PRODUCTS = [
   {
-    id: 'prod-1',
-    name: 'Hamburguesa Smash Doble Bacon',
+    id: 'hd-1',
+    name: 'Burger Doble Bacon Deluxe',
     category: 'Hamburguesas',
     priceUsd: 7.50,
-    description: 'Doble carne smash, queso cheddar americano fundido, tocineta crujiente y salsa especial',
-    sku: 'HBG-001',
-    isExempt: false
+    price: 7.50,
+    description: 'Doble carne smash, tocineta crujiente, queso fundido y salsa especial',
+    sku: 'HBG-010',
+    isExempt: false,
+    image: '/happydays/platos/plato_wa0020.jpg'
   },
   {
-    id: 'prod-2',
-    name: 'Cheeseburger Clásica',
+    id: 'hd-2',
+    name: 'Cheeseburger Clásica con Tocineta',
     category: 'Hamburguesas',
-    priceUsd: 5.50,
-    description: 'Carne 150g, queso cheddar, cebolla grillé, lechuga, tomate y salsas de la casa',
-    sku: 'HBG-002',
-    isExempt: false
+    priceUsd: 6.00,
+    price: 6.00,
+    description: 'Carne 150g a la parrilla, tocineta ahumada, queso cheddar y cebolla grillé',
+    sku: 'HBG-011',
+    isExempt: false,
+    image: '/happydays/platos/plato_wa0024.jpg'
   },
   {
-    id: 'prod-3',
+    id: 'hd-3',
+    name: 'Hamburguesa Monster Happy',
+    category: 'Hamburguesas',
+    priceUsd: 9.50,
+    price: 9.50,
+    description: 'Doble carne, huevo frito, tocineta, queso blanco a la plancha y salsa tártara',
+    sku: 'HBG-012',
+    isExempt: false,
+    image: '/happydays/platos/plato_wa0027.jpg'
+  },
+  {
+    id: 'hd-4',
+    name: 'Doble Smash Burger Cheddar',
+    category: 'Hamburguesas',
+    priceUsd: 7.50,
+    price: 7.50,
+    description: 'Doble carne smash con bordes crujientes y abundante queso cheddar fundido',
+    sku: 'HBG-013',
+    isExempt: false,
+    image: '/happydays/platos/plato_wa0048.jpg'
+  },
+  {
+    id: 'hd-5',
+    name: 'Combo Full Burger Happy + Papas + Refresco',
+    category: 'Combos',
+    priceUsd: 8.50,
+    price: 8.50,
+    description: 'Hamburguesa clásica, ración de papas fritas rústicas y refresco de lata frío',
+    sku: 'CMB-001',
+    isExempt: false,
+    image: '/happydays/combo_full_burger_happy.jpg'
+  },
+  {
+    id: 'hd-6',
+    name: 'Combo Club House Happy 4 Pisos',
+    category: 'Combos',
+    priceUsd: 9.00,
+    price: 9.00,
+    description: 'Club house tradicional de 4 cuartos, jamón, queso, pollo, tocineta y papas',
+    sku: 'CMB-002',
+    isExempt: false,
+    image: '/happydays/combo_club_house_happy.jpg'
+  },
+  {
+    id: 'hd-7',
+    name: 'Combo 2 Burger Mini Pana',
+    category: 'Combos',
+    priceUsd: 6.50,
+    price: 6.50,
+    description: '2 mini burgers con queso cheddar y tocineta acompañadas de papas fritas',
+    sku: 'CMB-003',
+    isExempt: false,
+    image: '/happydays/combo_2_burger_mini.jpg'
+  },
+  {
+    id: 'hd-8',
     name: 'Pepito Mixto Especial 35cm',
     category: 'Pizzas & Pepitos',
     priceUsd: 8.50,
-    description: 'Carne y pollo a la plancha, tocineta, queso blanco rallado, maíz y papitas ralladas',
+    price: 8.50,
+    description: 'Carne y pollo a la plancha, queso blanco rallado, tocineta, maíz y papitas',
     sku: 'PEP-001',
-    isExempt: false
+    isExempt: false,
+    image: '/happydays/platos/plato_wa0032.jpg'
   },
   {
-    id: 'prod-4',
-    name: 'Pizza Pepperoni Mediana',
-    category: 'Pizzas & Pepitos',
-    priceUsd: 9.00,
-    description: 'Masa artesanal, salsa napolitana, abundante queso mozzarella y pepperoni premium',
-    sku: 'PIZ-001',
-    isExempt: false
-  },
-  {
-    id: 'prod-5',
-    name: 'Ración de Tequeños (6 uds)',
+    id: 'hd-9',
+    name: 'Ración de Tequeños Tradicionales (6 uds)',
     category: 'Entradas & Snacks',
     priceUsd: 4.00,
-    description: 'Tequeños tradicionales de queso blanco semi-duro acompañados de salsa tártara',
+    price: 4.00,
+    description: 'Tequeños crocantes de queso semi-duro acompañados de salsa tártara de la casa',
     sku: 'TEQ-001',
-    isExempt: false
+    isExempt: false,
+    image: '/happydays/platos/plato_wa0038.jpg'
   },
   {
-    id: 'prod-6',
-    name: 'Papas Rústicas con Queso Cheddar',
+    id: 'hd-10',
+    name: 'Papas Rústicas con Queso Cheddar & Bacon',
     category: 'Entradas & Snacks',
     priceUsd: 3.50,
-    description: 'Papas fritas con piel, salsa cheddar tibia fundida y lluvia de tocineta',
+    price: 3.50,
+    description: 'Papas fritas con piel, salsa de queso cheddar tibia fundida y lluvia de tocineta',
     sku: 'PAP-001',
-    isExempt: false
+    isExempt: false,
+    image: '/happydays/platos/plato_wa0042.jpg'
   },
   {
-    id: 'prod-7',
-    name: 'Refresco Lata 355ml',
+    id: 'hd-11',
+    name: 'Coca-Cola Sabor Original Lata 355ml',
     category: 'Bebidas',
     priceUsd: 1.50,
-    description: 'Coca-Cola, Pepsi, 7Up o Chinotto bien frío',
+    price: 1.50,
+    description: 'Refresco frío de lata',
     sku: 'BEB-001',
-    isExempt: false
+    isExempt: false,
+    image: '/happydays/drinks/cocacola_lata_355ml.jpg'
   },
   {
-    id: 'prod-8',
-    name: 'Malta Polar 355ml',
+    id: 'hd-12',
+    name: 'Malta Polar 355ml Helada',
     category: 'Bebidas',
     priceUsd: 1.50,
+    price: 1.50,
     description: 'Malta tradicional bien helada',
     sku: 'BEB-002',
-    isExempt: false
+    isExempt: false,
+    image: '/happydays/drinks/malta_botella_355ml.jpg'
   },
   {
-    id: 'prod-9',
-    name: 'Agua Mineral 600ml',
+    id: 'hd-13',
+    name: 'Agua Mineral Minalba 600ml',
     category: 'Bebidas',
     priceUsd: 1.00,
+    price: 1.00,
     description: 'Agua pura sin gas',
     sku: 'BEB-003',
-    isExempt: true
-  },
-  {
-    id: 'prod-10',
-    name: 'Brownie con Helado de Vainilla',
-    category: 'Postres',
-    priceUsd: 4.50,
-    description: 'Brownie tibio de chocolate fudge con sirope de chocolate y nueces',
-    sku: 'POS-001',
-    isExempt: false
+    isExempt: true,
+    image: '/happydays/drinks/agua_mineral_355ml.jpg'
   }
 ];
 
-const CATEGORIES = ['Todos', 'Hamburguesas', 'Pizzas & Pepitos', 'Entradas & Snacks', 'Bebidas', 'Postres'];
-
 const VENEZUELA_BANKS = [
-  '0102 - Banco de Venezuela',
-  '0108 - Banco Provincial (BBVA)',
-  '0134 - Banesco',
-  '0105 - Banco Mercantil',
-  '0172 - Bancamiga',
-  '0114 - Bancaribe',
-  '0116 - Banco Occidental de Descuento (BNC)',
-  '0174 - Banplus'
+  { code: '0102', name: '0102 - Banco de Venezuela', logo: '/banks/0102.png' },
+  { code: '0108', name: '0108 - Banco Provincial (BBVA)', logo: '/banks/0108.png' },
+  { code: '0134', name: '0134 - Banesco', logo: '/banks/0134.png' },
+  { code: '0105', name: '0105 - Banco Mercantil', logo: '/banks/0105.png' },
+  { code: '0172', name: '0172 - Bancamiga', logo: '/banks/0172.png' },
+  { code: '0114', name: '0114 - Bancaribe', logo: '/banks/0114.png' },
+  { code: '0174', name: '0174 - Banplus', logo: '/banks/0174.png' }
 ];
-
-function formatBs(val) {
-  return 'Bs. ' + Number(val || 0).toLocaleString('es-VE', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
-}
-
-function formatUsd(val) {
-  return '$' + Number(val || 0).toFixed(2);
-}
 
 export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
   const data = useData();
-  // Tasa de cambio BCV
-  const [bcvRate, setBcvRate] = useState(() => Number(snapshot?.exchange_rate || tenant?.exchange_rate) || 876.80);
-  const [isEditingRate, setIsEditingRate] = useState(false);
-  const [customRateInput, setCustomRateInput] = useState(String(bcvRate));
 
-  // Productos y Búsqueda
-  const [products] = useState(() => {
-    if (data?.products && data.products.length > 0) return data.products;
+  // Tasa de cambio BCV oficial
+  const currentRate = Number(data?.exchangeRate) || Number(snapshot?.exchange_rate || tenant?.exchange_rate) || 876.80;
+  const [bcvRate, setBcvRate] = useState(currentRate);
+
+  useEffect(() => {
+    if (data?.exchangeRate) {
+      setBcvRate(Number(data.exchangeRate));
+    }
+  }, [data?.exchangeRate]);
+
+  // Catálogo de Productos
+  const products = useMemo(() => {
+    if (data?.products && data.products.length > 0) {
+      return data.products.map((p, idx) => ({
+        ...p,
+        image: p.image || DEFAULT_HAPPY_PRODUCTS[idx % DEFAULT_HAPPY_PRODUCTS.length]?.image
+      }));
+    }
     const custom = snapshot?.products;
-    return Array.isArray(custom) && custom.length > 0 ? custom : DEFAULT_PRODUCTS;
-  });
+    if (Array.isArray(custom) && custom.length > 0) return custom;
+    return DEFAULT_HAPPY_PRODUCTS;
+  }, [data?.products, snapshot?.products]);
+
+  // Categorías
+  const categories = useMemo(() => {
+    const set = new Set(['Todos']);
+    products.forEach((p) => {
+      if (p.category) set.add(p.category);
+    });
+    return Array.from(set);
+  }, [products]);
+
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Carrito de Compras
+  // Carrito de compras
   const [cart, setCart] = useState([]);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  // Cliente y mesa
   const [clientType, setClientType] = useState('final'); // 'final' | 'custom'
   const [clientName, setClientName] = useState('Consumidor Final');
   const [clientRif, setClientRif] = useState('V-00000000-0');
+  const [orderTable, setOrderTable] = useState('Barra / Mostrador');
+  const [orderNotes, setOrderNotes] = useState('');
 
-  // Modal de Cobro
+  // Modales
+  const [isKitchenModalOpen, setIsKitchenModalOpen] = useState(false);
+  const [isFiscalModalOpen, setIsFiscalModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+
+  // Estados de cobro
   const [paymentMethod, setPaymentMethod] = useState('mixto'); // 'mixto' | 'usd_cash' | 'pago_movil' | 'punto'
   const [cashUsdReceived, setCashUsdReceived] = useState('');
-  const [pagoMovilBank, setPagoMovilBank] = useState(VENEZUELA_BANKS[0]);
+  const [selectedBank, setSelectedBank] = useState(VENEZUELA_BANKS[0].name);
   const [pagoMovilPhone, setPagoMovilPhone] = useState('');
   const [pagoMovilRef, setPagoMovilRef] = useState('');
   const [applyIgtf, setApplyIgtf] = useState(true);
   const [isSubmittingSale, setIsSubmittingSale] = useState(false);
 
-  // Ticket Fiscal Final
+  // Ticket completado
   const [completedInvoice, setCompletedInvoice] = useState(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
 
@@ -185,21 +262,22 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
       const query = searchQuery.toLowerCase().trim();
       const matchSearch =
         !query ||
-        p.name.toLowerCase().includes(query) ||
-        (p.sku && p.sku.toLowerCase().includes(query)) ||
-        (p.description && p.description.toLowerCase().includes(query));
+        p.name?.toLowerCase().includes(query) ||
+        p.sku?.toLowerCase().includes(query) ||
+        p.description?.toLowerCase().includes(query);
       return matchCat && matchSearch;
     });
   }, [products, selectedCategory, searchQuery]);
 
-  // Cálculos del Carrito
+  // Totales del Carrito
   const cartTotals = useMemo(() => {
     let subtotalUsd = 0;
     let baseImponibleUsd = 0;
     let exentoUsd = 0;
 
     cart.forEach((item) => {
-      const lineTotal = item.priceUsd * item.qty;
+      const price = Number(item.priceUsd || item.price || 0);
+      const lineTotal = price * item.qty;
       subtotalUsd += lineTotal;
       if (item.isExempt) {
         exentoUsd += lineTotal;
@@ -223,7 +301,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
     const finalTotalUsd = baseTotalUsd + igtfUsd;
     const finalTotalBs = finalTotalUsd * bcvRate;
 
-    // Cálculos para cobro mixto
+    // Cobro mixto
     const appliedCashUsd = Math.min(Number(cashUsdReceived) || 0, finalTotalUsd);
     const remainingUsd = Math.max(0, finalTotalUsd - appliedCashUsd);
     const remainingBs = remainingUsd * bcvRate;
@@ -248,11 +326,11 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
       remainingBs,
       changeUsd,
       changeBs,
-      itemsCount: cart.reduce((acc, i) => acc + i.qty, 0)
+      totalQty: cart.reduce((acc, i) => acc + i.qty, 0)
     };
   }, [cart, bcvRate, paymentMethod, cashUsdReceived, applyIgtf]);
 
-  // Manejo del Carrito
+  // Manejo del carrito
   const addToCart = (product) => {
     setCart((prev) => {
       const existing = prev.find((i) => i.id === product.id);
@@ -261,6 +339,8 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
       }
       return [...prev, { ...product, qty: 1 }];
     });
+    // Abrir automáticamente el drawer si estaba cerrado
+    setIsDrawerOpen(true);
   };
 
   const updateQty = (id, delta) => {
@@ -285,10 +365,9 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
     setCart([]);
   };
 
-  // Abrir Modal de Cobro
+  // Pre-cargar cobro
   const handleOpenPayment = () => {
     if (cart.length === 0) return;
-    // Pre-cargar 10 o el total en efectivo si es mixto
     const defaultCash = Math.floor(cartTotals.finalTotalUsd / 5) * 5 || 5;
     setCashUsdReceived(String(Math.min(defaultCash, Math.floor(cartTotals.finalTotalUsd))));
     setIsPaymentModalOpen(true);
@@ -296,7 +375,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
 
   // Procesar Facturación y Guardar Venta
   const handleProcessSale = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setIsSubmittingSale(true);
 
     try {
@@ -316,11 +395,11 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
           id: i.id,
           name: i.name,
           qty: i.qty,
-          priceUsd: i.priceUsd,
-          priceBs: i.priceUsd * bcvRate,
-          isExempt: i.isExempt,
-          totalUsd: i.priceUsd * i.qty,
-          totalBs: i.priceUsd * i.qty * bcvRate
+          priceUsd: Number(i.priceUsd || i.price || 0),
+          priceBs: Number(i.priceUsd || i.price || 0) * bcvRate,
+          isExempt: Boolean(i.isExempt),
+          totalUsd: Number(i.priceUsd || i.price || 0) * i.qty,
+          totalBs: Number(i.priceUsd || i.price || 0) * i.qty * bcvRate
         })),
         subtotalUsd: cartTotals.subtotalUsd,
         subtotalBs: cartTotals.subtotalBs,
@@ -331,13 +410,14 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
         igtfUsd: cartTotals.igtfUsd,
         igtfBs: cartTotals.igtfBs,
         total: cartTotals.finalTotalUsd,
+        totalUsd: cartTotals.finalTotalUsd,
         totalBs: cartTotals.finalTotalBs,
         exchangeRate: bcvRate,
         paymentMethod,
         paymentDetails: {
           cashUsd: cartTotals.appliedCashUsd,
           pagoMovilBs: paymentMethod === 'pago_movil' ? cartTotals.finalTotalBs : cartTotals.remainingBs,
-          pagoMovilBank: pagoMovilBank,
+          pagoMovilBank: selectedBank,
           pagoMovilRef: pagoMovilRef,
           changeUsd: cartTotals.changeUsd,
           changeBs: cartTotals.changeBs
@@ -346,12 +426,12 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
         status: 'completed'
       };
 
-      // Registrar factura en el DataContext local (actualiza Dashboard, Libros SENIAT y Cierre de Caja)
+      // Registrar en el DataContext local (actualiza Dashboard, Libros SENIAT y Cierre de Caja al instante)
       if (data?.addInvoice) {
         data.addInvoice(invoiceData);
       }
 
-      // Si hay un tenant autenticado, actualizar snapshot en Supabase
+      // Sincronizar snapshot con Supabase si hay tenant activo
       if (tenant?.id) {
         const existingInvoices = Array.isArray(snapshot?.invoices) ? snapshot.invoices : [];
         const updatedInvoices = [invoiceData, ...existingInvoices];
@@ -372,635 +452,611 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
 
       setCompletedInvoice(invoiceData);
       setIsPaymentModalOpen(false);
+      setIsFiscalModalOpen(false);
       setIsReceiptModalOpen(true);
       clearCart();
     } catch (err) {
-      console.error('Error registrando factura:', err);
+      console.error('Error registrando venta:', err);
       alert('Error registrando factura: ' + err.message);
     } finally {
       setIsSubmittingSale(false);
     }
   };
 
-  const handlePrintReceipt = () => {
-    window.print();
-  };
-
   return (
-    <div className="flex-1 flex flex-col h-full bg-zinc-50 overflow-hidden">
+    <div className="flex-1 flex flex-col h-full bg-zinc-50 overflow-hidden relative">
       
       {/* TOOLBAR SUPERIOR DEL PUNTO DE VENTA */}
-      <div className="bg-white border-b border-zinc-200 px-4 py-2.5 flex items-center justify-between gap-3 shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span>Caja Web Lista</span>
+      <div className="bg-white border-b border-zinc-200/80 px-4 py-3 shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        {/* BUSCADOR Y ATRIBUTOS */}
+        <div className="flex items-center gap-3 flex-1">
+          <div className="relative flex-1 max-w-md">
+            <Search size={15} className="absolute left-3 top-2.5 text-zinc-400" />
+            <input
+              type="text"
+              placeholder="Buscar plato, combo o bebida..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-zinc-200 text-xs focus:outline-none focus:border-zinc-400 bg-zinc-50/50"
+            />
           </div>
 
-          {/* TASA OFICIAL BCV */}
-          <div className="flex items-center gap-1.5 text-xs text-zinc-600 bg-zinc-100 px-3 py-1 rounded-lg border border-zinc-200">
+          <div className="hidden md:flex items-center gap-1.5 text-xs text-zinc-600 bg-zinc-100 px-3 py-1.5 rounded-xl border border-zinc-200">
             <span className="text-zinc-400 font-medium">Tasa BCV:</span>
-            {isEditingRate ? (
-              <div className="flex items-center gap-1">
-                <input
-                  type="number"
-                  step="0.01"
-                  value={customRateInput}
-                  onChange={(e) => setCustomRateInput(e.target.value)}
-                  className="w-20 px-1 py-0.5 rounded border border-zinc-300 text-xs bg-white text-zinc-950 font-bold"
-                  autoFocus
-                />
+            <span className="font-bold text-zinc-950 font-mono">Bs. {bcvRate.toFixed(2)}</span>
+          </div>
+        </div>
+
+        {/* BOTÓN FLOTANTE / ACCESO DIRECTO AL DRAWER DE COMANDA */}
+        <button
+          type="button"
+          onClick={() => setIsDrawerOpen(true)}
+          className="px-4 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white font-bold text-xs transition-all flex items-center justify-between sm:justify-start gap-2.5 cursor-pointer shadow-xs active:scale-98"
+        >
+          <div className="flex items-center gap-1.5">
+            <ShoppingCart size={15} className="text-emerald-400" />
+            <span>Ver Comanda</span>
+            <span className="px-1.5 py-0.2 rounded-full bg-zinc-800 text-emerald-300 font-mono text-[11px] font-bold">
+              {cartTotals.totalQty}
+            </span>
+          </div>
+          <span className="font-mono text-zinc-300 text-[11px] border-l border-zinc-700 pl-2">
+            ${cartTotals.finalTotalUsd.toFixed(2)}
+          </span>
+        </button>
+      </div>
+
+      {/* FILTRO DE CATEGORÍAS TIPO CHIPS */}
+      <div className="bg-white px-4 py-2 border-b border-zinc-200/80 flex items-center gap-1.5 overflow-x-auto shrink-0">
+        {categories.map((cat) => {
+          const count = cat === 'Todos' ? products.length : products.filter((p) => p.category === cat).length;
+          const isSelected = selectedCategory === cat;
+
+          return (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => setSelectedCategory(cat)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                isSelected
+                  ? 'bg-zinc-950 text-white shadow-xs'
+                  : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-600'
+              }`}
+            >
+              <span>{cat}</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                isSelected ? 'bg-zinc-800 text-zinc-200' : 'bg-zinc-200 text-zinc-600'
+              }`}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* CATÁLOGO VISUAL DE PRODUCTOS (FOTOS REALES) */}
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
+          {filteredProducts.map((p) => {
+            const price = Number(p.priceUsd || p.price || 0);
+            const priceBs = price * bcvRate;
+            const inCart = cart.find((i) => i.id === p.id);
+
+            return (
+              <div
+                key={p.id}
+                onClick={() => addToCart(p)}
+                className={`group relative rounded-2xl border bg-white overflow-hidden transition-all duration-150 cursor-pointer hover:shadow-md flex flex-col justify-between ${
+                  inCart ? 'border-zinc-950 ring-1 ring-zinc-950' : 'border-zinc-200/80 hover:border-zinc-300'
+                }`}
+              >
+                {/* FOTOGRAFÍA DEL PRODUCTO CON PROPORCIÓN 1:1 */}
+                <div className="aspect-square w-full bg-zinc-100 overflow-hidden relative">
+                  {p.image ? (
+                    <img
+                      src={p.image}
+                      alt={p.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-zinc-300">
+                      <Utensils size={32} />
+                    </div>
+                  )}
+
+                  {/* BADGE DE IVA EXENTO / GRAVADO */}
+                  <div className="absolute top-2 left-2">
+                    {p.isExempt ? (
+                      <span className="px-1.5 py-0.5 rounded-md font-bold text-[9px] bg-amber-500/90 text-white shadow-xs backdrop-blur-xs">
+                        Exento
+                      </span>
+                    ) : (
+                      <span className="px-1.5 py-0.5 rounded-md font-bold text-[9px] bg-emerald-600/90 text-white shadow-xs backdrop-blur-xs">
+                        IVA 16%
+                      </span>
+                    )}
+                  </div>
+
+                  {/* INDICADOR DE CANTIDAD EN CARRITO */}
+                  {inCart && (
+                    <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-zinc-950 text-white font-bold text-xs flex items-center justify-center shadow-md">
+                      {inCart.qty}
+                    </div>
+                  )}
+                </div>
+
+                {/* DETALLE DEL PRODUCTO */}
+                <div className="p-3 flex-1 flex flex-col justify-between space-y-2">
+                  <div>
+                    <h3 className="font-bold text-xs text-zinc-950 line-clamp-2 leading-snug group-hover:text-zinc-800">
+                      {p.name}
+                    </h3>
+                    {p.description && (
+                      <p className="text-[10px] text-zinc-400 line-clamp-1 mt-0.5">{p.description}</p>
+                    )}
+                  </div>
+
+                  <div className="pt-1 border-t border-zinc-100 flex items-baseline justify-between">
+                    <div>
+                      <span className="text-sm font-extrabold text-zinc-950 font-mono">
+                        ${price.toFixed(2)}
+                      </span>
+                      <span className="text-[10px] text-zinc-400 font-mono block leading-tight">
+                        Bs. {priceBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+
+                    <div className="w-6 h-6 rounded-lg bg-zinc-100 group-hover:bg-zinc-950 group-hover:text-white text-zinc-600 flex items-center justify-center transition-colors">
+                      <Plus size={14} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* DRAWER DESLIZABLE (SLIDE-OVER CART PANEL) */}
+      {isDrawerOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-zinc-950/40 backdrop-blur-2xs flex justify-end animate-in fade-in duration-200"
+          onClick={() => setIsDrawerOpen(false)}
+        >
+          <div
+            className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-200 z-50 text-zinc-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* CABECERA DEL DRAWER */}
+            <div className="p-4 border-b border-zinc-200/80 flex items-center justify-between shrink-0 bg-zinc-50/50">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-zinc-900 text-white">
+                  <ShoppingCart size={16} />
+                </div>
+                <div>
+                  <h2 className="font-extrabold text-sm text-zinc-950">Comanda & Carrito</h2>
+                  <p className="text-[11px] text-zinc-500 font-mono">
+                    {orderTable} · {cartTotals.totalQty} ítems
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                {cart.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={clearCart}
+                    className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 text-xs font-semibold cursor-pointer"
+                    title="Vaciar comanda"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={() => {
-                    const next = Number(customRateInput) || bcvRate;
-                    setBcvRate(next);
-                    setIsEditingRate(false);
-                  }}
-                  className="px-1.5 py-0.5 rounded bg-zinc-950 text-white text-[10px] font-bold"
+                  onClick={() => setIsDrawerOpen(false)}
+                  className="p-1.5 rounded-lg text-zinc-400 hover:bg-zinc-100 text-xs cursor-pointer"
+                  title="Cerrar comanda"
                 >
-                  OK
+                  <X size={18} />
                 </button>
               </div>
-            ) : (
+            </div>
+
+            {/* DATOS DEL CLIENTE / CONSUMIDOR FINAL */}
+            <div className="p-3 bg-zinc-50 border-b border-zinc-200/80 flex items-center justify-between text-xs shrink-0">
+              <div className="flex items-center gap-2">
+                <User size={14} className="text-zinc-500" />
+                <span className="font-semibold text-zinc-800">{clientName}</span>
+                <span className="font-mono text-zinc-400 text-[11px]">({clientRif})</span>
+              </div>
               <button
                 type="button"
                 onClick={() => {
-                  setCustomRateInput(String(bcvRate));
-                  setIsEditingRate(true);
-                }}
-                className="font-extrabold text-zinc-950 hover:underline flex items-center gap-1"
-                title="Haz clic para modificar la tasa"
-              >
-                <span>{bcvRate.toFixed(2)} Bs/$</span>
-                <span className="text-[10px] text-zinc-400 font-normal">✏️</span>
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* BUSCADOR DE PRODUCTOS */}
-        <div className="relative max-w-xs w-full hidden sm:block">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-          <input
-            type="text"
-            placeholder="Buscar por nombre, código o ingrediente..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-8 pr-7 py-1.5 rounded-lg border border-zinc-200 text-xs focus:border-zinc-950 focus:outline-none bg-zinc-50"
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
-            >
-              <X size={12} />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* ÁREA DE TRABAJO DIVIDIDA: CATÁLOGO (IZQ) + CARRITO (DER) */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-        
-        {/* COLUMNA IZQUIERDA: CATEGORÍAS Y PRODUCTOS */}
-        <div className="flex-1 flex flex-col overflow-hidden border-r border-zinc-200">
-          
-          {/* BARRA DE CATEGORÍAS */}
-          <div className="p-3 bg-white border-b border-zinc-100 flex gap-1.5 overflow-x-auto scrollbar-none shrink-0">
-            {CATEGORIES.map((cat) => (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
-                  selectedCategory === cat
-                    ? 'bg-zinc-950 text-white shadow-2xs'
-                    : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200/80 hover:text-zinc-900'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-
-          {/* CUADRÍCULA DE PRODUCTOS */}
-          <div className="flex-1 overflow-y-auto p-4">
-            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
-              {filteredProducts.map((p) => {
-                const inCart = cart.find((i) => i.id === p.id);
-                const priceBs = p.priceUsd * bcvRate;
-
-                return (
-                  <div
-                    key={p.id}
-                    onClick={() => addToCart(p)}
-                    className={`relative p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between group active:scale-98 select-none ${
-                      inCart
-                        ? 'bg-zinc-950/2 border-zinc-950 shadow-xs'
-                        : 'bg-white border-zinc-200 hover:border-zinc-400 hover:shadow-xs'
-                    }`}
-                  >
-                    {inCart && (
-                      <span className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-zinc-950 text-white text-[10px] font-extrabold flex items-center justify-center shadow-xs">
-                        {inCart.qty}
-                      </span>
-                    )}
-
-                    <div>
-                      <span className="text-[10px] font-bold tracking-wider uppercase text-zinc-400 block mb-1">
-                        {p.category}
-                      </span>
-                      <h4 className="text-xs font-bold text-zinc-900 group-hover:text-zinc-950 leading-snug line-clamp-2">
-                        {p.name}
-                      </h4>
-                      {p.description && (
-                        <p className="text-[11px] text-zinc-400 line-clamp-2 mt-1 leading-tight">
-                          {p.description}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="mt-3 pt-2.5 border-t border-zinc-100 flex items-baseline justify-between">
-                      <div>
-                        <span className="text-sm font-extrabold text-zinc-950 block">
-                          {formatUsd(p.priceUsd)}
-                        </span>
-                        <span className="text-[10px] font-semibold text-zinc-500 block">
-                          {formatBs(priceBs)}
-                        </span>
-                      </div>
-
-                      <div className="w-6 h-6 rounded-lg bg-zinc-100 group-hover:bg-zinc-950 group-hover:text-white text-zinc-600 flex items-center justify-center transition-colors">
-                        <Plus size={14} />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* COLUMNA DERECHA: ORDEN DE CAJA & CARRITO */}
-        <div className="w-full lg:w-96 bg-white flex flex-col shrink-0 shadow-lg lg:shadow-none h-full overflow-hidden">
-          
-          {/* HEADER DEL CARRITO */}
-          <div className="p-3.5 border-b border-zinc-200 flex items-center justify-between bg-zinc-50 shrink-0">
-            <div className="flex items-center gap-2">
-              <ShoppingCart size={16} className="text-zinc-700" />
-              <h3 className="text-xs font-extrabold text-zinc-950 tracking-tight">
-                Orden de Caja #{cartTotals.itemsCount > 0 ? `(${cartTotals.itemsCount})` : ''}
-              </h3>
-            </div>
-            {cart.length > 0 && (
-              <button
-                type="button"
-                onClick={clearCart}
-                className="text-[11px] text-red-600 hover:text-red-700 font-bold flex items-center gap-1 hover:underline"
-              >
-                <Trash2 size={12} />
-                <span>Vaciar</span>
-              </button>
-            )}
-          </div>
-
-          {/* SELECTOR DE CLIENTE FISCAL */}
-          <div className="p-2.5 bg-zinc-100/70 border-b border-zinc-200 flex items-center justify-between text-xs shrink-0">
-            <div className="flex items-center gap-1.5 truncate">
-              <span className="text-zinc-500 text-[11px]">Cliente:</span>
-              <span className="font-bold text-zinc-900 truncate">
-                {clientType === 'final' ? 'Consumidor Final' : clientName}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                if (clientType === 'final') {
-                  const name = prompt('Nombre o Razón Social del cliente:', '');
-                  const rif = prompt('RIF o Cédula (ej: V-12345678):', 'V-');
-                  if (name) {
-                    setClientName(name);
-                    setClientRif(rif || 'V-00000000-0');
+                  const custom = prompt('Ingrese Nombre y RIF del cliente (ej. Juan Perez, V-12345678):');
+                  if (custom) {
+                    const parts = custom.split(',');
+                    setClientName(parts[0]?.trim() || 'Cliente Especial');
+                    setClientRif(parts[1]?.trim() || 'V-00000000');
                     setClientType('custom');
                   }
-                } else {
-                  setClientType('final');
-                }
-              }}
-              className="text-[10px] text-zinc-700 font-bold hover:underline shrink-0 bg-white px-2 py-0.5 rounded border border-zinc-200"
-            >
-              {clientType === 'final' ? '+ Con RIF' : 'Quitar RIF'}
-            </button>
-          </div>
-
-          {/* LISTA DE PRODUCTOS EN EL CARRITO */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-2">
-            {cart.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-center p-6 text-zinc-400 space-y-2">
-                <div className="w-12 h-12 rounded-2xl bg-zinc-100 flex items-center justify-center text-zinc-300">
-                  <ShoppingCart size={24} />
-                </div>
-                <p className="text-xs font-semibold text-zinc-600">La caja está vacía</p>
-                <p className="text-[11px] text-zinc-400">
-                  Haz clic en cualquier producto del catálogo para comenzar a facturar.
-                </p>
-              </div>
-            ) : (
-              cart.map((item) => {
-                const itemTotalUsd = item.priceUsd * item.qty;
-                const itemTotalBs = itemTotalUsd * bcvRate;
-
-                return (
-                  <div
-                    key={item.id}
-                    className="p-2.5 rounded-xl border border-zinc-200/80 bg-zinc-50/50 flex items-center justify-between gap-2 text-xs"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="font-bold text-zinc-900 truncate">{item.name}</div>
-                      <div className="text-[10px] text-zinc-400 font-medium">
-                        {formatUsd(item.priceUsd)} c/u · {formatBs(item.priceUsd * bcvRate)}
-                      </div>
-                    </div>
-
-                    {/* CONTROLES DE CANTIDAD */}
-                    <div className="flex items-center gap-1.5 shrink-0 bg-white border border-zinc-200 rounded-lg p-0.5">
-                      <button
-                        type="button"
-                        onClick={() => updateQty(item.id, -1)}
-                        className="w-5 h-5 rounded flex items-center justify-center text-zinc-600 hover:bg-zinc-100 transition-colors"
-                      >
-                        <Minus size={12} />
-                      </button>
-                      <span className="w-5 text-center font-extrabold text-xs text-zinc-950">
-                        {item.qty}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => updateQty(item.id, 1)}
-                        className="w-5 h-5 rounded flex items-center justify-center text-zinc-600 hover:bg-zinc-100 transition-colors"
-                      >
-                        <Plus size={12} />
-                      </button>
-                    </div>
-
-                    <div className="text-right shrink-0 min-w-[65px]">
-                      <div className="font-extrabold text-zinc-950">{formatUsd(itemTotalUsd)}</div>
-                      <div className="text-[10px] text-zinc-400">{formatBs(itemTotalBs)}</div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-          {/* DESGLOSE FISCAL SENIAT Y BOTÓN DE COBRO */}
-          {cart.length > 0 && (
-            <div className="p-3.5 border-t border-zinc-200 bg-zinc-50 shrink-0 space-y-2.5">
-              <div className="space-y-1 text-xs text-zinc-600">
-                <div className="flex justify-between">
-                  <span>Subtotal Base:</span>
-                  <span className="font-semibold text-zinc-900">{formatUsd(cartTotals.subtotalUsd)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>IVA SENIAT (16%):</span>
-                  <span className="font-semibold text-zinc-900">{formatUsd(cartTotals.iva16Usd)}</span>
-                </div>
-                <div className="border-t border-zinc-200/80 pt-1 flex justify-between items-baseline">
-                  <div>
-                    <span className="text-xs font-bold text-zinc-950 block">TOTAL A COBRAR:</span>
-                    <span className="text-[10px] font-semibold text-zinc-500 block">
-                      ≈ {formatBs(cartTotals.finalTotalBs)}
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-lg font-extrabold text-zinc-950 mono-num block">
-                      {formatUsd(cartTotals.finalTotalUsd)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* BOTÓN GIGANTE DE COBRO */}
-              <button
-                type="button"
-                onClick={handleOpenPayment}
-                className="w-full py-3 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white font-extrabold text-xs shadow-sm transition-all flex items-center justify-center gap-2 active:scale-98"
+                }}
+                className="text-[11px] text-indigo-600 hover:underline font-semibold cursor-pointer"
               >
-                <DollarSign size={16} className="text-emerald-400" />
-                <span>Cobrar {formatUsd(cartTotals.finalTotalUsd)} ({formatBs(cartTotals.finalTotalBs)}) →</span>
+                Cambiar
               </button>
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* MODAL DE COBRO BIMONETARIO (EFECTIVO $ + PAGO MÓVIL BS) */}
+            {/* LISTADO DE PRODUCTOS EN COMANDA */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-2.5 divide-y divide-zinc-100">
+              {cart.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-center p-6 text-zinc-400">
+                  <ShoppingCart size={40} className="mb-2 text-zinc-300 stroke-1" />
+                  <p className="text-sm font-semibold text-zinc-600">Comanda Vacía</p>
+                  <p className="text-xs text-zinc-400 mt-1">
+                    Haz clic sobre cualquier plato o bebida para agregarlo a la orden.
+                  </p>
+                </div>
+              ) : (
+                cart.map((item) => {
+                  const itemPrice = Number(item.priceUsd || item.price || 0);
+                  const lineTotalUsd = itemPrice * item.qty;
+                  const lineTotalBs = lineTotalUsd * bcvRate;
+
+                  return (
+                    <div key={item.id} className="pt-2.5 first:pt-0 flex items-start gap-3">
+                      {item.image && (
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="w-11 h-11 rounded-xl object-cover shrink-0 border border-zinc-200"
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between">
+                          <h4 className="font-bold text-xs text-zinc-950 truncate leading-snug">
+                            {item.name}
+                          </h4>
+                          <span className="font-bold text-xs font-mono text-zinc-950 shrink-0 ml-2">
+                            ${lineTotalUsd.toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] text-zinc-400 font-mono mt-1">
+                          <span>${itemPrice.toFixed(2)} c/u</span>
+                          <span>Bs. {lineTotalBs.toFixed(2)}</span>
+                        </div>
+
+                        {/* SELECTOR DE CANTIDAD */}
+                        <div className="flex items-center gap-2 mt-2">
+                          <div className="flex items-center border border-zinc-200 rounded-lg bg-zinc-50">
+                            <button
+                              type="button"
+                              onClick={() => updateQty(item.id, -1)}
+                              className="p-1 hover:bg-zinc-200 text-zinc-600 rounded-l-lg transition-colors cursor-pointer"
+                            >
+                              <Minus size={12} />
+                            </button>
+                            <span className="px-2.5 text-xs font-bold font-mono text-zinc-950">
+                              {item.qty}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => updateQty(item.id, 1)}
+                              className="p-1 hover:bg-zinc-200 text-zinc-600 rounded-r-lg transition-colors cursor-pointer"
+                            >
+                              <Plus size={12} />
+                            </button>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => removeFromCart(item.id)}
+                            className="text-zinc-400 hover:text-rose-600 text-[11px] transition-colors cursor-pointer"
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* DESGLOSE FISCAL Y BOTONES DE ACCIÓN (COCINA / SENIAT / COBRAR) */}
+            {cart.length > 0 && (
+              <div className="p-4 border-t border-zinc-200/80 bg-zinc-50/70 shrink-0 space-y-3">
+                {/* DESGLOSE TRIBUTARIO */}
+                <div className="space-y-1 text-xs">
+                  <div className="flex justify-between text-zinc-500">
+                    <span>Base Gravada (16%):</span>
+                    <span className="font-mono">${cartTotals.baseImponibleUsd.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-emerald-700 font-semibold">
+                    <span>IVA Fiscal (16%):</span>
+                    <span className="font-mono">+${cartTotals.iva16Usd.toFixed(2)}</span>
+                  </div>
+                  {cartTotals.exentoUsd > 0 && (
+                    <div className="flex justify-between text-zinc-500">
+                      <span>Ventas Exentas:</span>
+                      <span className="font-mono">${cartTotals.exentoUsd.toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="pt-2 border-t border-zinc-200 flex justify-between items-baseline">
+                    <span className="font-extrabold text-sm text-zinc-950">Total Orden:</span>
+                    <div className="text-right">
+                      <span className="text-lg font-black text-zinc-950 font-mono block">
+                        ${cartTotals.finalTotalUsd.toFixed(2)}
+                      </span>
+                      <span className="text-[11px] text-zinc-500 font-mono">
+                        Bs. {cartTotals.finalTotalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* LOS 3 BOTONES ENTERPRISE REQUERIDOS: COMANDAS, FISCAL SENIAT Y COBRAR */}
+                <div className="space-y-2 pt-1">
+                  <div className="grid grid-cols-2 gap-2">
+                    {/* BOTÓN 1: COMANDA DE COCINA */}
+                    <button
+                      type="button"
+                      onClick={() => setIsKitchenModalOpen(true)}
+                      className="py-2.5 px-3 rounded-xl border border-zinc-300 bg-white hover:bg-zinc-100 text-zinc-800 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-98"
+                    >
+                      <ChefHat size={15} className="text-amber-600" />
+                      <span>Comanda Cocina</span>
+                    </button>
+
+                    {/* BOTÓN 2: IMPRESORA FISCAL SENIAT */}
+                    <button
+                      type="button"
+                      onClick={() => setIsFiscalModalOpen(true)}
+                      className="py-2.5 px-3 rounded-xl border border-zinc-300 bg-white hover:bg-zinc-100 text-zinc-800 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-98"
+                    >
+                      <Printer size={15} className="text-emerald-600" />
+                      <span>Factura SENIAT</span>
+                    </button>
+                  </div>
+
+                  {/* BOTÓN 3: COBRAR Y EMITIR FACTURA (PAGO MULTIMONEDA) */}
+                  <button
+                    type="button"
+                    onClick={handleOpenPayment}
+                    className="w-full py-3 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white font-extrabold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md active:scale-98"
+                  >
+                    <CreditCard size={16} className="text-emerald-400" />
+                    <span>Cobrar Comanda (${cartTotals.finalTotalUsd.toFixed(2)})</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE COMANDA DE COCINA */}
+      <KitchenTicketModal
+        isOpen={isKitchenModalOpen}
+        onClose={() => setIsKitchenModalOpen(false)}
+        cart={cart}
+        tableName={orderTable}
+        orderNotes={orderNotes}
+      />
+
+      {/* MODAL DE FACTURA FISCAL SENIAT */}
+      <FiscalInvoiceModal
+        isOpen={isFiscalModalOpen}
+        onClose={() => setIsFiscalModalOpen(false)}
+        cartTotals={cartTotals}
+        bcvRate={bcvRate}
+        client={{ name: clientName, rif: clientRif }}
+        fiscalSerial={tenant?.fiscal_serial || 'Z4A1234567'}
+        onConfirmFiscalPrint={async () => {
+          await handleProcessSale();
+        }}
+      />
+
+      {/* MODAL DE COBRO MULTIMONEDA VENEZOLANO */}
       {isPaymentModalOpen && (
-        <div className="fixed inset-0 z-50 bg-zinc-950/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+        <div
+          className="fixed inset-0 z-50 bg-zinc-950/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+          onClick={() => setIsPaymentModalOpen(false)}
+        >
           <div
-            className="bg-white rounded-2xl border border-zinc-200 shadow-2xl max-w-md w-full p-5 space-y-4 animate-in zoom-in-95 duration-150"
+            className="bg-white rounded-2xl border border-zinc-200 shadow-2xl max-w-lg w-full p-6 space-y-4 animate-in zoom-in-95 duration-150 text-zinc-900"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+            <div className="flex items-start justify-between border-b border-zinc-100 pb-3">
               <div>
-                <h3 className="text-sm font-bold text-zinc-950">Cobro y Facturación Fiscal</h3>
-                <span className="text-[11px] text-zinc-500">
-                  Total: <strong className="text-zinc-900">{formatUsd(cartTotals.finalTotalUsd)}</strong> ≈ {formatBs(cartTotals.finalTotalBs)}
-                </span>
+                <h3 className="font-extrabold text-lg tracking-tight">Cobro & Facturación</h3>
+                <p className="text-xs text-zinc-500 font-mono">
+                  Total a pagar: ${cartTotals.finalTotalUsd.toFixed(2)} (Bs. {cartTotals.finalTotalBs.toFixed(2)})
+                </p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsPaymentModalOpen(false)}
-                className="p-1 rounded-lg text-zinc-400 hover:bg-zinc-100"
+                className="p-1 rounded-lg text-zinc-400 hover:bg-zinc-100 cursor-pointer"
               >
                 <X size={18} />
               </button>
             </div>
 
             {/* SELECTOR DE MÉTODO DE PAGO */}
-            <div className="grid grid-cols-4 gap-1 p-1 bg-zinc-100 rounded-xl text-xs font-bold">
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('mixto')}
-                className={`py-1.5 rounded-lg transition-all ${
-                  paymentMethod === 'mixto' ? 'bg-white text-zinc-950 shadow-2xs' : 'text-zinc-500 hover:text-zinc-900'
-                }`}
-              >
-                Mixto ($+Bs)
-              </button>
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('usd_cash')}
-                className={`py-1.5 rounded-lg transition-all ${
-                  paymentMethod === 'usd_cash' ? 'bg-white text-zinc-950 shadow-2xs' : 'text-zinc-500 hover:text-zinc-900'
-                }`}
-              >
-                Efectivo $
-              </button>
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('pago_movil')}
-                className={`py-1.5 rounded-lg transition-all ${
-                  paymentMethod === 'pago_movil' ? 'bg-white text-zinc-950 shadow-2xs' : 'text-zinc-500 hover:text-zinc-900'
-                }`}
-              >
-                Pago Móvil
-              </button>
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('punto')}
-                className={`py-1.5 rounded-lg transition-all ${
-                  paymentMethod === 'punto' ? 'bg-white text-zinc-950 shadow-2xs' : 'text-zinc-500 hover:text-zinc-900'
-                }`}
-              >
-                Punto (Bs)
-              </button>
+            <div className="grid grid-cols-4 gap-2 text-xs">
+              {[
+                { id: 'mixto', label: 'Mixto', icon: Sparkles },
+                { id: 'usd_cash', label: 'Efectivo $', icon: DollarSign },
+                { id: 'pago_movil', label: 'Pago Móvil', icon: Smartphone },
+                { id: 'punto', label: 'Punto POS', icon: CreditCard }
+              ].map((m) => {
+                const Icon = m.icon;
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => setPaymentMethod(m.id)}
+                    className={`p-2.5 rounded-xl border flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
+                      paymentMethod === m.id
+                        ? 'border-zinc-950 bg-zinc-950 text-white font-bold shadow-xs'
+                        : 'border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700'
+                    }`}
+                  >
+                    <Icon size={16} />
+                    <span className="text-[11px]">{m.label}</span>
+                  </button>
+                );
+              })}
             </div>
 
-            <form onSubmit={handleProcessSale} className="space-y-3.5 text-xs">
-              
-              {/* OPCIÓN IGTF (3%) */}
-              {(paymentMethod === 'usd_cash' || paymentMethod === 'mixto') && (
-                <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200/80 flex items-center justify-between text-xs text-amber-900">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="igtf-toggle"
-                      checked={applyIgtf}
-                      onChange={(e) => setApplyIgtf(e.target.checked)}
-                      className="rounded border-amber-300 text-zinc-950 focus:ring-0"
-                    />
-                    <label htmlFor="igtf-toggle" className="cursor-pointer font-bold">
-                      Aplicar IGTF Divisas (3%)
-                    </label>
-                  </div>
-                  <span className="font-extrabold text-amber-950">
-                    +{formatUsd(cartTotals.igtfUsd)} ({formatBs(cartTotals.igtfBs)})
-                  </span>
+            {/* DENOMINACIONES RÁPIDAS EN DÓLARES */}
+            {(paymentMethod === 'usd_cash' || paymentMethod === 'mixto') && (
+              <div className="p-3 bg-zinc-50 rounded-xl border border-zinc-200 space-y-2">
+                <span className="text-[11px] font-bold text-zinc-700 block">
+                  Billetes en Divisas Recibidos ($):
+                </span>
+                <div className="flex items-center gap-1.5 overflow-x-auto">
+                  {[5, 10, 20, 50, 100].map((val) => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => setCashUsdReceived(String(val))}
+                      className="px-3 py-1.5 rounded-lg border border-zinc-300 bg-white hover:bg-zinc-100 text-zinc-900 font-bold font-mono text-xs cursor-pointer"
+                    >
+                      ${val}
+                    </button>
+                  ))}
                 </div>
-              )}
-
-              {/* CAMPOS SEGÚN EL MÉTODO SELECCIONADO */}
-              {(paymentMethod === 'mixto' || paymentMethod === 'usd_cash') && (
-                <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <label className="text-zinc-700 font-semibold">Monto Recibido en Dólares ($ Efectivo):</label>
-                    <span className="text-[10px] text-zinc-400">Total a pagar: {formatUsd(cartTotals.finalTotalUsd)}</span>
-                  </div>
+                <div className="pt-2 flex justify-between text-xs">
+                  <span className="text-zinc-500">Monto ingresado:</span>
                   <input
                     type="number"
                     step="0.01"
-                    min="0"
-                    placeholder="Ej: 10"
                     value={cashUsdReceived}
                     onChange={(e) => setCashUsdReceived(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:border-zinc-950 text-sm font-bold text-zinc-900 bg-zinc-50"
-                    autoFocus
+                    className="w-24 px-2 py-1 rounded-lg border border-zinc-300 font-mono font-bold text-right text-xs"
                   />
-                  {paymentMethod === 'usd_cash' && cartTotals.changeUsd > 0 && (
-                    <div className="mt-1.5 p-2 rounded-lg bg-emerald-50 text-emerald-800 text-xs font-bold flex justify-between">
-                      <span>Vuelto al cliente:</span>
-                      <span>{formatUsd(cartTotals.changeUsd)} ({formatBs(cartTotals.changeBs)})</span>
-                    </div>
-                  )}
                 </div>
-              )}
+              </div>
+            )}
 
-              {(paymentMethod === 'mixto' || paymentMethod === 'pago_movil') && (
-                <div className="p-3 rounded-xl bg-zinc-50 border border-zinc-200 space-y-2">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="font-bold text-zinc-900">
-                      {paymentMethod === 'mixto' ? 'Restante por Pago Móvil:' : 'Monto total en Pago Móvil:'}
-                    </span>
-                    <span className="font-extrabold text-zinc-950 text-sm">
-                      {formatBs(paymentMethod === 'mixto' ? cartTotals.remainingBs : cartTotals.finalTotalBs)}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-[10px] text-zinc-500 font-semibold mb-0.5">Banco Origen</label>
-                      <select
-                        value={pagoMovilBank}
-                        onChange={(e) => setPagoMovilBank(e.target.value)}
-                        className="w-full px-2 py-1.5 rounded border border-zinc-200 text-xs bg-white text-zinc-900"
-                      >
-                        {VENEZUELA_BANKS.map((b) => (
-                          <option key={b} value={b}>{b}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[10px] text-zinc-500 font-semibold mb-0.5">Últimos 4-6 dígitos Ref.</label>
-                      <input
-                        type="text"
-                        maxLength={6}
-                        placeholder="Ej: 4892"
-                        value={pagoMovilRef}
-                        onChange={(e) => setPagoMovilRef(e.target.value)}
-                        className="w-full px-2 py-1.5 rounded border border-zinc-200 text-xs bg-white text-zinc-900 font-bold"
-                      />
-                    </div>
-                  </div>
+            {/* SELECTOR DE BANCO PARA PAGO MÓVIL */}
+            {(paymentMethod === 'pago_movil' || paymentMethod === 'mixto') && (
+              <div className="p-3 bg-zinc-50 rounded-xl border border-zinc-200 space-y-2 text-xs">
+                <span className="text-[11px] font-bold text-zinc-700 block">
+                  Datos de Pago Móvil (Bs. {cartTotals.remainingBs.toFixed(2)}):
+                </span>
+                <select
+                  value={selectedBank}
+                  onChange={(e) => setSelectedBank(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-xl border border-zinc-300 text-xs font-semibold bg-white"
+                >
+                  {VENEZUELA_BANKS.map((b) => (
+                    <option key={b.code} value={b.name}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    placeholder="Teléfono emisor"
+                    value={pagoMovilPhone}
+                    onChange={(e) => setPagoMovilPhone(e.target.value)}
+                    className="px-3 py-1.5 rounded-xl border border-zinc-300 text-xs"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Últimos 6 dígitos ref."
+                    value={pagoMovilRef}
+                    onChange={(e) => setPagoMovilRef(e.target.value)}
+                    className="px-3 py-1.5 rounded-xl border border-zinc-300 text-xs font-mono font-bold"
+                  />
                 </div>
-              )}
+              </div>
+            )}
+
+            {/* BOTÓN PROCESAR FACTURACIÓN FINAL */}
+            <div className="pt-2 space-y-2">
+              <button
+                type="button"
+                disabled={isSubmittingSale}
+                onClick={handleProcessSale}
+                className="w-full py-3 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 disabled:opacity-50 text-white font-extrabold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md active:scale-98"
+              >
+                <CheckCircle2 size={16} className="text-emerald-400" />
+                <span>{isSubmittingSale ? 'Registrando Factura...' : 'Completar Cobro y Emitir Factura'}</span>
+              </button>
 
               <button
-                type="submit"
-                disabled={isSubmittingSale}
-                className="w-full py-2.5 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-2 mt-3 active:scale-98"
+                type="button"
+                onClick={() => setIsPaymentModalOpen(false)}
+                className="w-full py-2 rounded-xl text-zinc-500 hover:text-zinc-950 text-xs font-semibold cursor-pointer"
               >
-                {isSubmittingSale ? (
-                  <span>Emitiendo factura...</span>
-                ) : (
-                  <>
-                    <Printer size={15} />
-                    <span>Confirmar Pago y Emitir Ticket SENIAT</span>
-                  </>
-                )}
+                Volver a la orden
               </button>
-            </form>
+            </div>
           </div>
         </div>
       )}
 
-      {/* MODAL DE TICKET FISCAL SENIAT (VISTA PREVIA E IMPRESIÓN) */}
+      {/* MODAL TICKET FINAL IMPRIMIBLE */}
       {isReceiptModalOpen && completedInvoice && (
-        <div className="fixed inset-0 z-50 bg-zinc-950/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+        <div
+          className="fixed inset-0 z-50 bg-zinc-950/60 backdrop-blur-xs flex items-center justify-center p-4"
+          onClick={() => setIsReceiptModalOpen(false)}
+        >
           <div
-            className="bg-white rounded-2xl border border-zinc-200 shadow-2xl max-w-sm w-full p-5 space-y-4 animate-in zoom-in-95 duration-150 max-h-[90vh] flex flex-col"
+            className="bg-white rounded-2xl border border-zinc-200 shadow-2xl max-w-sm w-full p-6 space-y-4 animate-in zoom-in-95 text-zinc-900"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-zinc-100 pb-2.5 shrink-0">
-              <div className="flex items-center gap-2 text-emerald-700 font-bold text-xs">
-                <CheckCircle2 size={16} />
-                <span>¡Factura Emitida con Éxito!</span>
+            <div className="text-center border-b border-zinc-100 pb-3">
+              <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-2">
+                <CheckCircle2 size={24} />
               </div>
-              <button
-                type="button"
-                onClick={() => setIsReceiptModalOpen(false)}
-                className="p-1 rounded-lg text-zinc-400 hover:bg-zinc-100"
-              >
-                <X size={18} />
-              </button>
+              <h3 className="font-extrabold text-base">¡Factura Exitosa!</h3>
+              <p className="text-xs text-zinc-500 font-mono mt-0.5">#{completedInvoice.invoiceNumber}</p>
             </div>
 
-            {/* FORMATO TICKET TÉRMICO FISCAL (58mm / 80mm) */}
-            <div className="flex-1 overflow-y-auto p-4 bg-zinc-50 border border-dashed border-zinc-300 rounded-xl font-mono text-[11px] text-zinc-900 space-y-2 select-text">
-              <div className="text-center space-y-0.5">
-                <div className="font-extrabold text-xs uppercase tracking-tight">
-                  {tenant?.legal_name || tenant?.name || 'FACTURASYA CLOUD DEMO, C.A.'}
-                </div>
-                <div className="text-[10px] text-zinc-600">
-                  RIF: {tenant?.rif || 'J-50123456-7'}
-                </div>
-                <div className="text-[9px] text-zinc-500 leading-tight">
-                  {tenant?.fiscal_address || 'Av. Francisco de Miranda, Caracas, Venezuela'}
-                </div>
-                <div className="text-[9px] text-zinc-500">
-                  SERIAL FISCAL: {completedInvoice.fiscalSerial}
-                </div>
+            <div className="bg-zinc-50 p-4 rounded-xl border border-dashed border-zinc-300 font-mono text-xs space-y-2">
+              <div className="flex justify-between">
+                <span className="text-zinc-500">Total USD:</span>
+                <span className="font-bold">${completedInvoice.total.toFixed(2)}</span>
               </div>
-
-              <div className="border-t border-dashed border-zinc-300 pt-1.5 space-y-0.5 text-[10px]">
-                <div className="flex justify-between">
-                  <span>FACTURA:</span>
-                  <span className="font-bold">{completedInvoice.invoiceNumber}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>FECHA:</span>
-                  <span>{new Date(completedInvoice.date).toLocaleString('es-VE')}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>CLIENTE:</span>
-                  <span className="font-bold">{completedInvoice.client?.name}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>RIF/CI:</span>
-                  <span>{completedInvoice.client?.rif}</span>
-                </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-500">Total Bs:</span>
+                <span className="font-bold">Bs. {completedInvoice.totalBs.toFixed(2)}</span>
               </div>
-
-              {/* LISTA DE ÍTEMS */}
-              <div className="border-t border-dashed border-zinc-300 pt-1.5 space-y-1">
-                {completedInvoice.items.map((item, idx) => (
-                  <div key={idx} className="flex justify-between items-start text-[10px]">
-                    <span className="flex-1">
-                      {item.qty}x {item.name} (G)
-                    </span>
-                    <span className="font-bold">{formatUsd(item.totalUsd)}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* TOTALES FISCALES SENIAT */}
-              <div className="border-t border-dashed border-zinc-300 pt-1.5 space-y-0.5 text-[10px]">
-                <div className="flex justify-between">
-                  <span>SUBTOTAL:</span>
-                  <span>{formatUsd(completedInvoice.subtotalUsd)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>BASE IMPONIBLE (G 16%):</span>
-                  <span>{formatUsd(completedInvoice.baseImponibleUsd)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>IVA (16%):</span>
-                  <span>{formatUsd(completedInvoice.iva16Usd)}</span>
-                </div>
-                {completedInvoice.igtfUsd > 0 && (
-                  <div className="flex justify-between text-amber-900 font-bold">
-                    <span>IGTF DIVISAS (3%):</span>
-                    <span>+{formatUsd(completedInvoice.igtfUsd)}</span>
-                  </div>
-                )}
-                <div className="border-t border-zinc-900 pt-1 flex justify-between font-extrabold text-xs">
-                  <span>TOTAL USD:</span>
-                  <span>{formatUsd(completedInvoice.total)}</span>
-                </div>
-                <div className="flex justify-between font-extrabold text-xs text-zinc-700">
-                  <span>TOTAL BS:</span>
-                  <span>{formatBs(completedInvoice.totalBs)}</span>
-                </div>
-                <div className="text-[9px] text-zinc-500 text-center pt-1">
-                  TASA OFICIAL BCV: {completedInvoice.exchangeRate.toFixed(2)} Bs/$
-                </div>
-              </div>
-
-              <div className="border-t border-dashed border-zinc-300 pt-2 text-center space-y-1">
-                <div className="w-16 h-16 mx-auto bg-zinc-200/80 rounded flex items-center justify-center text-zinc-600">
-                  <QrCode size={48} />
-                </div>
-                <div className="text-[9px] text-zinc-400">
-                  COMPROBANTE FISCAL DIGITAL SENIAT
-                </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-500">Método:</span>
+                <span className="capitalize">{completedInvoice.paymentMethod}</span>
               </div>
             </div>
 
-            {/* BOTONES DE ACCIÓN */}
-            <div className="space-y-2 shrink-0 pt-1">
+            <div className="space-y-2 pt-1">
               <button
                 type="button"
-                onClick={handlePrintReceipt}
-                className="w-full py-2.5 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-2 active:scale-98"
+                onClick={() => window.print()}
+                className="w-full py-2.5 px-4 rounded-xl bg-zinc-950 text-white font-bold text-xs hover:bg-zinc-800 transition-all cursor-pointer flex items-center justify-center gap-2"
               >
                 <Printer size={15} />
-                <span>Imprimir Ticket Térmico</span>
+                <span>Imprimir Comprobante</span>
               </button>
-
               <button
                 type="button"
                 onClick={() => setIsReceiptModalOpen(false)}
-                className="w-full py-2 px-4 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-semibold text-xs transition-all"
+                className="w-full py-2 rounded-xl text-zinc-500 hover:text-zinc-950 text-xs font-semibold cursor-pointer"
               >
-                Nueva Venta (Cerrar)
+                Nueva Venta
               </button>
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }

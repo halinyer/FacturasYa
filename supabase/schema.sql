@@ -636,3 +636,103 @@ BEGIN
   ALTER PUBLICATION supabase_realtime ADD TABLE public.tenant_snapshots;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
+
+
+-- ============================================================================
+-- 9. TABLAS RELACIONALES COMPLEMENTARIAS PARA ENTERPRISE SAAS (PRODUCTOS, FACTURAS, INVENTARIO)
+-- ============================================================================
+-- Estas tablas permiten consultas directas y escalables desde la Web con RLS (Row Level Security),
+-- manteniendo compatibilidad total con tenant_snapshots para la sincronización offline del desktop.
+
+-- 9.1 CATÁLOGO DE PRODUCTOS RELACIONAL
+CREATE TABLE IF NOT EXISTS public.tenant_products (
+  id TEXT NOT NULL,
+  tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+  sku TEXT,
+  name TEXT NOT NULL,
+  category TEXT DEFAULT 'General',
+  price_usd NUMERIC(10,2) NOT NULL DEFAULT 0.00,
+  is_exempt BOOLEAN DEFAULT false,
+  image_url TEXT,
+  description TEXT,
+  active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (tenant_id, id)
+);
+
+-- 9.2 FACTURACIÓN RELACIONAL (LIBRO DE VENTAS SENIAT)
+CREATE TABLE IF NOT EXISTS public.tenant_invoices (
+  id TEXT NOT NULL,
+  tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+  invoice_number TEXT NOT NULL,
+  date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  client_name TEXT DEFAULT 'Consumidor Final',
+  client_rif TEXT DEFAULT 'V-00000000-0',
+  total_usd NUMERIC(12,2) NOT NULL DEFAULT 0.00,
+  total_bs NUMERIC(16,2) NOT NULL DEFAULT 0.00,
+  exchange_rate NUMERIC(12,4) NOT NULL DEFAULT 876.80,
+  payment_method TEXT DEFAULT 'cash',
+  igtf_usd NUMERIC(10,2) DEFAULT 0.00,
+  base_imponible_bs NUMERIC(16,2) DEFAULT 0.00,
+  iva16_bs NUMERIC(16,2) DEFAULT 0.00,
+  items JSONB DEFAULT '[]'::jsonb,
+  fiscal_serial TEXT DEFAULT '',
+  status TEXT DEFAULT 'completed',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (tenant_id, id)
+);
+
+-- 9.3 CLIENTES RELACIONAL
+CREATE TABLE IF NOT EXISTS public.tenant_clients (
+  id TEXT NOT NULL,
+  tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+  rif TEXT NOT NULL,
+  name TEXT NOT NULL,
+  phone TEXT DEFAULT 'N/A',
+  address TEXT DEFAULT 'Venezuela',
+  balance_usd NUMERIC(10,2) DEFAULT 0.00,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (tenant_id, id)
+);
+
+-- 9.4 INVENTARIO RELACIONAL
+CREATE TABLE IF NOT EXISTS public.tenant_inventory (
+  id TEXT NOT NULL,
+  tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+  sku TEXT,
+  name TEXT NOT NULL,
+  unit TEXT DEFAULT 'Unidades',
+  current_stock NUMERIC(12,2) DEFAULT 0.00,
+  min_stock NUMERIC(12,2) DEFAULT 0.00,
+  cost_usd NUMERIC(10,2) DEFAULT 0.00,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (tenant_id, id)
+);
+
+-- Habilitar RLS en las nuevas tablas
+ALTER TABLE public.tenant_products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tenant_invoices ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tenant_clients ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tenant_inventory ENABLE ROW LEVEL SECURITY;
+
+-- Políticas de aislamiento por tenant
+DROP POLICY IF EXISTS "tenant_products_isolation" ON public.tenant_products;
+CREATE POLICY "tenant_products_isolation" ON public.tenant_products FOR ALL
+  USING (tenant_id IN (SELECT id FROM public.tenants WHERE owner_id = auth.uid()))
+  WITH CHECK (tenant_id IN (SELECT id FROM public.tenants WHERE owner_id = auth.uid()));
+
+DROP POLICY IF EXISTS "tenant_invoices_isolation" ON public.tenant_invoices;
+CREATE POLICY "tenant_invoices_isolation" ON public.tenant_invoices FOR ALL
+  USING (tenant_id IN (SELECT id FROM public.tenants WHERE owner_id = auth.uid()))
+  WITH CHECK (tenant_id IN (SELECT id FROM public.tenants WHERE owner_id = auth.uid()));
+
+DROP POLICY IF EXISTS "tenant_clients_isolation" ON public.tenant_clients;
+CREATE POLICY "tenant_clients_isolation" ON public.tenant_clients FOR ALL
+  USING (tenant_id IN (SELECT id FROM public.tenants WHERE owner_id = auth.uid()))
+  WITH CHECK (tenant_id IN (SELECT id FROM public.tenants WHERE owner_id = auth.uid()));
+
+DROP POLICY IF EXISTS "tenant_inventory_isolation" ON public.tenant_inventory;
+CREATE POLICY "tenant_inventory_isolation" ON public.tenant_inventory FOR ALL
+  USING (tenant_id IN (SELECT id FROM public.tenants WHERE owner_id = auth.uid()))
+  WITH CHECK (tenant_id IN (SELECT id FROM public.tenants WHERE owner_id = auth.uid()));

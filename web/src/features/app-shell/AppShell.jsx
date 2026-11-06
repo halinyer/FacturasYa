@@ -109,7 +109,41 @@ function AppShellInner() {
   }, [tenant]);
 
   // Lista de navegación 100% OPERATIVA (Cero duplicados de configuración o pago en el sidebar)
-  const navItems = [
+  const navSections = [
+    {
+      title: 'Operaciones',
+      items: [
+        { id: 'pos', label: 'Punto de Venta', icon: ShoppingCart, badge: 'Caja' },
+        { id: 'tables', label: 'Mesas & Salón', icon: Utensils, badge: 'Salas' }
+      ]
+    },
+    {
+      title: 'Catálogo & Insumos',
+      items: [
+        { id: 'products', label: 'Menú & Productos', icon: Package },
+        { id: 'inventory', label: 'Inventario & Stock', icon: Boxes },
+        { id: 'clients', label: 'Clientes & Crédito', icon: Users }
+      ]
+    },
+    {
+      title: 'Administración & SENIAT',
+      items: [
+        { id: 'dashboard', label: 'Dashboard de Ventas', icon: LayoutDashboard },
+        { id: 'fiscal', label: 'Libros SENIAT', icon: BookOpen, badge: 'Legal' },
+        { id: 'cash-close', label: 'Cierre de Caja', icon: Calculator, badge: 'Arqueo' }
+      ]
+    },
+    {
+      title: 'En la Nube',
+      items: [
+        { id: 'monitor', label: 'Monitor del Dueño', icon: TrendingUp, badge: 'En vivo' }
+      ]
+    }
+  ];
+
+  const allNavItems = useMemo(() => navSections.flatMap((s) => s.items), []);
+  const currentNavItem = allNavItems.find((n) => n.id === activeTab) || allNavItems[0];
+  const legacyNavItems = null; /*
     {
       id: 'pos',
       label: 'Punto de Venta',
@@ -161,7 +195,7 @@ function AppShellInner() {
     }
   ];
 
-  const currentNavItem = navItems.find((n) => n.id === activeTab) || navItems[0];
+  */
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-zinc-50 font-sans antialiased text-zinc-900">
@@ -225,14 +259,71 @@ function AppShellInner() {
         </div>
 
         {/* NAVEGACIÓN PRINCIPAL OPERATIVA (CERO DUPLICADOS) */}
-        <nav className="flex-1 overflow-y-auto p-2 space-y-1">
+        <nav className="flex-1 overflow-y-auto p-2 space-y-3.5">
           {!isSidebarCollapsed && (
             <div className="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-              Operaciones del Negocio
+
             </div>
           )}
 
-          {navItems.map((item) => {
+          {navSections.map((section, sIdx) => (
+            <div key={section.title || sIdx} className="space-y-1">
+              {!isSidebarCollapsed && (
+                <div className="px-2.5 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                  {section.title}
+                </div>
+              )}
+              {section.items.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeTab === item.id;
+
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveTab(item.id);
+                      setIsMobileSidebarOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all group cursor-pointer ${
+                      isActive
+                        ? 'bg-zinc-800 text-white shadow-2xs font-bold'
+                        : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
+                    } ${isSidebarCollapsed ? 'justify-center' : ''}`}
+                    title={isSidebarCollapsed ? item.label : undefined}
+                  >
+                    <Icon
+                      size={16}
+                      className={isActive ? 'text-emerald-400' : 'text-zinc-400 group-hover:text-zinc-300'}
+                    />
+                    {!isSidebarCollapsed && (
+                      <>
+                        <span className="flex-1 text-left truncate">{item.label}</span>
+                        {item.badge && (
+                          <span
+                            className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold ${
+                              item.badge === 'Caja'
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                : item.badge === 'Legal'
+                                ? 'bg-sky-500/20 text-sky-300'
+                                : item.badge === 'Salas'
+                                ? 'bg-amber-500/20 text-amber-300'
+                                : item.badge === 'Arqueo'
+                                ? 'bg-indigo-500/20 text-indigo-300'
+                                : 'bg-zinc-800 text-zinc-400'
+                            }`}
+                          >
+                            {item.badge}
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+          {/*
             const Icon = item.icon;
             const isActive = activeTab === item.id;
 
@@ -277,7 +368,7 @@ function AppShellInner() {
                 )}
               </button>
             );
-          })}
+          */}
         </nav>
 
         {/* PIE DEL SIDEBAR: BOTÓN DESCARGA WINDOWS + USUARIO CON ACCESO A AJUSTES */}
