@@ -259,10 +259,7 @@ export default function DownloadPage() {
           <Link to="/" className="hover:text-zinc-900">Inicio</Link>
           <span>·</span>
           <Link to="/app" className="hover:text-zinc-900">Punto de Venta Web</Link>
-          <span>·</span>
-          <a href="https://github.com/halinyer/FacturasYa/releases" target="_blank" rel="noreferrer" className="hover:text-zinc-900">
-            Releases de GitHub
-          </a>
+          
         </div>
       </footer>
 

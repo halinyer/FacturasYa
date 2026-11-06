@@ -36,7 +36,7 @@ import {
   updateTenantFiscalProfile
 } from './api';
 
-const INSTALLER_URL = import.meta.env.VITE_INSTALLER_URL || 'https://github.com/halinyer/FacturasYa/releases/latest';
+const INSTALLER_URL = import.meta.env.VITE_INSTALLER_URL || 'https://github.com/halinyer/FacturasYa/releases/latest/download/FacturaPOS-1.0.0.exe';
 
 const VENEZUELA_BANKS = [
   '0102 - Banco de Venezuela',

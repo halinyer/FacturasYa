@@ -51,7 +51,7 @@ import NotionSettingsModal from '../settings/NotionSettingsModal';
 import { fetchMyTenant, fetchTenantSnapshot } from '../monitor/api';
 
 const INSTALLER_URL =
-  import.meta.env.VITE_INSTALLER_URL || 'https://github.com/halinyer/FacturasYa/releases/latest';
+  import.meta.env.VITE_INSTALLER_URL || 'https://github.com/halinyer/FacturasYa/releases/latest/download/FacturaPOS-1.0.0.exe';
 
 function AppShellInner() {
   const { session, signOut } = useWebAuth();
@@ -607,9 +607,7 @@ function AppShellInner() {
 
             <div className="space-y-2 pt-1">
               <a
-                href={INSTALLER_URL}
-                target="_blank"
-                rel="noreferrer"
+                href={INSTALLER_URL} download="FacturaPOS-1.0.0.exe"
                 className="w-full py-3 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-2 active:scale-98"
               >
                 <span>Descargar FacturasYa para Windows (.exe)</span>

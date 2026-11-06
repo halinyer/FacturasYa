@@ -551,9 +551,7 @@ export default function NotionSettingsModal({
                       <span className="text-[11px] text-zinc-500 block">Incluye drivers HKA80, lector de memoria fiscal Z para contador y soporte gaveta</span>
                     </div>
                     <a
-                      href="https://github.com/halinyer/FacturasYa/releases/latest"
-                      target="_blank"
-                      rel="noreferrer"
+                      href="https://github.com/halinyer/FacturasYa/releases/latest/download/FacturaPOS-1.0.0.exe" download="FacturaPOS-1.0.0.exe"
                       className="px-4 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
                     >
                       <Download size={13} />

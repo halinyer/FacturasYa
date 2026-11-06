@@ -35,7 +35,7 @@ const DEMO_PRODUCTS = [
 ];
 
 const INSTALLER_URL =
-  import.meta.env.VITE_INSTALLER_URL || 'https://github.com/halinyer/FacturasYa/releases/latest';
+  import.meta.env.VITE_INSTALLER_URL || 'https://github.com/halinyer/FacturasYa/releases/latest/download/FacturaPOS-1.0.0.exe';
 
 function formatBs(val) {
   return 'Bs. ' + Number(val || 0).toLocaleString('es-VE', {
@@ -323,14 +323,15 @@ export default function LandingPage() {
             </p>
 
             <div className="flex flex-wrap items-center justify-center gap-3 pt-3">
-              <Link
-                to="/download"
-                className="bg-zinc-950 hover:bg-zinc-800 text-white font-medium text-sm px-6 py-3.5 rounded-xl shadow-sm hover:shadow transition-all inline-flex items-center gap-2 active:scale-98"
+              <a
+                href={INSTALLER_URL}
+                download="FacturaPOS-1.0.0.exe"
+                className="bg-zinc-950 hover:bg-zinc-800 text-white font-medium text-sm px-6 py-3.5 rounded-xl shadow-sm hover:shadow transition-all inline-flex items-center gap-2 active:scale-98 cursor-pointer"
               >
                 <Download size={16} />
                 <span>Descargar FacturaPOS para Windows</span>
                 <span className="text-xs text-zinc-400 font-normal">(.EXE nativo)</span>
-              </Link>
+              </a>
 
               {session ? (
                 <Link
