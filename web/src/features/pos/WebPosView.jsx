@@ -15,6 +15,7 @@ import {
   Tag,
   Receipt,
   AlertCircle,
+  AlertTriangle,
   Share2,
   Sparkles,
   Store,
@@ -24,7 +25,9 @@ import {
   ChevronRight,
   Filter,
   User,
-  Utensils
+  Utensils,
+  Banknote,
+  FileText
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useData } from '../../pos-core/contexts/DataContext';
@@ -152,7 +155,7 @@ const DEFAULT_HAPPY_PRODUCTS = [
     description: 'Refresco frío de lata',
     sku: 'BEB-001',
     isExempt: false,
-    image: '/happydays/drinks/cocacola_lata_355ml.jpg'
+    image: '/happydays/drinks/coca_cola_lata_355ml.jpg'
   },
   {
     id: 'hd-12',
@@ -163,7 +166,7 @@ const DEFAULT_HAPPY_PRODUCTS = [
     description: 'Malta tradicional bien helada',
     sku: 'BEB-002',
     isExempt: false,
-    image: '/happydays/drinks/malta_botella_355ml.jpg'
+    image: '/happydays/drinks/maltin_polar_botella.jpg'
   },
   {
     id: 'hd-13',
@@ -174,18 +177,21 @@ const DEFAULT_HAPPY_PRODUCTS = [
     description: 'Agua pura sin gas',
     sku: 'BEB-003',
     isExempt: true,
-    image: '/happydays/drinks/agua_mineral_355ml.jpg'
+    image: '/happydays/drinks/agua_mineral_botella.jpg'
   }
 ];
 
+// Bancos Oficiales de Venezuela (SUDEBAN)
 const VENEZUELA_BANKS = [
   { code: '0102', name: '0102 - Banco de Venezuela', logo: '/banks/0102.png' },
-  { code: '0108', name: '0108 - Banco Provincial (BBVA)', logo: '/banks/0108.png' },
   { code: '0134', name: '0134 - Banesco', logo: '/banks/0134.png' },
   { code: '0105', name: '0105 - Banco Mercantil', logo: '/banks/0105.png' },
+  { code: '0108', name: '0108 - Banco Provincial (BBVA)', logo: '/banks/0108.png' },
   { code: '0172', name: '0172 - Bancamiga', logo: '/banks/0172.png' },
   { code: '0114', name: '0114 - Bancaribe', logo: '/banks/0114.png' },
-  { code: '0174', name: '0174 - Banplus', logo: '/banks/0174.png' }
+  { code: '0174', name: '0174 - Banplus', logo: '/banks/0174.png' },
+  { code: '0163', name: '0163 - Banco del Tesoro', logo: '/banks/0163.png' },
+  { code: '0138', name: '0138 - Banco Plaza', logo: '/banks/0138.png' }
 ];
 
 export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
@@ -242,13 +248,24 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
   const [isFiscalModalOpen, setIsFiscalModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
-  // Estados de cobro
-  const [paymentMethod, setPaymentMethod] = useState('mixto'); // 'mixto' | 'usd_cash' | 'pago_movil' | 'punto'
+  // Configuración de cobro
+  const [docType, setDocType] = useState('nota_entrega'); // 'nota_entrega' | 'fiscal'
+  const [paymentMethod, setPaymentMethod] = useState('efectivo_usd'); // 'efectivo_usd' | 'pago_movil' | 'punto' | 'efectivo_bs' | 'zelle' | 'mixto'
   const [cashUsdReceived, setCashUsdReceived] = useState('');
+  const [cashBsReceived, setCashBsReceived] = useState('');
   const [selectedBank, setSelectedBank] = useState(VENEZUELA_BANKS[0].name);
   const [pagoMovilPhone, setPagoMovilPhone] = useState('');
   const [pagoMovilRef, setPagoMovilRef] = useState('');
-  const [applyIgtf, setApplyIgtf] = useState(true);
+  const [puntoRef, setPuntoRef] = useState('');
+  const [zelleHolder, setZelleHolder] = useState('');
+  const [refError, setRefError] = useState('');
+  const [mixedPayments, setMixedPayments] = useState({
+    efectivo_usd: '',
+    pago_movil: '',
+    punto: '',
+    efectivo_bs: '',
+    zelle: ''
+  });
   const [isSubmittingSale, setIsSubmittingSale] = useState(false);
 
   // Ticket completado
@@ -289,24 +306,38 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
     const iva16Usd = baseImponibleUsd * 0.16;
     const baseTotalUsd = subtotalUsd + iva16Usd;
 
-    // Cálculo del IGTF (3% sobre divisas en efectivo)
+    // Cálculo del IGTF (3% sobre divisas en efectivo para facturas fiscales)
     let igtfUsd = 0;
-    if (paymentMethod === 'usd_cash') {
-      igtfUsd = applyIgtf ? baseTotalUsd * 0.03 : 0;
-    } else if (paymentMethod === 'mixto') {
-      const cashPart = Math.min(Number(cashUsdReceived) || 0, baseTotalUsd);
-      igtfUsd = applyIgtf ? cashPart * 0.03 : 0;
+    if (docType === 'fiscal') {
+      if (paymentMethod === 'efectivo_usd' || paymentMethod === 'zelle') {
+        igtfUsd = baseTotalUsd * 0.03;
+      } else if (paymentMethod === 'mixto') {
+        const cashDivisas = (Number(mixedPayments.efectivo_usd) || 0) + (Number(mixedPayments.zelle) || 0);
+        const cashPart = Math.min(cashDivisas, baseTotalUsd);
+        igtfUsd = cashPart * 0.03;
+      }
     }
 
     const finalTotalUsd = baseTotalUsd + igtfUsd;
     const finalTotalBs = finalTotalUsd * bcvRate;
 
-    // Cobro mixto
-    const appliedCashUsd = Math.min(Number(cashUsdReceived) || 0, finalTotalUsd);
-    const remainingUsd = Math.max(0, finalTotalUsd - appliedCashUsd);
-    const remainingBs = remainingUsd * bcvRate;
-    const changeUsd = Math.max(0, (Number(cashUsdReceived) || 0) - finalTotalUsd);
-    const changeBs = changeUsd * bcvRate;
+    // Vueltos y saldos para Efectivo USD
+    const cashUsdNum = Number(cashUsdReceived) || 0;
+    const changeUsd = paymentMethod === 'efectivo_usd' ? Math.max(0, cashUsdNum - finalTotalUsd) : 0;
+    const changeBsFromUsd = changeUsd * bcvRate;
+
+    // Vueltos y saldos para Efectivo Bs
+    const cashBsNum = Number(cashBsReceived) || 0;
+    const changeBs = paymentMethod === 'efectivo_bs' ? Math.max(0, cashBsNum - finalTotalBs) : 0;
+
+    // Saldo en Pago Mixto
+    const totalPaidMixedUsd =
+      (Number(mixedPayments.efectivo_usd) || 0) +
+      (Number(mixedPayments.zelle) || 0) +
+      ((Number(mixedPayments.pago_movil) || 0) / bcvRate) +
+      ((Number(mixedPayments.punto) || 0) / bcvRate) +
+      ((Number(mixedPayments.efectivo_bs) || 0) / bcvRate);
+    const mixedDifferenceUsd = finalTotalUsd - totalPaidMixedUsd;
 
     return {
       subtotalUsd,
@@ -321,16 +352,15 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
       igtfBs: igtfUsd * bcvRate,
       finalTotalUsd,
       finalTotalBs,
-      appliedCashUsd,
-      remainingUsd,
-      remainingBs,
       changeUsd,
-      changeBs,
+      changeBs: changeBsFromUsd || changeBs,
+      totalPaidMixedUsd,
+      mixedDifferenceUsd,
       totalQty: cart.reduce((acc, i) => acc + i.qty, 0)
     };
-  }, [cart, bcvRate, paymentMethod, cashUsdReceived, applyIgtf]);
+  }, [cart, bcvRate, docType, paymentMethod, cashUsdReceived, cashBsReceived, mixedPayments]);
 
-  // Manejo del carrito
+  // Manejo del carrito: SELECCIÓN FLUÍDA SIN ABRIR DRAWER NI MODALES INVASIVOS
   const addToCart = (product) => {
     setCart((prev) => {
       const existing = prev.find((i) => i.id === product.id);
@@ -339,8 +369,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
       }
       return [...prev, { ...product, qty: 1 }];
     });
-    // Abrir automáticamente el drawer si estaba cerrado
-    setIsDrawerOpen(true);
+    // Se elimina setIsDrawerOpen(true): el cajero puede marcar 5 platos seguidos con fluidez total
   };
 
   const updateQty = (id, delta) => {
@@ -365,27 +394,52 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
     setCart([]);
   };
 
-  // Pre-cargar cobro
+  // Abrir Modal de Cobro con valores predeterminados
   const handleOpenPayment = () => {
     if (cart.length === 0) return;
-    const defaultCash = Math.floor(cartTotals.finalTotalUsd / 5) * 5 || 5;
-    setCashUsdReceived(String(Math.min(defaultCash, Math.floor(cartTotals.finalTotalUsd))));
+    setRefError('');
+    // Sugerencia de billete redondo cercano en USD
+    const roundedCash = Math.ceil(cartTotals.finalTotalUsd / 5) * 5 || 5;
+    setCashUsdReceived(String(roundedCash));
+    setCashBsReceived(String(Math.ceil(cartTotals.finalTotalBs)));
     setIsPaymentModalOpen(true);
   };
 
   // Procesar Facturación y Guardar Venta
   const handleProcessSale = async (e) => {
     if (e) e.preventDefault();
+
+    // Validación estricta de Pago Móvil (4 dígitos exactos requeridos)
+    if (paymentMethod === 'pago_movil' || (paymentMethod === 'mixto' && Number(mixedPayments.pago_movil) > 0)) {
+      const cleanRef = (pagoMovilRef || '').trim();
+      if (cleanRef.length !== 4) {
+        if (cleanRef.length === 0) {
+          setRefError('Debes ingresar los 4 dígitos de la referencia de Pago Móvil.');
+        } else {
+          setRefError(`La referencia debe tener exactamente 4 dígitos (ingresaste solo ${cleanRef.length}).`);
+        }
+        return;
+      }
+    }
+
+    // Validación de Pago Mixto
+    if (paymentMethod === 'mixto' && cartTotals.mixedDifferenceUsd > 0.05) {
+      alert(`Falta por cubrir $${cartTotals.mixedDifferenceUsd.toFixed(2)} USD para completar el pago.`);
+      return;
+    }
+
     setIsSubmittingSale(true);
 
     try {
       const now = new Date();
-      const invoiceNumber = 'FACT-' + String(Math.floor(100000 + Math.random() * 900000));
+      const invoiceNumber = (docType === 'fiscal' ? 'FACT-' : 'NOTA-') + String(Math.floor(100000 + Math.random() * 900000));
       const fiscalSerial = tenant?.fiscal_serial || 'Z4A1234567';
 
       const invoiceData = {
         id: invoiceNumber,
         invoiceNumber,
+        docType,
+        isFiscalInvoice: docType === 'fiscal',
         date: now.toISOString(),
         client: {
           name: clientType === 'final' ? 'Consumidor Final' : clientName,
@@ -415,10 +469,13 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
         exchangeRate: bcvRate,
         paymentMethod,
         paymentDetails: {
-          cashUsd: cartTotals.appliedCashUsd,
-          pagoMovilBs: paymentMethod === 'pago_movil' ? cartTotals.finalTotalBs : cartTotals.remainingBs,
-          pagoMovilBank: selectedBank,
-          pagoMovilRef: pagoMovilRef,
+          cashUsd: paymentMethod === 'efectivo_usd' ? Number(cashUsdReceived) : Number(mixedPayments.efectivo_usd || 0),
+          pagoMovilBs: paymentMethod === 'pago_movil' ? cartTotals.finalTotalBs : Number(mixedPayments.pago_movil || 0),
+          pagoMovilBank: (paymentMethod === 'pago_movil' || paymentMethod === 'mixto') ? selectedBank : null,
+          pagoMovilRef: (paymentMethod === 'pago_movil' || paymentMethod === 'mixto') ? (pagoMovilRef || '').trim() : null,
+          pagoMovilPhone: (paymentMethod === 'pago_movil' || paymentMethod === 'mixto') ? pagoMovilPhone : null,
+          puntoRef: (paymentMethod === 'punto' || paymentMethod === 'mixto') ? puntoRef : null,
+          zelleHolder: (paymentMethod === 'zelle' || paymentMethod === 'mixto') ? zelleHolder : null,
           changeUsd: cartTotals.changeUsd,
           changeBs: cartTotals.changeBs
         },
@@ -466,44 +523,70 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
   return (
     <div className="flex-1 flex flex-col h-full bg-zinc-50 overflow-hidden relative">
       
-      {/* TOOLBAR SUPERIOR DEL PUNTO DE VENTA */}
-      <div className="bg-white border-b border-zinc-200/80 px-4 py-3 shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        {/* BUSCADOR Y ATRIBUTOS */}
+      {/* TOOLBAR SUPERIOR DEL PUNTO DE VENTA (SIN TASA BCV DUPLICADA) */}
+      <div className="bg-white border-b border-zinc-200/80 px-4 py-2.5 shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        {/* BUSCADOR DE PRODUCTOS */}
         <div className="flex items-center gap-3 flex-1">
           <div className="relative flex-1 max-w-md">
             <Search size={15} className="absolute left-3 top-2.5 text-zinc-400" />
             <input
               type="text"
-              placeholder="Buscar plato, combo o bebida..."
+              placeholder="Buscar plato, combo o bebida en el catálogo..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-zinc-200 text-xs focus:outline-none focus:border-zinc-400 bg-zinc-50/50"
             />
           </div>
-
-          <div className="hidden md:flex items-center gap-1.5 text-xs text-zinc-600 bg-zinc-100 px-3 py-1.5 rounded-xl border border-zinc-200">
-            <span className="text-zinc-400 font-medium">Tasa BCV:</span>
-            <span className="font-bold text-zinc-950 font-mono">Bs. {bcvRate.toFixed(2)}</span>
-          </div>
         </div>
 
-        {/* BOTÓN FLOTANTE / ACCESO DIRECTO AL DRAWER DE COMANDA */}
-        <button
-          type="button"
-          onClick={() => setIsDrawerOpen(true)}
-          className="px-4 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white font-bold text-xs transition-all flex items-center justify-between sm:justify-start gap-2.5 cursor-pointer shadow-xs active:scale-98"
-        >
-          <div className="flex items-center gap-1.5">
-            <ShoppingCart size={15} className="text-emerald-400" />
-            <span>Ver Comanda</span>
-            <span className="px-1.5 py-0.2 rounded-full bg-zinc-800 text-emerald-300 font-mono text-[11px] font-bold">
-              {cartTotals.totalQty}
-            </span>
-          </div>
-          <span className="font-mono text-zinc-300 text-[11px] border-l border-zinc-700 pl-2">
-            ${cartTotals.finalTotalUsd.toFixed(2)}
-          </span>
-        </button>
+        {/* ACCIONES CLARAS DE COMANDA Y COBRO (ACCESIBLES DIRECTAMENTE) */}
+        <div className="flex items-center gap-2">
+          {cart.length > 0 && (
+            <>
+              {/* BOTÓN 1: COMANDA DE COCINA DIRECTA */}
+              <button
+                type="button"
+                onClick={() => setIsKitchenModalOpen(true)}
+                className="px-3 py-1.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-98"
+                title="Mandar comanda a cocina sin precios"
+              >
+                <ChefHat size={15} className="text-amber-600" />
+                <span className="hidden md:inline">Comanda</span> Cocina
+              </button>
+
+              {/* BOTÓN 2: COBRAR DIRECTAMENTE */}
+              <button
+                type="button"
+                onClick={handleOpenPayment}
+                className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-98"
+                title="Cobrar y facturar"
+              >
+                <CreditCard size={15} />
+                <span>Cobrar (${cartTotals.finalTotalUsd.toFixed(2)})</span>
+              </button>
+            </>
+          )}
+
+          {/* BOTÓN PRINCIPAL DE COMANDA / DRAWER */}
+          <button
+            type="button"
+            onClick={() => setIsDrawerOpen(true)}
+            className="px-3.5 py-1.5 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white font-bold text-xs transition-all flex items-center justify-between sm:justify-start gap-2 cursor-pointer shadow-xs active:scale-98"
+          >
+            <div className="flex items-center gap-1.5">
+              <ShoppingCart size={15} className="text-emerald-400" />
+              <span>Ver Comanda</span>
+              <span className="px-1.5 py-0.2 rounded-full bg-zinc-800 text-emerald-300 font-mono text-[11px] font-bold">
+                {cartTotals.totalQty}
+              </span>
+            </div>
+            {cart.length > 0 && (
+              <span className="font-mono text-zinc-300 text-[11px] border-l border-zinc-700 pl-2">
+                ${cartTotals.finalTotalUsd.toFixed(2)}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* FILTRO DE CATEGORÍAS TIPO CHIPS */}
@@ -535,7 +618,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
       </div>
 
       {/* CATÁLOGO VISUAL DE PRODUCTOS (FOTOS REALES) */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 pb-24 sm:pb-8">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
           {filteredProducts.map((p) => {
             const price = Number(p.priceUsd || p.price || 0);
@@ -547,7 +630,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
                 key={p.id}
                 onClick={() => addToCart(p)}
                 className={`group relative rounded-2xl border bg-white overflow-hidden transition-all duration-150 cursor-pointer hover:shadow-md flex flex-col justify-between ${
-                  inCart ? 'border-zinc-950 ring-1 ring-zinc-950' : 'border-zinc-200/80 hover:border-zinc-300'
+                  inCart ? 'border-zinc-950 ring-2 ring-zinc-950/20 shadow-xs' : 'border-zinc-200/80 hover:border-zinc-300'
                 }`}
               >
                 {/* FOTOGRAFÍA DEL PRODUCTO CON PROPORCIÓN 1:1 */}
@@ -580,9 +663,9 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
                     )}
                   </div>
 
-                  {/* INDICADOR DE CANTIDAD EN CARRITO */}
+                  {/* INDICADOR DE CANTIDAD EN CARRITO (SE SUMA EN SILENCIO SIN MOLESTAR) */}
                   {inCart && (
-                    <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-zinc-950 text-white font-bold text-xs flex items-center justify-center shadow-md">
+                    <div className="absolute top-2 right-2 min-w-[24px] h-6 px-1.5 rounded-full bg-zinc-950 text-white font-bold text-xs flex items-center justify-center shadow-md animate-in zoom-in-75 duration-100">
                       {inCart.qty}
                     </div>
                   )}
@@ -620,7 +703,45 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
         </div>
       </div>
 
-      {/* DRAWER DESLIZABLE (SLIDE-OVER CART PANEL) */}
+      {/* BARRA FLOTANTE INFERIOR DISCRETA CUANDO HAY ÍTEMS (CERO POPUPS BLOQUEANTES) */}
+      {cart.length > 0 && !isDrawerOpen && (
+        <div className="fixed bottom-4 right-4 sm:right-6 z-30 flex items-center gap-2 bg-zinc-950 text-white p-2 rounded-2xl shadow-2xl border border-zinc-800 animate-in slide-in-from-bottom duration-200">
+          <button
+            type="button"
+            onClick={() => setIsDrawerOpen(true)}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-xs font-semibold cursor-pointer"
+            title="Ver comanda completa"
+          >
+            <ShoppingCart size={15} className="text-emerald-400" />
+            <span>{cartTotals.totalQty} platos</span>
+            <span className="font-mono text-emerald-300 font-bold border-l border-zinc-700 pl-2">
+              ${cartTotals.finalTotalUsd.toFixed(2)}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsKitchenModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-bold border border-amber-500/30 cursor-pointer"
+            title="Mandar comanda a cocina"
+          >
+            <ChefHat size={15} />
+            <span className="hidden sm:inline">Cocina</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleOpenPayment}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-black cursor-pointer shadow-md transition-all active:scale-95"
+            title="Cobrar comanda"
+          >
+            <CreditCard size={15} />
+            <span>Cobrar</span>
+          </button>
+        </div>
+      )}
+
+      {/* DRAWER DESLIZABLE (SLIDE-OVER CART PANEL - SE ABRE SOLO CUANDO EL USUARIO LO PIDE) */}
       {isDrawerOpen && (
         <div
           className="fixed inset-0 z-40 bg-zinc-950/40 backdrop-blur-2xs flex justify-end animate-in fade-in duration-200"
@@ -766,7 +887,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
               )}
             </div>
 
-            {/* DESGLOSE FISCAL Y BOTONES DE ACCIÓN (COCINA / SENIAT / COBRAR) */}
+            {/* DESGLOSE FISCAL Y BOTONES CLAROS (COCINA / FISCAL / COBRAR) */}
             {cart.length > 0 && (
               <div className="p-4 border-t border-zinc-200/80 bg-zinc-50/70 shrink-0 space-y-3">
                 {/* DESGLOSE TRIBUTARIO */}
@@ -798,7 +919,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
                   </div>
                 </div>
 
-                {/* LOS 3 BOTONES ENTERPRISE REQUERIDOS: COMANDAS, FISCAL SENIAT Y COBRAR */}
+                {/* LOS BOTONES CLAROS EN MODALES */}
                 <div className="space-y-2 pt-1">
                   <div className="grid grid-cols-2 gap-2">
                     {/* BOTÓN 1: COMANDA DE COCINA */}
@@ -838,7 +959,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
         </div>
       )}
 
-      {/* MODAL DE COMANDA DE COCINA */}
+      {/* MODAL DE COMANDA DE COCINA (TICKET TÉRMICO SIN PRECIOS) */}
       <KitchenTicketModal
         isOpen={isKitchenModalOpen}
         onClose={() => setIsKitchenModalOpen(false)}
@@ -847,7 +968,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
         orderNotes={orderNotes}
       />
 
-      {/* MODAL DE FACTURA FISCAL SENIAT */}
+      {/* MODAL DE FACTURA FISCAL SENIAT (HKA80 / COM2) */}
       <FiscalInvoiceModal
         isOpen={isFiscalModalOpen}
         onClose={() => setIsFiscalModalOpen(false)}
@@ -856,126 +977,452 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
         client={{ name: clientName, rif: clientRif }}
         fiscalSerial={tenant?.fiscal_serial || 'Z4A1234567'}
         onConfirmFiscalPrint={async () => {
+          setDocType('fiscal');
           await handleProcessSale();
         }}
       />
 
-      {/* MODAL DE COBRO MULTIMONEDA VENEZOLANO */}
+      {/* MODAL DE COBRO COMPLETO DE HAPPY DAYS (PUNTO POS, PAGO MÓVIL, EFECTIVO, NOTA DE ENTREGA O SENIAT) */}
       {isPaymentModalOpen && (
         <div
-          className="fixed inset-0 z-50 bg-zinc-950/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+          className="fixed inset-0 z-50 bg-zinc-950/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
           onClick={() => setIsPaymentModalOpen(false)}
         >
           <div
-            className="bg-white rounded-2xl border border-zinc-200 shadow-2xl max-w-lg w-full p-6 space-y-4 animate-in zoom-in-95 duration-150 text-zinc-900"
+            className="bg-white rounded-2xl border border-zinc-200 shadow-2xl max-w-lg w-full max-h-[92vh] overflow-y-auto p-5 sm:p-6 space-y-4 animate-in zoom-in-95 duration-150 text-zinc-900"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* CABECERA CON DOCUMENTO Y CIERRE */}
             <div className="flex items-start justify-between border-b border-zinc-100 pb-3">
               <div>
-                <h3 className="font-extrabold text-lg tracking-tight">Cobro & Facturación</h3>
-                <p className="text-xs text-zinc-500 font-mono">
-                  Total a pagar: ${cartTotals.finalTotalUsd.toFixed(2)} (Bs. {cartTotals.finalTotalBs.toFixed(2)})
+                <h3 className="font-black text-base sm:text-lg tracking-tight text-zinc-950">
+                  {docType === 'fiscal' ? 'Emitir Factura Fiscal SENIAT' : 'Emitir Nota de Entrega'}
+                </h3>
+                <p className="text-xs text-zinc-500 font-mono mt-0.5">
+                  Cliente: <span className="font-semibold text-zinc-800">{clientName}</span> ({clientRif})
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsPaymentModalOpen(false)}
-                className="p-1 rounded-lg text-zinc-400 hover:bg-zinc-100 cursor-pointer"
+                className="p-1.5 rounded-lg text-zinc-400 hover:bg-zinc-100 cursor-pointer"
               >
                 <X size={18} />
               </button>
             </div>
 
-            {/* SELECTOR DE MÉTODO DE PAGO */}
-            <div className="grid grid-cols-4 gap-2 text-xs">
-              {[
-                { id: 'mixto', label: 'Mixto', icon: Sparkles },
-                { id: 'usd_cash', label: 'Efectivo $', icon: DollarSign },
-                { id: 'pago_movil', label: 'Pago Móvil', icon: Smartphone },
-                { id: 'punto', label: 'Punto POS', icon: CreditCard }
-              ].map((m) => {
-                const Icon = m.icon;
-                return (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => setPaymentMethod(m.id)}
-                    className={`p-2.5 rounded-xl border flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
-                      paymentMethod === m.id
-                        ? 'border-zinc-950 bg-zinc-950 text-white font-bold shadow-xs'
-                        : 'border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700'
-                    }`}
-                  >
-                    <Icon size={16} />
-                    <span className="text-[11px]">{m.label}</span>
-                  </button>
-                );
-              })}
+            {/* SELECTOR DE TIPO DE COMPROBANTE: NOTA DE ENTREGA vs FACTURA SENIAT */}
+            <div>
+              <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider block mb-1.5">
+                Tipo de Comprobante:
+              </span>
+              <div className="grid grid-cols-2 gap-2 bg-zinc-100 p-1 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setDocType('nota_entrega')}
+                  className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    docType === 'nota_entrega'
+                      ? 'bg-white text-zinc-950 shadow-xs'
+                      : 'text-zinc-600 hover:text-zinc-950'
+                  }`}
+                >
+                  <FileText size={14} className={docType === 'nota_entrega' ? 'text-blue-600' : 'text-zinc-400'} />
+                  <span>Nota de Entrega</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setDocType('fiscal')}
+                  className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    docType === 'fiscal'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'text-zinc-600 hover:text-zinc-950'
+                  }`}
+                >
+                  <Printer size={14} className={docType === 'fiscal' ? 'text-white' : 'text-zinc-400'} />
+                  <span>Factura Fiscal SENIAT</span>
+                </button>
+              </div>
             </div>
 
-            {/* DENOMINACIONES RÁPIDAS EN DÓLARES */}
-            {(paymentMethod === 'usd_cash' || paymentMethod === 'mixto') && (
-              <div className="p-3 bg-zinc-50 rounded-xl border border-zinc-200 space-y-2">
-                <span className="text-[11px] font-bold text-zinc-700 block">
-                  Billetes en Divisas Recibidos ($):
+            {/* TARJETA DE MONTOS PROMINENTES (USD & BS A TASA BCV) */}
+            <div className="p-3.5 bg-zinc-50 rounded-xl border border-zinc-200/90 space-y-1.5">
+              <div className="flex justify-between items-baseline">
+                <span className="text-xs font-bold text-zinc-500">Total a Liquidar:</span>
+                <span className="text-xl sm:text-2xl font-black text-zinc-950 font-mono">
+                  ${cartTotals.finalTotalUsd.toFixed(2)}
                 </span>
-                <div className="flex items-center gap-1.5 overflow-x-auto">
+              </div>
+              <div className="flex justify-between items-baseline pt-1.5 border-t border-zinc-200">
+                <span className="text-[11px] font-bold text-amber-700">Equivalente en Bolívares:</span>
+                <span className="text-base sm:text-lg font-black text-amber-800 font-mono">
+                  Bs. {cartTotals.finalTotalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+              {docType === 'fiscal' && cartTotals.igtfUsd > 0 && (
+                <div className="text-[10px] text-amber-700 bg-amber-50 p-1.5 rounded-lg border border-amber-200 flex items-center gap-1">
+                  <AlertCircle size={12} className="shrink-0" />
+                  <span>Incluye IGTF del 3% (${cartTotals.igtfUsd.toFixed(2)}) por pago en divisas en efectivo.</span>
+                </div>
+              )}
+            </div>
+
+            {/* SELECTOR DE MÉTODO DE PAGO VENEZOLANO */}
+            <div>
+              <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider block mb-1.5">
+                Seleccionar Método de Pago:
+              </span>
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 text-xs">
+                {[
+                  { id: 'efectivo_usd', label: 'Efectivo $', icon: DollarSign, color: 'text-emerald-600' },
+                  { id: 'pago_movil', label: 'Pago Móvil', icon: Smartphone, color: 'text-blue-600' },
+                  { id: 'punto', label: 'Punto POS', icon: CreditCard, color: 'text-sky-600' },
+                  { id: 'efectivo_bs', label: 'Efectivo Bs', icon: Banknote, color: 'text-amber-600' },
+                  { id: 'zelle', label: 'Zelle', icon: CreditCard, color: 'text-purple-600' },
+                  { id: 'mixto', label: 'Mixto', icon: Sparkles, color: 'text-indigo-600' }
+                ].map((m) => {
+                  const Icon = m.icon;
+                  const isSelected = paymentMethod === m.id;
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => {
+                        setPaymentMethod(m.id);
+                        setRefError('');
+                      }}
+                      className={`p-2 rounded-xl border flex flex-col items-center gap-1 transition-all cursor-pointer text-center ${
+                        isSelected
+                          ? 'border-zinc-950 bg-zinc-950 text-white font-bold shadow-xs'
+                          : 'border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700'
+                      }`}
+                    >
+                      <Icon size={16} className={isSelected ? 'text-emerald-400' : m.color} />
+                      <span className="text-[10px] sm:text-[11px] font-bold leading-tight">{m.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* SECCIÓN DETALLADA: EFECTIVO USD ($) */}
+            {paymentMethod === 'efectivo_usd' && (
+              <div className="p-3.5 bg-emerald-50/50 rounded-xl border border-emerald-200 space-y-2.5">
+                <span className="text-xs font-bold text-emerald-900 block">
+                  Billetes Recibidos en Divisas ($ USD):
+                </span>
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
                   {[5, 10, 20, 50, 100].map((val) => (
                     <button
                       key={val}
                       type="button"
                       onClick={() => setCashUsdReceived(String(val))}
-                      className="px-3 py-1.5 rounded-lg border border-zinc-300 bg-white hover:bg-zinc-100 text-zinc-900 font-bold font-mono text-xs cursor-pointer"
+                      className={`px-3 py-1.5 rounded-lg border font-mono font-bold text-xs cursor-pointer transition-colors ${
+                        Number(cashUsdReceived) === val
+                          ? 'bg-emerald-600 text-white border-emerald-700'
+                          : 'bg-white text-zinc-900 border-zinc-200 hover:bg-zinc-100'
+                      }`}
                     >
                       ${val}
                     </button>
                   ))}
+                  <button
+                    type="button"
+                    onClick={() => setCashUsdReceived(String(cartTotals.finalTotalUsd.toFixed(2)))}
+                    className="px-2.5 py-1.5 rounded-lg border border-emerald-300 bg-white text-emerald-800 text-[11px] font-bold cursor-pointer"
+                  >
+                    Exacto
+                  </button>
                 </div>
-                <div className="pt-2 flex justify-between text-xs">
-                  <span className="text-zinc-500">Monto ingresado:</span>
+
+                <div className="flex items-center justify-between text-xs pt-1">
+                  <span className="text-zinc-600 font-medium">Monto entregado ($):</span>
                   <input
                     type="number"
                     step="0.01"
                     value={cashUsdReceived}
                     onChange={(e) => setCashUsdReceived(e.target.value)}
-                    className="w-24 px-2 py-1 rounded-lg border border-zinc-300 font-mono font-bold text-right text-xs"
+                    className="w-28 px-2.5 py-1 rounded-lg border border-zinc-300 font-mono font-bold text-right text-xs bg-white"
+                  />
+                </div>
+
+                {cartTotals.changeUsd > 0 && (
+                  <div className="p-2.5 rounded-lg bg-emerald-100 border border-emerald-300 text-xs text-emerald-950 flex justify-between items-center">
+                    <span className="font-bold">Vuelto al Cliente:</span>
+                    <div className="text-right">
+                      <span className="font-black font-mono text-sm block leading-tight">
+                        ${cartTotals.changeUsd.toFixed(2)} USD
+                      </span>
+                      <span className="font-mono text-[11px] text-emerald-800">
+                        (o Bs. {cartTotals.changeBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* SECCIÓN DETALLADA: PAGO MÓVIL (BS) */}
+            {paymentMethod === 'pago_movil' && (
+              <div className="p-3.5 bg-blue-50/50 rounded-xl border border-blue-200 space-y-2.5">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-blue-900">
+                    Monto Oficial a Transferir en Bolívares:
+                  </span>
+                  <span className="text-xs font-black font-mono text-blue-900 bg-blue-100 px-2 py-0.5 rounded">
+                    Bs. {cartTotals.finalTotalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-zinc-700 block mb-1">
+                    Banco Receptor:
+                  </label>
+                  <select
+                    value={selectedBank}
+                    onChange={(e) => setSelectedBank(e.target.value)}
+                    className="w-full px-3 py-1.5 rounded-xl border border-zinc-300 text-xs font-semibold bg-white cursor-pointer"
+                  >
+                    {VENEZUELA_BANKS.map((b) => (
+                      <option key={b.code} value={b.name}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[11px] font-bold text-zinc-700 block mb-1">
+                      Teléfono Emisor:
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="0412-1234567"
+                      value={pagoMovilPhone}
+                      onChange={(e) => setPagoMovilPhone(e.target.value)}
+                      className="w-full px-3 py-1.5 rounded-xl border border-zinc-300 text-xs bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-zinc-700 block mb-1 flex items-center justify-between">
+                      <span>Últimos 4 Dígitos Ref:</span>
+                      <span className={`text-[10px] ${pagoMovilRef.length === 4 ? 'text-emerald-600 font-bold' : 'text-zinc-400'}`}>
+                        {pagoMovilRef.length}/4
+                      </span>
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={4}
+                      placeholder="Ej: 5821"
+                      value={pagoMovilRef}
+                      onChange={(e) => {
+                        const cleaned = e.target.value.replace(/\D/g, '').slice(0, 4);
+                        setPagoMovilRef(cleaned);
+                        if (refError) setRefError('');
+                      }}
+                      className={`w-full px-3 py-1.5 rounded-xl border font-mono font-black text-center tracking-widest text-sm bg-white ${
+                        refError ? 'border-rose-500 bg-rose-50' : (pagoMovilRef.length === 4 ? 'border-emerald-500 bg-emerald-50' : 'border-zinc-300')
+                      }`}
+                    />
+                  </div>
+                </div>
+
+                {refError ? (
+                  <div className="text-[11px] text-rose-600 font-bold flex items-center gap-1">
+                    <AlertTriangle size={13} />
+                    <span>{refError}</span>
+                  </div>
+                ) : pagoMovilRef.length === 4 ? (
+                  <div className="text-[11px] text-emerald-700 font-bold flex items-center gap-1">
+                    <CheckCircle2 size={13} />
+                    <span>✓ Referencia de 4 dígitos verificada para Cierre de Caja</span>
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-zinc-500">
+                    Ingresa los últimos 4 dígitos del comprobante para cuadre de caja automático.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* SECCIÓN DETALLADA: PUNTO DE VENTA (BS) */}
+            {paymentMethod === 'punto' && (
+              <div className="p-3.5 bg-sky-50/50 rounded-xl border border-sky-200 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-sky-900">Monto a Pasar por Punto:</span>
+                  <span className="text-xs font-black font-mono text-sky-900 bg-sky-100 px-2 py-0.5 rounded">
+                    Bs. {cartTotals.finalTotalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-zinc-700 block mb-1">
+                    Número de Lote / Aprobación (Opcional):
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ej: Lote 045 - Ref 8912"
+                    value={puntoRef}
+                    onChange={(e) => setPuntoRef(e.target.value)}
+                    className="w-full px-3 py-1.5 rounded-xl border border-zinc-300 text-xs bg-white"
                   />
                 </div>
               </div>
             )}
 
-            {/* SELECTOR DE BANCO PARA PAGO MÓVIL */}
-            {(paymentMethod === 'pago_movil' || paymentMethod === 'mixto') && (
-              <div className="p-3 bg-zinc-50 rounded-xl border border-zinc-200 space-y-2 text-xs">
-                <span className="text-[11px] font-bold text-zinc-700 block">
-                  Datos de Pago Móvil (Bs. {cartTotals.remainingBs.toFixed(2)}):
+            {/* SECCIÓN DETALLADA: EFECTIVO BS */}
+            {paymentMethod === 'efectivo_bs' && (
+              <div className="p-3.5 bg-amber-50/50 rounded-xl border border-amber-200 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-amber-900">Total en Bolívares:</span>
+                  <span className="text-xs font-black font-mono text-amber-900">
+                    Bs. {cartTotals.finalTotalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-zinc-600 font-medium">Efectivo entregado (Bs):</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={cashBsReceived}
+                    onChange={(e) => setCashBsReceived(e.target.value)}
+                    className="w-32 px-2.5 py-1 rounded-lg border border-zinc-300 font-mono font-bold text-right text-xs bg-white"
+                  />
+                </div>
+                {cartTotals.changeBs > 0 && (
+                  <div className="p-2 rounded-lg bg-amber-100 text-amber-950 font-bold text-xs flex justify-between">
+                    <span>Vuelto:</span>
+                    <span className="font-mono">
+                      Bs. {cartTotals.changeBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* SECCIÓN DETALLADA: ZELLE ($) */}
+            {paymentMethod === 'zelle' && (
+              <div className="p-3.5 bg-purple-50/50 rounded-xl border border-purple-200 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-purple-900">Monto a Enviar por Zelle:</span>
+                  <span className="text-xs font-black font-mono text-purple-900">
+                    ${cartTotals.finalTotalUsd.toFixed(2)} USD
+                  </span>
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-zinc-700 block mb-1">
+                    Titular o Correo de la Cuenta Zelle:
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ej: maria.gonzalez@gmail.com"
+                    value={zelleHolder}
+                    onChange={(e) => setZelleHolder(e.target.value)}
+                    className="w-full px-3 py-1.5 rounded-xl border border-zinc-300 text-xs bg-white"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* SECCIÓN DETALLADA: PAGO MIXTO */}
+            {paymentMethod === 'mixto' && (
+              <div className="p-3.5 bg-zinc-50 rounded-xl border border-zinc-300 space-y-2 text-xs">
+                <span className="font-bold text-zinc-900 block">
+                  Dividir Monto entre Varios Métodos:
                 </span>
-                <select
-                  value={selectedBank}
-                  onChange={(e) => setSelectedBank(e.target.value)}
-                  className="w-full px-3 py-1.5 rounded-xl border border-zinc-300 text-xs font-semibold bg-white"
-                >
-                  {VENEZUELA_BANKS.map((b) => (
-                    <option key={b.code} value={b.name}>
-                      {b.name}
-                    </option>
-                  ))}
-                </select>
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    type="text"
-                    placeholder="Teléfono emisor"
-                    value={pagoMovilPhone}
-                    onChange={(e) => setPagoMovilPhone(e.target.value)}
-                    className="px-3 py-1.5 rounded-xl border border-zinc-300 text-xs"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Últimos 6 dígitos ref."
-                    value={pagoMovilRef}
-                    onChange={(e) => setPagoMovilRef(e.target.value)}
-                    className="px-3 py-1.5 rounded-xl border border-zinc-300 text-xs font-mono font-bold"
-                  />
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-zinc-600 block mb-0.5">Efectivo ($)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={mixedPayments.efectivo_usd}
+                      onChange={(e) => setMixedPayments({ ...mixedPayments, efectivo_usd: e.target.value })}
+                      className="w-full px-2.5 py-1 rounded-lg border border-zinc-300 font-mono font-bold bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-blue-600 block mb-0.5">Pago Móvil (Bs)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={mixedPayments.pago_movil}
+                      onChange={(e) => setMixedPayments({ ...mixedPayments, pago_movil: e.target.value })}
+                      className="w-full px-2.5 py-1 rounded-lg border border-zinc-300 font-mono font-bold bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-sky-600 block mb-0.5">Punto POS (Bs)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={mixedPayments.punto}
+                      onChange={(e) => setMixedPayments({ ...mixedPayments, punto: e.target.value })}
+                      className="w-full px-2.5 py-1 rounded-lg border border-zinc-300 font-mono font-bold bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-amber-600 block mb-0.5">Efectivo (Bs)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={mixedPayments.efectivo_bs}
+                      onChange={(e) => setMixedPayments({ ...mixedPayments, efectivo_bs: e.target.value })}
+                      className="w-full px-2.5 py-1 rounded-lg border border-zinc-300 font-mono font-bold bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-purple-600 block mb-0.5">Zelle ($)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={mixedPayments.zelle}
+                      onChange={(e) => setMixedPayments({ ...mixedPayments, zelle: e.target.value })}
+                      className="w-full px-2.5 py-1 rounded-lg border border-zinc-300 font-mono font-bold bg-white"
+                    />
+                  </div>
+                </div>
+
+                {/* Si usa Pago Móvil en el mixto, pedir los 4 dígitos */}
+                {Number(mixedPayments.pago_movil) > 0 && (
+                  <div className="pt-2 border-t border-zinc-200 grid grid-cols-2 gap-2">
+                    <select
+                      value={selectedBank}
+                      onChange={(e) => setSelectedBank(e.target.value)}
+                      className="px-2 py-1 rounded-lg border border-zinc-300 text-[11px] bg-white font-semibold"
+                    >
+                      {VENEZUELA_BANKS.map((b) => (
+                        <option key={b.code} value={b.name}>{b.name}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="text"
+                      maxLength={4}
+                      placeholder="4 dígitos ref."
+                      value={pagoMovilRef}
+                      onChange={(e) => setPagoMovilRef(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                      className="px-2 py-1 rounded-lg border border-zinc-300 text-[11px] font-mono font-bold text-center bg-white"
+                    />
+                  </div>
+                )}
+
+                {/* Balance mixto */}
+                <div className={`p-2 rounded-lg font-bold text-center text-xs ${
+                  cartTotals.mixedDifferenceUsd > 0.05
+                    ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                    : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                }`}>
+                  {cartTotals.mixedDifferenceUsd > 0.05
+                    ? `Falta: $${cartTotals.mixedDifferenceUsd.toFixed(2)} USD (Bs. ${(cartTotals.mixedDifferenceUsd * bcvRate).toFixed(2)})`
+                    : `¡Pago cubierto con éxito! (Vuelto: $${Math.abs(cartTotals.mixedDifferenceUsd).toFixed(2)})`}
                 </div>
               </div>
             )}
@@ -986,10 +1433,20 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
                 type="button"
                 disabled={isSubmittingSale}
                 onClick={handleProcessSale}
-                className="w-full py-3 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 disabled:opacity-50 text-white font-extrabold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md active:scale-98"
+                className={`w-full py-3 px-4 rounded-xl font-black text-xs sm:text-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md active:scale-98 ${
+                  docType === 'fiscal'
+                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                    : 'bg-zinc-950 hover:bg-zinc-800 text-white'
+                }`}
               >
-                <CheckCircle2 size={16} className="text-emerald-400" />
-                <span>{isSubmittingSale ? 'Registrando Factura...' : 'Completar Cobro y Emitir Factura'}</span>
+                {docType === 'fiscal' ? <Printer size={17} /> : <FileText size={17} />}
+                <span>
+                  {isSubmittingSale
+                    ? 'Procesando Venta...'
+                    : docType === 'fiscal'
+                      ? 'Confirmar y Emitir Factura Fiscal SENIAT'
+                      : 'Confirmar y Emitir Nota de Entrega'}
+                </span>
               </button>
 
               <button
@@ -997,7 +1454,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
                 onClick={() => setIsPaymentModalOpen(false)}
                 className="w-full py-2 rounded-xl text-zinc-500 hover:text-zinc-950 text-xs font-semibold cursor-pointer"
               >
-                Volver a la orden
+                Volver al catálogo
               </button>
             </div>
           </div>
@@ -1018,11 +1475,15 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
               <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-2">
                 <CheckCircle2 size={24} />
               </div>
-              <h3 className="font-extrabold text-base">¡Factura Exitosa!</h3>
+              <h3 className="font-extrabold text-base">¡Venta Registrada con Éxito!</h3>
               <p className="text-xs text-zinc-500 font-mono mt-0.5">#{completedInvoice.invoiceNumber}</p>
             </div>
 
             <div className="bg-zinc-50 p-4 rounded-xl border border-dashed border-zinc-300 font-mono text-xs space-y-2">
+              <div className="flex justify-between">
+                <span className="text-zinc-500">Documento:</span>
+                <span className="font-bold">{completedInvoice.docType === 'fiscal' ? 'Factura SENIAT' : 'Nota de Entrega'}</span>
+              </div>
               <div className="flex justify-between">
                 <span className="text-zinc-500">Total USD:</span>
                 <span className="font-bold">${completedInvoice.total.toFixed(2)}</span>
