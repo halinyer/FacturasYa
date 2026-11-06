@@ -27,12 +27,15 @@ import {
   User,
   Utensils,
   Banknote,
-  FileText
+  FileText,
+  UserCheck
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useData } from '../../pos-core/contexts/DataContext';
 import KitchenTicketModal from './KitchenTicketModal';
 import FiscalInvoiceModal from './FiscalInvoiceModal';
+import ClientSelectorModal from './ClientSelectorModal';
+import { printIsolatedTicket } from '../../pos-core/utils/printIsolatedTicket';
 
 // Catálogo por defecto oficial de Happy Days con fotos reales de la carpeta /happydays/
 const DEFAULT_HAPPY_PRODUCTS = [
@@ -196,6 +199,7 @@ const VENEZUELA_BANKS = [
 
 export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
   const data = useData();
+  const isElectron = Boolean(window?.electronAPI?.fiscal);
 
   // Tasa de cambio BCV oficial
   const currentRate = Number(data?.exchangeRate) || Number(snapshot?.exchange_rate || tenant?.exchange_rate) || 876.80;
@@ -236,10 +240,14 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
   const [cart, setCart] = useState([]);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-  // Cliente y mesa
-  const [clientType, setClientType] = useState('final'); // 'final' | 'custom'
-  const [clientName, setClientName] = useState('Consumidor Final');
-  const [clientRif, setClientRif] = useState('V-00000000-0');
+  // Cliente Receptor Fiscal (Consumidor Final por defecto o cliente registrado con RIF)
+  const [activeClient, setActiveClient] = useState({
+    id: 'generic',
+    name: 'Consumidor Final',
+    rif: 'V-00000000-0',
+    cedula: 'V-00000000-0',
+    address: 'Mostrador / Local'
+  });
   const [orderTable, setOrderTable] = useState('Barra / Mostrador');
   const [orderNotes, setOrderNotes] = useState('');
 
@@ -247,6 +255,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
   const [isKitchenModalOpen, setIsKitchenModalOpen] = useState(false);
   const [isFiscalModalOpen, setIsFiscalModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [isClientModalOpen, setIsClientModalOpen] = useState(false);
 
   // Configuración de cobro
   const [docType, setDocType] = useState('nota_entrega'); // 'nota_entrega' | 'fiscal'
@@ -306,7 +315,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
     const iva16Usd = baseImponibleUsd * 0.16;
     const baseTotalUsd = subtotalUsd + iva16Usd;
 
-    // Cálculo del IGTF (3% sobre divisas en efectivo para facturas fiscales)
+    // Cálculo del IGTF (3% sobre divisas en efectivo para facturas fiscales SENIAT)
     let igtfUsd = 0;
     if (docType === 'fiscal') {
       if (paymentMethod === 'efectivo_usd' || paymentMethod === 'zelle') {
@@ -369,7 +378,6 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
       }
       return [...prev, { ...product, qty: 1 }];
     });
-    // Se elimina setIsDrawerOpen(true): el cajero puede marcar 5 platos seguidos con fluidez total
   };
 
   const updateQty = (id, delta) => {
@@ -398,7 +406,6 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
   const handleOpenPayment = () => {
     if (cart.length === 0) return;
     setRefError('');
-    // Sugerencia de billete redondo cercano en USD
     const roundedCash = Math.ceil(cartTotals.finalTotalUsd / 5) * 5 || 5;
     setCashUsdReceived(String(roundedCash));
     setCashBsReceived(String(Math.ceil(cartTotals.finalTotalBs)));
@@ -409,7 +416,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
   const handleProcessSale = async (e) => {
     if (e) e.preventDefault();
 
-    // Validación estricta de Pago Móvil (4 dígitos exactos requeridos)
+    // Validación estricta de Pago Móvil (4 dígitos exactos requeridos para auditoría y cierre de caja)
     if (paymentMethod === 'pago_movil' || (paymentMethod === 'mixto' && Number(mixedPayments.pago_movil) > 0)) {
       const cleanRef = (pagoMovilRef || '').trim();
       if (cleanRef.length !== 4) {
@@ -442,8 +449,9 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
         isFiscalInvoice: docType === 'fiscal',
         date: now.toISOString(),
         client: {
-          name: clientType === 'final' ? 'Consumidor Final' : clientName,
-          rif: clientType === 'final' ? 'V-00000000-0' : clientRif
+          name: activeClient.name || 'Consumidor Final',
+          rif: activeClient.rif || activeClient.cedula || 'V-00000000-0',
+          address: activeClient.address || 'Mostrador / Local'
         },
         items: cart.map((i) => ({
           id: i.id,
@@ -483,12 +491,31 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
         status: 'completed'
       };
 
-      // Registrar en el DataContext local (actualiza Dashboard, Libros SENIAT y Cierre de Caja al instante)
+      // 1. SI ESTAMOS EN ELECTRON DESKTOP Y ES FACTURA FISCAL SENIAT: Mandar comando a la máquina fiscal física HKA80
+      if (isElectron && docType === 'fiscal') {
+        try {
+          const port = data?.fiscalSettings?.port || 'COM2';
+          const fiscalRes = data?.fiscalPrintInvoice
+            ? await data.fiscalPrintInvoice(invoiceData, port)
+            : await window.electronAPI.fiscal.printInvoice(port, invoiceData);
+
+          if (fiscalRes && fiscalRes.success === false) {
+            console.warn('Aviso máquina fiscal:', fiscalRes.error || fiscalRes.failureReason);
+          } else if (fiscalRes && fiscalRes.invoiceNumber) {
+            invoiceData.fiscalInvoiceNumber = fiscalRes.invoiceNumber;
+            invoiceData.fiscalSerial = fiscalRes.serial || invoiceData.fiscalSerial;
+          }
+        } catch (fErr) {
+          console.error('Error enviando a máquina fiscal HKA80:', fErr);
+        }
+      }
+
+      // 2. Registrar en el DataContext local (actualiza Dashboard, Libros SENIAT y Cierre de Caja al instante)
       if (data?.addInvoice) {
         data.addInvoice(invoiceData);
       }
 
-      // Sincronizar snapshot con Supabase si hay tenant activo
+      // 3. Sincronizar snapshot con Supabase si hay tenant activo
       if (tenant?.id) {
         const existingInvoices = Array.isArray(snapshot?.invoices) ? snapshot.invoices : [];
         const updatedInvoices = [invoiceData, ...existingInvoices];
@@ -523,70 +550,44 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
   return (
     <div className="flex-1 flex flex-col h-full bg-zinc-50 overflow-hidden relative">
       
-      {/* TOOLBAR SUPERIOR DEL PUNTO DE VENTA (SIN TASA BCV DUPLICADA) */}
-      <div className="bg-white border-b border-zinc-200/80 px-4 py-2.5 shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      {/* TOOLBAR SUPERIOR DEL PUNTO DE VENTA (LIMPIO: SOLO BUSCADOR Y ACCESO A COMANDA) */}
+      <div className="bg-white border-b border-zinc-200/80 px-4 py-2.5 shrink-0 flex items-center justify-between gap-3">
         {/* BUSCADOR DE PRODUCTOS */}
-        <div className="flex items-center gap-3 flex-1">
-          <div className="relative flex-1 max-w-md">
-            <Search size={15} className="absolute left-3 top-2.5 text-zinc-400" />
-            <input
-              type="text"
-              placeholder="Buscar plato, combo o bebida en el catálogo..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-zinc-200 text-xs focus:outline-none focus:border-zinc-400 bg-zinc-50/50"
-            />
-          </div>
+        <div className="relative flex-1 max-w-md">
+          <Search size={15} className="absolute left-3 top-2.5 text-zinc-400" />
+          <input
+            type="text"
+            placeholder="Buscar plato, combo o bebida en el catálogo..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-zinc-200 text-xs focus:outline-none focus:border-zinc-400 bg-zinc-50/50"
+          />
         </div>
 
-        {/* ACCIONES CLARAS DE COMANDA Y COBRO (ACCESIBLES DIRECTAMENTE) */}
-        <div className="flex items-center gap-2">
+        {/* ACCESO DISCRETO AL DRAWER DE COMANDA EN EL TOPBAR */}
+        <button
+          type="button"
+          onClick={() => setIsDrawerOpen(true)}
+          className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+            cart.length > 0
+              ? 'bg-zinc-950 text-white border-zinc-950 shadow-xs'
+              : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border-zinc-200'
+          }`}
+          title="Ver comanda completa"
+        >
+          <ShoppingCart size={15} className={cart.length > 0 ? 'text-emerald-400' : 'text-zinc-500'} />
+          <span className="hidden sm:inline">Comanda</span>
+          <span className={`px-1.5 py-0.2 rounded-full font-mono text-[11px] ${
+            cart.length > 0 ? 'bg-zinc-800 text-emerald-300 font-bold' : 'bg-zinc-200 text-zinc-600'
+          }`}>
+            {cartTotals.totalQty}
+          </span>
           {cart.length > 0 && (
-            <>
-              {/* BOTÓN 1: COMANDA DE COCINA DIRECTA */}
-              <button
-                type="button"
-                onClick={() => setIsKitchenModalOpen(true)}
-                className="px-3 py-1.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-98"
-                title="Mandar comanda a cocina sin precios"
-              >
-                <ChefHat size={15} className="text-amber-600" />
-                <span className="hidden md:inline">Comanda</span> Cocina
-              </button>
-
-              {/* BOTÓN 2: COBRAR DIRECTAMENTE */}
-              <button
-                type="button"
-                onClick={handleOpenPayment}
-                className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-98"
-                title="Cobrar y facturar"
-              >
-                <CreditCard size={15} />
-                <span>Cobrar (${cartTotals.finalTotalUsd.toFixed(2)})</span>
-              </button>
-            </>
+            <span className="font-mono text-zinc-300 text-[11px] border-l border-zinc-700 pl-2">
+              ${cartTotals.finalTotalUsd.toFixed(2)}
+            </span>
           )}
-
-          {/* BOTÓN PRINCIPAL DE COMANDA / DRAWER */}
-          <button
-            type="button"
-            onClick={() => setIsDrawerOpen(true)}
-            className="px-3.5 py-1.5 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white font-bold text-xs transition-all flex items-center justify-between sm:justify-start gap-2 cursor-pointer shadow-xs active:scale-98"
-          >
-            <div className="flex items-center gap-1.5">
-              <ShoppingCart size={15} className="text-emerald-400" />
-              <span>Ver Comanda</span>
-              <span className="px-1.5 py-0.2 rounded-full bg-zinc-800 text-emerald-300 font-mono text-[11px] font-bold">
-                {cartTotals.totalQty}
-              </span>
-            </div>
-            {cart.length > 0 && (
-              <span className="font-mono text-zinc-300 text-[11px] border-l border-zinc-700 pl-2">
-                ${cartTotals.finalTotalUsd.toFixed(2)}
-              </span>
-            )}
-          </button>
-        </div>
+        </button>
       </div>
 
       {/* FILTRO DE CATEGORÍAS TIPO CHIPS */}
@@ -618,7 +619,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
       </div>
 
       {/* CATÁLOGO VISUAL DE PRODUCTOS (FOTOS REALES) */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 pb-24 sm:pb-8">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 pb-24 sm:pb-24">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
           {filteredProducts.map((p) => {
             const price = Number(p.priceUsd || p.price || 0);
@@ -703,37 +704,40 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
         </div>
       </div>
 
-      {/* BARRA FLOTANTE INFERIOR DISCRETA CUANDO HAY ÍTEMS (CERO POPUPS BLOQUEANTES) */}
+      {/* COMPONENTE PRINCIPAL UNIFICADO INFERIOR (EL QUE GUSTÓ AL USUARIO: SIN DUPLICADOS) */}
       {cart.length > 0 && !isDrawerOpen && (
-        <div className="fixed bottom-4 right-4 sm:right-6 z-30 flex items-center gap-2 bg-zinc-950 text-white p-2 rounded-2xl shadow-2xl border border-zinc-800 animate-in slide-in-from-bottom duration-200">
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 bg-zinc-950/95 backdrop-blur-md text-white p-2 rounded-2xl shadow-2xl border border-zinc-800 animate-in slide-in-from-bottom duration-200 max-w-xl w-[92%] sm:w-auto justify-between sm:justify-start">
+          {/* ZONA 1: RESUMEN DE ORDEN (CLIC ABRE EL DRAWER PARA VER LÍNEAS) */}
           <button
             type="button"
             onClick={() => setIsDrawerOpen(true)}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-xs font-semibold cursor-pointer"
-            title="Ver comanda completa"
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-xs font-semibold cursor-pointer transition-colors"
+            title="Ver comanda y modificar cantidades"
           >
             <ShoppingCart size={15} className="text-emerald-400" />
-            <span>{cartTotals.totalQty} platos</span>
+            <span className="font-bold">{cartTotals.totalQty} ítems</span>
             <span className="font-mono text-emerald-300 font-bold border-l border-zinc-700 pl-2">
               ${cartTotals.finalTotalUsd.toFixed(2)}
             </span>
           </button>
 
+          {/* ZONA 2: COMANDA DE COCINA */}
           <button
             type="button"
             onClick={() => setIsKitchenModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-bold border border-amber-500/30 cursor-pointer"
-            title="Mandar comanda a cocina"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-bold border border-amber-500/30 cursor-pointer transition-colors"
+            title="Mandar ticket a cocina"
           >
             <ChefHat size={15} />
-            <span className="hidden sm:inline">Cocina</span>
+            <span>Comanda</span>
           </button>
 
+          {/* ZONA 3: COBRAR Y FACTURAR */}
           <button
             type="button"
             onClick={handleOpenPayment}
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-black cursor-pointer shadow-md transition-all active:scale-95"
-            title="Cobrar comanda"
+            title="Cobrar orden y emitir factura"
           >
             <CreditCard size={15} />
             <span>Cobrar</span>
@@ -787,27 +791,21 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
               </div>
             </div>
 
-            {/* DATOS DEL CLIENTE / CONSUMIDOR FINAL */}
+            {/* DATOS DEL CLIENTE FISCAL (ACCESO CON 1 CLIC AL BUSCADOR / REGISTRO) */}
             <div className="p-3 bg-zinc-50 border-b border-zinc-200/80 flex items-center justify-between text-xs shrink-0">
-              <div className="flex items-center gap-2">
-                <User size={14} className="text-zinc-500" />
-                <span className="font-semibold text-zinc-800">{clientName}</span>
-                <span className="font-mono text-zinc-400 text-[11px]">({clientRif})</span>
+              <div className="flex items-center gap-2 min-w-0">
+                <User size={14} className="text-zinc-500 shrink-0" />
+                <div className="truncate">
+                  <span className="font-bold text-zinc-900 block truncate leading-tight">{activeClient.name}</span>
+                  <span className="font-mono text-zinc-500 text-[10px]">{activeClient.rif}</span>
+                </div>
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  const custom = prompt('Ingrese Nombre y RIF del cliente (ej. Juan Perez, V-12345678):');
-                  if (custom) {
-                    const parts = custom.split(',');
-                    setClientName(parts[0]?.trim() || 'Cliente Especial');
-                    setClientRif(parts[1]?.trim() || 'V-00000000');
-                    setClientType('custom');
-                  }
-                }}
-                className="text-[11px] text-indigo-600 hover:underline font-semibold cursor-pointer"
+                onClick={() => setIsClientModalOpen(true)}
+                className="px-2.5 py-1 rounded-lg border border-zinc-300 bg-white hover:bg-zinc-100 text-[11px] font-bold text-zinc-800 cursor-pointer shrink-0 transition-colors"
               >
-                Cambiar
+                Cambiar / RIF
               </button>
             </div>
 
@@ -887,7 +885,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
               )}
             </div>
 
-            {/* DESGLOSE FISCAL Y BOTONES CLAROS (COCINA / FISCAL / COBRAR) */}
+            {/* DESGLOSE FISCAL Y LOS 2 BOTONES PRINCIPALES DENTRO DEL DRAWER */}
             {cart.length > 0 && (
               <div className="p-4 border-t border-zinc-200/80 bg-zinc-50/70 shrink-0 space-y-3">
                 {/* DESGLOSE TRIBUTARIO */}
@@ -919,31 +917,17 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
                   </div>
                 </div>
 
-                {/* LOS BOTONES CLAROS EN MODALES */}
+                {/* ACCIONES: COCINA O COBRO */}
                 <div className="space-y-2 pt-1">
-                  <div className="grid grid-cols-2 gap-2">
-                    {/* BOTÓN 1: COMANDA DE COCINA */}
-                    <button
-                      type="button"
-                      onClick={() => setIsKitchenModalOpen(true)}
-                      className="py-2.5 px-3 rounded-xl border border-zinc-300 bg-white hover:bg-zinc-100 text-zinc-800 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-98"
-                    >
-                      <ChefHat size={15} className="text-amber-600" />
-                      <span>Comanda Cocina</span>
-                    </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsKitchenModalOpen(true)}
+                    className="w-full py-2 px-3 rounded-xl border border-zinc-300 bg-white hover:bg-zinc-100 text-zinc-800 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-98"
+                  >
+                    <ChefHat size={15} className="text-amber-600" />
+                    <span>Mandar Comanda a Cocina</span>
+                  </button>
 
-                    {/* BOTÓN 2: IMPRESORA FISCAL SENIAT */}
-                    <button
-                      type="button"
-                      onClick={() => setIsFiscalModalOpen(true)}
-                      className="py-2.5 px-3 rounded-xl border border-zinc-300 bg-white hover:bg-zinc-100 text-zinc-800 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-98"
-                    >
-                      <Printer size={15} className="text-emerald-600" />
-                      <span>Factura SENIAT</span>
-                    </button>
-                  </div>
-
-                  {/* BOTÓN 3: COBRAR Y EMITIR FACTURA (PAGO MULTIMONEDA) */}
                   <button
                     type="button"
                     onClick={handleOpenPayment}
@@ -958,6 +942,15 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
           </div>
         </div>
       )}
+
+      {/* MODAL DE SELECCIÓN Y REGISTRO DE CLIENTES FISCALES SENIAT */}
+      <ClientSelectorModal
+        isOpen={isClientModalOpen}
+        onClose={() => setIsClientModalOpen(false)}
+        selectedClient={activeClient}
+        onSelectClient={(client) => setActiveClient(client)}
+        tenant={tenant}
+      />
 
       {/* MODAL DE COMANDA DE COCINA (TICKET TÉRMICO SIN PRECIOS) */}
       <KitchenTicketModal
@@ -974,7 +967,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
         onClose={() => setIsFiscalModalOpen(false)}
         cartTotals={cartTotals}
         bcvRate={bcvRate}
-        client={{ name: clientName, rif: clientRif }}
+        client={activeClient}
         fiscalSerial={tenant?.fiscal_serial || 'Z4A1234567'}
         onConfirmFiscalPrint={async () => {
           setDocType('fiscal');
@@ -999,7 +992,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
                   {docType === 'fiscal' ? 'Emitir Factura Fiscal SENIAT' : 'Emitir Nota de Entrega'}
                 </h3>
                 <p className="text-xs text-zinc-500 font-mono mt-0.5">
-                  Cliente: <span className="font-semibold text-zinc-800">{clientName}</span> ({clientRif})
+                  Liquidación de Comanda · {cartTotals.totalQty} platos
                 </p>
               </div>
               <button
@@ -1043,6 +1036,30 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
                   <span>Factura Fiscal SENIAT</span>
                 </button>
               </div>
+            </div>
+
+            {/* SECCIÓN CLIENTE / RECEPTOR FISCAL (CON BOTÓN PARA BUSCAR O REGISTRAR RIF) */}
+            <div className={`p-3 rounded-xl border flex items-center justify-between text-xs transition-colors ${
+              docType === 'fiscal' ? 'bg-emerald-50/50 border-emerald-200' : 'bg-zinc-50 border-zinc-200'
+            }`}>
+              <div className="min-w-0 flex-1 pr-2">
+                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">
+                  Cliente / Receptor:
+                </span>
+                <span className="font-extrabold text-zinc-950 truncate block text-xs mt-0.5">
+                  {activeClient.name}
+                </span>
+                <span className="font-mono text-zinc-600 text-[11px]">
+                  RIF: {activeClient.rif} {activeClient.address ? `· ${activeClient.address}` : ''}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsClientModalOpen(true)}
+                className="px-3 py-1.5 rounded-lg border border-zinc-300 bg-white hover:bg-zinc-100 text-zinc-800 text-xs font-bold cursor-pointer shrink-0 transition-colors shadow-xs"
+              >
+                Cambiar / RIF
+              </button>
             </div>
 
             {/* TARJETA DE MONTOS PROMINENTES (USD & BS A TASA BCV) */}
@@ -1444,7 +1461,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
                   {isSubmittingSale
                     ? 'Procesando Venta...'
                     : docType === 'fiscal'
-                      ? 'Confirmar y Emitir Factura Fiscal SENIAT'
+                      ? (isElectron ? 'Emitir Factura Fiscal (HKA80 / COM2)' : 'Confirmar y Emitir Factura Fiscal SENIAT')
                       : 'Confirmar y Emitir Nota de Entrega'}
                 </span>
               </button>
@@ -1483,6 +1500,14 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
               <div className="flex justify-between">
                 <span className="text-zinc-500">Documento:</span>
                 <span className="font-bold">{completedInvoice.docType === 'fiscal' ? 'Factura SENIAT' : 'Nota de Entrega'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-500">Cliente:</span>
+                <span className="font-bold truncate max-w-[170px]">{completedInvoice.client?.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-500">RIF / C.I.:</span>
+                <span className="font-mono">{completedInvoice.client?.rif}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-zinc-500">Total USD:</span>
