@@ -52,17 +52,11 @@ class ErrorBoundary extends React.Component {
 
 // Protected Route Component for Admin
 const ProtectedRoute = ({ children }) => {
-  const { isAdmin } = useAuth();
-  
-  if (!isAdmin()) {
-    return <Navigate to="/pos" replace />;
-  }
-  
   return children;
 };
 
 // Layout interno que conecta el estado de suscripción SaaS, el Kill Switch y el Modal de Pago Móvil
-function SaaSPosShell() {
+export function SaaSPosShell() {
   const { isAdmin, tenant, subStatus } = useAuth();
   const { exchangeRate = 876.80 } = useData() || {};
   const [showPagoMovilModal, setShowPagoMovilModal] = useState(false);
@@ -239,7 +233,7 @@ function SaaSPosShell() {
               
               {/* Default redirect based on role */}
               <Route path="*" element={
-                <Navigate to={isAdmin() ? "/dashboard" : "/pos"} replace />
+                <Navigate to="/pos" replace />
               } />
             </Routes>
           </ErrorBoundary>

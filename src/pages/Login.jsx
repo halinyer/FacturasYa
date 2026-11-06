@@ -1,533 +1,389 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Shield, User, Lock, ArrowRight, Building2, Mail, KeyRound, Sparkles, RefreshCw } from 'lucide-react';
+import { Building2, Mail, Lock, ArrowRight, Sparkles, AlertCircle } from 'lucide-react';
 import { CLIENT_CONFIG } from '../config/clientConfig';
 import { getAssetUrl } from '../utils/assetHelper';
 
 const Login = () => {
-  const [role, setRole] = useState('cajero');
-  const [pin, setPin] = useState(['', '', '', '']);
-  const [error, setError] = useState(false);
-  const inputRefs = [useRef(), useRef(), useRef(), useRef()];
-  const { login, tenant, subStatus, loginTenant, registerTenant } = useAuth();
+  const { loginTenant, registerTenant, tenant } = useAuth();
   const navigate = useNavigate();
 
-  // Estado para vinculación de cuenta SaaS (Correo / Contraseña del Restaurante)
-  const [showTenantModal, setShowTenantModal] = useState(!tenant);
-  const [tenantMode, setTenantMode] = useState('login'); // 'login' | 'register'
-  const [tenantForm, setTenantForm] = useState({
+  const [mode, setMode] = useState('login'); // 'login' | 'register'
+  const [form, setForm] = useState({
     businessName: '',
     rif: 'J-',
     phone: '',
-    email: tenant?.owner_email || 'admin@happydays.com',
+    email: tenant?.owner_email || '',
     password: ''
   });
-  const [tenantError, setTenantError] = useState('');
-  const [tenantLoading, setTenantLoading] = useState(false);
-
-  useEffect(() => {
-    if (!showTenantModal) {
-      inputRefs[0].current?.focus();
-    }
-  }, [role, showTenantModal]);
-
-  const handlePinChange = (index, value) => {
-    if (!/^\d*$/.test(value)) return;
-    
-    const newPin = [...pin];
-    newPin[index] = value.substring(value.length - 1);
-    setPin(newPin);
-    setError(false);
-
-    if (value && index < 3) {
-      inputRefs[index + 1].current?.focus();
-    }
-  };
-
-  const handleKeyDown = (index, e) => {
-    if (e.key === 'Backspace' && !pin[index] && index > 0) {
-      inputRefs[index - 1].current?.focus();
-    }
-  };
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const pinStr = pin.join('');
-    if (pinStr.length !== 4) {
-      setError(true);
-      return;
-    }
+    setError('');
+    setLoading(true);
 
     try {
-      const success = await login(role, pinStr);
-      if (success) {
-        navigate(role === 'admin' ? '/dashboard' : '/pos');
+      if (mode === 'register') {
+        if (!form.businessName || !form.email || !form.password) {
+          throw new Error('Por favor completa todos los campos requeridos.');
+        }
+        await registerTenant({
+          businessName: form.businessName.trim(),
+          rif: form.rif.trim().toUpperCase(),
+          phone: form.phone.trim(),
+          email: form.email.trim().toLowerCase(),
+          password: form.password
+        });
       } else {
-        handleError();
+        if (!form.email || !form.password) {
+          throw new Error('Por favor ingresa tu correo y contraseña.');
+        }
+        await loginTenant(form.email.trim().toLowerCase(), form.password);
       }
+      navigate('/pos');
     } catch (err) {
-      handleError();
-    }
-  };
-
-  const handleError = () => {
-    setError(true);
-    setPin(['', '', '', '']);
-    inputRefs[0].current?.focus();
-  };
-
-  const handleTenantSubmit = async (e) => {
-    e.preventDefault();
-    setTenantError('');
-    setTenantLoading(true);
-    try {
-      if (tenantMode === 'register') {
-        await registerTenant(tenantForm);
-      } else {
-        await loginTenant(tenantForm.email, tenantForm.password || '123456');
-      }
-      setShowTenantModal(false);
-    } catch (err) {
-      setTenantError(err?.message || 'Error al autenticar la cuenta del restaurante');
+      setError(err?.message || 'Error al autenticar la cuenta.');
     } finally {
-      setTenantLoading(false);
+      setLoading(false);
     }
   };
 
   return (
     <div className="login-container">
       <div className="login-background"></div>
-      
-      <div className={`login-card ${error ? 'shake-animation' : ''}`}>
-        {/* Insignia Superior de Cuenta SaaS Vinculada */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '8px 12px',
-          background: '#f8fafc',
-          borderRadius: '10px',
-          border: '1px solid #e2e8f0',
-          fontSize: '0.78rem'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700', color: '#0f172a' }}>
-            <Building2 size={15} color="#2563eb" />
-            <span>{tenant?.name || CLIENT_CONFIG.branding.logoText}</span>
-            <span style={{
-              padding: '2px 7px',
-              borderRadius: '999px',
-              fontSize: '0.68rem',
-              fontWeight: '800',
-              background: subStatus?.isExpired ? '#fef2f2' : '#f0fdf4',
-              color: subStatus?.isExpired ? '#dc2626' : '#15803d',
-              border: `1px solid ${subStatus?.isExpired ? '#fecaca' : '#bbf7d0'}`
-            }}>
-              {subStatus?.isExpired ? 'Vencida' : `${subStatus?.daysRemaining ?? 14}d activos`}
-            </span>
+
+      <div className="login-card">
+        {/* LOGO Y ENCABEZADO */}
+        <div className="login-header">
+          <div className="logo-badge">
+            {CLIENT_CONFIG.branding.logoImage ? (
+              <img
+                src={getAssetUrl(CLIENT_CONFIG.branding.logoImage)}
+                alt="Logo"
+                style={{ width: '48px', height: '48px', objectFit: 'contain' }}
+              />
+            ) : (
+              <span style={{ fontSize: '2rem' }}>{CLIENT_CONFIG.branding.logoIcon || '🍔'}</span>
+            )}
           </div>
+          <h1 className="logo-text">{CLIENT_CONFIG.branding.logoText || 'FacturasYa'}</h1>
+          <p className="login-subtitle">
+            {mode === 'login' ? 'Acceso al Punto de Venta & Facturación' : 'Registra tu negocio (14 días gratis)'}
+          </p>
+        </div>
+
+        {/* PESTAÑAS LOGIN / REGISTRO */}
+        <div className="auth-tabs">
           <button
             type="button"
-            onClick={() => setShowTenantModal(!showTenantModal)}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#2563eb',
-              fontWeight: '700',
-              fontSize: '0.75rem',
-              cursor: 'pointer',
-              textDecoration: 'underline'
-            }}
+            onClick={() => { setMode('login'); setError(''); }}
+            className={`auth-tab ${mode === 'login' ? 'active' : ''}`}
           >
-            {showTenantModal ? 'Volver al PIN' : 'Cambiar Cuenta'}
+            Iniciar Sesión
+          </button>
+          <button
+            type="button"
+            onClick={() => { setMode('register'); setError(''); }}
+            className={`auth-tab ${mode === 'register' ? 'active' : ''}`}
+          >
+            Crear Cuenta (14 días)
           </button>
         </div>
 
-        <div className="login-header">
-          {CLIENT_CONFIG.branding.logoImage && (
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
-              <img 
-                src={getAssetUrl(CLIENT_CONFIG.branding.logoImage)} 
-                alt={CLIENT_CONFIG.branding.logoText} 
-                style={{ width: '80px', height: '80px', objectFit: 'contain', filter: 'drop-shadow(0 4px 12px rgba(213, 40, 41, 0.25))' }}
-              />
-            </div>
-          )}
-          <div className="logo-container">
-            <h1 className="logo-text glow-animation">{tenant?.name || CLIENT_CONFIG.branding.logoText}</h1>
+        {/* MENSAJE DE ERROR */}
+        {error && (
+          <div className="error-banner">
+            <AlertCircle size={16} />
+            <span>{error}</span>
           </div>
-          <p className="login-subtitle">{CLIENT_CONFIG.subtitle}</p>
-        </div>
+        )}
 
-        {showTenantModal ? (
-          /* FORMULARIO DE CUENTA DEL RESTAURANTE (SUPABASE SAAS) */
-          <form onSubmit={handleTenantSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }} noValidate>
-            <div style={{ display: 'flex', gap: '6px', background: '#f1f5f9', padding: '4px', borderRadius: '10px' }}>
-              <button
-                type="button"
-                onClick={() => { setTenantMode('login'); setTenantError(''); }}
-                style={{
-                  flex: 1, padding: '8px', borderRadius: '8px', border: 'none', fontWeight: '700', fontSize: '0.82rem', cursor: 'pointer',
-                  background: tenantMode === 'login' ? '#ffffff' : 'transparent',
-                  color: tenantMode === 'login' ? '#0f172a' : '#64748b',
-                  boxShadow: tenantMode === 'login' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-                }}
-              >
-                Iniciar Sesión Local
-              </button>
-              <button
-                type="button"
-                onClick={() => { setTenantMode('register'); setTenantError(''); }}
-                style={{
-                  flex: 1, padding: '8px', borderRadius: '8px', border: 'none', fontWeight: '700', fontSize: '0.82rem', cursor: 'pointer',
-                  background: tenantMode === 'register' ? '#ffffff' : 'transparent',
-                  color: tenantMode === 'register' ? '#16a34a' : '#64748b',
-                  boxShadow: tenantMode === 'register' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-                }}
-              >
-                Crear Cuenta (14d Gratis)
-              </button>
-            </div>
-
-            {tenantMode === 'register' && (
-              <>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: '#334155', marginBottom: '4px' }}>
-                    Nombre del Restaurante:
-                  </label>
+        {/* FORMULARIO */}
+        <form onSubmit={handleSubmit} className="auth-form">
+          {mode === 'register' && (
+            <>
+              <div className="input-group">
+                <label>Nombre del Restaurante / Negocio</label>
+                <div className="input-wrapper">
+                  <Building2 size={16} className="input-icon" />
                   <input
                     type="text"
-                    placeholder="Ej: Burger King / Pizzería Napoli"
-                    value={tenantForm.businessName}
-                    onChange={(e) => setTenantForm({ ...tenantForm, businessName: e.target.value })}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }}
+                    required
+                    placeholder="Mi Restaurante"
+                    value={form.businessName}
+                    onChange={(e) => setForm({ ...form, businessName: e.target.value })}
                   />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: '#334155', marginBottom: '4px' }}>
-                      RIF:
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="J-12345678-9"
-                      value={tenantForm.rif}
-                      onChange={(e) => setTenantForm({ ...tenantForm, rif: e.target.value })}
-                      style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: '#334155', marginBottom: '4px' }}>
-                      Teléfono:
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="0412-0000000"
-                      value={tenantForm.phone}
-                      onChange={(e) => setTenantForm({ ...tenantForm, phone: e.target.value })}
-                      style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }}
-                    />
-                  </div>
-                </div>
-              </>
-            )}
+              </div>
 
-            <div>
-              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: '#334155', marginBottom: '4px' }}>
-                Correo del Restaurante:
-              </label>
+              <div className="input-row">
+                <div className="input-group">
+                  <label>RIF SENIAT</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="J-50123456-0"
+                    value={form.rif}
+                    onChange={(e) => setForm({ ...form, rif: e.target.value })}
+                  />
+                </div>
+                <div className="input-group">
+                  <label>Teléfono</label>
+                  <input
+                    type="text"
+                    placeholder="0412-1234567"
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
+          <div className="input-group">
+            <label>Correo Electrónico</label>
+            <div className="input-wrapper">
+              <Mail size={16} className="input-icon" />
               <input
                 type="email"
-                placeholder="admin@turestaurante.com"
-                value={tenantForm.email}
-                onChange={(e) => setTenantForm({ ...tenantForm, email: e.target.value })}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }}
+                required
+                placeholder="admin@mirestaurante.com"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                autoFocus
               />
             </div>
+          </div>
 
-            <div>
-              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: '#334155', marginBottom: '4px' }}>
-                Contraseña:
-              </label>
+          <div className="input-group">
+            <label>Contraseña</label>
+            <div className="input-wrapper">
+              <Lock size={16} className="input-icon" />
               <input
                 type="password"
+                required
+                minLength={6}
                 placeholder="••••••••"
-                value={tenantForm.password}
-                onChange={(e) => setTenantForm({ ...tenantForm, password: e.target.value })}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }}
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
               />
             </div>
+          </div>
 
-            {tenantError && (
-              <p className="error-message">{tenantError}</p>
+          <button type="submit" disabled={loading} className="submit-btn">
+            {loading ? (
+              <span>Autenticando...</span>
+            ) : (
+              <>
+                <span>{mode === 'login' ? 'Entrar a la Caja' : 'Crear y Comenzar'}</span>
+                <ArrowRight size={16} />
+              </>
             )}
-
-            <button type="submit" className="submit-btn" disabled={tenantLoading}>
-              <span>{tenantLoading ? 'Conectando...' : (tenantMode === 'register' ? 'Activar 14 Días Gratis' : 'Vincular Restaurante')}</span>
-              <ArrowRight size={20} />
-            </button>
-          </form>
-        ) : (
-          /* ACCESO DIARIO RÁPIDO POR PIN (CAJERO / ADMIN) */
-          <>
-            <div className="role-selector">
-              <button 
-                type="button"
-                className={`role-btn ${role === 'admin' ? 'active' : ''}`}
-                onClick={() => { setRole('admin'); setPin(['','','','']); setError(false); }}
-              >
-                <Shield size={20} />
-                <span>Administrador</span>
-              </button>
-              <button 
-                type="button"
-                className={`role-btn ${role === 'cajero' ? 'active' : ''}`}
-                onClick={() => { setRole('cajero'); setPin(['','','','']); setError(false); }}
-              >
-                <User size={20} />
-                <span>Cajero</span>
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="pin-form">
-              <div className="pin-label">
-                <Lock size={16} />
-                <span>Ingrese PIN de acceso</span>
-              </div>
-              
-              <div className="pin-inputs">
-                {pin.map((digit, index) => (
-                  <input
-                    key={index}
-                    ref={inputRefs[index]}
-                    type="password"
-                    className={`pin-digit ${error ? 'error' : ''}`}
-                    value={digit}
-                    onChange={(e) => handlePinChange(index, e.target.value)}
-                    onKeyDown={(e) => handleKeyDown(index, e)}
-                    maxLength={1}
-                    autoComplete="off"
-                  />
-                ))}
-              </div>
-
-              {error && <p className="error-message">PIN incorrecto. Intente de nuevo.</p>}
-
-              <button type="submit" className="submit-btn" disabled={pin.join('').length !== 4}>
-                <span>Ingresar</span>
-                <ArrowRight size={20} />
-              </button>
-            </form>
-          </>
-        )}
+          </button>
+        </form>
       </div>
 
-      <style dangerouslySetInnerHTML={{__html: `
-        :root {
-          --bg-dark: #f4f5f7;
-          --card-bg: #ffffff;
-          --accent: #f59e0b;
-          --accent-hover: #d97706;
-          --text-main: #0f172a;
-          --text-muted: #64748b;
-          --error: #ef4444;
-          --glass-border: rgba(0,0,0,0.1);
-        }
-
+      <style>{`
         .login-container {
           min-height: 100vh;
           display: flex;
           align-items: center;
           justify-content: center;
-          background-color: var(--bg-dark);
+          padding: 1.5rem;
+          background: #09090b;
           position: relative;
           overflow: hidden;
-          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
         }
 
         .login-background {
           position: absolute;
           inset: 0;
-          background: radial-gradient(circle at 50% -20%, #3b82f6 0%, transparent 40%),
-                      radial-gradient(circle at 100% 100%, #1e1b4b 0%, transparent 40%);
-          opacity: 0.6;
-          animation: pulse 10s ease-in-out infinite alternate;
-        }
-
-        @keyframes pulse {
-          0% { opacity: 0.4; }
-          100% { opacity: 0.7; }
+          background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #09090b 60%);
+          opacity: 0.8;
         }
 
         .login-card {
           width: 100%;
-          max-width: 420px;
-          padding: 2rem 2.25rem;
-          background: var(--card-bg);
-          backdrop-filter: blur(12px);
-          -webkit-backdrop-filter: blur(12px);
-          border: 1px solid var(--glass-border);
-          border-radius: 1.5rem;
-          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+          max-width: 400px;
+          padding: 2.25rem 2rem;
+          background: rgba(24, 24, 27, 0.85);
+          backdrop-filter: blur(16px);
+          -webkit-backdrop-filter: blur(16px);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 1.25rem;
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
           z-index: 10;
           display: flex;
           flex-direction: column;
-          gap: 1.5rem;
+          gap: 1.25rem;
         }
 
         .login-header {
           text-align: center;
         }
 
+        .logo-badge {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-bottom: 0.5rem;
+        }
+
         .logo-text {
-          font-size: 2.25rem;
+          font-size: 1.75rem;
           font-weight: 800;
-          color: #111827;
+          color: #ffffff;
           margin: 0;
-          letter-spacing: -0.025em;
-        }
-
-        .glow-animation {
-          text-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
-          animation: glow 3s infinite alternate;
-        }
-
-        @keyframes glow {
-          0% { text-shadow: 0 0 20px rgba(59, 130, 246, 0.4); }
-          100% { text-shadow: 0 0 30px rgba(59, 130, 246, 0.8), 0 0 10px rgba(255, 255, 255, 0.2); }
+          letter-spacing: -0.02em;
         }
 
         .login-subtitle {
-          color: var(--text-muted);
-          font-size: 1rem;
+          color: #a1a1aa;
+          font-size: 0.82rem;
           margin-top: 0.35rem;
         }
 
-        .role-selector {
-          display: flex;
-          gap: 1rem;
+        .auth-tabs {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 0.25rem;
           padding: 0.25rem;
-          background: #f9fafb;
-          border-radius: 1rem;
-          border: 1px solid var(--glass-border);
+          background: #18181b;
+          border-radius: 0.75rem;
+          border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
-        .role-btn {
-          flex: 1;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 0.5rem;
-          padding: 0.75rem;
+        .auth-tab {
+          padding: 0.5rem;
           background: transparent;
           border: none;
-          border-radius: 0.75rem;
-          color: var(--text-muted);
-          font-size: 0.95rem;
-          font-weight: 600;
+          border-radius: 0.5rem;
+          color: #a1a1aa;
+          font-size: 0.78rem;
+          font-weight: 700;
           cursor: pointer;
-          transition: all 0.2s ease;
+          transition: all 0.15s ease;
         }
 
-        .role-btn:hover {
-          color: var(--text-main);
+        .auth-tab.active {
+          background: #ffffff;
+          color: #09090b;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         }
 
-        .role-btn.active {
-          background: var(--accent);
-          color: #111827;
-          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-        }
-
-        .pin-form {
-          display: flex;
-          flex-direction: column;
-          gap: 1.5rem;
-        }
-
-        .pin-label {
+        .error-banner {
           display: flex;
           align-items: center;
-          justify-content: center;
           gap: 0.5rem;
-          color: var(--text-main);
-          font-weight: 500;
+          padding: 0.65rem 0.85rem;
+          background: rgba(220, 38, 38, 0.15);
+          border: 1px solid rgba(220, 38, 38, 0.3);
+          border-radius: 0.6rem;
+          color: #fca5a5;
+          font-size: 0.78rem;
+          font-weight: 600;
         }
 
-        .pin-inputs {
+        .auth-form {
           display: flex;
-          justify-content: center;
-          gap: 1rem;
+          flex-direction: column;
+          gap: 0.9rem;
         }
 
-        .pin-digit {
-          width: 3.5rem;
-          height: 4rem;
-          border-radius: 0.75rem;
-          background: rgba(0, 0, 0, 0.3);
-          border: 2px solid var(--glass-border);
-          color: #111827;
-          font-size: 2rem;
-          text-align: center;
-          transition: all 0.2s ease;
+        .input-group {
+          display: flex;
+          flex-direction: column;
+          gap: 0.3rem;
         }
 
-        .pin-digit:focus {
+        .input-group label {
+          font-size: 0.72rem;
+          font-weight: 700;
+          color: #d4d4d8;
+        }
+
+        .input-wrapper {
+          position: relative;
+          display: flex;
+          align-items: center;
+        }
+
+        .input-icon {
+          position: absolute;
+          left: 0.75rem;
+          color: #71717a;
+        }
+
+        .input-wrapper input {
+          width: 100%;
+          padding: 0.6rem 0.75rem 0.6rem 2.25rem;
+          background: rgba(9, 9, 11, 0.6);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          border-radius: 0.6rem;
+          color: #ffffff;
+          font-size: 0.85rem;
           outline: none;
-          border-color: var(--accent);
-          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+          transition: border-color 0.15s;
         }
 
-        .pin-digit.error {
-          border-color: var(--error);
-          background: rgba(239, 68, 68, 0.1);
+        .input-group input:not(.input-wrapper input) {
+          width: 100%;
+          padding: 0.6rem 0.75rem;
+          background: rgba(9, 9, 11, 0.6);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          border-radius: 0.6rem;
+          color: #ffffff;
+          font-size: 0.85rem;
+          outline: none;
         }
 
-        .error-message {
-          color: var(--error);
-          text-align: center;
-          font-size: 0.9rem;
-          margin: 0;
+        .input-wrapper input:focus,
+        .input-group input:focus {
+          border-color: #ffffff;
+        }
+
+        .input-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 0.5rem;
         }
 
         .submit-btn {
+          width: 100%;
+          padding: 0.75rem;
+          margin-top: 0.5rem;
+          background: #ffffff;
+          color: #09090b;
+          border: none;
+          border-radius: 0.65rem;
+          font-size: 0.85rem;
+          font-weight: 800;
+          cursor: pointer;
           display: flex;
           align-items: center;
           justify-content: center;
           gap: 0.5rem;
-          width: 100%;
-          padding: 1rem;
-          background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
-          color: #111827;
-          border: none;
-          border-radius: 0.75rem;
-          font-size: 1.05rem;
-          font-weight: 700;
-          cursor: pointer;
-          transition: all 0.2s ease;
+          transition: all 0.15s ease;
         }
 
-        .submit-btn:not(:disabled):hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+        .submit-btn:hover {
+          background: #e4e4e7;
+          transform: translateY(-1px);
+        }
+
+        .submit-btn:active {
+          transform: translateY(0);
         }
 
         .submit-btn:disabled {
-          opacity: 0.5;
+          opacity: 0.6;
           cursor: not-allowed;
         }
-
-        .shake-animation {
-          animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
-        }
-
-        @keyframes shake {
-          10%, 90% { transform: translate3d(-1px, 0, 0); }
-          20%, 80% { transform: translate3d(2px, 0, 0); }
-          30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
-          40%, 60% { transform: translate3d(4px, 0, 0); }
-        }
-      `}} />
+      `}</style>
     </div>
   );
 };

@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import {
   ShoppingCart,
+  TrendingUp,
   LayoutDashboard,
   Users,
   Package,
@@ -116,6 +117,10 @@ const Sidebar = () => {
               <BookOpen size={22} color="#10b981" />
               <span className="nav-text" style={{ color: '#047857', fontWeight: '700' }}>Libros SENIAT</span>
             </NavLink>
+            <NavLink to="/monitor" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <TrendingUp size={22} color="#0284c7" />
+              <span className="nav-text" style={{ color: '#0369a1', fontWeight: '700' }}>Monitor Cloud</span>
+            </NavLink>
 
             <button
               type="button"
@@ -147,7 +152,7 @@ const Sidebar = () => {
           </div>
           <div className="user-details">
             <span className="user-name">{user?.name}</span>
-            <span className="user-role badge">{user?.role === 'admin' ? 'Admin' : 'Cajero'}</span>
+            <span className="user-role badge">'Dueño'</span>
           </div>
         </div>
         <button className="logout-btn" onClick={logout} title="Cerrar Sesión">

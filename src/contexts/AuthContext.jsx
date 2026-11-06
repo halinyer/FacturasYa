@@ -1,5 +1,4 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { ACCESS_PINS } from '../config/accessConfig';
 import {
   getCurrentTenant,
   setCurrentTenant,
@@ -14,11 +13,10 @@ import {
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  // 1. Inquilino SaaS (Cuenta del Restaurante en Supabase / Local)
+  // 1. Inquilino SaaS (Cuenta del Restaurante / Dueño en Supabase)
   const [tenant, setTenantState] = useState(() => {
     const existing = getCurrentTenant();
     if (existing) return existing;
-    // Por defecto para desarrollo rápido vinculamos el primer tenant de la lista si existe
     const list = getLocalTenantsList();
     if (list && list.length > 0) {
       setCurrentTenant(list[0]);
@@ -27,18 +25,38 @@ export const AuthProvider = ({ children }) => {
     return null;
   });
 
-  // 2. Usuario de turno en la caja (PIN de Administrador o Cajero)
+  // 2. Usuario autenticado (Derivado directamente de la cuenta del restaurante, sin PIN local)
   const [user, setUser] = useState(() => {
-    try {
-      const savedUser = JSON.parse(localStorage.getItem('pos_user') || 'null');
-      if (savedUser && savedUser.v === 2) return savedUser;
-    } catch (e) {}
-    localStorage.removeItem('pos_user');
+    const active = getCurrentTenant();
+    if (active) {
+      return {
+        name: active.name || active.owner_email || 'Administrador',
+        email: active.owner_email || '',
+        role: 'admin',
+        v: 2
+      };
+    }
     return null;
   });
 
-  // Escuchar cambios en tiempo real de la suscripción (Supabase Realtime + Broadcast local)
-  // y verificar contra el reloj oficial del Backend (Supabase RPC verify_tenant_license)
+  // Sincronizar usuario automáticamente cuando cambie el tenant
+  useEffect(() => {
+    if (tenant) {
+      const u = {
+        name: tenant.name || tenant.owner_email || 'Administrador',
+        email: tenant.owner_email || '',
+        role: 'admin',
+        v: 2
+      };
+      setUser(u);
+      localStorage.setItem('pos_user', JSON.stringify(u));
+    } else {
+      setUser(null);
+      localStorage.removeItem('pos_user');
+    }
+  }, [tenant]);
+
+  // Escuchar cambios en tiempo real de la suscripción (Supabase Realtime)
   useEffect(() => {
     const unsubscribe = subscribeToSaasRealtime(tenant?.id, () => {
       const fresh = getCurrentTenant();
@@ -49,7 +67,7 @@ export const AuthProvider = ({ children }) => {
       verifyLicenseWithBackend(tenant.id).catch(() => {});
       const interval = setInterval(() => {
         verifyLicenseWithBackend(tenant.id).catch(() => {});
-      }, 5 * 60 * 1000); // Revalidar con el reloj del servidor cada 5 minutos
+      }, 5 * 60 * 1000);
       return () => {
         clearInterval(interval);
         unsubscribe();
@@ -59,25 +77,7 @@ export const AuthProvider = ({ children }) => {
     return () => unsubscribe();
   }, [tenant?.id]);
 
-  const users = {
-    [ACCESS_PINS.admin]: { role: 'admin', name: 'Administrador', v: 2 },
-    [ACCESS_PINS.cajero]: { role: 'cajero', name: 'Cajera Principal', v: 2 }
-  };
-
-  const login = (role, pin) => {
-    if (users[pin] && users[pin].role === role) {
-      setUser(users[pin]);
-      localStorage.setItem('pos_user', JSON.stringify(users[pin]));
-      return true;
-    }
-    return false;
-  };
-
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('pos_user');
-  };
-
+  // Login unificado con Correo y Contraseña
   const loginTenant = async (email, password) => {
     const loggedTenant = await loginTenantAccount(email, password);
     setTenantState({ ...loggedTenant });
@@ -90,22 +90,25 @@ export const AuthProvider = ({ children }) => {
     return newTenant;
   };
 
-  const unlinkTenant = () => {
+  const logout = () => {
     setCurrentTenant(null);
     setTenantState(null);
-    logout();
+    setUser(null);
+    localStorage.removeItem('saas_active_tenant');
+    localStorage.removeItem('pos_user');
   };
 
-  const isAdmin = () => {
-    return user?.role === 'admin';
-  };
+  const unlinkTenant = logout;
+
+  // Acceso administrativo unificado para el dueño autenticado (sin distinción admin/cajero)
+  const isAdmin = () => Boolean(tenant || user);
 
   const subStatus = evaluateSubscriptionStatus(tenant);
 
   return (
     <AuthContext.Provider value={{
       user,
-      login,
+      login: loginTenant,
       logout,
       isAdmin,
       tenant,

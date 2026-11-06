@@ -4,14 +4,15 @@ import { AuthProvider } from './features/auth/AuthProvider';
 import { isConfigured } from './lib/supabase';
 
 // Code-Splitting estilo Notion: La landing carga ultra-ligera en <300ms,
-// y la aplicación web se descarga solo cuando el usuario entra.
+// y la aplicación POS compartida se descarga solo cuando el usuario entra.
 const LandingPage = lazy(() => import('./features/landing/LandingPage'));
-const AppShell = lazy(() => import('./features/app-shell/AppShell'));
+const PosAppWrapper = lazy(() => import('./features/pos/PosAppWrapper'));
 const SuperAdminPage = lazy(() => import('./features/super-admin/SuperAdminPage'));
+const OwnerMonitorPage = lazy(() => import('./features/monitor/OwnerMonitorPage'));
 
 const PageLoader = () => (
   <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-4">
-    <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+    <div className="w-9 h-9 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
     <span className="text-xs text-zinc-400 font-bold mt-3 tracking-wide">Cargando FacturasYa...</span>
   </div>
 );
@@ -38,30 +39,18 @@ export default function App() {
       <AuthProvider>
         <Suspense fallback={<PageLoader />}>
           <Routes>
-            {/* Landing Comercial (Ultraligera) */}
+            {/* Landing Comercial (Ultraligera <300ms) */}
             <Route path="/" element={<LandingPage />} />
 
-            {/* FacturasYa Web App (Espacio de trabajo estilo Notion) */}
+            {/* Monitor Cloud del Dueño */}
             <Route
-              path="/app"
+              path="/monitor"
               element={
                 <NeedsSupabase>
-                  <AppShell />
+                  <OwnerMonitorPage />
                 </NeedsSupabase>
               }
             />
-            <Route
-              path="/app/*"
-              element={
-                <NeedsSupabase>
-                  <AppShell />
-                </NeedsSupabase>
-              }
-            />
-
-            {/* Redirecciones de conveniencia para enlaces antiguos */}
-            <Route path="/pos" element={<Navigate to="/app?tab=pos" replace />} />
-            <Route path="/monitor" element={<Navigate to="/app?tab=monitor" replace />} />
 
             {/* Panel Super Admin (Solo signalnotestudio@gmail.com) */}
             <Route
@@ -69,6 +58,96 @@ export default function App() {
               element={
                 <NeedsSupabase>
                   <SuperAdminPage />
+                </NeedsSupabase>
+              }
+            />
+
+            {/* Aplicación POS Unificada compartida con Escritorio */}
+            <Route
+              path="/app/*"
+              element={
+                <NeedsSupabase>
+                  <PosAppWrapper />
+                </NeedsSupabase>
+              }
+            />
+            <Route
+              path="/pos/*"
+              element={
+                <NeedsSupabase>
+                  <PosAppWrapper />
+                </NeedsSupabase>
+              }
+            />
+            <Route
+              path="/dashboard/*"
+              element={
+                <NeedsSupabase>
+                  <PosAppWrapper />
+                </NeedsSupabase>
+              }
+            />
+            <Route
+              path="/tables/*"
+              element={
+                <NeedsSupabase>
+                  <PosAppWrapper />
+                </NeedsSupabase>
+              }
+            />
+            <Route
+              path="/mesas/*"
+              element={
+                <NeedsSupabase>
+                  <PosAppWrapper />
+                </NeedsSupabase>
+              }
+            />
+            <Route
+              path="/products/*"
+              element={
+                <NeedsSupabase>
+                  <PosAppWrapper />
+                </NeedsSupabase>
+              }
+            />
+            <Route
+              path="/productos/*"
+              element={
+                <NeedsSupabase>
+                  <PosAppWrapper />
+                </NeedsSupabase>
+              }
+            />
+            <Route
+              path="/inventory/*"
+              element={
+                <NeedsSupabase>
+                  <PosAppWrapper />
+                </NeedsSupabase>
+              }
+            />
+            <Route
+              path="/inventario/*"
+              element={
+                <NeedsSupabase>
+                  <PosAppWrapper />
+                </NeedsSupabase>
+              }
+            />
+            <Route
+              path="/cash-close/*"
+              element={
+                <NeedsSupabase>
+                  <PosAppWrapper />
+                </NeedsSupabase>
+              }
+            />
+            <Route
+              path="/fiscal-books/*"
+              element={
+                <NeedsSupabase>
+                  <PosAppWrapper />
                 </NeedsSupabase>
               }
             />
