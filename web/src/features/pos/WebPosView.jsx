@@ -252,8 +252,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
 
   // Modales
   const [isKitchenModalOpen, setIsKitchenModalOpen] = useState(false);
-  const [isFiscalModalOpen, setIsFiscalModalOpen] = useState(false);
-  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+    const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
 
   // Configuración de cobro
@@ -538,8 +537,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
 
       setCompletedInvoice(savedInvoice);
       setIsPaymentModalOpen(false);
-      setIsFiscalModalOpen(false);
-      setIsReceiptModalOpen(true);
+            setIsReceiptModalOpen(true);
       clearCart();
     } catch (err) {
       console.error('Error registrando venta:', err);
@@ -963,19 +961,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
         orderNotes={orderNotes}
       />
 
-      {/* MODAL DE FACTURA FISCAL SENIAT (HKA80 / COM2) */}
-      <FiscalInvoiceModal
-        isOpen={isFiscalModalOpen}
-        onClose={() => setIsFiscalModalOpen(false)}
-        cartTotals={cartTotals}
-        bcvRate={bcvRate}
-        client={activeClient}
-        fiscalSerial={tenant?.fiscal_serial || 'Z4A1234567'}
-        onConfirmFiscalPrint={async () => {
-          setDocType('fiscal');
-          await handleProcessSale();
-        }}
-      />
+
 
       {/* MODAL DE COBRO COMPLETO DE HAPPY DAYS (PUNTO POS, PAGO MÓVIL, EFECTIVO, NOTA DE ENTREGA O SENIAT) */}
       {isPaymentModalOpen && (
