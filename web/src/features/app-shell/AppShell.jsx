@@ -1,41 +1,54 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import {
   ShoppingCart,
+  Utensils,
+  LayoutDashboard,
+  BookOpen,
+  Calculator,
+  Boxes,
+  Package,
+  Users,
   TrendingUp,
-  ShieldCheck,
-  CreditCard,
-  Download,
+  Settings,
   LogOut,
+  Laptop,
   ChevronLeft,
   ChevronRight,
-  Store,
-  Layers,
-  HelpCircle,
-  ExternalLink,
-  Laptop,
-  WifiOff,
-  Printer,
-  Sparkles,
   Menu,
-  X,
-  Settings
+  X
 } from 'lucide-react';
-import { useAuth } from '../auth/AuthProvider';
-import { fetchMyTenant, fetchTenantSnapshot, fetchSaasConfig } from '../monitor/api';
-import WebPosView from '../pos/WebPosView';
+
+// Contextos compartidos
+import { useAuth as useWebAuth } from '../auth/AuthProvider';
+import { AuthProvider as PosAuthProvider } from '@pos/contexts/AuthContext';
+import { DataProvider, useData } from '@pos/contexts/DataContext';
+import '@pos/index.css';
+
+// Módulos operativos completos de Happy Days
+import POS from '@pos/pages/POS';
+import Tables from '@pos/pages/Tables';
+import Dashboard from '@pos/pages/Dashboard';
+import FiscalBooks from '@pos/pages/FiscalBooks';
+import CashClose from '@pos/pages/CashClose';
+import Inventory from '@pos/pages/Inventory';
+import Products from '@pos/pages/Products';
+import Clients from '@pos/pages/Clients';
+
+// Monitor Cloud para el dueño y modales
 import OwnerMonitorPage from '../monitor/OwnerMonitorPage';
+import TopBarRate from './TopBarRate';
 import NotionSettingsModal from '../settings/NotionSettingsModal';
+import { fetchMyTenant, fetchTenantSnapshot } from '../monitor/api';
 
 const INSTALLER_URL =
   import.meta.env.VITE_INSTALLER_URL || 'https://github.com/halinyer/FacturasYa/releases/latest';
 
-export default function AppShell() {
-  const { session, signOut } = useAuth();
+function AppShellInner() {
+  const { session, signOut } = useWebAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
 
-  // Estado de navegación: 'pos' | 'monitor' | 'fiscal' | 'subscription' | 'tables'
+  // Estado de navegación: 'pos' | 'tables' | 'dashboard' | 'fiscal' | 'cash-close' | 'inventory' | 'products' | 'clients' | 'monitor'
   const activeTab = searchParams.get('tab') || 'pos';
   const setActiveTab = (tab) => {
     setSearchParams({ tab });
@@ -46,7 +59,7 @@ export default function AppShell() {
   const [snapshot, setSnapshot] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Estados visuales del Shell
+  // Estados visuales
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
@@ -88,6 +101,7 @@ export default function AppShell() {
     };
   }, [tenant]);
 
+  // Lista de navegación 100% OPERATIVA (Cero duplicados de configuración o pago en el sidebar)
   const navItems = [
     {
       id: 'pos',
@@ -96,35 +110,51 @@ export default function AppShell() {
       badge: 'Caja'
     },
     {
-      id: 'monitor',
-      label: 'Monitor del Dueño',
-      icon: TrendingUp,
-      badge: 'En vivo'
+      id: 'tables',
+      label: 'Mesas & Salón',
+      icon: Utensils,
+      badge: 'Mesas'
     },
     {
-      id: 'tables',
-      label: 'Mesas & Comandas',
-      icon: Layers
+      id: 'dashboard',
+      label: 'Dashboard',
+      icon: LayoutDashboard
     },
     {
       id: 'fiscal',
-      label: 'Datos Fiscales SENIAT',
-      icon: ShieldCheck,
-      badge: tenant?.is_fiscal_verified ? null : 'Pendiente'
+      label: 'Libros SENIAT',
+      icon: BookOpen,
+      badge: 'Compras / Ventas'
     },
     {
-      id: 'subscription',
-      label: 'Mi Suscripción',
-      icon: CreditCard,
-      badge: subStatus ? `${subStatus.daysRemaining}d` : null
+      id: 'cash-close',
+      label: 'Cierre de Caja',
+      icon: Calculator
     },
     {
-      id: 'settings',
-      label: 'Ajustes & Hardware',
-      icon: Settings,
-      action: () => setIsSettingsModalOpen(true)
+      id: 'inventory',
+      label: 'Inventario',
+      icon: Boxes
+    },
+    {
+      id: 'products',
+      label: 'Productos & Menú',
+      icon: Package
+    },
+    {
+      id: 'clients',
+      label: 'Clientes & Crédito',
+      icon: Users
+    },
+    {
+      id: 'monitor',
+      label: 'Monitor Cloud',
+      icon: TrendingUp,
+      badge: 'En vivo'
     }
   ];
+
+  const currentNavItem = navItems.find((n) => n.id === activeTab) || navItems[0];
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-zinc-50 font-sans antialiased text-zinc-900">
@@ -152,12 +182,12 @@ export default function AppShell() {
             {!isSidebarCollapsed && (
               <div className="min-w-0">
                 <h2 className="text-xs font-bold text-white tracking-tight truncate">
-                  {tenant?.name || 'Mi Negocio'}
+                  {tenant?.name || 'Happy Days / FacturasYa'}
                 </h2>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                   <span className="text-[10px] text-zinc-400 font-semibold truncate">
-                    {subStatus?.daysRemaining || 14} días de prueba
+                    {subStatus?.daysRemaining || 14} días de acceso
                   </span>
                 </div>
               </div>
@@ -165,11 +195,12 @@ export default function AppShell() {
           </div>
 
           <div className="flex items-center gap-1">
+            {/* ROSCA DE CONFIGURACIÓN ESTILO NOTION */}
             <button
               type="button"
               onClick={() => setIsSettingsModalOpen(true)}
               className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
-              title="Ajustes de Negocio y Hardware (⚙️)"
+              title="Ajustes del Negocio, Hardware y Cuenta (⚙️)"
             >
               <Settings size={15} />
             </button>
@@ -184,22 +215,13 @@ export default function AppShell() {
               {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
             </button>
           </div>
-
-          {/* BOTÓN CERRAR (MÓVIL) */}
-          <button
-            type="button"
-            onClick={() => setIsMobileSidebarOpen(false)}
-            className="lg:hidden p-1 rounded-md text-zinc-400 hover:text-white"
-          >
-            <X size={16} />
-          </button>
         </div>
 
-        {/* NAVEGACIÓN PRINCIPAL */}
+        {/* NAVEGACIÓN PRINCIPAL OPERATIVA (CERO DUPLICADOS) */}
         <nav className="flex-1 overflow-y-auto p-2 space-y-1">
           {!isSidebarCollapsed && (
             <div className="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-              Espacio de Trabajo
+              Operaciones del Negocio
             </div>
           )}
 
@@ -212,11 +234,7 @@ export default function AppShell() {
                 key={item.id}
                 type="button"
                 onClick={() => {
-                  if (item.action) {
-                    item.action();
-                  } else {
-                    setActiveTab(item.id);
-                  }
+                  setActiveTab(item.id);
                   setIsMobileSidebarOpen(false);
                 }}
                 className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-semibold transition-all group ${
@@ -238,7 +256,9 @@ export default function AppShell() {
                         className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
                           item.badge === 'Caja'
                             ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                            : item.badge === 'Pendiente'
+                            : item.badge === 'Compras / Ventas'
+                            ? 'bg-sky-500/20 text-sky-300'
+                            : item.badge === 'Mesas'
                             ? 'bg-amber-500/20 text-amber-300'
                             : 'bg-zinc-800 text-zinc-400'
                         }`}
@@ -253,7 +273,7 @@ export default function AppShell() {
           })}
         </nav>
 
-        {/* PIE DEL SIDEBAR: BOTÓN DESCARGA WINDOWS + USUARIO */}
+        {/* PIE DEL SIDEBAR: BOTÓN DESCARGA WINDOWS + USUARIO CON ACCESO A AJUSTES */}
         <div className="p-2 border-t border-zinc-800 shrink-0 space-y-2">
           
           {/* BOTÓN DESCARGA WINDOWS ESTILO NOTION */}
@@ -274,7 +294,7 @@ export default function AppShell() {
             )}
           </button>
 
-          {/* PERFIL Y LOGOUT CON APERTURA DE AJUSTES */}
+          {/* PERFIL CON APERTURA DE CONFIGURACIÓN ESTILO NOTION */}
           <div
             onClick={() => setIsSettingsModalOpen(true)}
             className={`flex items-center justify-between p-2 rounded-xl bg-zinc-800/80 hover:bg-zinc-800 cursor-pointer transition-all border border-zinc-700/60 group ${
@@ -289,7 +309,7 @@ export default function AppShell() {
               {!isSidebarCollapsed && (
                 <div className="min-w-0">
                   <span className="block text-[11px] font-bold text-zinc-200 truncate">
-                    {session?.user?.email}
+                    {session?.user?.email || 'admin@facturasya.com'}
                   </span>
                   <span className="block text-[9px] text-emerald-400 font-semibold truncate flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
@@ -320,80 +340,75 @@ export default function AppShell() {
       </aside>
 
       {/* ÁREA DE CONTENIDO PRINCIPAL */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-slate-100/80">
         
-        {/* HEADER SUPERIOR EN MÓVIL (BOTÓN HAMBURGUESA) */}
-        <div className="lg:hidden bg-zinc-900 text-white p-3 border-b border-zinc-800 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2">
+        {/* BARRA SUPERIOR FIJA ESTILO NOTION (CON TASA BCV EN VIVO) */}
+        <header className="h-14 bg-zinc-900 border-b border-zinc-800 px-4 flex items-center justify-between shrink-0 text-white select-none">
+          <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => setIsMobileSidebarOpen(true)}
-              className="p-1 rounded-lg text-zinc-300 hover:bg-zinc-800"
+              className="lg:hidden p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800"
             >
-              <Menu size={20} />
+              <Menu size={18} />
             </button>
-            <span className="text-xs font-bold truncate">{tenant?.name || 'FacturasYa'}</span>
+
+            <div className="flex items-center gap-2">
+              <span className="font-extrabold text-sm tracking-tight text-white">
+                {currentNavItem.label}
+              </span>
+              {currentNavItem.badge && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-zinc-800 text-zinc-300 border border-zinc-700 hidden sm:inline-block">
+                  {currentNavItem.badge}
+                </span>
+              )}
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* TASA BCV EN VIVO Y ROSCA RÁPIDA DE AJUSTES */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <TopBarRate />
+
             <button
               type="button"
-              onClick={() => setActiveTab('pos')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
-                activeTab === 'pos' ? 'bg-white text-zinc-950' : 'text-zinc-400'
-              }`}
+              onClick={() => setIsSettingsModalOpen(true)}
+              className="p-1.5 rounded-xl border border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800 text-zinc-300 hover:text-white transition-colors"
+              title="Abrir Ajustes del Negocio (⚙️)"
             >
-              Punto de Venta
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('monitor')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
-                activeTab === 'monitor' ? 'bg-white text-zinc-950' : 'text-zinc-400'
-              }`}
-            >
-              Monitor
+              <Settings size={15} />
             </button>
           </div>
-        </div>
+        </header>
 
-        {/* VISTAS DINÁMICAS SEGÚN LA PESTAÑA ACTIVA */}
-        <div className="flex-1 overflow-hidden">
-          {activeTab === 'pos' && (
-            <WebPosView
-              tenant={tenant}
-              snapshot={snapshot}
-              onSaleComplete={() => loadTenantData()}
-            />
-          )}
-
+        {/* VISTAS OPERATIVAS COMPLETAS DE HAPPY DAYS */}
+        <main className="flex-1 overflow-y-auto">
+          {activeTab === 'pos' && <POS />}
+          {activeTab === 'tables' && <Tables />}
+          {activeTab === 'dashboard' && <Dashboard />}
+          {activeTab === 'fiscal' && <FiscalBooks />}
+          {activeTab === 'cash-close' && <CashClose />}
+          {activeTab === 'inventory' && <Inventory />}
+          {activeTab === 'products' && <Products />}
+          {activeTab === 'clients' && <Clients />}
           {activeTab === 'monitor' && (
             <div className="h-full overflow-y-auto">
               <OwnerMonitorPage embedded={true} defaultTab="overview" />
             </div>
           )}
-
-          {activeTab === 'tables' && (
-            <div className="h-full overflow-y-auto">
-              <OwnerMonitorPage embedded={true} defaultTab="tables" />
-            </div>
-          )}
-
-          {activeTab === 'fiscal' && (
-            <div className="h-full overflow-y-auto">
-              <OwnerMonitorPage embedded={true} defaultTab="fiscal" />
-            </div>
-          )}
-
-          {activeTab === 'subscription' && (
-            <div className="h-full overflow-y-auto">
-              <OwnerMonitorPage embedded={true} defaultTab="subscription" />
-            </div>
-          )}
-        </div>
+        </main>
       </div>
 
-      {/* MODAL EXPLICATIVO DE DESCARGA PARA WINDOWS (ESTILO NOTION) */}
+      {/* MODAL CENTRALIZADO DE AJUSTES ESTILO NOTION */}
+      <NotionSettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        tenant={tenant}
+        subStatus={subStatus}
+        session={session}
+        onUpdateTenant={(updated) => setTenant(updated)}
+      />
+
+      {/* MODAL EXPLICATIVO DE DESCARGA PARA WINDOWS */}
       {isDownloadModalOpen && (
         <div
           className="fixed inset-0 z-50 bg-zinc-950/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
@@ -424,21 +439,21 @@ export default function AppShell() {
 
             <div className="space-y-3 text-xs text-zinc-600 leading-relaxed">
               <p>
-                Puedes usar el <strong>Punto de Venta Web</strong> en cualquier navegador o tablet.
-                Sin embargo, te recomendamos instalar la <strong>App de Windows</strong> en la PC de tu mostrador si:
+                La versión Web sincroniza todos tus pedidos, inventario y mesas en la nube.
+                Instala la <strong>App de Windows</strong> en tu PC de mostrador para:
               </p>
 
               <div className="space-y-2 p-3 bg-zinc-50 rounded-xl border border-zinc-200 text-[11px]">
                 <div className="flex items-start gap-2">
-                  <Printer size={15} className="text-emerald-600 shrink-0 mt-0.5" />
+                  <span className="text-base">🖨️</span>
                   <span>
-                    <strong>Impresora Fiscal SENIAT por cable:</strong> Se conecta directamente por USB o puerto Serial a máquinas Bixolon, HKA, Custom o Dascom.
+                    <strong>Impresora Fiscal SENIAT por cable:</strong> Conexión serial directa HKA80 / COM2 / USB.
                   </span>
                 </div>
                 <div className="flex items-start gap-2">
-                  <WifiOff size={15} className="text-amber-600 shrink-0 mt-0.5" />
+                  <span className="text-base">⚡</span>
                   <span>
-                    <strong>Modo 100% Offline:</strong> Si se cae el internet o la luz en tu zona, tu cajero sigue facturando sin interrupción.
+                    <strong>Modo 100% Offline:</strong> Si se corta el internet, tu local sigue facturando sin pausas.
                   </span>
                 </div>
               </div>
@@ -451,7 +466,6 @@ export default function AppShell() {
                 rel="noreferrer"
                 className="w-full py-3 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-2 active:scale-98"
               >
-                <Download size={15} />
                 <span>Descargar FacturasYa para Windows (.exe)</span>
               </a>
 
@@ -460,22 +474,23 @@ export default function AppShell() {
                 onClick={() => setIsDownloadModalOpen(false)}
                 className="w-full py-2 rounded-xl text-zinc-500 hover:text-zinc-900 text-xs font-semibold"
               >
-                Continuar usando el Punto de Venta Web
+                Continuar en la Web
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL DE AJUSTES NOTION-STYLE */}
-      <NotionSettingsModal
-        isOpen={isSettingsModalOpen}
-        onClose={() => setIsSettingsModalOpen(false)}
-        tenant={tenant}
-        subStatus={subStatus}
-        session={session}
-        onUpdateTenant={(updated) => setTenant(updated)}
-      />
     </div>
+  );
+}
+
+export default function AppShell() {
+  return (
+    <PosAuthProvider>
+      <DataProvider>
+        <AppShellInner />
+      </DataProvider>
+    </PosAuthProvider>
   );
 }
