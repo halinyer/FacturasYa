@@ -33,6 +33,7 @@ export default function CashCloseView() {
   const [fiscalActionStatus, setFiscalActionStatus] = useState(null);
   const [isProcessingFiscal, setIsProcessingFiscal] = useState(false);
   const [isFiscalMemoryModalOpen, setIsFiscalMemoryModalOpen] = useState(false);
+  const [s1StatusData, setS1StatusData] = useState(null);
 
   // Ventas del turno / día de hoy (excluyendo facturas anuladas)
   const todayInvoices = useMemo(() => {
@@ -98,26 +99,35 @@ export default function CashCloseView() {
     };
   }, [todayInvoices, physicalCashInput, exchangeRate]);
 
-  // Probar Conexión Fiscal (Status S1)
+  // Probar Conexión Fiscal y Leer Acumuladores en Vivo (Status S1)
   const handleTestFiscalConnection = async () => {
     setIsProcessingFiscal(true);
-    setFiscalActionStatus({ msg: `Consultando estado S1 en puerto ${fiscalSettings.port || 'COM2'}...`, type: 'info' });
+    const port = fiscalSettings.port || 'COM2';
+    setFiscalActionStatus({ msg: `Consultando estado y acumuladores S1 en puerto ${port}...`, type: 'info' });
     try {
+      if (isElectron && window?.electronAPI?.fiscal?.getS1Status) {
+        const s1 = await window.electronAPI.fiscal.getS1Status(port);
+        if (s1 && s1.success !== false) {
+          setS1StatusData(s1);
+          setFiscalActionStatus({ msg: `✅ Máquina fiscal conectada en ${port} · Acumuladores S1 sincronizados.`, type: 'success' });
+          return;
+        }
+      }
       if (isElectron && data?.fiscalTestConnection) {
-        const res = await data.fiscalTestConnection(fiscalSettings.port || 'COM2');
+        const res = await data.fiscalTestConnection(port);
         if (res && res.success) {
-          setFiscalActionStatus({ msg: `✅ Máquina fiscal conectada y lista en ${fiscalSettings.port || 'COM2'}.`, type: 'success' });
+          setFiscalActionStatus({ msg: `✅ Máquina fiscal conectada y lista en ${port}.`, type: 'success' });
         } else {
-          setFiscalActionStatus({ msg: `⚠️ Respuesta fiscal: ${res?.error || 'Sin respuesta en ' + fiscalSettings.port}`, type: 'error' });
+          setFiscalActionStatus({ msg: `⚠️ Respuesta fiscal: ${res?.error || 'Sin respuesta en ' + port}`, type: 'error' });
         }
       } else {
-        setFiscalActionStatus({ msg: 'Modo Web: Puerto COM2 fiscal emulado disponible.', type: 'info' });
+        setFiscalActionStatus({ msg: 'Modo Web: Para leer acumuladores S1 del chip fiscal use la versión Desktop.', type: 'info' });
       }
     } catch (e) {
       setFiscalActionStatus({ msg: `Error fiscal: ${e.message}`, type: 'error' });
     } finally {
       setIsProcessingFiscal(false);
-      setTimeout(() => setFiscalActionStatus(null), 4000);
+      setTimeout(() => setFiscalActionStatus(null), 5000);
     }
   };
 
@@ -295,7 +305,7 @@ export default function CashCloseView() {
                 type="button"
                 onClick={() => setIsFiscalMemoryModalOpen(true)}
                 className="px-2.5 py-1 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 text-[11px] font-bold cursor-pointer transition-colors flex items-center gap-1 shadow-2xs"
-                title="Consultar Reportes Z directamente de la memoria fiscal HKA80 por rango de fechas "
+                title="Consultar Reportes Z directamente de la memoria fiscal HKA80 por rango de fechas"
               >
                 <span>Memoria Fiscal Z</span>
               </button>
@@ -304,7 +314,7 @@ export default function CashCloseView() {
                 onClick={handleTestFiscalConnection}
                 disabled={isProcessingFiscal}
                 className="px-2.5 py-1 rounded-lg border border-zinc-300 bg-white hover:bg-zinc-50 text-zinc-800 text-[11px] font-bold cursor-pointer transition-colors flex items-center gap-1"
-                title="Probar estatus S1 de la máquina fiscal"
+                title="Consultar acumuladores en vivo (S1) y estado de la máquina fiscal"
               >
                 <RefreshCw size={12} className={isProcessingFiscal ? 'animate-spin' : ''} />
                 <span>Test Conexión S1</span>
@@ -322,6 +332,35 @@ export default function CashCloseView() {
               </button>
             </div>
           </div>
+
+          {s1StatusData && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2 border-t border-zinc-100 text-xs">
+              <div className="p-2.5 rounded-xl bg-zinc-50 border border-zinc-200/70">
+                <span className="text-[10px] font-bold text-zinc-400 uppercase block">Ventas en Máquina (S1)</span>
+                <span className="font-black text-emerald-700 font-mono text-sm">
+                  Bs. {Number(s1StatusData.total_daily_sales_bs ?? s1StatusData.totalDailySales ?? 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-zinc-50 border border-zinc-200/70">
+                <span className="text-[10px] font-bold text-zinc-400 uppercase block">Facturas Hoy (Máq / POS)</span>
+                <span className="font-black text-zinc-900 font-mono text-sm">
+                  {Number(s1StatusData.quantity_of_invoices_today ?? s1StatusData.quantityOfInvoicesToday ?? 0)} / {summary.count}
+                </span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-zinc-50 border border-zinc-200/70">
+                <span className="text-[10px] font-bold text-zinc-400 uppercase block">Última Factura Fiscal</span>
+                <span className="font-black text-zinc-900 font-mono text-sm">
+                  #{String(s1StatusData.last_invoice_number ?? s1StatusData.lastInvoiceNumber ?? 0).padStart(8, '0')}
+                </span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-zinc-50 border border-zinc-200/70">
+                <span className="text-[10px] font-bold text-zinc-400 uppercase block">Próximo Cierre Z</span>
+                <span className="font-black text-amber-700 font-mono text-sm">
+                  Z #{Number(s1StatusData.z_counter ?? s1StatusData.dailyClosureCounter ?? 0) + 1} · {s1StatusData.registered_machine_number || s1StatusData.registeredMachineNumber || 'HKA80'}
+                </span>
+              </div>
+            </div>
+          )}
 
           {fiscalActionStatus && (
             <div className={`p-2.5 rounded-xl text-xs font-bold flex items-center gap-2 ${
