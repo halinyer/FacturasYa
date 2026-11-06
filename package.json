@@ -1,6 +1,8 @@
 {
   "name": "facturacion-pos",
   "version": "1.0.0",
+  "description": "FacturasYa POS Fiscal & Cloud para Venezuela",
+  "author": "FacturasYa",
   "private": true,
   "main": "electron/main.cjs",
   "scripts": {
@@ -30,20 +32,23 @@
     ],
     "win": {
       "target": [
-        "portable",
+        "nsis",
         "dir"
       ],
       "artifactName": "FacturaPOS-${version}.${ext}",
       "signAndEditExecutable": false
     },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true
+    },
     "extraResources": [
       {
         "from": "bin/bridge_fiscal.exe",
         "to": "bridge_fiscal.exe"
-      },
-      {
-        "from": "bin/cloudflared.exe",
-        "to": "cloudflared.exe"
       }
     ]
   },
