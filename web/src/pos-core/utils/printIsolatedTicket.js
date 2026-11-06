@@ -1,0 +1,188 @@
+/**
+ * Utility for razor-sharp 1:1 thermal printing of tickets and receipts.
+ * Isolates the ticket DOM from the main application window so that Chromium's print
+ * subsystem does not downscale the page to fit a 1400px/1920px desktop layout into a 58mm roll.
+ */
+
+export const getTicketFullHtml = (htmlContent, paperSize = '58mm') => {
+  const is58 = paperSize === '58mm' || !paperSize || paperSize === '48mm';
+  const widthMm = is58 ? 58 : 80;
+  const printableWidth = is58 ? '48mm' : '72mm';
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="color-scheme" content="light">
+<title>&nbsp;</title>
+<style>
+  :root {
+    color-scheme: light !important;
+  }
+  @page {
+    size: ${widthMm}mm auto;
+    margin: 0mm !important;
+  }
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    color: #000000 !important;
+    background-color: transparent !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+    -webkit-print-color-adjust: economy !important;
+    print-color-adjust: economy !important;
+  }
+  html, body {
+    color-scheme: light !important;
+    width: ${printableWidth} !important;
+    max-width: ${printableWidth} !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  .ticket-paper {
+    width: 100% !important;
+    max-width: ${printableWidth} !important;
+    margin: 0 auto !important;
+    padding: 0 1mm !important;
+    box-sizing: border-box !important;
+    font-size: ${is58 ? '9.5px' : '10.5px'} !important;
+    line-height: 1.25 !important;
+    font-weight: 400 !important;
+    color: #000000 !important;
+    background: transparent !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+  }
+  .ticket-center { text-align: center !important; }
+  .ticket-right { text-align: right !important; }
+  .ticket-bold { font-weight: 600 !important; }
+  .ticket-divider { border-top: 1px dashed #000000 !important; margin: 3px 0 !important; }
+  .ticket-double-divider { border-top: 1px dashed #000000 !important; margin: 4px 0 !important; }
+  .k-center { text-align: center !important; }
+  .k-bold { font-weight: 700 !important; }
+  .k-divider { border-top: 1px dashed #000000 !important; margin: 3px 0 !important; }
+  .k-double-divider { border-top: 1px dashed #000000 !important; margin: 4px 0 !important; }
+  .kitchen-paper {
+    width: 100% !important;
+    max-width: ${printableWidth} !important;
+    box-sizing: border-box !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+    font-size: ${is58 ? '10px' : '11.5px'} !important;
+    line-height: 1.15 !important;
+    color: #000000 !important;
+    background: #ffffff !important;
+    padding: 0 1mm !important;
+  }
+</style>
+</head>
+<body>
+${htmlContent}
+</body>
+</html>`;
+};
+
+export const printViaIframe = (fullHtml) => {
+  return new Promise((resolve) => {
+    let iframe = document.getElementById('print-isolation-frame');
+    if (!iframe) {
+      iframe = document.createElement('iframe');
+      iframe.id = 'print-isolation-frame';
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      iframe.style.visibility = 'hidden';
+      document.body.appendChild(iframe);
+    }
+
+    try {
+      const doc = iframe.contentWindow.document;
+      doc.open();
+      doc.write(fullHtml);
+      doc.close();
+
+      setTimeout(() => {
+        try {
+          iframe.contentWindow.focus();
+          iframe.contentWindow.print();
+          resolve({ success: true });
+        } catch (printErr) {
+          console.warn('Iframe print error, falling back to window.print:', printErr);
+          window.print();
+          resolve({ success: true });
+        }
+      }, 250);
+    } catch (e) {
+      console.error('Error writing to print iframe:', e);
+      window.print();
+      resolve({ success: false, error: e.message });
+    }
+  });
+};
+
+export const printIsolatedTicket = async ({
+  html,
+  paperSize = '58mm',
+  deviceName = '',
+  silent = true
+}) => {
+  if (!html) {
+    return { success: false, error: 'No hay contenido para imprimir' };
+  }
+
+  const fullHtml = getTicketFullHtml(html, paperSize);
+
+  // 1. Vía Electron IPC nativo (Desktop App)
+  if (window.electronAPI && typeof window.electronAPI.printWindow === 'function') {
+    try {
+      const res = await window.electronAPI.printWindow({
+        html,
+        paperSize,
+        deviceName: deviceName || '',
+        silent: true,
+        margins: { marginType: 'none' }
+      });
+
+      return res || { success: true };
+    } catch (e) {
+      console.warn('Electron print call failed:', e);
+      return { success: false, error: e.message };
+    }
+  }
+
+  // 2. Vía Red Local (Navegador Chrome en PC o Tablet de Mesero)
+  try {
+    const isViteDev = window.location.port === '5173';
+    const baseUrl = isViteDev ? 'http://localhost:3001' : '';
+    const res = await fetch(`${baseUrl}/api/print-ticket`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        html,
+        paperSize,
+        deviceName: deviceName || 'POS58 Printer'
+      })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data || { success: true };
+    }
+  } catch (netErr) {
+    console.warn('Servidor local de impresión no respondió:', netErr);
+  }
+
+  // 3. Fallback con ventana sólo si silent fue explícitamente false
+  if (!silent) {
+    return printViaIframe(fullHtml);
+  }
+  return { success: false, error: 'Impresora térmica no detectada' };
+};
