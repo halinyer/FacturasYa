@@ -23,6 +23,8 @@ import {
 import { useAuth as useWebAuth } from '../auth/AuthProvider';
 import { AuthProvider as PosAuthProvider } from '@pos/contexts/AuthContext';
 import { DataProvider, useData } from '@pos/contexts/DataContext';
+import { db } from '@pos/services/dataService';
+import { setCurrentTenant } from '@pos/lib/syncEngine';
 
 
 // Módulos operativos completos de Happy Days
@@ -53,6 +55,7 @@ const INSTALLER_URL =
 
 function AppShellInner() {
   const { session, signOut } = useWebAuth();
+  const posData = useData();
   const isElectron = typeof window !== 'undefined' && (Boolean(window?.electronAPI) || window.location.protocol === 'file:');
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -73,22 +76,51 @@ function AppShellInner() {
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
-  // Cargar datos del restaurante
+  // Cargar datos del restaurante y sincronizar aislamiento multi-tenant con Supabase
   const loadTenantData = useCallback(async () => {
     try {
       setLoading(true);
       const tData = await fetchMyTenant();
       setTenant(tData);
       if (tData?.id) {
+        setCurrentTenant(tData);
         const snap = await fetchTenantSnapshot(tData.id);
         setSnapshot(snap);
+
+        const prevTenantId = localStorage.getItem('pos_active_tenant_id');
+        const isSwitchingTenant = prevTenantId && prevTenantId !== tData.id;
+        const isLocalEmpty = (db.getProducts() || []).length === 0 && (db.getInvoices() || []).length === 0;
+
+        // Si cambió de cuenta en la misma PC o es una PC nueva con datos en la nube, hidratar desde el snapshot de este usuario
+        if (isSwitchingTenant || (isLocalEmpty && snap)) {
+          localStorage.setItem('pos_active_tenant_id', tData.id);
+          db.rawSet('pos_products', Array.isArray(snap?.products) ? snap.products : []);
+          db.rawSet('pos_clients', Array.isArray(snap?.clients) && snap.clients.length > 0 ? snap.clients : [
+            { id: 'cli_default', name: 'Consumidor Final', cedula: 'V-00000000', phone: '', type: 'normal', address: 'Mostrador', createdAt: new Date().toISOString() }
+          ]);
+          db.rawSet('pos_invoices', Array.isArray(snap?.invoices) ? snap.invoices : []);
+          db.rawSet('pos_purchases', Array.isArray(snap?.purchases) ? snap.purchases : []);
+          db.rawSet('pos_payments', Array.isArray(snap?.payments) ? snap.payments : []);
+          db.rawSet('pos_cash_closes', Array.isArray(snap?.cash_closes) ? snap.cash_closes : []);
+          db.rawSet('pos_open_tabs', Array.isArray(snap?.open_tabs) ? snap.open_tabs : []);
+          db.rawSet('pos_inventory', Array.isArray(snap?.inventory) ? snap.inventory : []);
+          db.rawSet('pos_z_reports', Array.isArray(snap?.z_reports) ? snap.z_reports : []);
+          if (isSwitchingTenant) {
+            localStorage.removeItem('facturasya_restaurant_tables');
+          }
+          if (posData?.refreshData) {
+            posData.refreshData();
+          }
+        } else if (!prevTenantId) {
+          localStorage.setItem('pos_active_tenant_id', tData.id);
+        }
       }
     } catch (e) {
       console.warn('Error cargando tenant en AppShell:', e);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [posData]);
 
   useEffect(() => {
     if (session) {
