@@ -280,6 +280,12 @@ export default function LandingPage() {
               </>
             ) : (
               <>
+                <Link
+                  to="/app"
+                  className="text-xs font-semibold text-zinc-700 hover:text-zinc-950 px-3 py-1.5 rounded-lg hover:bg-zinc-100 transition-colors"
+                >
+                  Entrar al POS →
+                </Link>
                 <button
                   type="button"
                   onClick={() => openAuthModal('login')}
@@ -332,12 +338,18 @@ export default function LandingPage() {
                 <span className="text-xs text-zinc-400 font-normal">(.EXE nativo)</span>
               </button>
 
-              <a
-                href="#simulador"
+              <Link
+                to="/app"
                 className="bg-white hover:bg-zinc-50 text-zinc-900 font-medium text-sm px-5 py-3.5 rounded-xl border border-zinc-200 shadow-2xs transition-all inline-flex items-center gap-2"
               >
-                <span>Probar simulador de caja</span>
+                <span>Entrar al POS Web</span>
                 <ArrowRight size={15} className="text-zinc-500" />
+              </Link>
+              <a
+                href="#simulador"
+                className="bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-medium text-sm px-4 py-3.5 rounded-xl transition-all inline-flex items-center gap-2"
+              >
+                <span>Simulador</span>
               </a>
             </div>
 
