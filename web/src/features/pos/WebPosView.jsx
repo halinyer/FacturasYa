@@ -33,7 +33,6 @@ import {
 import { supabase } from '../../lib/supabase';
 import { useData } from '../../pos-core/contexts/DataContext';
 import KitchenTicketModal from './KitchenTicketModal';
-import FiscalInvoiceModal from './FiscalInvoiceModal';
 import ClientSelectorModal from './ClientSelectorModal';
 import { printIsolatedTicket } from '../../pos-core/utils/printIsolatedTicket';
 
@@ -488,7 +487,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
           changeBs: cartTotals.changeBs
         },
         fiscalSerial,
-        status: 'completed'
+        status: 'paid'
       };
 
       // 1. SI ESTAMOS EN ELECTRON DESKTOP Y ES FACTURA FISCAL SENIAT: Mandar comando a la máquina fiscal física HKA80
@@ -511,14 +510,17 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
       }
 
       // 2. Registrar en el DataContext local (actualiza Dashboard, Libros SENIAT y Cierre de Caja al instante)
-      if (data?.addInvoice) {
-        data.addInvoice(invoiceData);
+      let savedInvoice = invoiceData;
+      if (data?.createInvoice) {
+        savedInvoice = data.createInvoice(invoiceData) || invoiceData;
+      } else if (data?.addInvoice) {
+        savedInvoice = data.addInvoice(invoiceData) || invoiceData;
       }
 
       // 3. Sincronizar snapshot con Supabase si hay tenant activo
       if (tenant?.id) {
         const existingInvoices = Array.isArray(snapshot?.invoices) ? snapshot.invoices : [];
-        const updatedInvoices = [invoiceData, ...existingInvoices];
+        const updatedInvoices = [savedInvoice, ...existingInvoices];
 
         await supabase
           .from('tenant_snapshots')
@@ -530,11 +532,11 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
           });
 
         if (onSaleComplete) {
-          onSaleComplete(invoiceData);
+          onSaleComplete(savedInvoice);
         }
       }
 
-      setCompletedInvoice(invoiceData);
+      setCompletedInvoice(savedInvoice);
       setIsPaymentModalOpen(false);
       setIsFiscalModalOpen(false);
       setIsReceiptModalOpen(true);
