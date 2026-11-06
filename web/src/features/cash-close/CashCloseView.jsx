@@ -295,9 +295,9 @@ export default function CashCloseView() {
                 type="button"
                 onClick={() => setIsFiscalMemoryModalOpen(true)}
                 className="px-2.5 py-1 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 text-[11px] font-bold cursor-pointer transition-colors flex items-center gap-1 shadow-2xs"
-                title="Consultar Reportes Z directamente de la memoria fiscal HKA80 por rango de fechas (Auditoría para el Contador)"
+                title="Consultar Reportes Z directamente de la memoria fiscal HKA80 por rango de fechas "
               >
-                <span>📜 Auditoría Memoria Z (Contador)</span>
+                <span>Memoria Fiscal Z</span>
               </button>
               <button
                 type="button"

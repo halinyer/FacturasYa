@@ -250,6 +250,35 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
   const [orderTable, setOrderTable] = useState('Barra / Mostrador');
   const [orderNotes, setOrderNotes] = useState('');
 
+  // Auto-cargar orden entrante transferida desde Mesas / Salón
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem('pos_incoming_table_order');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && Array.isArray(parsed.items) && parsed.items.length > 0) {
+          const formattedItems = parsed.items.map((i) => ({
+            id: i.id || i.productId || `item-${Date.now()}-${Math.random()}`,
+            name: i.name,
+            price: Number(i.priceUSD || i.price || i.priceUsd || 0),
+            priceUsd: Number(i.priceUSD || i.price || i.priceUsd || 0),
+            qty: Number(i.quantity || i.qty || 1),
+            isExempt: Boolean(i.isExempt),
+            image: i.image || null,
+            note: i.note || ''
+          }));
+          setCart(formattedItems);
+          if (parsed.tableName) setOrderTable(parsed.tableName);
+          if (parsed.waiterName) setOrderNotes(`Atendido por: ${parsed.waiterName}`);
+          setIsPaymentModalOpen(true);
+        }
+        sessionStorage.removeItem('pos_incoming_table_order');
+      }
+    } catch (e) {
+      console.warn('Error cargando orden transferida de mesa:', e);
+    }
+  }, []);
+
   // Modales
   const [isKitchenModalOpen, setIsKitchenModalOpen] = useState(false);
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -755,26 +784,29 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
             className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-200 z-50 text-zinc-900"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* CABECERA DEL DRAWER */}
-            <div className="p-4 border-b border-zinc-200/80 flex items-center justify-between shrink-0 bg-zinc-50/50">
+            {/* CABECERA DEL DRAWER (FUSIONADA CON LA BARRA SUPERIOR OSCURA NOTION) */}
+            <div
+              className="p-3.5 border-b border-zinc-800 flex items-center justify-between shrink-0 bg-zinc-900 text-white app-drag-region"
+              style={Boolean(window?.electronAPI) ? { paddingRight: '144px' } : undefined}
+            >
               <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-zinc-900 text-white">
+                <div className="p-1.5 rounded-lg bg-zinc-800 border border-zinc-700 text-white">
                   <ShoppingCart size={16} />
                 </div>
                 <div>
-                  <h2 className="font-extrabold text-sm text-zinc-950">Comanda & Carrito</h2>
-                  <p className="text-[11px] text-zinc-500 font-mono">
+                  <h2 className="font-extrabold text-sm text-white">Comanda & Carrito</h2>
+                  <p className="text-[11px] text-zinc-400 font-mono">
                     {orderTable} · {cartTotals.totalQty} ítems
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 app-no-drag">
                 {cart.length > 0 && (
                   <button
                     type="button"
                     onClick={clearCart}
-                    className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 text-xs font-semibold cursor-pointer"
+                    className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-400 hover:bg-zinc-800 text-xs font-semibold cursor-pointer"
                     title="Vaciar comanda"
                   >
                     <Trash2 size={16} />
@@ -783,7 +815,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
                 <button
                   type="button"
                   onClick={() => setIsDrawerOpen(false)}
-                  className="p-1.5 rounded-lg text-zinc-400 hover:bg-zinc-100 text-xs cursor-pointer"
+                  className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 text-xs cursor-pointer"
                   title="Cerrar comanda"
                 >
                   <X size={18} />

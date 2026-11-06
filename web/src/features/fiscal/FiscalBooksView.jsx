@@ -161,7 +161,7 @@ export default function FiscalBooksView() {
               title="Consultar la memoria fiscal física de la máquina HKA80 por rango de fechas (Octubre, Noviembre, etc.)"
             >
               <FileSpreadsheet size={14} className="text-amber-700" />
-              <span>Auditoría Memoria Fiscal Z (Contador)</span>
+              <span>Memoria Fiscal Z</span>
             </button>
 
             <button
@@ -291,7 +291,7 @@ export default function FiscalBooksView() {
                   className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-zinc-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
                 >
                   <FileSpreadsheet size={14} />
-                  <span>Consultar Memoria Z a la Máquina</span>
+                  <span>Consultar Memoria Z</span>
                 </button>
 
                 {zReports.length > 0 && (
@@ -301,7 +301,7 @@ export default function FiscalBooksView() {
                     className="px-3 py-1.5 rounded-xl border border-zinc-300 bg-white hover:bg-zinc-50 text-zinc-800 font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
                   >
                     <Download size={14} />
-                    <span>Exportar CSV Forma 30</span>
+                    <span>Exportar CSV</span>
                   </button>
                 )}
               </div>
