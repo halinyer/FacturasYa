@@ -76,6 +76,20 @@ function AppShellInner() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [installingUpdate, setInstallingUpdate] = useState(false);
+
+  useEffect(() => {
+    if (!isElectron || !window.electronAPI?.checkUpdate) return;
+    const check = () => {
+      window.electronAPI.checkUpdate().then((res) => {
+        if (res?.updateAvailable) setUpdateAvailable(true);
+      }).catch(() => {});
+    };
+    check();
+    const timer = setInterval(check, 180000);
+    return () => clearInterval(timer);
+  }, [isElectron]);
 
   const loadTenantData = useCallback(async () => {
     try {
@@ -507,6 +521,20 @@ function AppShellInner() {
 
           {/* TASA BCV EN VIVO Y ROSCA RÁPIDA DE AJUSTES */}
           <div className="flex items-center gap-2 sm:gap-3">
+            {isElectron && updateAvailable && (
+              <button
+                type="button"
+                disabled={installingUpdate}
+                onClick={async () => {
+                  setInstallingUpdate(true);
+                  await window.electronAPI?.installUpdate?.();
+                }}
+                className="px-2.5 py-1 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-extrabold text-[11px] flex items-center gap-1.5 shadow-xs cursor-pointer transition-all app-no-drag"
+                title="Descargar e instalar automáticamente la nueva versión"
+              >
+                <span>{installingUpdate ? 'Actualizando...' : '⚡ Actualizar versión'}</span>
+              </button>
+            )}
             <TopBarRate />
 
             <button

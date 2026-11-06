@@ -139,6 +139,94 @@ ipcMain.handle('fiscal:launch-emulator', async () => {
   return { success: false, error: 'No se encontró el archivo start.bat en C:\\VFPHKA-3.0' };
 });
 
+
+// Auto-actualizador nativo por GitHub Releases (Sin abrir navegador ni Vercel)
+ipcMain.handle('app:check-update', async () => {
+  return new Promise((resolve) => {
+    try {
+      const https = require('https');
+      const localIndex = path.join(__dirname, '../dist/index.html');
+      const localMtimeMs = fs.existsSync(localIndex) ? fs.statSync(localIndex).mtimeMs : Date.now();
+
+      const req = https.get(
+        'https://api.github.com/repos/halinyer/FacturasYa/releases/latest',
+        { headers: { 'User-Agent': 'FacturaPOS-Updater' }, timeout: 5000 },
+        (res) => {
+          let body = '';
+          res.on('data', (chunk) => (body += chunk));
+          res.on('end', () => {
+            try {
+              const json = JSON.parse(body);
+              const asset = (json.assets || []).find((a) => a.name && a.name.endsWith('.exe'));
+              if (!asset || !asset.updated_at) return resolve({ updateAvailable: false });
+              const remoteMs = new Date(asset.updated_at).getTime();
+              // Si el ejecutable en GitHub Releases es al menos 3 minutos más nuevo que la compilación local
+              if (remoteMs > localMtimeMs + 180000) {
+                return resolve({
+                  updateAvailable: true,
+                  updatedAt: asset.updated_at,
+                  downloadUrl: asset.browser_download_url
+                });
+              }
+              resolve({ updateAvailable: false });
+            } catch (e) {
+              resolve({ updateAvailable: false });
+            }
+          });
+        }
+      );
+      req.on('error', () => resolve({ updateAvailable: false }));
+      req.on('timeout', () => {
+        req.destroy();
+        resolve({ updateAvailable: false });
+      });
+    } catch (err) {
+      resolve({ updateAvailable: false });
+    }
+  });
+});
+
+ipcMain.handle('app:install-update', async () => {
+  return new Promise((resolve) => {
+    try {
+      const https = require('https');
+      const os = require('os');
+      const { spawn } = require('child_process');
+      const destPath = path.join(os.tmpdir(), 'FacturaPOS-Update.exe');
+      const url = 'https://github.com/halinyer/FacturasYa/releases/latest/download/FacturaPOS-1.0.0.exe';
+
+      const download = (targetUrl, redirects = 0) => {
+        if (redirects > 5) return resolve({ success: false, error: 'Demasiadas redirecciones' });
+        https.get(targetUrl, { headers: { 'User-Agent': 'FacturaPOS-Updater' } }, (res) => {
+          if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+            return download(res.headers.location, redirects + 1);
+          }
+          if (res.statusCode !== 200) {
+            return resolve({ success: false, error: 'HTTP ' + res.statusCode });
+          }
+          const file = fs.createWriteStream(destPath);
+          res.pipe(file);
+          file.on('finish', () => {
+            file.close(() => {
+              try {
+                spawn(destPath, [], { detached: true, stdio: 'ignore' }).unref();
+                resolve({ success: true });
+                setTimeout(() => app.quit(), 400);
+              } catch (spErr) {
+                resolve({ success: false, error: spErr.message });
+              }
+            });
+          });
+        }).on('error', (err) => resolve({ success: false, error: err.message }));
+      };
+
+      download(url);
+    } catch (e) {
+      resolve({ success: false, error: e.message });
+    }
+  });
+});
+
 ipcMain.handle('get-printers', async () => {
   if (!mainWindowRef || !mainWindowRef.webContents) return [];
   try {
@@ -491,39 +579,7 @@ function createWindow() {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools({ mode: 'detach' });
   } else {
-    const CLOUD_UI_URL = 'https://facturaya-git-main-halinyer1612-5872s-projects.vercel.app';
-    const localIndexFile = path.join(__dirname, '../dist/index.html');
-    let fellBackToLocal = false;
-
-    const loadLocalFallback = () => {
-      if (fellBackToLocal || !mainWindowRef) return;
-      fellBackToLocal = true;
-      console.log('[Modo Notion Offline] Sin internet detectado, cargando copia local en disco...');
-      mainWindow.loadFile(localIndexFile);
-    };
-
-    // Si falla la carga remota o se corta el internet al arrancar, caer de inmediato al bundle local en disco
-    mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL, isMainFrame) => {
-      if (isMainFrame && validatedURL && validatedURL.startsWith('http')) {
-        loadLocalFallback();
-      }
-    });
-
-    // Verificar conectividad rápida (2s) para cargar la última versión en vivo estilo Notion o usar respaldo local
-    const https = require('https');
-    const req = https.get(CLOUD_UI_URL, { timeout: 2200 }, (res) => {
-      req.destroy();
-      if (res.statusCode && res.statusCode < 500) {
-        mainWindow.loadURL(CLOUD_UI_URL);
-      } else {
-        loadLocalFallback();
-      }
-    });
-    req.on('error', () => loadLocalFallback());
-    req.on('timeout', () => {
-      req.destroy();
-      loadLocalFallback();
-    });
+    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
     // Bloquear atajos para abrir DevTools en producción empaquetada (F12, Ctrl+Shift+I/J, etc.)
     mainWindow.webContents.on('before-input-event', (event, input) => {
       if (

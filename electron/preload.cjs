@@ -10,6 +10,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   restartServer: () => ipcRenderer.invoke('restart-server'),
   getPrinters: () => ipcRenderer.invoke('get-printers'),
   printWindow: (options) => ipcRenderer.invoke('print-window', options),
+  checkUpdate: () => ipcRenderer.invoke('app:check-update'),
+  installUpdate: () => ipcRenderer.invoke('app:install-update'),
   fiscal: {
     getPorts: () => ipcRenderer.invoke('fiscal:get-ports'),
     autoDetectPort: (preferredPort) => ipcRenderer.invoke('fiscal:auto-detect-port', preferredPort),
