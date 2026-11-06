@@ -20,7 +20,7 @@ export default defineConfig({
       allow: ['..']
     }
   },
-  base: '/',
+  base: './',
   build: { outDir: 'dist' },
   // Permite que Vite lea tanto las variables con VITE_ como las que inyecta automáticamente la integración de Supabase en Vercel
   envPrefix: ['VITE_', 'SUPABASE_']

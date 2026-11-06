@@ -1,11 +1,12 @@
 import React, { Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './features/auth/AuthProvider';
+import { BrowserRouter, HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './features/auth/AuthProvider';
 import { isConfigured } from './lib/supabase';
 
 // Code-Splitting estilo Notion: La landing carga ultra-ligera en <300ms,
 // y la aplicación POS compartida se descarga solo cuando el usuario entra.
 const LandingPage = lazy(() => import('./features/landing/LandingPage'));
+const AuthPage = lazy(() => import('./features/auth/AuthPage'));
 const AppShell = lazy(() => import('./features/app-shell/AppShell'));
 const SuperAdminPage = lazy(() => import('./features/super-admin/SuperAdminPage'));
 const OwnerMonitorPage = lazy(() => import('./features/monitor/OwnerMonitorPage'));
@@ -84,15 +85,42 @@ const NeedsSupabase = ({ children }) => {
   return children;
 };
 
+// Detección automática: en Electron / file:// usamos HashRouter para máxima compatibilidad con el sistema operativo
+const isElectronOrFile =
+  typeof window !== 'undefined' &&
+  (window.location.protocol === 'file:' || Boolean(window?.electronAPI));
+
+// En Desktop (Electron), la ruta raíz muestra el login o va directo a la app si ya está autenticado
+function RootRouteHandler() {
+  const { session, loading } = useAuth() || {};
+
+  if (isElectronOrFile) {
+    if (loading) return <PageLoader />;
+    if (session) return <Navigate to="/app" replace />;
+    return <AuthPage />;
+  }
+
+  return <LandingPage />;
+}
+
 export default function App() {
+  const Router = isElectronOrFile ? HashRouter : BrowserRouter;
+
   return (
     <ErrorBoundary>
-      <BrowserRouter>
+      <Router>
         <AuthProvider>
           <Suspense fallback={<PageLoader />}>
             <Routes>
-              {/* Landing Comercial (Ultraligera <300ms) */}
-              <Route path="/" element={<LandingPage />} />
+              {/* Ruta Principal: En Desktop abre Login / App; en Web abre la Landing comercial */}
+              <Route path="/" element={<RootRouteHandler />} />
+
+              {/* Portal Comercial explícito */}
+              <Route path="/landing" element={<LandingPage />} />
+
+              {/* Pantalla de Inicio de Sesión y Registro */}
+              <Route path="/login" element={<AuthPage />} />
+              <Route path="/auth" element={<AuthPage />} />
 
               {/* Página de Descarga Desktop estilo Notion */}
               <Route path="/download" element={<DownloadPage />} />
@@ -190,7 +218,7 @@ export default function App() {
             </Routes>
           </Suspense>
         </AuthProvider>
-      </BrowserRouter>
+      </Router>
     </ErrorBoundary>
   );
 }
