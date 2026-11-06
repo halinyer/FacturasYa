@@ -18,12 +18,14 @@ import {
   Printer,
   Sparkles,
   Menu,
-  X
+  X,
+  Settings
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthProvider';
 import { fetchMyTenant, fetchTenantSnapshot, fetchSaasConfig } from '../monitor/api';
 import WebPosView from '../pos/WebPosView';
 import OwnerMonitorPage from '../monitor/OwnerMonitorPage';
+import NotionSettingsModal from '../settings/NotionSettingsModal';
 
 const INSTALLER_URL =
   import.meta.env.VITE_INSTALLER_URL || 'https://github.com/halinyer/FacturasYa/releases/latest';
@@ -48,6 +50,7 @@ export default function AppShell() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
   // Cargar datos del restaurante
   const loadTenantData = useCallback(async () => {
@@ -114,6 +117,12 @@ export default function AppShell() {
       label: 'Mi Suscripción',
       icon: CreditCard,
       badge: subStatus ? `${subStatus.daysRemaining}d` : null
+    },
+    {
+      id: 'settings',
+      label: 'Ajustes & Hardware',
+      icon: Settings,
+      action: () => setIsSettingsModalOpen(true)
     }
   ];
 
@@ -155,15 +164,26 @@ export default function AppShell() {
             )}
           </div>
 
-          {/* BOTÓN COLAPSAR (DESKTOP) */}
-          <button
-            type="button"
-            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            className="hidden lg:flex p-1 rounded-md text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
-            title={isSidebarCollapsed ? 'Expandir menú' : 'Colapsar menú'}
-          >
-            {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setIsSettingsModalOpen(true)}
+              className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+              title="Ajustes de Negocio y Hardware (⚙️)"
+            >
+              <Settings size={15} />
+            </button>
+
+            {/* BOTÓN COLAPSAR (DESKTOP) */}
+            <button
+              type="button"
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              className="hidden lg:flex p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+              title={isSidebarCollapsed ? 'Expandir menú' : 'Colapsar menú'}
+            >
+              {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+            </button>
+          </div>
 
           {/* BOTÓN CERRAR (MÓVIL) */}
           <button
@@ -192,7 +212,11 @@ export default function AppShell() {
                 key={item.id}
                 type="button"
                 onClick={() => {
-                  setActiveTab(item.id);
+                  if (item.action) {
+                    item.action();
+                  } else {
+                    setActiveTab(item.id);
+                  }
                   setIsMobileSidebarOpen(false);
                 }}
                 className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-semibold transition-all group ${
@@ -250,29 +274,47 @@ export default function AppShell() {
             )}
           </button>
 
-          {/* PERFIL Y LOGOUT */}
+          {/* PERFIL Y LOGOUT CON APERTURA DE AJUSTES */}
           <div
-            className={`flex items-center justify-between p-1.5 rounded-lg bg-zinc-950/40 text-xs ${
+            onClick={() => setIsSettingsModalOpen(true)}
+            className={`flex items-center justify-between p-2 rounded-xl bg-zinc-800/80 hover:bg-zinc-800 cursor-pointer transition-all border border-zinc-700/60 group ${
               isSidebarCollapsed ? 'justify-center' : ''
             }`}
+            title="Abrir Ajustes de Negocio, Máquina Fiscal y Cuenta"
           >
+            <div className="min-w-0 pr-1 flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-zinc-700 group-hover:bg-zinc-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                {session?.user?.email?.charAt(0).toUpperCase() || 'U'}
+              </div>
+              {!isSidebarCollapsed && (
+                <div className="min-w-0">
+                  <span className="block text-[11px] font-bold text-zinc-200 truncate">
+                    {session?.user?.email}
+                  </span>
+                  <span className="block text-[9px] text-emerald-400 font-semibold truncate flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                    Dueño · Ajustes ⚙️
+                  </span>
+                </div>
+              )}
+            </div>
+
             {!isSidebarCollapsed && (
-              <div className="min-w-0 pr-1">
-                <span className="block text-[11px] font-bold text-zinc-200 truncate">
-                  {session?.user?.email}
-                </span>
-                <span className="block text-[9px] text-zinc-500 truncate">FacturasYa Cloud</span>
+              <div className="flex items-center gap-1">
+                <Settings size={14} className="text-zinc-400 group-hover:text-white transition-colors" />
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    signOut();
+                  }}
+                  title="Cerrar sesión"
+                  className="p-1 rounded text-zinc-400 hover:text-red-400 hover:bg-zinc-700/60 transition-colors ml-1"
+                >
+                  <LogOut size={13} />
+                </button>
               </div>
             )}
-
-            <button
-              type="button"
-              onClick={signOut}
-              title="Cerrar sesión"
-              className="p-1 rounded text-zinc-400 hover:text-red-400 hover:bg-zinc-800 transition-colors"
-            >
-              <LogOut size={14} />
-            </button>
           </div>
         </div>
       </aside>
@@ -425,6 +467,15 @@ export default function AppShell() {
         </div>
       )}
 
+      {/* MODAL DE AJUSTES NOTION-STYLE */}
+      <NotionSettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        tenant={tenant}
+        subStatus={subStatus}
+        session={session}
+        onUpdateTenant={(updated) => setTenant(updated)}
+      />
     </div>
   );
 }

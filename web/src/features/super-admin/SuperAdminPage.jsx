@@ -94,7 +94,7 @@ function Dashboard() {
 
           <div className="flex items-center gap-2">
             <Link
-              to="/pos"
+              to="/app"
               className="px-3.5 py-1.5 rounded-lg bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 active:scale-98"
               title="Abrir la aplicación de facturación POS y mesas"
             >

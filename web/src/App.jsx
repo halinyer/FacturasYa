@@ -6,7 +6,7 @@ import { isConfigured } from './lib/supabase';
 // Code-Splitting estilo Notion: La landing carga ultra-ligera en <300ms,
 // y la aplicación POS compartida se descarga solo cuando el usuario entra.
 const LandingPage = lazy(() => import('./features/landing/LandingPage'));
-const PosAppWrapper = lazy(() => import('./features/pos/PosAppWrapper'));
+const AppShell = lazy(() => import('./features/app-shell/AppShell'));
 const SuperAdminPage = lazy(() => import('./features/super-admin/SuperAdminPage'));
 const OwnerMonitorPage = lazy(() => import('./features/monitor/OwnerMonitorPage'));
 
@@ -62,12 +62,28 @@ export default function App() {
               }
             />
 
-            {/* Aplicación POS Unificada compartida con Escritorio */}
+            {/* Espacio de Trabajo SaaS estilo Notion (AppShell con POS, Mesas, Monitor y Ajustes) */}
+            <Route
+              path="/app"
+              element={
+                <NeedsSupabase>
+                  <AppShell />
+                </NeedsSupabase>
+              }
+            />
             <Route
               path="/app/*"
               element={
                 <NeedsSupabase>
-                  <PosAppWrapper />
+                  <AppShell />
+                </NeedsSupabase>
+              }
+            />
+            <Route
+              path="/pos"
+              element={
+                <NeedsSupabase>
+                  <AppShell />
                 </NeedsSupabase>
               }
             />
@@ -75,15 +91,15 @@ export default function App() {
               path="/pos/*"
               element={
                 <NeedsSupabase>
-                  <PosAppWrapper />
+                  <AppShell />
                 </NeedsSupabase>
               }
             />
             <Route
-              path="/dashboard/*"
+              path="/tables"
               element={
                 <NeedsSupabase>
-                  <PosAppWrapper />
+                  <AppShell />
                 </NeedsSupabase>
               }
             />
@@ -91,7 +107,15 @@ export default function App() {
               path="/tables/*"
               element={
                 <NeedsSupabase>
-                  <PosAppWrapper />
+                  <AppShell />
+                </NeedsSupabase>
+              }
+            />
+            <Route
+              path="/mesas"
+              element={
+                <NeedsSupabase>
+                  <AppShell />
                 </NeedsSupabase>
               }
             />
@@ -99,55 +123,7 @@ export default function App() {
               path="/mesas/*"
               element={
                 <NeedsSupabase>
-                  <PosAppWrapper />
-                </NeedsSupabase>
-              }
-            />
-            <Route
-              path="/products/*"
-              element={
-                <NeedsSupabase>
-                  <PosAppWrapper />
-                </NeedsSupabase>
-              }
-            />
-            <Route
-              path="/productos/*"
-              element={
-                <NeedsSupabase>
-                  <PosAppWrapper />
-                </NeedsSupabase>
-              }
-            />
-            <Route
-              path="/inventory/*"
-              element={
-                <NeedsSupabase>
-                  <PosAppWrapper />
-                </NeedsSupabase>
-              }
-            />
-            <Route
-              path="/inventario/*"
-              element={
-                <NeedsSupabase>
-                  <PosAppWrapper />
-                </NeedsSupabase>
-              }
-            />
-            <Route
-              path="/cash-close/*"
-              element={
-                <NeedsSupabase>
-                  <PosAppWrapper />
-                </NeedsSupabase>
-              }
-            />
-            <Route
-              path="/fiscal-books/*"
-              element={
-                <NeedsSupabase>
-                  <PosAppWrapper />
+                  <AppShell />
                 </NeedsSupabase>
               }
             />

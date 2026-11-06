@@ -195,7 +195,7 @@ export default function LandingPage() {
       if (cleanEmail === 'signalnotestudio@gmail.com') {
         navigate('/super-admin');
       } else {
-        navigate('/pos');
+        navigate('/app');
       }
     } catch (err) {
       setFormError(err.message || 'Error al procesar la solicitud.');
@@ -263,7 +263,7 @@ export default function LandingPage() {
             {session ? (
               <>
                 <Link
-                  to="/pos"
+                  to="/app"
                   className="bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold px-4 py-2 rounded-full shadow-xs hover:shadow transition-all inline-flex items-center gap-1.5 active:scale-98"
                 >
                   <Store size={14} />
