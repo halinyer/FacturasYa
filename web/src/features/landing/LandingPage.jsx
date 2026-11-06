@@ -64,17 +64,37 @@ export default function LandingPage() {
   const [authTab, setAuthTab] = useState('signup'); // 'signup' | 'login'
   const [form, setForm] = useState({
     email: '',
-    password: ''
+    password: '',
+    confirmPassword: ''
   });
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
+  const [emailCheckNotice, setEmailCheckNotice] = useState(false);
 
   const openAuthModal = (tab = 'signup') => {
     setAuthTab(tab);
     setFormError('');
+    setEmailCheckNotice(false);
     setIsModalOpen(true);
   };
   const openTrialModal = () => openAuthModal('signup');
+
+  // Medidor de seguridad de contraseña
+  const passwordStrength = React.useMemo(() => {
+    const pass = form.password || '';
+    if (!pass) return { score: 0, label: '', color: 'bg-zinc-200', textClass: 'text-zinc-400' };
+    let score = 0;
+    if (pass.length >= 6) score += 1;
+    if (pass.length >= 8) score += 1;
+    if (/[A-Z]/.test(pass) && /[a-z]/.test(pass)) score += 1;
+    if (/\d/.test(pass)) score += 1;
+    if (/[^A-Za-z0-9]/.test(pass)) score += 1;
+
+    if (score <= 1) return { score: 1, label: 'Débil', color: 'bg-red-500', textClass: 'text-red-600' };
+    if (score <= 2) return { score: 2, label: 'Regular', color: 'bg-amber-500', textClass: 'text-amber-600' };
+    if (score <= 3) return { score: 3, label: 'Buena', color: 'bg-sky-500', textClass: 'text-sky-600' };
+    return { score: 4, label: 'Excelente', color: 'bg-emerald-500', textClass: 'text-emerald-600' };
+  }, [form.password]);
 
   const rate = Math.max(1, Number(bcvRate) || 876.80);
   const activeItems = cartItems.filter((i) => i.qty > 0);
@@ -109,26 +129,64 @@ export default function LandingPage() {
     e.preventDefault();
     setSubmitting(true);
     setFormError('');
+    setEmailCheckNotice(false);
 
     try {
       const cleanEmail = form.email.trim().toLowerCase();
       if (!cleanEmail || !form.password) {
-        throw new Error('Ingresa tu correo y contraseña.');
+        throw new Error('Por favor ingresa tu correo y contraseña.');
+      }
+
+      // Validaciones específicas de registro
+      if (authTab === 'signup') {
+        if (form.password.length < 6) {
+          throw new Error('La contraseña debe tener un mínimo de 6 caracteres.');
+        }
+        if (form.password !== form.confirmPassword) {
+          throw new Error('Las contraseñas no coinciden. Por favor escríbelas iguales.');
+        }
       }
 
       if (isConfigured && supabase) {
         if (authTab === 'signup') {
-          const { error } = await supabase.auth.signUp({
+          const { data, error } = await supabase.auth.signUp({
             email: cleanEmail,
             password: form.password
           });
-          if (error) throw new Error(error.message);
+
+          if (error) {
+            if (error.message.includes('already registered') || error.status === 422) {
+              throw new Error('Este correo ya está registrado en FacturasYa. Haz clic en "Iniciar sesión" arriba.');
+            }
+            throw new Error(error.message);
+          }
+
+          // Detección anti-enumeración de Supabase (si el usuario ya existía)
+          if (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+            throw new Error('Este correo ya se encuentra registrado. Por favor selecciona "Iniciar sesión" o recupera tu contraseña.');
+          }
+
+          // Si el proyecto requiere confirmar por correo y no inició sesión automáticamente:
+          if (data?.user && !data?.session) {
+            setEmailCheckNotice(true);
+            return;
+          }
         } else {
+          // Inicio de sesión
           const { error } = await supabase.auth.signInWithPassword({
             email: cleanEmail,
             password: form.password
           });
-          if (error) throw new Error(error.message);
+
+          if (error) {
+            if (error.message.includes('Invalid login credentials')) {
+              throw new Error('Correo o contraseña incorrectos. Verifica e intenta nuevamente.');
+            }
+            if (error.message.includes('Email not confirmed')) {
+              throw new Error('Debes confirmar tu correo electrónico antes de ingresar. Revisa tu bandeja de entrada.');
+            }
+            throw new Error(error.message);
+          }
         }
       }
 
@@ -138,7 +196,7 @@ export default function LandingPage() {
         navigate('/monitor');
       }
     } catch (err) {
-      setFormError(err.message || 'Error al autenticar la cuenta.');
+      setFormError(err.message || 'Error al procesar la solicitud.');
     } finally {
       setSubmitting(false);
     }
@@ -869,7 +927,7 @@ export default function LandingPage() {
             <div className="grid grid-cols-2 p-1 bg-zinc-100 rounded-xl text-xs font-semibold">
               <button
                 type="button"
-                onClick={() => { setAuthTab('signup'); setFormError(''); }}
+                onClick={() => { setAuthTab('signup'); setFormError(''); setEmailCheckNotice(false); }}
                 className={`py-1.5 rounded-lg transition-all ${
                   authTab === 'signup'
                     ? 'bg-white text-zinc-950 shadow-2xs'
@@ -880,7 +938,7 @@ export default function LandingPage() {
               </button>
               <button
                 type="button"
-                onClick={() => { setAuthTab('login'); setFormError(''); }}
+                onClick={() => { setAuthTab('login'); setFormError(''); setEmailCheckNotice(false); }}
                 className={`py-1.5 rounded-lg transition-all ${
                   authTab === 'login'
                     ? 'bg-white text-zinc-950 shadow-2xs'
@@ -891,58 +949,120 @@ export default function LandingPage() {
               </button>
             </div>
 
-            <form onSubmit={handleAuthSubmit} className="space-y-3.5 text-xs">
-              <div>
-                <label className="block text-zinc-700 font-semibold mb-1">Correo electrónico</label>
-                <input
-                  type="email"
-                  required
-                  placeholder="admin@mirestaurante.com"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:border-zinc-950 focus:outline-none text-zinc-900 bg-zinc-50/50"
-                  autoFocus
-                />
-              </div>
-
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="text-zinc-700 font-semibold">Contraseña</label>
-                  <span className="text-[10px] text-zinc-400">Mínimo 6 caracteres</span>
+            {emailCheckNotice ? (
+              <div className="space-y-4 py-2">
+                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 space-y-2">
+                  <div className="font-bold flex items-center gap-1.5 text-sm text-emerald-950">
+                    <CheckCircle2 size={18} className="text-emerald-600" />
+                    ¡Confirma tu correo!
+                  </div>
+                  <p className="leading-relaxed">
+                    Hemos enviado un enlace de confirmación a <strong>{form.email}</strong>. 
+                    Por favor revisa tu bandeja de entrada (o carpeta de spam) para activar tu cuenta.
+                  </p>
                 </div>
-                <input
-                  type="password"
-                  required
-                  minLength={6}
-                  placeholder="••••••••"
-                  value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:border-zinc-950 focus:outline-none text-zinc-900 bg-zinc-50/50"
-                />
+
+                <button
+                  type="button"
+                  onClick={() => { setAuthTab('login'); setEmailCheckNotice(false); }}
+                  className="w-full py-2.5 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 font-semibold text-xs text-white shadow-xs transition-all"
+                >
+                  Ya confirmé, ir a Iniciar sesión →
+                </button>
               </div>
-
-              {formError && (
-                <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-red-600 text-xs font-medium">
-                  {formError}
+            ) : (
+              <form onSubmit={handleAuthSubmit} className="space-y-3.5 text-xs">
+                <div>
+                  <label className="block text-zinc-700 font-semibold mb-1">Correo electrónico</label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="admin@mirestaurante.com"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:border-zinc-950 focus:outline-none text-zinc-900 bg-zinc-50/50"
+                    autoFocus
+                  />
                 </div>
-              )}
 
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full py-2.5 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 font-semibold text-xs text-white shadow-xs transition-all flex items-center justify-center gap-2 mt-2 active:scale-98"
-              >
-                {submitting
-                  ? (authTab === 'signup' ? 'Creando cuenta...' : 'Iniciando sesión...')
-                  : (authTab === 'signup' ? 'Crear cuenta y comenzar 14 días →' : 'Entrar a mi monitor →')}
-              </button>
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="text-zinc-700 font-semibold">Contraseña</label>
+                    <span className="text-[10px] text-zinc-400">Mínimo 6 caracteres</span>
+                  </div>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    placeholder="••••••••"
+                    value={form.password}
+                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:border-zinc-950 focus:outline-none text-zinc-900 bg-zinc-50/50"
+                  />
 
-              <p className="text-[10px] text-center text-zinc-400">
-                {authTab === 'signup'
-                  ? 'Configurarás tu RIF y Razón Social al entrar a tu Monitor del Dueño.'
-                  : '¿Olvidaste tu contraseña? Escríbenos a soporte.'}
-              </p>
-            </form>
+                  {/* BARRITA DE SEGURIDAD DE CONTRASEÑA (SOLO EN REGISTRO) */}
+                  {authTab === 'signup' && form.password.length > 0 && (
+                    <div className="space-y-1 mt-2">
+                      <div className="h-1.5 w-full bg-zinc-100 rounded-full overflow-hidden flex gap-1">
+                        <div className={`h-full flex-1 rounded-full ${passwordStrength.score >= 1 ? passwordStrength.color : 'bg-zinc-200'} transition-all`} />
+                        <div className={`h-full flex-1 rounded-full ${passwordStrength.score >= 2 ? passwordStrength.color : 'bg-zinc-200'} transition-all`} />
+                        <div className={`h-full flex-1 rounded-full ${passwordStrength.score >= 3 ? passwordStrength.color : 'bg-zinc-200'} transition-all`} />
+                        <div className={`h-full flex-1 rounded-full ${passwordStrength.score >= 4 ? passwordStrength.color : 'bg-zinc-200'} transition-all`} />
+                      </div>
+                      <div className="flex justify-between items-center text-[10px]">
+                        <span className="text-zinc-400">Nivel de seguridad:</span>
+                        <span className={`font-bold ${passwordStrength.textClass}`}>
+                          {passwordStrength.label}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* CONFIRMACIÓN DE CONTRASEÑA (SOLO EN REGISTRO) */}
+                {authTab === 'signup' && (
+                  <div>
+                    <label className="block text-zinc-700 font-semibold mb-1">Confirmar contraseña</label>
+                    <input
+                      type="password"
+                      required
+                      minLength={6}
+                      placeholder="Repite tu contraseña"
+                      value={form.confirmPassword}
+                      onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:border-zinc-950 focus:outline-none text-zinc-900 bg-zinc-50/50"
+                    />
+                    {form.confirmPassword.length > 0 && form.password !== form.confirmPassword && (
+                      <span className="text-[10px] text-red-600 font-medium block mt-1">
+                        Las contraseñas no coinciden aún.
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {formError && (
+                  <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs font-medium leading-relaxed">
+                    {formError}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="w-full py-2.5 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 font-semibold text-xs text-white shadow-xs transition-all flex items-center justify-center gap-2 mt-2 active:scale-98"
+                >
+                  {submitting
+                    ? (authTab === 'signup' ? 'Creando cuenta...' : 'Iniciando sesión...')
+                    : (authTab === 'signup' ? 'Crear cuenta y comenzar 14 días →' : 'Entrar a mi monitor →')}
+                </button>
+
+                <p className="text-[10px] text-center text-zinc-400">
+                  {authTab === 'signup'
+                    ? 'Configurarás tu RIF y Razón Social al entrar a tu Monitor del Dueño.'
+                    : '¿No tienes cuenta? Haz clic en "Crear cuenta" arriba.'}
+                </p>
+              </form>
+            )}
           </div>
         </div>
       )}
