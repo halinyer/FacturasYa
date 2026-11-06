@@ -22,6 +22,7 @@ import {
   Layers
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useData } from '../../pos-core/contexts/DataContext';
 
 // Catálogo por defecto optimizado para restaurantes, cafeterías y comida rápida en Venezuela
 const DEFAULT_PRODUCTS = [
@@ -142,6 +143,7 @@ function formatUsd(val) {
 }
 
 export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
+  const data = useData();
   // Tasa de cambio BCV
   const [bcvRate, setBcvRate] = useState(() => Number(snapshot?.exchange_rate || tenant?.exchange_rate) || 876.80);
   const [isEditingRate, setIsEditingRate] = useState(false);
@@ -149,6 +151,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
 
   // Productos y Búsqueda
   const [products] = useState(() => {
+    if (data?.products && data.products.length > 0) return data.products;
     const custom = snapshot?.products;
     return Array.isArray(custom) && custom.length > 0 ? custom : DEFAULT_PRODUCTS;
   });
@@ -342,6 +345,11 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
         fiscalSerial,
         status: 'completed'
       };
+
+      // Registrar factura en el DataContext local (actualiza Dashboard, Libros SENIAT y Cierre de Caja)
+      if (data?.addInvoice) {
+        data.addInvoice(invoiceData);
+      }
 
       // Si hay un tenant autenticado, actualizar snapshot en Supabase
       if (tenant?.id) {

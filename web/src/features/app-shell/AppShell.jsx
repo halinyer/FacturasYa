@@ -23,17 +23,24 @@ import {
 import { useAuth as useWebAuth } from '../auth/AuthProvider';
 import { AuthProvider as PosAuthProvider } from '@pos/contexts/AuthContext';
 import { DataProvider, useData } from '@pos/contexts/DataContext';
-import '@pos/index.css';
+
 
 // Módulos operativos completos de Happy Days
-import POS from '@pos/pages/POS';
-import Tables from '@pos/pages/Tables';
-import Dashboard from '@pos/pages/Dashboard';
-import FiscalBooks from '@pos/pages/FiscalBooks';
-import CashClose from '@pos/pages/CashClose';
-import Inventory from '@pos/pages/Inventory';
-import Products from '@pos/pages/Products';
-import Clients from '@pos/pages/Clients';
+import WebPosView from '../pos/WebPosView';
+import TablesView from '../tables/TablesView';
+import SalesDashboardView from '../dashboard/SalesDashboardView';
+import FiscalBooksView from '../fiscal/FiscalBooksView';
+import CashCloseView from '../cash-close/CashCloseView';
+import InventoryView from '../inventory/InventoryView';
+import ProductsView from '../products/ProductsView';
+import ClientsView from '../clients/ClientsView';
+
+
+
+
+
+
+
 
 // Monitor Cloud para el dueño y modales
 import OwnerMonitorPage from '../monitor/OwnerMonitorPage';
@@ -382,14 +389,24 @@ function AppShellInner() {
 
         {/* VISTAS OPERATIVAS COMPLETAS DE HAPPY DAYS */}
         <main className="flex-1 overflow-y-auto">
-          {activeTab === 'pos' && <POS />}
-          {activeTab === 'tables' && <Tables />}
-          {activeTab === 'dashboard' && <Dashboard />}
-          {activeTab === 'fiscal' && <FiscalBooks />}
-          {activeTab === 'cash-close' && <CashClose />}
-          {activeTab === 'inventory' && <Inventory />}
-          {activeTab === 'products' && <Products />}
-          {activeTab === 'clients' && <Clients />}
+          {activeTab === 'pos' && (
+            <WebPosView
+              tenant={tenant}
+              snapshot={snapshot}
+              onSaleComplete={() => {}}
+            />
+          )}
+          {activeTab === 'tables' && (
+            <TablesView
+              onGoToPos={() => setActiveTab('pos')}
+            />
+          )}
+          {activeTab === 'dashboard' && <SalesDashboardView />}
+          {activeTab === 'fiscal' && <FiscalBooksView />}
+          {activeTab === 'cash-close' && <CashCloseView />}
+          {activeTab === 'inventory' && <InventoryView />}
+          {activeTab === 'products' && <ProductsView />}
+          {activeTab === 'clients' && <ClientsView />}
           {activeTab === 'monitor' && (
             <div className="h-full overflow-y-auto">
               <OwnerMonitorPage embedded={true} defaultTab="overview" />
