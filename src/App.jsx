@@ -164,78 +164,17 @@ export function SaaSPosShell() {
 
         <div style={{ flex: 1 }}>
           <ErrorBoundary>
-            <Routes>
-              <Route path="/pos" element={<POS />} />
-              
-              <Route path="/dashboard" element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/clients" element={
-                <ProtectedRoute>
-                  <Clients />
-                </ProtectedRoute>
-              } />
-              <Route path="/clientes" element={
-                <ProtectedRoute>
-                  <Clients />
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/products" element={
-                <ProtectedRoute>
-                  <Products />
-                </ProtectedRoute>
-              } />
-              <Route path="/productos" element={
-                <ProtectedRoute>
-                  <Products />
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/inventory" element={
-                <ProtectedRoute>
-                  <Inventory />
-                </ProtectedRoute>
-              } />
-              <Route path="/inventario" element={
-                <ProtectedRoute>
-                  <Inventory />
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/cash-close" element={
-                <ProtectedRoute>
-                  <CashClose />
-                </ProtectedRoute>
-              } />
-              <Route path="/cierre" element={
-                <ProtectedRoute>
-                  <CashClose />
-                </ProtectedRoute>
-              } />
-
-              <Route path="/fiscal-books" element={
-                <ProtectedRoute>
-                  <FiscalBooks />
-                </ProtectedRoute>
-              } />
-              <Route path="/libros-fiscales" element={
-                <ProtectedRoute>
-                  <FiscalBooks />
-                </ProtectedRoute>
-              } />
-
-              <Route path="/tables" element={<Tables />} />
-              <Route path="/mesas" element={<Tables />} />
-              
-              {/* Default redirect based on role */}
-              <Route path="*" element={
-                <Navigate to="/pos" replace />
-              } />
-            </Routes>
+            {(() => {
+              const p = (location.pathname || '').toLowerCase();
+              if (p.includes('table') || p.includes('mesa')) return <Tables />;
+              if (p.includes('dashboard')) return <ProtectedRoute><Dashboard /></ProtectedRoute>;
+              if (p.includes('client')) return <ProtectedRoute><Clients /></ProtectedRoute>;
+              if (p.includes('product')) return <ProtectedRoute><Products /></ProtectedRoute>;
+              if (p.includes('inventor')) return <ProtectedRoute><Inventory /></ProtectedRoute>;
+              if (p.includes('cash-close') || p.includes('cierre')) return <ProtectedRoute><CashClose /></ProtectedRoute>;
+              if (p.includes('fiscal-book') || p.includes('libro')) return <ProtectedRoute><FiscalBooks /></ProtectedRoute>;
+              return <POS />;
+            })()}
           </ErrorBoundary>
         </div>
       </main>

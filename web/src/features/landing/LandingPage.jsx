@@ -24,6 +24,7 @@ import {
   X
 } from 'lucide-react';
 import { supabase, isConfigured } from '../../lib/supabase';
+import { useAuth } from '../auth/AuthProvider';
 
 // Datos de productos para el simulador interactivo
 const DEMO_PRODUCTS = [
@@ -49,6 +50,7 @@ function formatUsd(val) {
 
 export default function LandingPage() {
   const navigate = useNavigate();
+  const { session, isAdmin } = useAuth() || {};
   // Simulador de Tasa BCV y Caja
   const [bcvRate, setBcvRate] = useState(876.80);
   const [cartItems, setCartItems] = useState(DEMO_PRODUCTS);
@@ -258,21 +260,43 @@ export default function LandingPage() {
           </nav>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            <button
-              type="button"
-              onClick={() => openAuthModal('login')}
-              className="text-xs font-semibold text-zinc-700 hover:text-zinc-950 px-3 py-1.5 rounded-lg hover:bg-zinc-100 transition-colors"
-            >
-              Iniciar Sesión
-            </button>
-            <button
-              type="button"
-              onClick={() => openAuthModal('signup')}
-              className="bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold px-4 py-2 rounded-full shadow-xs hover:shadow transition-all inline-flex items-center gap-1.5 active:scale-98"
-            >
-              <span>14 Días Gratis</span>
-              <ArrowRight size={13} />
-            </button>
+            {session ? (
+              <>
+                <Link
+                  to="/pos"
+                  className="bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold px-4 py-2 rounded-full shadow-xs hover:shadow transition-all inline-flex items-center gap-1.5 active:scale-98"
+                >
+                  <Store size={14} />
+                  <span>Ir a mi POS →</span>
+                </Link>
+                {isAdmin && (
+                  <Link
+                    to="/super-admin"
+                    className="text-xs font-semibold text-zinc-700 hover:text-zinc-950 px-3 py-1.5 rounded-lg hover:bg-zinc-100 transition-colors"
+                  >
+                    Super Admin
+                  </Link>
+                )}
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => openAuthModal('login')}
+                  className="text-xs font-semibold text-zinc-700 hover:text-zinc-950 px-3 py-1.5 rounded-lg hover:bg-zinc-100 transition-colors"
+                >
+                  Iniciar Sesión
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openAuthModal('signup')}
+                  className="bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold px-4 py-2 rounded-full shadow-xs hover:shadow transition-all inline-flex items-center gap-1.5 active:scale-98"
+                >
+                  <span>14 Días Gratis</span>
+                  <ArrowRight size={13} />
+                </button>
+              </>
+            )}
           </div>
         </div>
       </header>

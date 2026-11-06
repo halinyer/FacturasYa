@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import LoginForm from '../auth/LoginForm';
 import { supabase } from '../../lib/supabase';
@@ -92,6 +93,15 @@ function Dashboard() {
           </div>
 
           <div className="flex items-center gap-2">
+            <Link
+              to="/pos"
+              className="px-3.5 py-1.5 rounded-lg bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 active:scale-98"
+              title="Abrir la aplicación de facturación POS y mesas"
+            >
+              <Store size={14} />
+              <span>Abrir POS / Ventas →</span>
+            </Link>
+
             <button
               type="button"
               onClick={refresh}
