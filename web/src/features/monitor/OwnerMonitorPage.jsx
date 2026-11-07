@@ -72,7 +72,7 @@ function formatUsd(val) {
 }
 
 export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overview', onTenantChange }) {
-  const { session, loading: authLoading, signOut } = useAuth();
+  const { session, isAdmin, loading: authLoading, signOut } = useAuth();
   const isElectron = typeof window !== 'undefined' && Boolean(window.electronAPI);
   const [tenant, setTenant] = useState(null);
   const [snapshot, setSnapshot] = useState(null);
@@ -455,7 +455,12 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
           <p className="text-xs text-zinc-600 leading-relaxed">
             Tu cuenta de usuario no tiene asignado un restaurante todavía. Registra tu local desde la página de inicio para activar tus 14 días gratis.
           </p>
-          <div className="flex gap-2 justify-center">
+          <div className="flex gap-2 justify-center flex-wrap">
+            {isAdmin && (
+              <Link to="/super-admin" className="btn primary">
+                🛡️ Ir a Consola Super Admin
+              </Link>
+            )}
             <Link to="/" className="btn primary">Registrar mi restaurante</Link>
             <button onClick={signOut} className="btn">Cerrar sesión</button>
           </div>
@@ -493,6 +498,16 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
           </div>
 
           <div className="flex items-center gap-2">
+            {isAdmin && (
+              <Link
+                to="/super-admin"
+                className="px-2.5 py-1 rounded-full bg-zinc-950 text-white hover:bg-zinc-800 text-xs font-bold inline-flex items-center gap-1 transition-colors"
+                title="Abrir Consola Super Admin SaaS"
+              >
+                <ShieldCheck size={12} />
+                <span>Super Admin</span>
+              </Link>
+            )}
             {/* Indicador de Suscripción */}
             {subStatus?.isExpired ? (
               <button

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import LoginForm from '../auth/LoginForm';
 import { supabase } from '../../lib/supabase';
-import { listTenants, listPayments, listAudit, getConfig } from './api';
+import { listTenants, listSnapshots, listPayments, listAudit, getConfig } from './api';
 import TenantsPanel from './TenantsPanel';
 import PaymentsPanel from './PaymentsPanel';
 import ConfigPanel from './ConfigPanel';
@@ -31,20 +31,21 @@ const TABS = [
 function Dashboard() {
   const { signOut, session } = useAuth();
   const [tab, setTab] = useState('tenants');
-  const [data, setData] = useState({ tenants: [], payments: [], audit: [], config: null });
+  const [data, setData] = useState({ tenants: [], snapshots: [], payments: [], audit: [], config: null });
   const [error, setError] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
       setRefreshing(true);
-      const [tenants, payments, audit, config] = await Promise.all([
+      const [tenants, snapshots, payments, audit, config] = await Promise.all([
         listTenants(),
+        listSnapshots(),
         listPayments(),
         listAudit(),
         getConfig()
       ]);
-      setData({ tenants, payments, audit, config });
+      setData({ tenants, snapshots, payments, audit, config });
       setError('');
     } catch (e) {
       setError(e.message);
@@ -60,6 +61,7 @@ function Dashboard() {
       .channel('super-admin-live')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'subscription_payments' }, refresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tenants' }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tenant_snapshots' }, refresh)
       .subscribe();
     return () => supabase.removeChannel(channel);
   }, [refresh]);
@@ -106,7 +108,7 @@ function Dashboard() {
               type="button"
               onClick={refresh}
               disabled={refreshing}
-              className="p-1.5 rounded-lg border border-zinc-200 hover:bg-zinc-100 text-zinc-600 transition-colors"
+              className="p-1.5 rounded-lg border border-zinc-200 hover:bg-zinc-100 text-zinc-600 transition-colors cursor-pointer"
               title="Refrescar datos"
             >
               <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
@@ -115,7 +117,7 @@ function Dashboard() {
             <button
               type="button"
               onClick={signOut}
-              className="px-3 py-1.5 rounded-lg border border-zinc-200 hover:bg-zinc-100 text-zinc-700 text-xs font-semibold transition-colors flex items-center gap-1.5"
+              className="px-3 py-1.5 rounded-lg border border-zinc-200 hover:bg-zinc-100 text-zinc-700 text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
             >
               <LogOut size={14} />
               <span>Cerrar sesión</span>
@@ -134,7 +136,7 @@ function Dashboard() {
                 key={t.id}
                 type="button"
                 onClick={() => setTab(t.id)}
-                className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
                   isSelected
                     ? 'bg-zinc-950 text-white shadow-2xs'
                     : 'text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100'
@@ -170,6 +172,8 @@ function Dashboard() {
         {tab === 'tenants' && (
           <TenantsPanel
             tenants={data.tenants}
+            snapshots={data.snapshots}
+            payments={data.payments}
             config={data.config}
             onChange={refresh}
             onError={setError}
@@ -250,7 +254,7 @@ export default function SuperAdminPage() {
           <button
             type="button"
             onClick={signOut}
-            className="px-4 py-2 rounded-xl bg-zinc-950 text-white font-semibold text-xs hover:bg-zinc-800 transition-all"
+            className="px-4 py-2 rounded-xl bg-zinc-950 text-white font-semibold text-xs hover:bg-zinc-800 transition-all cursor-pointer"
           >
             Cerrar sesión
           </button>

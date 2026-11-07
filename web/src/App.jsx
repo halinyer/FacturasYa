@@ -141,9 +141,17 @@ export default function App() {
                 }
               />
 
-              {/* Panel Super Admin (Requiere sesión iniciada) */}
+              {/* Panel Super Admin (Requiere sesión iniciada - accesible por /super-admin y /admin) */}
               <Route
                 path="/super-admin"
+                element={
+                  <RequireAuth>
+                    <SuperAdminPage />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/admin"
                 element={
                   <RequireAuth>
                     <SuperAdminPage />

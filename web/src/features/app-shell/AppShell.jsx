@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import {
   ShoppingCart,
   Utensils,
@@ -61,7 +61,7 @@ const INSTALLER_URL =
   import.meta.env.VITE_INSTALLER_URL || 'https://github.com/halinyer/FacturasYa/releases/latest/download/FacturaPOS-1.0.0.exe';
 
 function AppShellInner() {
-  const { session, signOut } = useWebAuth();
+  const { session, isAdmin, signOut } = useWebAuth();
   const isElectron = typeof window !== 'undefined' && (Boolean(window?.electronAPI) || window.location.protocol === 'file:');
   const posData = useData();
   const refreshDataRef = useRef(posData?.refreshData);
@@ -597,6 +597,16 @@ function AppShellInner() {
               >
                 <span>{installingUpdate ? 'Actualizando...' : '⚡ Actualizar versión'}</span>
               </button>
+            )}
+            {isAdmin && (
+              <Link
+                to="/super-admin"
+                className="px-2.5 py-1 rounded-xl bg-amber-400/15 hover:bg-amber-400/25 border border-amber-400/30 text-amber-300 font-extrabold text-[11px] flex items-center gap-1.5 transition-all app-no-drag"
+                title="Ir al Panel Super Admin SaaS"
+              >
+                <ShieldCheck size={13} />
+                <span className="hidden sm:inline">Super Admin</span>
+              </Link>
             )}
             <TopBarRate />
 

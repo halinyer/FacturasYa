@@ -750,6 +750,47 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION public.admin_update_tenant_profile(
+  p_tenant_id UUID,
+  p_name TEXT,
+  p_legal_name TEXT DEFAULT '',
+  p_rif TEXT DEFAULT '',
+  p_fiscal_address TEXT DEFAULT '',
+  p_fiscal_serial TEXT DEFAULT '',
+  p_phone TEXT DEFAULT '',
+  p_instagram TEXT DEFAULT ''
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_updated public.tenants%ROWTYPE;
+BEGIN
+  PERFORM public.require_admin_or_service();
+
+  UPDATE public.tenants
+  SET name = COALESCE(NULLIF(TRIM(p_name), ''), name),
+      legal_name = TRIM(COALESCE(p_legal_name, '')),
+      rif = UPPER(TRIM(COALESCE(p_rif, ''))),
+      fiscal_address = TRIM(COALESCE(p_fiscal_address, '')),
+      fiscal_serial = UPPER(TRIM(COALESCE(p_fiscal_serial, ''))),
+      phone = TRIM(COALESCE(p_phone, '')),
+      instagram = TRIM(COALESCE(p_instagram, '')),
+      updated_at = NOW()
+  WHERE id = p_tenant_id
+  RETURNING * INTO v_updated;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Restaurante no encontrado');
+  END IF;
+
+  PERFORM public.log_admin_action('update_tenant_profile', p_tenant_id, jsonb_build_object('name', p_name, 'rif', p_rif, 'fiscal_serial', p_fiscal_serial));
+  RETURN jsonb_build_object('success', true, 'tenant', row_to_json(v_updated));
+END;
+$$;
+
 -- 7.4 Row Level Security
 ALTER TABLE public.saas_config ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tenants ENABLE ROW LEVEL SECURITY;
