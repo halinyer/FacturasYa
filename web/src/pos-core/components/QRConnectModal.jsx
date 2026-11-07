@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { QrCode, Wifi, Smartphone, RefreshCw, X, Check, Copy, ExternalLink, ShieldCheck } from 'lucide-react';
+import { Wifi, Smartphone, RefreshCw, X, Check, Copy } from 'lucide-react';
 import QRCode from 'qrcode';
-import { CLIENT_CONFIG } from '../config/clientConfig';
 
 const QRConnectModal = ({ onClose }) => {
   const [serverInfo, setServerInfo] = useState({
@@ -21,29 +20,25 @@ const QRConnectModal = ({ onClose }) => {
     if (isInitial) setLoading(true);
     let info = null;
 
-    // 1. Try local HTTP endpoint with fresh dynamic IP detection
     try {
       const res = await fetch('http://localhost:3001/api/status');
       if (res.ok) {
         info = await res.json();
         info.isRunning = true;
       }
-    } catch (e) {
-      console.warn('HTTP /api/status fetch failed:', e);
-    }
+    } catch (e) {}
 
-    // 2. Try Electron IPC if available
     if (!info && window.electronAPI && typeof window.electronAPI.getServerInfo === 'function') {
       try {
         info = await window.electronAPI.getServerInfo();
-      } catch (err) {
-        console.warn('IPC getServerInfo failed:', err);
-      }
+      } catch (err) {}
     }
 
-    // Default info if both failed
     if (!info) {
-      const fallbackIp = window.location.hostname && window.location.hostname !== 'localhost' ? window.location.hostname : '127.0.0.1';
+      const fallbackIp =
+        window.location.hostname && window.location.hostname !== 'localhost'
+          ? window.location.hostname
+          : '127.0.0.1';
       info = {
         isRunning: true,
         ip: fallbackIp,
@@ -55,25 +50,25 @@ const QRConnectModal = ({ onClose }) => {
       };
     }
 
-    // 3. Guaranteed client-side QR generation if qrCode is empty
     if (!info.qrCode && info.url) {
       try {
         info.qrCode = await QRCode.toDataURL(info.url, {
           width: 320,
           margin: 2,
-          color: { dark: '#0f172a', light: '#ffffff' }
+          color: { dark: '#09090b', light: '#ffffff' }
         });
-      } catch (qrErr) {
-        console.error('Error generating QR on client:', qrErr);
-      }
+      } catch (qrErr) {}
     }
 
-    const count = typeof info.connectedCount === 'number' 
-      ? info.connectedCount 
-      : (typeof info.connectedDevices === 'number' ? info.connectedDevices : 0);
+    const count =
+      typeof info.connectedCount === 'number'
+        ? info.connectedCount
+        : typeof info.connectedDevices === 'number'
+        ? info.connectedDevices
+        : 0;
     info.connectedCount = count;
 
-    setServerInfo(prev => ({ ...prev, ...info }));
+    setServerInfo((prev) => ({ ...prev, ...info }));
     setLoading(false);
   };
 
@@ -91,175 +86,133 @@ const QRConnectModal = ({ onClose }) => {
     }
   };
 
-  const handleRefreshIp = async (manualIp = null) => {
-    setRefreshing(true);
-    try {
-      // 1. Try HTTP refresh endpoint
-      const res = await fetch('http://localhost:3001/api/server/refresh-ip', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ip: manualIp || '' })
-      });
-      if (res.ok) {
-        const info = await res.json();
-        if (info) setServerInfo(prev => ({ ...prev, ...info }));
-      } else if (window.electronAPI && typeof window.electronAPI.refreshServerIp === 'function') {
-        const info = await window.electronAPI.refreshServerIp(manualIp);
-        if (info) setServerInfo(prev => ({ ...prev, ...info }));
-      }
-    } catch (e) {
-      console.warn('Error refrescando IP:', e);
-      if (window.electronAPI && typeof window.electronAPI.refreshServerIp === 'function') {
-        try {
-          const info = await window.electronAPI.refreshServerIp(manualIp);
-          if (info) setServerInfo(prev => ({ ...prev, ...info }));
-        } catch (ipcErr) {}
-      }
-    }
-    await fetchServerInfo(false);
-    setRefreshing(false);
-  };
-
   const handleRestart = async () => {
     if (window.electronAPI && typeof window.electronAPI.restartServer === 'function') {
       setLoading(true);
       try {
         const info = await window.electronAPI.restartServer();
         if (info) setServerInfo(info);
-      } catch (e) {
-        console.error(e);
-      }
+      } catch (e) {}
       setLoading(false);
+    } else {
+      setRefreshing(true);
+      await fetchServerInfo(false);
+      setRefreshing(false);
     }
   };
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      zIndex: 2100, backdropFilter: 'blur(3px)', padding: '16px'
-    }}>
-      <div style={{
-        background: '#ffffff', borderRadius: '20px', padding: '28px',
-        maxWidth: '460px', width: '100%', border: '1px solid #eaedf2',
-        boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', color: '#111827',
-        display: 'flex', flexDirection: 'column'
-      }}>
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: CLIENT_CONFIG.branding?.colors?.accentSoft || '#eff6ff', border: `1px solid ${CLIENT_CONFIG.branding?.colors?.borderSubtle || '#e2e8f0'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Smartphone size={22} color={CLIENT_CONFIG.branding?.colors?.primary || '#2563eb'} />
+    <div className="fixed inset-0 z-50 bg-zinc-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl max-w-md w-full p-6 border border-zinc-200 shadow-2xl space-y-5">
+        {/* Header Notion */}
+        <div className="flex items-start justify-between border-b border-zinc-100 pb-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-zinc-100 text-zinc-900 flex items-center justify-center border border-zinc-200">
+              <Smartphone size={20} />
             </div>
             <div>
-              <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '900', color: '#18181b' }}>Vincular Tablets</h2>
-              <div style={{ fontSize: '0.78rem', color: CLIENT_CONFIG.branding?.colors?.dark || '#0f172a', fontWeight: '700' }}>{CLIENT_CONFIG.name} — Red Wi-Fi Local</div>
+              <h2 className="text-sm font-extrabold text-zinc-950 tracking-tight">
+                Vincular Tablets / Meseros
+              </h2>
+              <p className="text-[11px] text-zinc-500">
+                Conexión directa por Red Wi-Fi Local (Puerto {serverInfo.port || 3001})
+              </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            style={{ background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer', padding: '4px' }}
+            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-800 hover:bg-zinc-100 cursor-pointer"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
-        {/* Status pill */}
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          background: serverInfo.isRunning ? '#f0fdf4' : '#fef2f2',
-          border: `1.5px solid ${serverInfo.isRunning ? '#7CBE43' : '#fecaca'}`,
-          borderRadius: '12px', padding: '10px 14px', marginBottom: '20px'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', fontWeight: '800', color: serverInfo.isRunning ? '#15803d' : '#991b1b' }}>
-            <Wifi size={16} />
+        {/* Estado del Servidor Local */}
+        <div
+          className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-xs font-bold ${
+            serverInfo.isRunning
+              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+              : 'bg-rose-50 text-rose-800 border-rose-200'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <Wifi size={15} className={serverInfo.isRunning ? 'text-emerald-600' : 'text-rose-600'} />
             <span>{serverInfo.isRunning ? 'Servidor Local: EN LÍNEA' : 'Servidor Desconectado'}</span>
           </div>
-          <span style={{ fontSize: '0.78rem', fontWeight: '900', background: serverInfo.isRunning ? '#7CBE43' : '#ef4444', color: '#fff', padding: '3px 9px', borderRadius: '8px' }}>
-            {serverInfo.connectedCount} {serverInfo.connectedCount === 1 ? 'tablet' : 'tablets'}
+          <span
+            className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-extrabold ${
+              serverInfo.isRunning ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
+            }`}
+          >
+            {serverInfo.connectedCount} {serverInfo.connectedCount === 1 ? 'dispositivo' : 'dispositivos'}
           </span>
         </div>
 
-        {/* QR Code Canvas */}
-        <div style={{
-          background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px',
-          padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center',
-          justifyContent: 'center', marginBottom: '20px'
-        }}>
+        {/* Código QR */}
+        <div className="bg-zinc-50 border border-zinc-200/80 rounded-2xl p-5 flex flex-col items-center justify-center text-center">
           {serverInfo.qrCode ? (
             <img
               src={serverInfo.qrCode}
               alt="Código QR de Conexión"
-              style={{ width: '220px', height: '220px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }}
+              className="w-52 h-52 rounded-xl border border-zinc-200 bg-white p-2 shadow-2xs"
             />
           ) : (
-            <div style={{ height: '220px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontSize: '0.9rem' }}>
-              <RefreshCw size={24} style={{ animation: 'spin 1s linear infinite', marginBottom: '8px' }} />
-              <div style={{ fontSize: '0.82rem' }}>Cargando código QR...</div>
+            <div className="h-52 flex flex-col items-center justify-center text-zinc-400 text-xs">
+              <RefreshCw size={22} className="animate-spin mb-2" />
+              <span>Generando código QR...</span>
             </div>
           )}
 
-          <div style={{ marginTop: '12px', fontSize: '0.8rem', color: '#4b5563', textAlign: 'center', fontWeight: '600' }}>
-            Apunta la cámara de la tablet o teléfono a este código QR para abrir el módulo de mesero.
-          </div>
+          <p className="mt-3 text-xs text-zinc-600 font-medium max-w-xs">
+            Escanea este código QR con la cámara de la tablet o teléfono del mesero e ingresa su{' '}
+            <strong className="text-zinc-900">PIN de 4 dígitos</strong>.
+          </p>
         </div>
 
-        {/* Manual URL box */}
-        <div style={{ marginBottom: '20px' }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#6b7280', textTransform: 'uppercase', marginBottom: '6px' }}>
-            O escribe esta dirección en la tablet:
-          </div>
-          <div style={{
-            display: 'flex', alignItems: 'center', background: '#f8fafc',
-            border: '1.5px solid #e2e8f0', borderRadius: '10px', padding: '8px 12px'
-          }}>
-            <span style={{ flex: 1, fontFamily: 'monospace', fontSize: '0.88rem', fontWeight: '800', color: CLIENT_CONFIG.branding?.colors?.dark || '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {/* URL Manual */}
+        <div>
+          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1.5">
+            O abre este enlace en el navegador de la tablet:
+          </label>
+          <div className="flex items-center gap-2 bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2">
+            <span className="flex-1 font-mono text-xs font-bold text-zinc-900 truncate">
               {serverInfo.url}
             </span>
             <button
               type="button"
               onClick={handleCopy}
-              style={{
-                background: copied ? (CLIENT_CONFIG.branding?.colors?.green || '#10b981') : '#ffffff', border: '1px solid #cbd5e1',
-                color: copied ? '#ffffff' : '#475569', borderRadius: '6px', padding: '5px 9px',
-                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem',
-                fontWeight: '700', transition: 'all 0.15s'
-              }}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors border ${
+                copied
+                  ? 'bg-emerald-600 text-white border-emerald-600'
+                  : 'bg-white hover:bg-zinc-100 text-zinc-700 border-zinc-200'
+              }`}
             >
-              {copied ? <Check size={13} /> : <Copy size={13} />}
-              {copied ? 'Copiado' : 'Copiar'}
+              {copied ? <Check size={12} /> : <Copy size={12} />}
+              <span>{copied ? 'Copiado' : 'Copiar'}</span>
             </button>
           </div>
         </div>
 
-        {/* Actions / Refresh */}
-        <div style={{ display: 'flex', gap: '10px', justifyContent: 'space-between', alignItems: 'center' }}>
+        {/* Botones inferiores */}
+        <div className="flex items-center justify-between gap-2 pt-2 border-t border-zinc-100">
           <button
             type="button"
             onClick={handleRestart}
-            style={{
-              background: '#f8fafc', border: '1.5px solid #cbd5e1', color: '#334155',
-              padding: '9px 14px', borderRadius: '10px', cursor: 'pointer', fontSize: '0.82rem',
-              fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px'
-            }}
+            className="px-3.5 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
           >
-            <RefreshCw size={14} /> Reiniciar Servidor Local
+            <RefreshCw size={13} className={loading || refreshing ? 'animate-spin' : ''} />
+            <span>Actualizar Red / IP</span>
           </button>
 
           <button
             type="button"
             onClick={onClose}
-            style={{
-              background: CLIENT_CONFIG.branding?.colors?.dark || '#0f172a', color: '#ffffff', border: 'none',
-              padding: '10px 22px', borderRadius: '10px', cursor: 'pointer',
-              fontSize: '0.9rem', fontWeight: '800', letterSpacing: '0.3px'
-            }}
+            className="px-5 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-bold cursor-pointer transition-colors shadow-2xs"
           >
             Cerrar
           </button>
         </div>
-
       </div>
     </div>
   );

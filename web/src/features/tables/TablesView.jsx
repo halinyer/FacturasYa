@@ -5,15 +5,13 @@ import { useData } from '../../pos-core/contexts/DataContext';
 import {
   Utensils,
   Clock,
-  CheckCircle,
+  CheckCircle2,
   AlertCircle,
   ShoppingCart,
   Users,
   Plus,
   Check,
-  RefreshCw,
   QrCode,
-  ArrowRight,
   X,
   Printer,
   Edit2,
@@ -21,7 +19,10 @@ import {
   Bike,
   MapPin,
   Phone,
-  Receipt
+  Receipt,
+  ChevronRight,
+  KeyRound,
+  RotateCcw
 } from 'lucide-react';
 import QRConnectModal from '../../pos-core/components/QRConnectModal';
 import InvoicePreview from '../../pos-core/components/InvoicePreview';
@@ -52,9 +53,10 @@ function sanitizeRestaurantState(state) {
   if (!state || typeof state !== 'object') return DEFAULT_FALLBACK_STATE;
   const activeOrders = Array.isArray(state.activeOrders) ? state.activeOrders : [];
   const waiters = Array.isArray(state.waiters) ? state.waiters : DEFAULT_FALLBACK_STATE.waiters;
-  const rawTables = Array.isArray(state.tables) && state.tables.length > 0
-    ? state.tables
-    : DEFAULT_FALLBACK_STATE.tables;
+  const rawTables =
+    Array.isArray(state.tables) && state.tables.length > 0
+      ? state.tables
+      : DEFAULT_FALLBACK_STATE.tables;
 
   const tables = rawTables.map((t) => {
     const hasActiveOrder = activeOrders.some(
@@ -107,7 +109,6 @@ export default function TablesView({ onGoToPos }) {
   const [selectedComandaPrint, setSelectedComandaPrint] = useState(null);
   const [restaurantState, setRestaurantState] = useState(() => {
     try {
-      // Limpiar llave antigua incompatible que guardaba status: 'free'
       localStorage.removeItem('facturasya_restaurant_tables');
       const saved = localStorage.getItem('facturasya_restaurant_state_v2');
       if (saved) {
@@ -116,10 +117,9 @@ export default function TablesView({ onGoToPos }) {
     } catch (e) {}
     return DEFAULT_FALLBACK_STATE;
   });
-  const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
 
-  // Form states for salon configuration
+  // Estados de formulario para configuración de salón y meseros
   const [newTable, setNewTable] = useState({ name: '', zone: 'Salón' });
   const [newWaiter, setNewWaiter] = useState({ name: '', pin: '' });
   const [editingWaiter, setEditingWaiter] = useState(null);
@@ -146,9 +146,7 @@ export default function TablesView({ onGoToPos }) {
         saveLocalFallback(data);
       }
     } catch (e) {
-      // Servidor local no disponible (ej. navegador web) -> mantiene fallback local
-    } finally {
-      setLoading(false);
+      // Modo standalone web: mantiene estado local
     }
   };
 
@@ -166,9 +164,7 @@ export default function TablesView({ onGoToPos }) {
       socket.on('mesas:actualizadas', (tables) => {
         setRestaurantState((prev) => sanitizeRestaurantState({ ...prev, tables }));
       });
-    } catch (e) {
-      console.warn('Socket connection error in TablesView.jsx:', e);
-    }
+    } catch (e) {}
     const interval = setInterval(fetchState, 5000);
     return () => {
       clearInterval(interval);
@@ -176,19 +172,27 @@ export default function TablesView({ onGoToPos }) {
     };
   }, []);
 
-  // Zones list
+  // Lista de zonas
   const zones = useMemo(() => {
     const list = new Set((restaurantState.tables || []).map((t) => t.zone || 'Salón'));
     return ['Todos', ...Array.from(list)];
   }, [restaurantState.tables]);
 
-  // Filtered tables
+  // Mesas filtradas
   const filteredTables = useMemo(() => {
     if (selectedZone === 'Todos') return restaurantState.tables || [];
     return (restaurantState.tables || []).filter((t) => t.zone === selectedZone);
   }, [restaurantState.tables, selectedZone]);
 
-  // Active rounds for kitchen
+  // Estadísticas rápidas del salón
+  const salonStats = useMemo(() => {
+    const all = restaurantState.tables || [];
+    const free = all.filter((t) => t.status === 'libre' || !t.status).length;
+    const occupied = all.filter((t) => t.status === 'ocupada' || t.status === 'cuenta').length;
+    return { total: all.length, free, occupied };
+  }, [restaurantState.tables]);
+
+  // Comandas activas para cocina
   const activeRounds = useMemo(() => {
     const rounds = [];
     (restaurantState.activeOrders || []).forEach((order) => {
@@ -206,18 +210,23 @@ export default function TablesView({ onGoToPos }) {
     return rounds.sort((a, b) => new Date(a.sentAt) - new Date(b.sentAt));
   }, [restaurantState.activeOrders]);
 
+  const pendingKitchenCount = useMemo(
+    () => activeRounds.filter((r) => r.status === 'pendiente').length,
+    [activeRounds]
+  );
+
   const deliveryTabs = useMemo(() => {
     return (openTabs || []).filter((t) => t.orderType === 'delivery');
   }, [openTabs]);
 
-  // Action: Mark round as ready (Vibrates Waiter Tablet)
+  // Marcar ronda como lista (Notifica y hace vibrar la tablet del mesero)
   const handleMarkRoundReady = async (roundId) => {
     try {
       const res = await fetch(`http://localhost:3001/api/restaurant/round/${roundId}/ready`, {
         method: 'POST'
       });
       if (res.ok) {
-        showToast('🔔 Comanda marcada como Lista. Se notificó a la tablet del mesero.');
+        showToast('Comanda marcada como Lista. Se notificó a la tablet del mesero.');
         fetchState();
       }
     } catch (e) {
@@ -225,14 +234,14 @@ export default function TablesView({ onGoToPos }) {
     }
   };
 
-  // Action: Mark round as served/delivered
+  // Marcar ronda como servida en mesa
   const handleMarkRoundServed = async (roundId) => {
     try {
       const res = await fetch(`http://localhost:3001/api/restaurant/round/${roundId}/served`, {
         method: 'POST'
       });
       if (res.ok) {
-        showToast('✓ Comanda marcada como servida.');
+        showToast('Comanda marcada como servida en mesa.');
         fetchState();
       }
     } catch (e) {
@@ -240,7 +249,7 @@ export default function TablesView({ onGoToPos }) {
     }
   };
 
-  // Action: Free / Close Table
+  // Liberar / Cerrar mesa
   const handleFreeTable = async (tableId) => {
     if (!window.confirm('¿Seguro que deseas liberar esta mesa?')) return;
     try {
@@ -248,30 +257,29 @@ export default function TablesView({ onGoToPos }) {
         method: 'POST'
       });
       if (res.ok) {
-        showToast('Mesa liberada.');
+        showToast('Mesa liberada correctamente.');
         setSelectedTable(null);
         fetchState();
         return;
       }
     } catch (e) {}
-    // Fallback local
     const nextTables = (restaurantState.tables || []).map((t) =>
       t.id === tableId ? { ...t, status: 'libre' } : t
     );
     const nextOrders = (restaurantState.activeOrders || []).filter((o) => o.tableId !== tableId);
     saveLocalFallback({ ...restaurantState, tables: nextTables, activeOrders: nextOrders });
     setSelectedTable(null);
-    showToast('Mesa liberada.');
+    showToast('Mesa liberada correctamente.');
   };
 
-  // Action: Request bill from PC
+  // Solicitar cuenta desde PC
   const handleRequestBill = async (table) => {
     try {
       const res = await fetch(`http://localhost:3001/api/restaurant/table/${table.id}/bill`, {
         method: 'POST'
       });
       if (res.ok) {
-        showToast(`🔔 Cuenta solicitada para ${table.name}. Lista para cobrar.`);
+        showToast(`Cuenta solicitada para ${table.name}. Lista para cobrar.`);
         fetchState();
         return;
       }
@@ -280,10 +288,10 @@ export default function TablesView({ onGoToPos }) {
       t.id === table.id ? { ...t, status: 'cuenta' } : t
     );
     saveLocalFallback({ ...restaurantState, tables: nextTables });
-    showToast(`🔔 Cuenta solicitada para ${table.name}. Lista para cobrar.`);
+    showToast(`Cuenta solicitada para ${table.name}. Lista para cobrar.`);
   };
 
-  // Action: Reopen Table (Return from 'cuenta' to 'ocupada')
+  // Reabrir mesa (volver de 'cuenta' a 'ocupada')
   const handleReopenTable = async (tableId) => {
     try {
       const res = await fetch(`http://localhost:3001/api/restaurant/table/${tableId}/reopen`, {
@@ -302,7 +310,7 @@ export default function TablesView({ onGoToPos }) {
     showToast('Mesa devuelta a estado de consumo.');
   };
 
-  // Action: Send to POS to charge
+  // Enviar consumo al POS para cobrar
   const handleChargeInPOS = async (table, order) => {
     if (!order || !order.rounds || order.rounds.length === 0) {
       showToast('Esta mesa no tiene consumos registrados.', 'error');
@@ -315,7 +323,6 @@ export default function TablesView({ onGoToPos }) {
       } catch (err) {}
     }
 
-    // Consolidate all items from all rounds
     const consolidatedItems = [];
     order.rounds.forEach((rnd) => {
       rnd.items.forEach((item) => {
@@ -354,7 +361,7 @@ export default function TablesView({ onGoToPos }) {
     goToPos();
   };
 
-  // Action: Print Pre-Bill / Nota de Entrega before charging
+  // Imprimir Pre-Cuenta / Nota de Entrega antes de cobrar
   const handlePrintPreBill = (table, order) => {
     if (!order || !order.rounds || order.rounds.length === 0) {
       showToast('Esta mesa no tiene consumos registrados.', 'error');
@@ -456,7 +463,7 @@ export default function TablesView({ onGoToPos }) {
     setPreBillInvoice(preBill);
   };
 
-  // Add Table
+  // Crear Mesa
   const handleAddTable = async (e) => {
     e.preventDefault();
     if (!newTable.name.trim()) return;
@@ -487,7 +494,7 @@ export default function TablesView({ onGoToPos }) {
     showToast('Mesa creada exitosamente');
   };
 
-  // Add Waiter
+  // Crear Mesero
   const handleAddWaiter = async (e) => {
     e.preventDefault();
     if (!newWaiter.name.trim() || !newWaiter.pin.trim()) return;
@@ -518,7 +525,7 @@ export default function TablesView({ onGoToPos }) {
     showToast('Mesero registrado exitosamente');
   };
 
-  // Update Waiter
+  // Actualizar Mesero
   const handleUpdateWaiter = async (e) => {
     e.preventDefault();
     if (!editingWaiter || !editingWaiter.name.trim()) return;
@@ -549,7 +556,7 @@ export default function TablesView({ onGoToPos }) {
     showToast('Mesero actualizado correctamente');
   };
 
-  // Delete Waiter
+  // Eliminar Mesero
   const handleDeleteWaiter = async (waiter) => {
     if (!window.confirm(`¿Seguro que deseas eliminar al mesero "${waiter.name}"?`)) return;
     try {
@@ -567,7 +574,7 @@ export default function TablesView({ onGoToPos }) {
     showToast(`Mesero "${waiter.name}" eliminado`);
   };
 
-  // Update Table
+  // Actualizar Mesa
   const handleUpdateTable = async (e) => {
     e.preventDefault();
     if (!editingTable || !editingTable.name.trim()) return;
@@ -595,7 +602,7 @@ export default function TablesView({ onGoToPos }) {
     showToast('Mesa actualizada correctamente');
   };
 
-  // Delete Table
+  // Eliminar Mesa
   const handleDeleteTable = async (table) => {
     if (table.status === 'ocupada' || table.status === 'cuenta') {
       showToast('No puedes eliminar una mesa con pedidos activos o en cuenta', 'error');
@@ -618,1108 +625,1103 @@ export default function TablesView({ onGoToPos }) {
   };
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1440px', margin: '0 auto', color: '#111827', width: '100%', overflowY: 'auto' }}>
-      {/* Top Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Utensils size={24} color="#2563eb" />
+    <div className="flex-1 flex flex-col h-full bg-zinc-50 overflow-y-auto">
+      {/* HEADER PRINCIPAL ESTILO NOTION */}
+      <div className="bg-white border-b border-zinc-200/80 px-6 py-4 shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="p-1.5 rounded-lg bg-zinc-100 text-zinc-700">
+                <Utensils size={18} />
+              </span>
+              <h1 className="text-xl font-bold text-zinc-950 tracking-tight">
+                Control de Salón y Comandas
+              </h1>
+              <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                {salonStats.free} Libres · {salonStats.occupied} Ocupadas
+              </span>
             </div>
-            <div>
-              <h1 style={{ margin: 0, fontSize: '1.65rem', fontWeight: '800' }}>Control de Salón y Comandas</h1>
-              <p style={{ margin: '2px 0 0 0', color: '#6b7280', fontSize: '0.88rem' }}>
-                Monitoreo en tiempo real de mesas, pedidos de meseros y cocina
-              </p>
-            </div>
+            <p className="text-xs text-zinc-500 mt-1">
+              Monitoreo en tiempo real de mesas, pedidos de meseros en tablets, despacho de cocina y delivery
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setActiveTab('config')}
+              className={`px-3.5 py-2 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs ${
+                activeTab === 'config'
+                  ? 'bg-zinc-900 text-white border-zinc-900'
+                  : 'bg-white hover:bg-zinc-50 text-zinc-700 border-zinc-200'
+              }`}
+            >
+              <Users size={15} />
+              <span>Meseros y Salón</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowQRModal(true)}
+              className="px-3.5 py-2 rounded-xl bg-sky-50 text-sky-800 hover:bg-sky-100 border border-sky-200/80 text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-2xs"
+            >
+              <QrCode size={15} className="text-sky-600" />
+              <span>Vincular Tablets (QR)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={goToPos}
+              className="px-3.5 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+            >
+              <ShoppingCart size={15} className="text-emerald-400" />
+              <span>Punto de Venta (POS)</span>
+            </button>
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+        {/* BARRA DE PESTAÑAS ESTILO NOTION */}
+        <div className="flex items-center gap-1.5 mt-4 pt-3 border-t border-zinc-100 overflow-x-auto">
+          <button
+            type="button"
+            onClick={() => setActiveTab('mesas')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 cursor-pointer ${
+              activeTab === 'mesas'
+                ? 'bg-zinc-950 text-white shadow-xs'
+                : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-600'
+            }`}
+          >
+            <Utensils size={13} />
+            <span>Mapa de Mesas</span>
+            <span
+              className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                activeTab === 'mesas' ? 'bg-zinc-800 text-zinc-200' : 'bg-zinc-200/80 text-zinc-700'
+              }`}
+            >
+              {filteredTables.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('comandas')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 cursor-pointer ${
+              activeTab === 'comandas'
+                ? 'bg-zinc-950 text-white shadow-xs'
+                : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-600'
+            }`}
+          >
+            <Receipt size={13} />
+            <span>Comandas en Curso</span>
+            {pendingKitchenCount > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-extrabold bg-rose-500 text-white">
+                {pendingKitchenCount}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('delivery')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 cursor-pointer ${
+              activeTab === 'delivery'
+                ? 'bg-zinc-950 text-white shadow-xs'
+                : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-600'
+            }`}
+          >
+            <Bike size={13} />
+            <span>Deliveries Activos</span>
+            {deliveryTabs.length > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-extrabold bg-sky-500 text-white">
+                {deliveryTabs.length}
+              </span>
+            )}
+          </button>
+
           <button
             type="button"
             onClick={() => setActiveTab('config')}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px',
-              background: activeTab === 'config' ? '#eff6ff' : '#ffffff',
-              color: activeTab === 'config' ? '#2563eb' : '#0f172a',
-              border: '1.5px solid #cbd5e1', borderRadius: '10px',
-              fontWeight: '700', cursor: 'pointer', fontSize: '0.88rem'
-            }}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 cursor-pointer ${
+              activeTab === 'config'
+                ? 'bg-zinc-950 text-white shadow-xs'
+                : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-600'
+            }`}
           >
-            <Users size={18} color="#2563eb" /> Configurar Meseros y Salón
-          </button>
-
-          <button
-            type="button"
-            onClick={goToPos}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px',
-              background: '#f8fafc', color: '#0f172a', border: '1.5px solid #cbd5e1', borderRadius: '10px',
-              fontWeight: '700', cursor: 'pointer', fontSize: '0.88rem'
-            }}
-          >
-            <ShoppingCart size={18} color="#2563eb" /> Punto de Venta (POS)
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setShowQRModal(true)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px',
-              background: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '10px',
-              fontWeight: '700', cursor: 'pointer', fontSize: '0.88rem', boxShadow: '0 4px 12px rgba(37,99,235,0.2)'
-            }}
-          >
-            <QrCode size={18} /> Vincular Tablets (QR)
+            <Users size={13} />
+            <span>Meseros y Salón</span>
+            <span
+              className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                activeTab === 'config' ? 'bg-zinc-800 text-zinc-200' : 'bg-zinc-200/80 text-zinc-700'
+              }`}
+            >
+              {(restaurantState.waiters || []).length}
+            </span>
           </button>
         </div>
       </div>
 
-      {/* Tabs Bar */}
-      <div style={{ display: 'flex', gap: '12px', borderBottom: '1px solid #e5e7eb', marginBottom: '24px', overflowX: 'auto' }}>
-        <button
-          type="button"
-          onClick={() => setActiveTab('mesas')}
-          style={{
-            padding: '12px 20px', background: 'none', border: 'none',
-            borderBottom: activeTab === 'mesas' ? '3px solid #2563eb' : '3px solid transparent',
-            color: activeTab === 'mesas' ? '#2563eb' : '#6b7280',
-            fontWeight: '800', cursor: 'pointer', fontSize: '0.95rem', whiteSpace: 'nowrap'
-          }}
-        >
-          Mapa de Mesas ({filteredTables.length})
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('comandas')}
-          style={{
-            padding: '12px 20px', background: 'none', border: 'none',
-            borderBottom: activeTab === 'comandas' ? '3px solid #2563eb' : '3px solid transparent',
-            color: activeTab === 'comandas' ? '#2563eb' : '#6b7280',
-            fontWeight: '800', cursor: 'pointer', fontSize: '0.95rem',
-            display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap'
-          }}
-        >
-          <span>Comandas en Curso</span>
-          {activeRounds.filter((r) => r.status === 'pendiente').length > 0 && (
-            <span style={{ background: '#ef4444', color: '#fff', fontSize: '0.75rem', padding: '2px 7px', borderRadius: '999px', fontWeight: '800' }}>
-              {activeRounds.filter((r) => r.status === 'pendiente').length}
-            </span>
-          )}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('delivery')}
-          style={{
-            padding: '12px 20px', background: 'none', border: 'none',
-            borderBottom: activeTab === 'delivery' ? '3px solid #0284c7' : '3px solid transparent',
-            color: activeTab === 'delivery' ? '#0284c7' : '#6b7280',
-            fontWeight: '800', cursor: 'pointer', fontSize: '0.95rem',
-            display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap'
-          }}
-        >
-          <Bike size={18} />
-          <span>Deliveries Activos</span>
-          {deliveryTabs.length > 0 && (
-            <span style={{ background: '#0284c7', color: '#fff', fontSize: '0.75rem', padding: '2px 7px', borderRadius: '999px', fontWeight: '800' }}>
-              {deliveryTabs.length}
-            </span>
-          )}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('config')}
-          style={{
-            padding: '12px 20px', background: 'none', border: 'none',
-            borderBottom: activeTab === 'config' ? '3px solid #2563eb' : '3px solid transparent',
-            color: activeTab === 'config' ? '#2563eb' : '#6b7280',
-            fontWeight: '800', cursor: 'pointer', fontSize: '0.95rem',
-            display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap'
-          }}
-        >
-          <Users size={16} />
-          <span>Meseros y Salón ({(restaurantState.waiters || []).length})</span>
-        </button>
-      </div>
-
-      {/* TAB 1: MAPA DE MESAS */}
-      {activeTab === 'mesas' && (
-        <div>
-          {/* Zones Pills */}
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', overflowX: 'auto', paddingBottom: '4px' }}>
-            {zones.map((z) => (
-              <button
-                key={z}
-                type="button"
-                onClick={() => setSelectedZone(z)}
-                style={{
-                  padding: '7px 16px', borderRadius: '999px',
-                  background: selectedZone === z ? '#0f172a' : '#ffffff',
-                  color: selectedZone === z ? '#ffffff' : '#4b5563',
-                  border: selectedZone === z ? 'none' : '1px solid #d1d5db',
-                  fontWeight: '700', fontSize: '0.84rem', cursor: 'pointer'
-                }}
-              >
-                {z}
-              </button>
-            ))}
-          </div>
-
-          {/* Grid of Tables */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '16px' }}>
-            {filteredTables.map((table) => {
-              const order = (restaurantState.activeOrders || []).find((o) => o.tableId === table.id);
-              const totalUSD = order
-                ? order.rounds.reduce((acc, r) => acc + r.items.reduce((sum, i) => sum + i.priceUSD * i.quantity, 0), 0)
-                : 0;
-
-              const isOccupied = table.status === 'ocupada';
-              const isBillRequested = table.status === 'cuenta';
-
-              return (
-                <div
-                  key={table.id}
-                  onClick={() => setSelectedTable({ table, order })}
-                  style={{
-                    background: '#ffffff',
-                    border: isBillRequested ? '2px solid #3b82f6' : isOccupied ? '2px solid #f97316' : '1.5px solid #86efac',
-                    borderRadius: '16px',
-                    padding: '16px',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    minHeight: '140px',
-                    transition: 'all 0.15s ease'
-                  }}
+      {/* CONTENIDO PRINCIPAL */}
+      <div className="p-6 max-w-7xl w-full mx-auto">
+        {/* TAB 1: MAPA DE MESAS */}
+        {activeTab === 'mesas' && (
+          <div className="space-y-4">
+            {/* Filtro de Zonas */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+              {zones.map((z) => (
+                <button
+                  key={z}
+                  type="button"
+                  onClick={() => setSelectedZone(z)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer border ${
+                    selectedZone === z
+                      ? 'bg-zinc-900 text-white border-zinc-900 shadow-2xs'
+                      : 'bg-white text-zinc-600 border-zinc-200/80 hover:bg-zinc-100'
+                  }`}
                 >
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: '800', fontSize: '1.2rem', color: '#111827' }}>{table.name}</span>
-                      <span style={{
-                        fontSize: '0.72rem', fontWeight: '800', textTransform: 'uppercase',
-                        padding: '3px 8px', borderRadius: '6px',
-                        background: isBillRequested ? '#dbeafe' : isOccupied ? '#ffedd5' : '#dcfce7',
-                        color: isBillRequested ? '#1e40af' : isOccupied ? '#9a3412' : '#166534'
-                      }}>
-                        {isBillRequested ? 'Pide Cuenta' : isOccupied ? 'Ocupada' : 'Libre'}
-                      </span>
-                    </div>
-
-                    <div style={{ fontSize: '0.8rem', color: '#6b7280', marginTop: '4px' }}>
-                      Zona: <strong>{table.zone || 'Salón'}</strong>
-                    </div>
-
-                    {order && (
-                      <div style={{ fontSize: '0.78rem', color: '#2563eb', fontWeight: '700', marginTop: '6px' }}>
-                        👤 Mesero: {order.waiterName}
-                      </div>
-                    )}
-                  </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '12px' }}>
-                    <div>
-                      {totalUSD > 0 ? (
-                        <div>
-                          <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#d97706' }}>${totalUSD.toFixed(2)}</div>
-                          <div style={{ fontSize: '0.72rem', color: '#64748b' }}>Bs. {(totalUSD * exchangeRate).toFixed(2)}</div>
-                        </div>
-                      ) : (
-                        <span style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: '600' }}>
-                          Disponible
-                        </span>
-                      )}
-                    </div>
-
-                    {(isOccupied || isBillRequested) && (
-                      <span style={{ fontSize: '0.75rem', color: '#4b5563', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Clock size={12} /> Ver &rarr;
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* TAB 2: COMANDAS EN CURSO (KITCHEN / DISPATCH) */}
-      {activeTab === 'comandas' && (
-        <div>
-          {activeRounds.length === 0 ? (
-            <div style={{ background: '#ffffff', borderRadius: '16px', padding: '48px', textAlign: 'center', color: '#9ca3af' }}>
-              <CheckCircle size={48} color="#10b981" style={{ marginBottom: '12px', marginInline: 'auto' }} />
-              <h3 style={{ margin: 0, color: '#111827', fontSize: '1.2rem' }}>¡Cocina al día!</h3>
-              <p style={{ margin: '6px 0 0 0', fontSize: '0.88rem' }}>No hay comandas pendientes por despachar en este momento.</p>
+                  {z}
+                </button>
+              ))}
             </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
-              {activeRounds.map((rnd) => {
-                const isReady = rnd.status === 'lista';
-                const elapsedMin = Math.round((Date.now() - new Date(rnd.sentAt).getTime()) / 60000);
+
+            {/* Cuadrícula de Mesas estilo Notion */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              {filteredTables.map((table) => {
+                const order = (restaurantState.activeOrders || []).find((o) => o.tableId === table.id);
+                const totalUSD = order
+                  ? order.rounds.reduce(
+                      (acc, r) => acc + r.items.reduce((sum, i) => sum + i.priceUSD * i.quantity, 0),
+                      0
+                    )
+                  : 0;
+
+                const isOccupied = table.status === 'ocupada';
+                const isBillRequested = table.status === 'cuenta';
 
                 return (
                   <div
-                    key={rnd.id}
-                    style={{
-                      background: '#ffffff',
-                      borderRadius: '16px',
-                      border: isReady ? '1.5px solid #a7f3d0' : elapsedMin > 15 ? '2px solid #ef4444' : '1.5px solid #e2e8f0',
-                      padding: '18px',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between'
-                    }}
+                    key={table.id}
+                    onClick={() => setSelectedTable({ table, order })}
+                    className={`bg-white rounded-2xl border p-4 shadow-xs hover:shadow-md transition-all duration-150 cursor-pointer flex flex-col justify-between min-h-[155px] group ${
+                      isBillRequested
+                        ? 'border-sky-300 ring-2 ring-sky-100/80'
+                        : isOccupied
+                        ? 'border-amber-300 ring-2 ring-amber-50'
+                        : 'border-zinc-200/80 hover:border-zinc-300'
+                    }`}
                   >
                     <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                        <span style={{ fontWeight: '800', fontSize: '1.25rem', color: '#111827' }}>{rnd.tableName}</span>
-                        <span style={{
-                          fontSize: '0.75rem', fontWeight: '800', padding: '3px 8px', borderRadius: '6px',
-                          background: isReady ? '#d1fae5' : elapsedMin > 15 ? '#fee2e2' : '#f3f4f6',
-                          color: isReady ? '#065f46' : elapsedMin > 15 ? '#b91c1c' : '#4b5563'
-                        }}>
-                          {isReady ? 'LISTA PARA SERVIR' : `HACE ${elapsedMin} MIN`}
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <h3 className="font-extrabold text-sm text-zinc-950 tracking-tight">
+                            {table.name}
+                          </h3>
+                          <span className="text-[11px] text-zinc-500 font-medium">
+                            Zona: {table.zone || 'Salón'}
+                          </span>
+                        </div>
+
+                        <span
+                          className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider shrink-0 border ${
+                            isBillRequested
+                              ? 'bg-sky-50 text-sky-700 border-sky-200'
+                              : isOccupied
+                              ? 'bg-amber-50 text-amber-700 border-amber-200'
+                              : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          }`}
+                        >
+                          {isBillRequested ? 'Pide Cuenta' : isOccupied ? 'Ocupada' : 'Libre'}
                         </span>
                       </div>
 
-                      <div style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '12px' }}>
-                        Mesero: <strong>{rnd.waiterName}</strong> • {new Date(rnd.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      <div className="my-3 py-2.5 px-3 rounded-xl bg-zinc-50 border border-zinc-100 text-xs">
+                        {order ? (
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between text-[11px] text-zinc-500">
+                              <span>
+                                Mozo: <strong className="text-zinc-800">{order.waiterName}</strong>
+                              </span>
+                              <span className="font-mono text-[10px] text-zinc-400">
+                                {order.rounds?.length || 1} ronda(s)
+                              </span>
+                            </div>
+                            <div className="flex items-baseline justify-between pt-1">
+                              <span className="text-[11px] text-zinc-500 font-medium">Total mesa</span>
+                              <span className="font-extrabold text-sm text-zinc-950 font-mono">
+                                ${totalUSD.toFixed(2)}
+                              </span>
+                            </div>
+                            <div className="text-right text-[10px] text-zinc-400 font-mono">
+                              Bs. {(totalUSD * exchangeRate).toFixed(2)}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="py-2 text-center text-[11px] text-zinc-400 font-medium">
+                            Disponible para comensales
+                          </div>
+                        )}
                       </div>
+                    </div>
 
-                      {/* Items List */}
-                      <div style={{ background: '#f8fafc', borderRadius: '10px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {rnd.items.map((item, idx) => (
-                          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
-                            <div>
-                              <strong style={{ color: '#0f172a' }}>{item.quantity}x</strong> {item.name}
+                    <div className="flex items-center justify-between pt-1 text-[11px] font-semibold text-zinc-500 group-hover:text-zinc-900 transition-colors">
+                      <span>{order ? 'Ver rondas y cobrar' : 'Opciones de mesa'}</span>
+                      <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: COMANDAS EN CURSO (COCINA / DESPACHO) */}
+        {activeTab === 'comandas' && (
+          <div>
+            {activeRounds.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-zinc-200/80 p-12 text-center shadow-2xs">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center mx-auto mb-3">
+                  <CheckCircle2 size={24} />
+                </div>
+                <h3 className="text-sm font-bold text-zinc-950">¡Cocina al día!</h3>
+                <p className="text-xs text-zinc-500 mt-1">
+                  No hay comandas pendientes por despachar en este momento.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {activeRounds.map((rnd) => {
+                  const isReady = rnd.status === 'lista';
+                  const elapsedMin = Math.round((Date.now() - new Date(rnd.sentAt).getTime()) / 60000);
+
+                  return (
+                    <div
+                      key={rnd.id}
+                      className={`bg-white rounded-2xl border p-5 shadow-xs flex flex-col justify-between transition-all ${
+                        isReady
+                          ? 'border-emerald-300 ring-2 ring-emerald-50'
+                          : elapsedMin > 15
+                          ? 'border-rose-300 ring-2 ring-rose-50'
+                          : 'border-zinc-200/80'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <span className="font-extrabold text-base text-zinc-950 tracking-tight">
+                            {rnd.tableName}
+                          </span>
+                          <span
+                            className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider border ${
+                              isReady
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : elapsedMin > 15
+                                ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                : 'bg-zinc-100 text-zinc-700 border-zinc-200'
+                            }`}
+                          >
+                            {isReady ? 'Lista para servir' : `Hace ${elapsedMin} min`}
+                          </span>
+                        </div>
+
+                        <div className="text-xs text-zinc-500 mb-3">
+                          Mesero: <strong className="text-zinc-800">{rnd.waiterName}</strong> ·{' '}
+                          <span className="font-mono">
+                            {new Date(rnd.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+
+                        {/* Lista de Platos de la Ronda */}
+                        <div className="bg-zinc-50 border border-zinc-200/60 rounded-xl p-3 space-y-2">
+                          {rnd.items.map((item, idx) => (
+                            <div key={idx} className="text-xs text-zinc-800">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-mono font-extrabold text-zinc-950 bg-white px-1.5 py-0.5 rounded border border-zinc-200 text-[11px]">
+                                  {item.quantity}x
+                                </span>
+                                <span className="font-semibold">{item.name}</span>
+                              </div>
                               {item.note && (
-                                <div style={{ fontSize: '0.78rem', color: '#d97706', fontStyle: 'italic', marginTop: '2px' }}>
-                                  ⚠️ Nota: {item.note}
+                                <div className="text-[11px] text-amber-700 bg-amber-50/80 border border-amber-200/60 rounded-lg px-2 py-1 mt-1 font-medium">
+                                  Nota: {item.note}
                                 </div>
                               )}
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedComandaPrint({
-                            round: rnd,
-                            tableName: rnd.tableName || 'Mesa',
-                            waiterName: rnd.waiterName || 'Mesero',
-                            orderId: rnd.orderId || rnd.id || '',
-                            autoPrint: true
-                          })}
-                          style={{
-                            flex: 1.3, padding: '10px 12px', background: '#2563eb', color: '#ffffff',
-                            border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.84rem',
-                            boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)'
-                          }}
-                          title="Enviar directo a la impresora térmica y abrir vista previa"
-                        >
-                          <Printer size={15} /> Imprimir Comanda (58mm)
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setSelectedComandaPrint({
-                            round: rnd,
-                            tableName: rnd.tableName || 'Mesa',
-                            waiterName: rnd.waiterName || 'Mesero',
-                            orderId: rnd.orderId || rnd.id || '',
-                            autoPrint: false
-                          })}
-                          style={{
-                            flex: 0.9, padding: '10px 10px', background: '#eff6ff', color: '#1d4ed8',
-                            border: '1px solid #bfdbfe', borderRadius: '10px', fontWeight: '800', cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', fontSize: '0.82rem'
-                          }}
-                          title="Ver vista previa de la comanda antes de imprimir"
-                        >
-                          <Receipt size={15} /> Ver Ticket
-                        </button>
+                          ))}
+                        </div>
                       </div>
 
-                      {!isReady ? (
-                        <button
-                          type="button"
-                          onClick={() => handleMarkRoundReady(rnd.id)}
-                          style={{
-                            width: '100%', padding: '11px', background: '#10b981', color: '#ffffff',
-                            border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.92rem'
-                          }}
-                        >
-                          <Check size={18} /> Marcar Listo (Avisar a Mesero)
-                        </button>
-                      ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                          <div style={{ textAlign: 'center', fontSize: '0.84rem', color: '#059669', fontWeight: '800' }}>
-                            🔔 Plato notificado a tablet
-                          </div>
+                      <div className="mt-4 pt-3 border-t border-zinc-100 space-y-2">
+                        <div className="flex gap-2">
                           <button
                             type="button"
-                            onClick={() => handleMarkRoundServed(rnd.id)}
-                            style={{
-                              width: '100%', padding: '9px', background: '#e2e8f0', color: '#334155',
-                              border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer',
-                              fontSize: '0.84rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
-                            }}
+                            onClick={() =>
+                              setSelectedComandaPrint({
+                                round: rnd,
+                                tableName: rnd.tableName || 'Mesa',
+                                waiterName: rnd.waiterName || 'Mesero',
+                                orderId: rnd.orderId || rnd.id || '',
+                                autoPrint: true
+                              })
+                            }
+                            className="flex-1 py-2 px-3 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
+                            title="Enviar directo a la impresora térmica y abrir vista previa"
                           >
-                            <Check size={16} /> Marcar como Servido en Mesa
+                            <Printer size={14} />
+                            <span>Imprimir (58mm)</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSelectedComandaPrint({
+                                round: rnd,
+                                tableName: rnd.tableName || 'Mesa',
+                                waiterName: rnd.waiterName || 'Mesero',
+                                orderId: rnd.orderId || rnd.id || '',
+                                autoPrint: false
+                              })
+                            }
+                            className="py-2 px-3 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                            title="Ver vista previa de la comanda"
+                          >
+                            <Receipt size={14} />
+                            <span>Ver Ticket</span>
                           </button>
                         </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
 
-      {/* TAB 3: DELIVERIES ACTIVOS */}
-      {activeTab === 'delivery' && (
-        <div>
-          {deliveryTabs.length === 0 ? (
-            <div style={{ background: '#ffffff', borderRadius: '16px', padding: '56px 20px', textAlign: 'center', color: '#9ca3af' }}>
-              <Bike size={52} color="#0284c7" style={{ marginBottom: '12px', opacity: 0.8, marginInline: 'auto' }} />
-              <h3 style={{ margin: 0, color: '#0f172a', fontSize: '1.25rem', fontWeight: '800' }}>
-                No hay pedidos de Delivery activos en este momento
-              </h3>
-              <p style={{ margin: '8px 0 16px 0', fontSize: '0.88rem', color: '#64748b' }}>
-                Los pedidos a domicilio registrados desde el POS aparecerán aquí para control de cocina, despacho y cobro.
-              </p>
-              <button
-                type="button"
-                onClick={goToPos}
-                style={{
-                  display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 20px',
-                  background: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '10px',
-                  fontWeight: '700', fontSize: '0.88rem', cursor: 'pointer'
-                }}
-              >
-                <Plus size={16} /> Crear Pedido de Delivery en POS
-              </button>
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '18px' }}>
-              {deliveryTabs.map((tab) => {
-                const elapsedMin = Math.round((Date.now() - new Date(tab.createdAt || Date.now()).getTime()) / 60000);
-                const itemsSub = (tab.items || []).reduce((s, i) => s + Number(i.priceUSD || i.price || 0) * (i.quantity || 1), 0);
-                const delFee = parseFloat(tab.deliveryInfo?.deliveryFee) || 0;
-                const totalUSD = itemsSub + delFee;
-                const totalBs = totalUSD * exchangeRate;
-                const isCocina = tab.status === 'cocina';
-                const isCamino = tab.status === 'en_camino';
-
-                return (
-                  <div
-                    key={tab.id}
-                    style={{
-                      background: '#ffffff',
-                      borderRadius: '16px',
-                      border: isCocina ? '2px solid #fde047' : isCamino ? '2px solid #38bdf8' : '2px solid #86efac',
-                      padding: '20px',
-                      boxShadow: '0 4px 16px rgba(0,0,0,0.04)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between'
-                    }}
-                  >
-                    <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{
-                              fontSize: '0.72rem', fontWeight: '800', textTransform: 'uppercase',
-                              padding: '3px 8px', borderRadius: '6px',
-                              background: isCocina ? '#fef9c3' : isCamino ? '#e0f2fe' : '#dcfce7',
-                              color: isCocina ? '#854d0e' : isCamino ? '#0369a1' : '#15803d'
-                            }}>
-                              {isCocina ? '👨‍🍳 En Preparación' : isCamino ? '🛵 En Camino' : '💵 Por Cobrar'}
-                            </span>
-                            <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
-                              <Clock size={11} style={{ verticalAlign: 'middle', marginRight: '2px' }} />
-                              {elapsedMin <= 1 ? 'Hace un momento' : `Hace ${elapsedMin} min`}
-                            </span>
-                          </div>
-
-                          <h3 style={{ margin: '8px 0 2px 0', fontSize: '1.2rem', fontWeight: '800', color: '#0f172a' }}>
-                            {tab.name}
-                          </h3>
-                        </div>
-
-                        <select
-                          value={tab.status || 'cocina'}
-                          onChange={(e) => updateOpenTabStatus && updateOpenTabStatus(tab.id, e.target.value)}
-                          style={{
-                            padding: '4px 8px', borderRadius: '8px', border: '1px solid #cbd5e1',
-                            fontSize: '0.75rem', fontWeight: '700', background: '#f8fafc', color: '#334155', cursor: 'pointer'
-                          }}
-                        >
-                          <option value="cocina">👨‍🍳 En Preparación</option>
-                          <option value="en_camino">🛵 En Camino</option>
-                          <option value="por_cobrar">💵 Por Cobrar</option>
-                        </select>
-                      </div>
-
-                      {tab.deliveryInfo && (
-                        <div style={{
-                          background: '#f0f9ff', borderRadius: '12px', padding: '10px 12px',
-                          border: '1px solid #e0f2fe', marginBottom: '14px', fontSize: '0.82rem',
-                          display: 'flex', flexDirection: 'column', gap: '5px'
-                        }}>
-                          {tab.deliveryInfo.address && (
-                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', color: '#0369a1' }}>
-                              <MapPin size={15} style={{ marginTop: '2px', flexShrink: 0 }} />
-                              <span style={{ fontWeight: '700' }}>{tab.deliveryInfo.address}</span>
-                            </div>
-                          )}
-                          <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', color: '#0284c7', fontSize: '0.76rem' }}>
-                            {tab.deliveryInfo.phone && (
-                              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <Phone size={12} /> {tab.deliveryInfo.phone}
-                              </span>
-                            )}
-                            {tab.deliveryInfo.courier && (
-                              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <Bike size={12} /> Repartidor: <strong>{tab.deliveryInfo.courier}</strong>
-                              </span>
-                            )}
-                            {delFee > 0 && (
-                              <span>Flete: <strong>${delFee.toFixed(2)}</strong></span>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      <div style={{ background: '#f8fafc', borderRadius: '10px', padding: '10px 12px', marginBottom: '14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        {(tab.items || []).map((item, idx) => (
-                          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                            <span style={{ color: '#0f172a' }}>
-                              <strong style={{ color: '#0284c7' }}>{item.quantity}x</strong> {item.name}
-                            </span>
-                            <span style={{ fontWeight: '700', color: '#475569' }}>
-                              ${(Number(item.priceUSD || item.price || 0) * item.quantity).toFixed(2)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '14px', borderTop: '1px solid #f1f5f9', paddingTop: '10px' }}>
-                        <div>
-                          <div style={{ fontSize: '0.72rem', color: '#64748b' }}>Total a Cobrar:</div>
-                          <div style={{ fontSize: '0.8rem', color: '#059669', fontFamily: 'monospace', fontWeight: '700' }}>
-                            Bs. {totalBs.toFixed(2)}
-                          </div>
-                        </div>
-                        <div style={{ fontSize: '1.35rem', fontWeight: '900', color: '#0f172a' }}>
-                          ${totalUSD.toFixed(2)}
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button
-                          type="button"
-                          onClick={() => handleChargeDeliveryInPOS(tab)}
-                          style={{
-                            flex: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                            padding: '11px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                            color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '800',
-                            fontSize: '0.88rem', cursor: 'pointer', boxShadow: '0 2px 6px rgba(16, 185, 129, 0.25)'
-                          }}
-                        >
-                          <ShoppingCart size={16} /> Cobrar en Caja
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handlePrintDeliveryPreBill(tab)}
-                          title="Imprimir ticket de delivery"
-                          style={{
-                            padding: '11px 14px', background: '#f8fafc', color: '#475569',
-                            border: '1px solid #cbd5e1', borderRadius: '10px', cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center'
-                          }}
-                        >
-                          <Printer size={16} />
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (window.confirm(`¿Seguro que deseas descartar el delivery "${tab.name}"?`)) {
-                              deleteOpenTab && deleteOpenTab(tab.id);
-                            }
-                          }}
-                          title="Cancelar pedido"
-                          style={{
-                            padding: '11px 14px', background: '#fff1f2', color: '#e11d48',
-                            border: '1px solid #fecdd3', borderRadius: '10px', cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center'
-                          }}
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* TAB 4: CONFIGURAR MESAS Y MESEROS */}
-      {activeTab === 'config' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '24px' }}>
-          {/* Waiters Card */}
-          <div style={{ background: '#ffffff', borderRadius: '16px', padding: '24px', border: '1px solid #eaedf2' }}>
-            <h3 style={{ margin: '0 0 6px 0', fontSize: '1.15rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Users size={20} color="#2563eb" /> Meseros Activos (Acceso Tablets QR)
-            </h3>
-            <p style={{ margin: '0 0 16px 0', fontSize: '0.8rem', color: '#64748b' }}>
-              Crea las cuentas y PIN de 4 dígitos para que los meseros inicien sesión al escanear el código QR con su tablet o teléfono.
-            </p>
-
-            <form onSubmit={handleAddWaiter} style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
-              <input
-                required
-                type="text"
-                placeholder="Nombre del mesero..."
-                value={newWaiter.name}
-                onChange={(e) => setNewWaiter({ ...newWaiter, name: e.target.value })}
-                style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.88rem' }}
-              />
-              <input
-                required
-                type="text"
-                maxLength="4"
-                placeholder="PIN 4 dígitos"
-                value={newWaiter.pin}
-                onChange={(e) => setNewWaiter({ ...newWaiter, pin: e.target.value.replace(/\D/g, '') })}
-                style={{ width: '115px', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.88rem', fontFamily: 'monospace' }}
-              />
-              <button
-                type="submit"
-                style={{ background: '#0f172a', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '10px 16px', fontWeight: '700', cursor: 'pointer' }}
-              >
-                + Añadir
-              </button>
-            </form>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {(restaurantState.waiters || []).length === 0 ? (
-                <div style={{ textAlign: 'center', color: '#94a3b8', padding: '20px 0', fontSize: '0.88rem' }}>
-                  No hay meseros registrados todavía.
-                </div>
-              ) : (
-                (restaurantState.waiters || []).map((w) => (
-                  <div
-                    key={w.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '10px 14px',
-                      background: w.active === false ? '#f1f5f9' : '#f8fafc',
-                      borderRadius: '10px',
-                      border: '1px solid #e2e8f0',
-                      opacity: w.active === false ? 0.75 : 1
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div
-                        style={{
-                          width: '34px',
-                          height: '34px',
-                          borderRadius: '50%',
-                          background: w.active === false ? '#cbd5e1' : '#dbeafe',
-                          color: w.active === false ? '#64748b' : '#1e40af',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontWeight: '800',
-                          fontSize: '0.85rem'
-                        }}
-                      >
-                        {w.name ? w.name.charAt(0).toUpperCase() : 'M'}
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: '700', fontSize: '0.9rem', color: '#0f172a' }}>
-                          {w.name}
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
-                          <span style={{ fontSize: '0.72rem', color: '#64748b', fontFamily: 'monospace' }}>
-                            PIN: {w.pin || '****'}
-                          </span>
-                          <span
-                            style={{
-                              fontSize: '0.68rem',
-                              fontWeight: '700',
-                              padding: '1px 6px',
-                              borderRadius: '4px',
-                              background: w.active === false ? '#fee2e2' : '#dcfce7',
-                              color: w.active === false ? '#991b1b' : '#166534'
-                            }}
+                        {!isReady ? (
+                          <button
+                            type="button"
+                            onClick={() => handleMarkRoundReady(rnd.id)}
+                            className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
                           >
-                            {w.active === false ? 'Inactivo' : 'Activo'}
-                          </span>
+                            <Check size={15} />
+                            <span>Marcar Listo (Avisar a Mesero)</span>
+                          </button>
+                        ) : (
+                          <div className="space-y-1.5">
+                            <div className="text-center text-[11px] text-emerald-700 font-bold bg-emerald-50 py-1 rounded-lg border border-emerald-200">
+                              🔔 Plato notificado a tablet del mesero
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleMarkRoundServed(rnd.id)}
+                              className="w-full py-2 px-3 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-800 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                            >
+                              <Check size={14} />
+                              <span>Marcar como Servido en Mesa</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 3: DELIVERIES ACTIVOS */}
+        {activeTab === 'delivery' && (
+          <div>
+            {deliveryTabs.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-zinc-200/80 p-12 text-center shadow-2xs">
+                <div className="w-12 h-12 rounded-2xl bg-sky-50 border border-sky-200 text-sky-600 flex items-center justify-center mx-auto mb-3">
+                  <Bike size={24} />
+                </div>
+                <h3 className="text-sm font-bold text-zinc-950">
+                  No hay pedidos de Delivery activos en este momento
+                </h3>
+                <p className="text-xs text-zinc-500 mt-1 mb-4">
+                  Los pedidos a domicilio registrados desde el POS aparecerán aquí para control de cocina, despacho y cobro.
+                </p>
+                <button
+                  type="button"
+                  onClick={goToPos}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-bold cursor-pointer transition-colors shadow-xs"
+                >
+                  <Plus size={15} />
+                  <span>Crear Pedido de Delivery en POS</span>
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {deliveryTabs.map((tab) => {
+                  const elapsedMin = Math.round(
+                    (Date.now() - new Date(tab.createdAt || Date.now()).getTime()) / 60000
+                  );
+                  const itemsSub = (tab.items || []).reduce(
+                    (s, i) => s + Number(i.priceUSD || i.price || 0) * (i.quantity || 1),
+                    0
+                  );
+                  const delFee = parseFloat(tab.deliveryInfo?.deliveryFee) || 0;
+                  const totalUSD = itemsSub + delFee;
+                  const totalBs = totalUSD * exchangeRate;
+                  const isCocina = tab.status === 'cocina';
+                  const isCamino = tab.status === 'en_camino';
+
+                  return (
+                    <div
+                      key={tab.id}
+                      className="bg-white rounded-2xl border border-zinc-200/80 p-5 shadow-xs flex flex-col justify-between"
+                    >
+                      <div>
+                        <div className="flex items-start justify-between gap-2 mb-3">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${
+                                  isCocina
+                                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                    : isCamino
+                                    ? 'bg-sky-50 text-sky-700 border-sky-200'
+                                    : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                }`}
+                              >
+                                {isCocina
+                                  ? 'En Preparación'
+                                  : isCamino
+                                  ? 'En Camino'
+                                  : 'Por Cobrar'}
+                              </span>
+                              <span className="text-[11px] text-zinc-400 flex items-center gap-1">
+                                <Clock size={11} />
+                                {elapsedMin <= 1 ? 'Hace un momento' : `Hace ${elapsedMin} min`}
+                              </span>
+                            </div>
+                            <h3 className="text-sm font-extrabold text-zinc-950 mt-2">
+                              {tab.name}
+                            </h3>
+                          </div>
+
+                          <select
+                            value={tab.status || 'cocina'}
+                            onChange={(e) =>
+                              updateOpenTabStatus && updateOpenTabStatus(tab.id, e.target.value)
+                            }
+                            className="px-2.5 py-1 rounded-lg border border-zinc-200 bg-zinc-50 text-[11px] font-bold text-zinc-700 focus:outline-none focus:border-zinc-900 cursor-pointer"
+                          >
+                            <option value="cocina">En Preparación</option>
+                            <option value="en_camino">En Camino</option>
+                            <option value="por_cobrar">Por Cobrar</option>
+                          </select>
+                        </div>
+
+                        {tab.deliveryInfo && (
+                          <div className="bg-zinc-50 border border-zinc-200/80 rounded-xl p-3 mb-3 text-xs space-y-1.5">
+                            {tab.deliveryInfo.address && (
+                              <div className="flex items-start gap-1.5 text-zinc-800 font-semibold">
+                                <MapPin size={14} className="text-sky-600 shrink-0 mt-0.5" />
+                                <span>{tab.deliveryInfo.address}</span>
+                              </div>
+                            )}
+                            <div className="flex flex-wrap gap-3 text-[11px] text-zinc-500">
+                              {tab.deliveryInfo.phone && (
+                                <span className="flex items-center gap-1">
+                                  <Phone size={11} /> {tab.deliveryInfo.phone}
+                                </span>
+                              )}
+                              {tab.deliveryInfo.courier && (
+                                <span className="flex items-center gap-1">
+                                  <Bike size={11} /> Repartidor:{' '}
+                                  <strong className="text-zinc-800">{tab.deliveryInfo.courier}</strong>
+                                </span>
+                              )}
+                              {delFee > 0 && (
+                                <span>
+                                  Flete: <strong className="font-mono text-zinc-800">${delFee.toFixed(2)}</strong>
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="bg-zinc-50/70 border border-zinc-100 rounded-xl p-3 mb-3 space-y-1.5">
+                          {(tab.items || []).map((item, idx) => (
+                            <div key={idx} className="flex justify-between text-xs">
+                              <span className="text-zinc-800">
+                                <strong className="font-mono text-zinc-950">{item.quantity}x</strong>{' '}
+                                {item.name}
+                              </span>
+                              <span className="font-mono font-bold text-zinc-700">
+                                ${(Number(item.priceUSD || item.price || 0) * item.quantity).toFixed(2)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="pt-3 border-t border-zinc-100">
+                        <div className="flex items-baseline justify-between mb-3">
+                          <div>
+                            <div className="text-[11px] text-zinc-500">Total a Cobrar</div>
+                            <div className="text-xs font-mono font-bold text-emerald-700">
+                              Bs. {totalBs.toFixed(2)}
+                            </div>
+                          </div>
+                          <div className="text-lg font-extrabold font-mono text-zinc-950">
+                            ${totalUSD.toFixed(2)}
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleChargeDeliveryInPOS(tab)}
+                            className="flex-1 py-2.5 px-3 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-xs"
+                          >
+                            <ShoppingCart size={14} className="text-emerald-400" />
+                            <span>Cobrar en Caja</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handlePrintDeliveryPreBill(tab)}
+                            title="Imprimir ticket de delivery"
+                            className="p-2.5 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-700 cursor-pointer transition-colors"
+                          >
+                            <Printer size={15} />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (
+                                window.confirm(
+                                  `¿Seguro que deseas descartar el delivery "${tab.name}"?`
+                                )
+                              ) {
+                                deleteOpenTab && deleteOpenTab(tab.id);
+                              }
+                            }}
+                            title="Cancelar pedido"
+                            className="p-2.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 cursor-pointer transition-colors"
+                          >
+                            <Trash2 size={15} />
+                          </button>
                         </div>
                       </div>
                     </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <button
-                        type="button"
-                        title="Editar mesero"
-                        onClick={() => setEditingWaiter({ ...w, pin: w.pin || '' })}
-                        style={{
-                          background: '#ffffff',
-                          border: '1px solid #cbd5e1',
-                          borderRadius: '8px',
-                          padding: '6px 10px',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          color: '#2563eb',
-                          fontSize: '0.78rem',
-                          fontWeight: '700'
-                        }}
-                      >
-                        <Edit2 size={14} /> Editar
-                      </button>
-                      <button
-                        type="button"
-                        title="Eliminar mesero"
-                        onClick={() => handleDeleteWaiter(w)}
-                        style={{
-                          background: '#fff1f2',
-                          border: '1px solid #fecdd3',
-                          borderRadius: '8px',
-                          padding: '6px 8px',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          color: '#e11d48'
-                        }}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
+        )}
 
-          {/* Tables Card */}
-          <div style={{ background: '#ffffff', borderRadius: '16px', padding: '24px', border: '1px solid #eaedf2' }}>
-            <h3 style={{ margin: '0 0 6px 0', fontSize: '1.15rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Utensils size={20} color="#d97706" /> Mesas y Áreas del Salón
-            </h3>
-            <p style={{ margin: '0 0 16px 0', fontSize: '0.8rem', color: '#64748b' }}>
-              Agrega, edita o elimina las mesas y zonas disponibles en el restaurante.
-            </p>
+        {/* TAB 4: MESEROS Y SALÓN (CONFIGURACIÓN ESTILO NOTION) */}
+        {activeTab === 'config' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Tarjeta 1: Meseros Activos y PINs para Tablets */}
+            <div className="bg-white rounded-2xl border border-zinc-200/80 p-5 shadow-2xs flex flex-col">
+              <div className="flex items-start justify-between gap-3 mb-4 pb-3 border-b border-zinc-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-zinc-100 text-zinc-800">
+                    <Users size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-zinc-950">
+                      Meseros Activos (Acceso Tablets QR)
+                    </h3>
+                    <p className="text-[11px] text-zinc-500">
+                      Crea cuentas y códigos PIN de 4 dígitos para el ingreso de meseros en tablets
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-zinc-100 text-zinc-700 border border-zinc-200">
+                  {(restaurantState.waiters || []).length} registrados
+                </span>
+              </div>
 
-            <form onSubmit={handleAddTable} style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
-              <input
-                required
-                type="text"
-                placeholder="Ej: Mesa 7, Barra 2..."
-                value={newTable.name}
-                onChange={(e) => setNewTable({ ...newTable, name: e.target.value })}
-                style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.88rem' }}
-              />
-              <select
-                value={newTable.zone}
-                onChange={(e) => setNewTable({ ...newTable, zone: e.target.value })}
-                style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.88rem', background: '#fff' }}
-              >
-                <option value="Salón">Salón</option>
-                <option value="Terraza">Terraza</option>
-                <option value="Barra">Barra</option>
-                <option value="VIP">VIP</option>
-                <option value="Delivery">Delivery / Llevar</option>
-              </select>
-              <button
-                type="submit"
-                style={{ background: '#0f172a', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '10px 16px', fontWeight: '700', cursor: 'pointer' }}
-              >
-                + Añadir
-              </button>
-            </form>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '10px' }}>
-              {(restaurantState.tables || []).map((t) => {
-                const isOccupied = t.status === 'ocupada' || t.status === 'cuenta';
-                return (
-                  <div
-                    key={t.id}
-                    style={{
-                      padding: '12px',
-                      background: '#f8fafc',
-                      borderRadius: '10px',
-                      border: '1px solid #e2e8f0',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                      gap: '8px'
-                    }}
+              <form onSubmit={handleAddWaiter} className="flex flex-col sm:flex-row gap-2 mb-4">
+                <input
+                  required
+                  type="text"
+                  placeholder="Nombre del mesero (ej. Carlos Mendoza)..."
+                  value={newWaiter.name}
+                  onChange={(e) => setNewWaiter({ ...newWaiter, name: e.target.value })}
+                  className="flex-1 px-3 py-2 rounded-xl border border-zinc-200 bg-zinc-50/50 focus:bg-white text-xs font-semibold text-zinc-900 focus:outline-none focus:border-zinc-900"
+                />
+                <div className="flex gap-2">
+                  <input
+                    required
+                    type="text"
+                    maxLength="4"
+                    placeholder="PIN (4 dígitos)"
+                    value={newWaiter.pin}
+                    onChange={(e) =>
+                      setNewWaiter({ ...newWaiter, pin: e.target.value.replace(/\D/g, '') })
+                    }
+                    className="w-32 px-3 py-2 rounded-xl border border-zinc-200 bg-zinc-50/50 focus:bg-white text-xs font-mono font-bold text-zinc-900 focus:outline-none focus:border-zinc-900"
+                  />
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors shrink-0 shadow-2xs"
                   >
-                    <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <div style={{ fontWeight: '800', fontSize: '0.95rem', color: '#0f172a' }}>{t.name}</div>
+                    <Plus size={14} />
+                    <span>Añadir</span>
+                  </button>
+                </div>
+              </form>
+
+              <div className="space-y-2">
+                {(restaurantState.waiters || []).length === 0 ? (
+                  <div className="text-center text-zinc-400 py-8 text-xs border border-dashed border-zinc-200 rounded-xl">
+                    No hay meseros registrados todavía.
+                  </div>
+                ) : (
+                  (restaurantState.waiters || []).map((w) => (
+                    <div
+                      key={w.id}
+                      className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                        w.active === false
+                          ? 'bg-zinc-50 border-zinc-200/60 opacity-70'
+                          : 'bg-zinc-50/70 hover:bg-zinc-50 border-zinc-200/80'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-8 h-8 rounded-xl flex items-center justify-center font-extrabold text-xs ${
+                            w.active === false
+                              ? 'bg-zinc-200 text-zinc-500'
+                              : 'bg-zinc-900 text-white'
+                          }`}
+                        >
+                          {w.name ? w.name.charAt(0).toUpperCase() : 'M'}
+                        </div>
+                        <div>
+                          <div className="text-xs font-bold text-zinc-950">{w.name}</div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="inline-flex items-center gap-1 text-[11px] font-mono text-zinc-600 bg-white px-2 py-0.2 rounded-md border border-zinc-200">
+                              <KeyRound size={10} className="text-zinc-400" />
+                              PIN: <strong>{w.pin || '****'}</strong>
+                            </span>
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.2 rounded-full border ${
+                                w.active === false
+                                  ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                  : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              }`}
+                            >
+                              {w.active === false ? 'Inactivo' : 'Activo'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          title="Editar mesero"
+                          onClick={() => setEditingWaiter({ ...w, pin: w.pin || '' })}
+                          className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-zinc-100 border border-zinc-200 text-zinc-700 text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                        >
+                          <Edit2 size={12} />
+                          <span>Editar</span>
+                        </button>
+                        <button
+                          type="button"
+                          title="Eliminar mesero"
+                          onClick={() => handleDeleteWaiter(w)}
+                          className="p-1.5 rounded-lg bg-white hover:bg-rose-50 border border-zinc-200 hover:border-rose-200 text-zinc-400 hover:text-rose-600 cursor-pointer transition-colors"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Tarjeta 2: Mesas y Áreas del Salón */}
+            <div className="bg-white rounded-2xl border border-zinc-200/80 p-5 shadow-2xs flex flex-col">
+              <div className="flex items-start justify-between gap-3 mb-4 pb-3 border-b border-zinc-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-zinc-100 text-zinc-800">
+                    <Utensils size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-zinc-950">Mesas y Áreas del Salón</h3>
+                    <p className="text-[11px] text-zinc-500">
+                      Configura las mesas y zonas disponibles en el plano del restaurante
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-zinc-100 text-zinc-700 border border-zinc-200">
+                  {(restaurantState.tables || []).length} mesas
+                </span>
+              </div>
+
+              <form onSubmit={handleAddTable} className="flex flex-col sm:flex-row gap-2 mb-4">
+                <input
+                  required
+                  type="text"
+                  placeholder="Ej: Mesa 7, Barra 2, Terraza 3..."
+                  value={newTable.name}
+                  onChange={(e) => setNewTable({ ...newTable, name: e.target.value })}
+                  className="flex-1 px-3 py-2 rounded-xl border border-zinc-200 bg-zinc-50/50 focus:bg-white text-xs font-semibold text-zinc-900 focus:outline-none focus:border-zinc-900"
+                />
+                <div className="flex gap-2">
+                  <select
+                    value={newTable.zone}
+                    onChange={(e) => setNewTable({ ...newTable, zone: e.target.value })}
+                    className="px-3 py-2 rounded-xl border border-zinc-200 bg-zinc-50/50 focus:bg-white text-xs font-semibold text-zinc-800 focus:outline-none focus:border-zinc-900 cursor-pointer"
+                  >
+                    <option value="Salón">Salón</option>
+                    <option value="Terraza">Terraza</option>
+                    <option value="Barra">Barra</option>
+                    <option value="VIP">VIP</option>
+                    <option value="Delivery">Delivery / Llevar</option>
+                  </select>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors shrink-0 shadow-2xs"
+                  >
+                    <Plus size={14} />
+                    <span>Añadir</span>
+                  </button>
+                </div>
+              </form>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {(restaurantState.tables || []).map((t) => {
+                  const isOccupied = t.status === 'ocupada' || t.status === 'cuenta';
+                  return (
+                    <div
+                      key={t.id}
+                      className="p-3 rounded-xl bg-zinc-50/70 border border-zinc-200/80 flex flex-col justify-between gap-2.5"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="text-xs font-extrabold text-zinc-950">{t.name}</div>
+                          <div className="text-[11px] text-zinc-500">{t.zone}</div>
+                        </div>
                         <span
-                          style={{
-                            fontSize: '0.68rem',
-                            fontWeight: '700',
-                            padding: '2px 6px',
-                            borderRadius: '4px',
-                            background: isOccupied ? '#ffedd5' : '#dcfce7',
-                            color: isOccupied ? '#9a3412' : '#166534',
-                            textTransform: 'uppercase'
-                          }}
+                          className={`text-[10px] font-bold uppercase px-2 py-0.2 rounded-full border ${
+                            isOccupied
+                              ? 'bg-amber-50 text-amber-700 border-amber-200'
+                              : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          }`}
                         >
                           {t.status || 'libre'}
                         </span>
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>{t.zone}</div>
-                    </div>
 
-                    <div style={{ display: 'flex', gap: '6px', borderTop: '1px solid #e2e8f0', paddingTop: '8px' }}>
-                      <button
-                        type="button"
-                        onClick={() => setEditingTable({ ...t })}
-                        style={{
-                          flex: 1,
-                          background: '#ffffff',
-                          border: '1px solid #cbd5e1',
-                          borderRadius: '6px',
-                          padding: '5px',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '4px',
-                          color: '#2563eb',
-                          fontSize: '0.75rem',
-                          fontWeight: '700'
-                        }}
-                      >
-                        <Edit2 size={13} /> Editar
-                      </button>
-                      <button
-                        type="button"
-                        disabled={isOccupied}
-                        title={isOccupied ? 'No se puede eliminar una mesa ocupada' : 'Eliminar mesa'}
-                        onClick={() => handleDeleteTable(t)}
-                        style={{
-                          background: isOccupied ? '#f1f5f9' : '#fff1f2',
-                          border: `1px solid ${isOccupied ? '#e2e8f0' : '#fecdd3'}`,
-                          borderRadius: '6px',
-                          padding: '5px 8px',
-                          cursor: isOccupied ? 'not-allowed' : 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: isOccupied ? '#94a3b8' : '#e11d48'
-                        }}
-                      >
-                        <Trash2 size={13} />
-                      </button>
+                      <div className="flex items-center gap-1.5 pt-2 border-t border-zinc-200/60">
+                        <button
+                          type="button"
+                          onClick={() => setEditingTable({ ...t })}
+                          className="flex-1 py-1 px-2 rounded-lg bg-white hover:bg-zinc-100 border border-zinc-200 text-zinc-700 text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                        >
+                          <Edit2 size={11} />
+                          <span>Editar</span>
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isOccupied}
+                          title={
+                            isOccupied
+                              ? 'No se puede eliminar una mesa ocupada'
+                              : 'Eliminar mesa'
+                          }
+                          onClick={() => handleDeleteTable(t)}
+                          className={`p-1.5 rounded-lg border transition-colors ${
+                            isOccupied
+                              ? 'bg-zinc-100 border-zinc-200 text-zinc-300 cursor-not-allowed'
+                              : 'bg-white hover:bg-rose-50 border-zinc-200 hover:border-rose-200 text-zinc-400 hover:text-rose-600 cursor-pointer'
+                          }`}
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Detail Drawer Modal for Table Action */}
-      {selectedTable && (() => {
-        const currentTable = (restaurantState.tables || []).find((t) => t.id === selectedTable.table.id) || selectedTable.table;
-        const currentOrder = (restaurantState.activeOrders || []).find((o) => o.tableId === currentTable.id) || selectedTable.order;
-        const isBillRequested = currentTable.status === 'cuenta';
-        const isOccupied = currentTable.status === 'ocupada';
+      {/* PANEL LATERAL (DRAWER ESTILO NOTION) DE DETALLE DE MESA */}
+      {selectedTable &&
+        (() => {
+          const currentTable =
+            (restaurantState.tables || []).find((t) => t.id === selectedTable.table.id) ||
+            selectedTable.table;
+          const currentOrder =
+            (restaurantState.activeOrders || []).find((o) => o.tableId === currentTable.id) ||
+            selectedTable.order;
+          const isBillRequested = currentTable.status === 'cuenta';
+          const isOccupied = currentTable.status === 'ocupada';
 
-        return (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'flex-end', zIndex: 1200 }}>
-            <div style={{ background: '#ffffff', width: '100%', maxWidth: '420px', height: '100%', padding: '24px', display: 'flex', flexDirection: 'column', boxShadow: '-10px 0 25px rgba(0,0,0,0.15)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '800' }}>{currentTable.name}</h2>
-                    <span style={{
-                      fontSize: '0.72rem', fontWeight: '800', textTransform: 'uppercase',
-                      padding: '2px 8px', borderRadius: '6px',
-                      background: isBillRequested ? '#dbeafe' : isOccupied ? '#ffedd5' : '#dcfce7',
-                      color: isBillRequested ? '#1e40af' : isOccupied ? '#9a3412' : '#166534'
-                    }}>
-                      {isBillRequested ? 'Pide Cuenta' : isOccupied ? 'En Consumo' : 'Libre'}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: '0.8rem', color: '#6b7280', marginTop: '3px' }}>Zona: {currentTable.zone}</div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedTable(null)}
-                  style={{ background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer' }}
-                >
-                  <X size={22} />
-                </button>
-              </div>
-
-              {/* Consumptions List */}
-              <div style={{ flex: 1, overflowY: 'auto' }}>
-                {!currentOrder || !currentOrder.rounds || currentOrder.rounds.length === 0 ? (
-                  <div style={{ textAlign: 'center', color: '#9ca3af', marginTop: '60px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
-                    <ShoppingCart size={40} style={{ opacity: 0.4 }} />
-                    <div>Mesa libre sin pedidos activos</div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedTable(null);
-                        goToPos();
-                      }}
-                      style={{
-                        marginTop: '8px',
-                        padding: '10px 18px',
-                        background: '#2563eb',
-                        color: '#ffffff',
-                        border: 'none',
-                        borderRadius: '10px',
-                        fontWeight: '700',
-                        fontSize: '0.85rem',
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px'
-                      }}
-                    >
-                      <ShoppingCart size={16} /> Ir a Punto de Venta (POS)
-                    </button>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                    <div style={{ fontSize: '0.82rem', color: '#4b5563' }}>
-                      Mesero: <strong>{currentOrder.waiterName || 'Mesero'}</strong>
+          return (
+            <div className="fixed inset-0 z-50 bg-zinc-950/50 backdrop-blur-xs flex justify-end">
+              <div className="bg-white w-full max-w-md h-full border-l border-zinc-200 shadow-2xl flex flex-col justify-between p-6">
+                {/* Cabecera del Drawer */}
+                <div className="flex items-start justify-between pb-4 border-b border-zinc-100">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-lg font-extrabold text-zinc-950 tracking-tight">
+                        {currentTable.name}
+                      </h2>
+                      <span
+                        className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full border ${
+                          isBillRequested
+                            ? 'bg-sky-50 text-sky-700 border-sky-200'
+                            : isOccupied
+                            ? 'bg-amber-50 text-amber-700 border-amber-200'
+                            : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        }`}
+                      >
+                        {isBillRequested ? 'Pide Cuenta' : isOccupied ? 'En Consumo' : 'Libre'}
+                      </span>
                     </div>
-
-                    {currentOrder.rounds.map((rnd, rIdx) => (
-                      <div key={rnd.id} style={{ background: '#f8fafc', borderRadius: '12px', padding: '12px', border: '1px solid #e2e8f0' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem', color: '#64748b', fontWeight: '700', marginBottom: '8px' }}>
-                          <span>Ronda #{rIdx + 1} • {new Date(rnd.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedComandaPrint({
-                              round: { ...rnd, roundNumber: rnd.roundNumber || rIdx + 1 },
-                              tableName: currentTable.name || 'Mesa',
-                              waiterName: currentOrder.waiterName || 'Mesero',
-                              orderId: currentOrder.id || rnd.id || '',
-                              autoPrint: false
-                            })}
-                            style={{
-                              display: 'inline-flex', alignItems: 'center', gap: '4px',
-                              padding: '4px 8px', background: '#eff6ff', color: '#2563eb',
-                              border: '1px solid #bfdbfe', borderRadius: '6px',
-                              fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer'
-                            }}
-                            title="Ver e imprimir comanda de esta ronda en 58mm"
-                          >
-                            <Printer size={12} /> Comanda
-                          </button>
-                        </div>
-                        {rnd.items.map((i, iIdx) => (
-                          <div key={iIdx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', marginBottom: '4px' }}>
-                            <span><strong>{i.quantity}x</strong> {i.name}</span>
-                            <span style={{ fontWeight: '700' }}>${(i.priceUSD * i.quantity).toFixed(2)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    ))}
+                    <p className="text-xs text-zinc-500 mt-0.5">Zona: {currentTable.zone}</p>
                   </div>
-                )}
-              </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTable(null)}
+                    className="p-1.5 rounded-xl text-zinc-400 hover:text-zinc-800 hover:bg-zinc-100 cursor-pointer transition-colors"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
 
-              {/* Bottom Actions */}
-              {currentOrder && currentOrder.rounds && currentOrder.rounds.length > 0 && (
-                <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '16px', marginTop: '16px' }}>
-                  {(() => {
-                    const total = currentOrder.rounds.reduce(
-                      (acc, r) => acc + r.items.reduce((s, i) => s + i.priceUSD * i.quantity, 0),
-                      0
-                    );
-                    return (
-                      <div style={{ marginBottom: '16px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.25rem', fontWeight: '800' }}>
-                          <span>Total de la Mesa:</span>
-                          <span style={{ color: '#d97706' }}>${total.toFixed(2)}</span>
-                        </div>
-                        <div style={{ textAlign: 'right', fontSize: '0.8rem', color: '#6b7280' }}>
-                          Bs. {(total * exchangeRate).toFixed(2)}
-                        </div>
+                {/* Lista de Rondas y Consumos */}
+                <div className="flex-1 overflow-y-auto py-4 space-y-3">
+                  {!currentOrder || !currentOrder.rounds || currentOrder.rounds.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-center py-12 px-4">
+                      <div className="w-12 h-12 rounded-2xl bg-zinc-100 text-zinc-400 flex items-center justify-center mb-3">
+                        <ShoppingCart size={22} />
                       </div>
-                    );
-                  })()}
+                      <p className="text-xs font-bold text-zinc-800">
+                        Mesa libre sin pedidos activos
+                      </p>
+                      <p className="text-[11px] text-zinc-500 mt-1 mb-4">
+                        Los pedidos enviados por los meseros desde sus tablets aparecerán aquí por rondas.
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedTable(null);
+                            goToPos();
+                          }}
+                          className="px-4 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs"
+                        >
+                          <ShoppingCart size={14} className="text-emerald-400" />
+                          <span>Ir al Punto de Venta (POS)</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingTable({ ...currentTable });
+                            setSelectedTable(null);
+                          }}
+                          className="px-3 py-2 rounded-xl border border-zinc-200 hover:bg-zinc-50 text-zinc-700 text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                        >
+                          <Edit2 size={13} />
+                          <span>Editar Mesa</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-zinc-50 border border-zinc-200/60 text-xs">
+                        <span className="text-zinc-500">
+                          Atendido por:{' '}
+                          <strong className="text-zinc-900">
+                            {currentOrder.waiterName || 'Mesero'}
+                          </strong>
+                        </span>
+                        <span className="font-mono text-[11px] text-zinc-500">
+                          {currentOrder.rounds.length} ronda(s)
+                        </span>
+                      </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {!isBillRequested && (
-                      <>
-                        <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '12px', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <Clock size={20} color="#d97706" style={{ flexShrink: 0 }} />
-                          <div style={{ fontSize: '0.82rem', color: '#92400e', lineHeight: 1.35 }}>
-                            <strong>Mesa en consumo.</strong> Pasa directamente a cobrar en caja para emitir el ticket de venta.
+                      {currentOrder.rounds.map((rnd, rIdx) => (
+                        <div
+                          key={rnd.id}
+                          className="bg-zinc-50/80 rounded-xl p-3.5 border border-zinc-200/80 space-y-2"
+                        >
+                          <div className="flex items-center justify-between text-[11px] font-bold text-zinc-500 pb-2 border-b border-zinc-200/60">
+                            <span>
+                              Ronda #{rIdx + 1} ·{' '}
+                              {new Date(rnd.sentAt).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setSelectedComandaPrint({
+                                  round: { ...rnd, roundNumber: rnd.roundNumber || rIdx + 1 },
+                                  tableName: currentTable.name || 'Mesa',
+                                  waiterName: currentOrder.waiterName || 'Mesero',
+                                  orderId: currentOrder.id || rnd.id || '',
+                                  autoPrint: false
+                                })
+                              }
+                              className="px-2.5 py-1 rounded-lg bg-white hover:bg-zinc-100 text-zinc-800 border border-zinc-200 text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                              title="Ver e imprimir comanda de esta ronda en 58mm"
+                            >
+                              <Printer size={11} />
+                              <span>Comanda</span>
+                            </button>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            {rnd.items.map((i, iIdx) => (
+                              <div
+                                key={iIdx}
+                                className="flex items-baseline justify-between text-xs"
+                              >
+                                <span className="text-zinc-800">
+                                  <strong className="font-mono text-zinc-950">{i.quantity}x</strong>{' '}
+                                  {i.name}
+                                </span>
+                                <span className="font-mono font-bold text-zinc-900">
+                                  ${(i.priceUSD * i.quantity).toFixed(2)}
+                                </span>
+                              </div>
+                            ))}
                           </div>
                         </div>
+                      ))}
+                    </>
+                  )}
+                </div>
 
+                {/* Acciones Inferiores del Drawer */}
+                {currentOrder && currentOrder.rounds && currentOrder.rounds.length > 0 && (
+                  <div className="pt-4 border-t border-zinc-200 space-y-3">
+                    {(() => {
+                      const total = currentOrder.rounds.reduce(
+                        (acc, r) => acc + r.items.reduce((s, i) => s + i.priceUSD * i.quantity, 0),
+                        0
+                      );
+                      return (
+                        <div className="flex items-baseline justify-between bg-zinc-50 p-3 rounded-xl border border-zinc-200/80">
+                          <div>
+                            <div className="text-xs font-bold text-zinc-700">Total de la Mesa</div>
+                            <div className="text-[11px] font-mono text-zinc-500">
+                              Bs. {(total * exchangeRate).toFixed(2)}
+                            </div>
+                          </div>
+                          <div className="text-xl font-extrabold font-mono text-zinc-950">
+                            ${total.toFixed(2)}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {!isBillRequested ? (
+                      <div className="space-y-2">
                         <button
                           type="button"
                           onClick={() => handleChargeInPOS(currentTable, currentOrder)}
-                          style={{
-                            width: '100%', padding: '14px', background: '#2563eb', color: '#ffffff',
-                            border: 'none', borderRadius: '12px', fontWeight: '800', fontSize: '1rem',
-                            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                            boxShadow: '0 4px 14px rgba(37,99,235,0.25)'
-                          }}
+                          className="w-full py-3 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-xs"
                         >
-                          <ShoppingCart size={18} /> COBRAR EN CAJA (POS) &rarr;
+                          <ShoppingCart size={15} className="text-emerald-400" />
+                          <span>COBRAR EN CAJA (POS) &rarr;</span>
                         </button>
 
-                        <div style={{ display: 'flex', gap: '8px' }}>
+                        <div className="flex gap-2">
                           <button
                             type="button"
                             onClick={() => handleRequestBill(currentTable)}
-                            style={{
-                              flex: 1, padding: '10px', background: '#f8fafc', color: '#475569',
-                              border: '1px solid #cbd5e1', borderRadius: '10px', fontWeight: '700', fontSize: '0.82rem',
-                              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
-                            }}
+                            className="flex-1 py-2 px-3 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
                           >
-                            <Clock size={14} /> Marcar "Pide Cuenta"
+                            <Clock size={13} />
+                            <span>Marcar &ldquo;Pide Cuenta&rdquo;</span>
                           </button>
 
                           <button
                             type="button"
                             onClick={() => handlePrintPreBill(currentTable, currentOrder)}
-                            style={{
-                              padding: '10px 14px', background: '#f8fafc', color: '#475569',
-                              border: '1px solid #cbd5e1', borderRadius: '10px', fontWeight: '700', fontSize: '0.82rem',
-                              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
-                            }}
-                            title="Ver Pre-orden antes del cobro"
+                            className="py-2 px-3 rounded-xl border border-zinc-200 hover:bg-zinc-50 text-zinc-700 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
                           >
-                            <Printer size={15} /> Ver Pre-orden
+                            <Printer size={13} />
+                            <span>Pre-Cuenta</span>
                           </button>
                         </div>
-                      </>
-                    )}
-
-                    {isBillRequested && (
-                      <>
-                        <div style={{ background: '#eff6ff', border: '1.5px solid #bfdbfe', borderRadius: '12px', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <CheckCircle size={18} color="#2563eb" />
-                            <div style={{ fontSize: '0.84rem', color: '#1e40af', fontWeight: '800' }}>
-                              Cuenta Solicitada (Lista para cobro)
-                            </div>
-                          </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-sky-50 border border-sky-200 text-xs">
+                          <span className="font-bold text-sky-900 flex items-center gap-1.5">
+                            <CheckCircle2 size={14} className="text-sky-600" />
+                            Cuenta solicitada (Lista para cobro)
+                          </span>
                           <button
                             type="button"
                             onClick={() => handleReopenTable(currentTable.id)}
-                            style={{ background: '#ffffff', border: '1px solid #cbd5e1', color: '#475569', fontSize: '0.72rem', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontWeight: '700' }}
-                            title="Volver a consumo si piden más productos"
+                            className="px-2 py-1 rounded-lg bg-white hover:bg-zinc-50 border border-sky-200 text-zinc-700 text-[11px] font-bold flex items-center gap-1 cursor-pointer"
                           >
-                            ↩️ Reabrir
+                            <RotateCcw size={11} />
+                            <span>Reabrir</span>
                           </button>
                         </div>
 
                         <button
                           type="button"
                           onClick={() => handleChargeInPOS(currentTable, currentOrder)}
-                          style={{
-                            width: '100%', padding: '14px', background: '#dc2626', color: '#ffffff',
-                            border: 'none', borderRadius: '12px', fontWeight: '800', fontSize: '1rem',
-                            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                            boxShadow: '0 4px 14px rgba(220, 38, 38, 0.35)'
-                          }}
+                          className="w-full py-3 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-xs"
                         >
-                          <ShoppingCart size={18} /> COBRAR EN CAJA (POS) &rarr;
+                          <ShoppingCart size={15} className="text-emerald-400" />
+                          <span>COBRAR EN CAJA (POS) &rarr;</span>
                         </button>
 
                         <button
                           type="button"
                           onClick={() => handlePrintPreBill(currentTable, currentOrder)}
-                          style={{
-                            width: '100%', padding: '9px', background: '#eff6ff', color: '#1e40af',
-                            border: '1px solid #bfdbfe', borderRadius: '10px', fontWeight: '700', fontSize: '0.82rem',
-                            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
-                          }}
+                          className="w-full py-2 px-3 rounded-xl border border-zinc-200 hover:bg-zinc-50 text-zinc-700 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
                         >
-                          <Printer size={15} /> Ver Ticket Pre-orden
+                          <Printer size={13} />
+                          <span>Ver Ticket Pre-Cuenta</span>
                         </button>
-                      </>
+                      </div>
                     )}
 
                     <button
                       type="button"
                       onClick={() => handleFreeTable(currentTable.id)}
-                      style={{
-                        width: '100%', padding: '8px', background: 'transparent', color: '#94a3b8',
-                        border: 'none', borderRadius: '8px', fontWeight: '600', fontSize: '0.8rem', cursor: 'pointer',
-                        marginTop: '4px'
-                      }}
+                      className="w-full py-1.5 rounded-xl text-zinc-400 hover:text-rose-600 hover:bg-rose-50 text-[11px] font-semibold cursor-pointer transition-colors"
                     >
                       Liberar / Cancelar Mesa
                     </button>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
-        );
-      })()}
+          );
+        })()}
 
-      {/* Edit Waiter Modal */}
+      {/* MODAL EDITAR MESERO ESTILO NOTION */}
       {editingWaiter && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1300, padding: '16px' }}>
-          <div style={{ background: '#ffffff', borderRadius: '16px', maxWidth: '400px', width: '100%', padding: '24px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
-              <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Users size={20} color="#2563eb" /> Editar Mesero
-              </h3>
+        <div className="fixed inset-0 z-50 bg-zinc-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-5 border border-zinc-200 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 rounded-lg bg-zinc-100 text-zinc-800">
+                  <Users size={16} />
+                </span>
+                <h3 className="font-bold text-sm text-zinc-950">Editar Mesero</h3>
+              </div>
               <button
                 type="button"
                 onClick={() => setEditingWaiter(null)}
-                style={{ background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer' }}
+                className="p-1 rounded-lg text-zinc-400 hover:text-zinc-700 cursor-pointer"
               >
-                <X size={20} />
+                <X size={16} />
               </button>
             </div>
 
-            <form onSubmit={handleUpdateWaiter} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <form onSubmit={handleUpdateWaiter} className="space-y-3">
               <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '700', color: '#475569', marginBottom: '6px' }}>
+                <label className="block text-[11px] font-bold text-zinc-600 uppercase mb-1">
                   Nombre del Mesero
                 </label>
                 <input
@@ -1727,12 +1729,12 @@ export default function TablesView({ onGoToPos }) {
                   type="text"
                   value={editingWaiter.name}
                   onChange={(e) => setEditingWaiter({ ...editingWaiter, name: e.target.value })}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '0.9rem', boxSizing: 'border-box' }}
+                  className="w-full px-3 py-2 border border-zinc-300 rounded-xl text-xs font-semibold focus:outline-none focus:border-zinc-900"
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '700', color: '#475569', marginBottom: '6px' }}>
+                <label className="block text-[11px] font-bold text-zinc-600 uppercase mb-1">
                   PIN de Acceso (4 dígitos)
                 </label>
                 <input
@@ -1741,36 +1743,42 @@ export default function TablesView({ onGoToPos }) {
                   maxLength="4"
                   pattern="[0-9]{4}"
                   value={editingWaiter.pin}
-                  onChange={(e) => setEditingWaiter({ ...editingWaiter, pin: e.target.value.replace(/\D/g, '') })}
+                  onChange={(e) =>
+                    setEditingWaiter({
+                      ...editingWaiter,
+                      pin: e.target.value.replace(/\D/g, '')
+                    })
+                  }
                   placeholder="Ej: 1234"
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '0.9rem', fontFamily: 'monospace', letterSpacing: '2px', boxSizing: 'border-box' }}
+                  className="w-full px-3 py-2 border border-zinc-300 rounded-xl text-xs font-mono font-bold tracking-widest focus:outline-none focus:border-zinc-900"
                 />
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px' }}>
+              <label className="flex items-center gap-2.5 p-2.5 rounded-xl bg-zinc-50 border border-zinc-200/80 cursor-pointer">
                 <input
                   type="checkbox"
-                  id="waiterActiveCheck"
                   checked={editingWaiter.active !== false}
-                  onChange={(e) => setEditingWaiter({ ...editingWaiter, active: e.target.checked })}
-                  style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                  onChange={(e) =>
+                    setEditingWaiter({ ...editingWaiter, active: e.target.checked })
+                  }
+                  className="w-4 h-4 rounded accent-zinc-950 cursor-pointer"
                 />
-                <label htmlFor="waiterActiveCheck" style={{ fontSize: '0.88rem', fontWeight: '700', color: '#1e293b', cursor: 'pointer' }}>
+                <span className="text-xs font-semibold text-zinc-800">
                   Mesero activo (permite iniciar sesión en tablet)
-                </label>
-              </div>
+                </span>
+              </label>
 
-              <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+              <div className="flex gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setEditingWaiter(null)}
-                  style={{ flex: 1, padding: '11px', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}
+                  className="flex-1 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-bold text-xs cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  style={{ flex: 1, padding: '11px', background: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}
+                  className="flex-1 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white font-bold text-xs cursor-pointer"
                 >
                   Guardar Cambios
                 </button>
@@ -1780,26 +1788,29 @@ export default function TablesView({ onGoToPos }) {
         </div>
       )}
 
-      {/* Edit Table Modal */}
+      {/* MODAL EDITAR MESA ESTILO NOTION */}
       {editingTable && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1300, padding: '16px' }}>
-          <div style={{ background: '#ffffff', borderRadius: '16px', maxWidth: '400px', width: '100%', padding: '24px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
-              <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Utensils size={20} color="#d97706" /> Editar Mesa / Área
-              </h3>
+        <div className="fixed inset-0 z-50 bg-zinc-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-5 border border-zinc-200 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 rounded-lg bg-zinc-100 text-zinc-800">
+                  <Utensils size={16} />
+                </span>
+                <h3 className="font-bold text-sm text-zinc-950">Editar Mesa / Área</h3>
+              </div>
               <button
                 type="button"
                 onClick={() => setEditingTable(null)}
-                style={{ background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer' }}
+                className="p-1 rounded-lg text-zinc-400 hover:text-zinc-700 cursor-pointer"
               >
-                <X size={20} />
+                <X size={16} />
               </button>
             </div>
 
-            <form onSubmit={handleUpdateTable} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <form onSubmit={handleUpdateTable} className="space-y-3">
               <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '700', color: '#475569', marginBottom: '6px' }}>
+                <label className="block text-[11px] font-bold text-zinc-600 uppercase mb-1">
                   Nombre de la Mesa
                 </label>
                 <input
@@ -1807,18 +1818,18 @@ export default function TablesView({ onGoToPos }) {
                   type="text"
                   value={editingTable.name}
                   onChange={(e) => setEditingTable({ ...editingTable, name: e.target.value })}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '0.9rem', boxSizing: 'border-box' }}
+                  className="w-full px-3 py-2 border border-zinc-300 rounded-xl text-xs font-semibold focus:outline-none focus:border-zinc-900"
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '700', color: '#475569', marginBottom: '6px' }}>
+                <label className="block text-[11px] font-bold text-zinc-600 uppercase mb-1">
                   Zona o Área
                 </label>
                 <select
                   value={editingTable.zone}
                   onChange={(e) => setEditingTable({ ...editingTable, zone: e.target.value })}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '0.9rem', background: '#fff', boxSizing: 'border-box' }}
+                  className="w-full px-3 py-2 border border-zinc-300 rounded-xl text-xs font-semibold bg-white focus:outline-none focus:border-zinc-900"
                 >
                   <option value="Salón">Salón</option>
                   <option value="Terraza">Terraza</option>
@@ -1828,17 +1839,17 @@ export default function TablesView({ onGoToPos }) {
                 </select>
               </div>
 
-              <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+              <div className="flex gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setEditingTable(null)}
-                  style={{ flex: 1, padding: '11px', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}
+                  className="flex-1 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-bold text-xs cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  style={{ flex: 1, padding: '11px', background: '#d97706', color: '#ffffff', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}
+                  className="flex-1 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white font-bold text-xs cursor-pointer"
                 >
                   Guardar Cambios
                 </button>
@@ -1850,10 +1861,7 @@ export default function TablesView({ onGoToPos }) {
 
       {/* Pre-bill Invoice Preview Modal */}
       {preBillInvoice && (
-        <InvoicePreview
-          invoice={preBillInvoice}
-          onClose={() => setPreBillInvoice(null)}
-        />
+        <InvoicePreview invoice={preBillInvoice} onClose={() => setPreBillInvoice(null)} />
       )}
 
       {/* Comanda Kitchen Ticket Print Modal */}
@@ -1869,21 +1877,23 @@ export default function TablesView({ onGoToPos }) {
       )}
 
       {/* QR Connect Modal */}
-      {showQRModal && (
-        <QRConnectModal onClose={() => setShowQRModal(false)} />
-      )}
+      {showQRModal && <QRConnectModal onClose={() => setShowQRModal(false)} />}
 
-      {/* Toast Notification */}
+      {/* Toast Notification estilo Notion */}
       {toast && (
-        <div style={{
-          position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)',
-          background: toast.type === 'success' ? '#10b981' : '#dc2626',
-          color: '#fff', padding: '10px 22px', borderRadius: '24px',
-          fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px',
-          boxShadow: '0 8px 20px rgba(0,0,0,0.15)', zIndex: 3000, fontSize: '0.88rem'
-        }}>
-          {toast.type === 'success' ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
-          {toast.msg}
+        <div
+          className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl border shadow-lg flex items-center gap-2 text-xs font-bold ${
+            toast.type === 'success'
+              ? 'bg-zinc-950 text-white border-zinc-800'
+              : 'bg-rose-600 text-white border-rose-500'
+          }`}
+        >
+          {toast.type === 'success' ? (
+            <CheckCircle2 size={15} className="text-emerald-400" />
+          ) : (
+            <AlertCircle size={15} />
+          )}
+          <span>{toast.msg}</span>
         </div>
       )}
     </div>
