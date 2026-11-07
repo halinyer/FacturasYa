@@ -55,6 +55,7 @@ const INSTALLER_URL =
 
 function AppShellInner() {
   const { session, signOut } = useWebAuth();
+  const isElectron = typeof window !== 'undefined' && (Boolean(window?.electronAPI) || window.location.protocol === 'file:');
   const posData = useData();
   const refreshDataRef = useRef(posData?.refreshData);
   useEffect(() => {
