@@ -25,18 +25,48 @@ export default function FiscalBooksView() {
   const [isFiscalMemoryModalOpen, setIsFiscalMemoryModalOpen] = useState(false);
 
   const [activeTab, setActiveTab] = useState('sales'); // 'sales' | 'purchases' | 'zreports'
+  const [selectedMachine, setSelectedMachine] = useState('all');
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
 
-  // Filtrar facturas del mes seleccionado
+  // Detectar todas las máquinas fiscales / cajas registradas en facturas y cierres Z
+  const availableMachines = useMemo(() => {
+    const map = new Map();
+    invoices.forEach((inv) => {
+      const serial = inv.fiscalSerial || inv.fiscal_serial;
+      const term = inv.terminalId || 'CAJA-01';
+      if (serial) {
+        map.set(serial, `${term} · ${serial}`);
+      }
+    });
+    zReports.forEach((zr) => {
+      const serial = zr.fiscalSerial || zr.registeredMachineNumber || zr.registered_machine_number;
+      if (serial && !map.has(serial)) {
+        map.set(serial, `Máquina · ${serial}`);
+      }
+    });
+    return Array.from(map.entries()).map(([serial, label]) => ({ serial, label }));
+  }, [invoices, zReports]);
+
+  // Filtrar facturas del mes seleccionado y máquina fiscal seleccionada
   const monthlyInvoices = useMemo(() => {
     return invoices.filter((inv) => {
-      if (!inv.date) return true;
-      return inv.date.startsWith(selectedMonth);
+      const matchMonth = !inv.date || inv.date.startsWith(selectedMonth);
+      const invSerial = inv.fiscalSerial || inv.fiscal_serial || '';
+      const matchMachine = selectedMachine === 'all' || invSerial === selectedMachine;
+      return matchMonth && matchMachine;
     });
-  }, [invoices, selectedMonth]);
+  }, [invoices, selectedMonth, selectedMachine]);
+
+  const filteredZReports = useMemo(() => {
+    return zReports.filter((zr) => {
+      if (selectedMachine === 'all') return true;
+      const zrSerial = zr.fiscalSerial || zr.registeredMachineNumber || zr.registered_machine_number || '';
+      return zrSerial === selectedMachine;
+    });
+  }, [zReports, selectedMachine]);
 
   // Totales fiscales del Libro de Ventas
   const salesTotals = useMemo(() => {
@@ -145,8 +175,22 @@ export default function FiscalBooksView() {
             </p>
           </div>
 
-          {/* ACCIONES Y FILTRO DE MES */}
-          <div className="flex items-center gap-2">
+          {/* ACCIONES Y FILTRO DE MES Y MÁQUINA FISCAL */}
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={selectedMachine}
+              onChange={(e) => setSelectedMachine(e.target.value)}
+              className="px-3 py-1.5 rounded-xl border border-zinc-200 text-xs font-semibold bg-zinc-50 text-zinc-800 cursor-pointer"
+              title="Filtrar por Caja o Serial de Máquina Fiscal"
+            >
+              <option value="all">🖨️ Todas las Cajas / Máquinas ({availableMachines.length || 1})</option>
+              {availableMachines.map((m) => (
+                <option key={m.serial} value={m.serial}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+
             <input
               type="month"
               value={selectedMonth}
@@ -334,6 +378,7 @@ export default function FiscalBooksView() {
                     <tr>
                       <th className="py-3 px-3">Reporte Z N°</th>
                       <th className="py-3 px-3">Fecha y Hora</th>
+                      <th className="py-3 px-3">Serial Máquina</th>
                       <th className="py-3 px-3">Facturas (Desde - Hasta)</th>
                       <th className="py-3 px-3 text-right">Ventas Exentas (Bs)</th>
                       <th className="py-3 px-3 text-right">Base 16% (Bs)</th>
@@ -343,12 +388,13 @@ export default function FiscalBooksView() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-100 text-zinc-700">
-                    {zReports.map((zr, idx) => {
+                    {filteredZReports.map((zr, idx) => {
                       const totalBs = Number(zr.totalSalesBs || zr.total_sales_bs || 0);
                       const baseBs = Number(zr.taxableAmount16Bs || zr.taxable_amount_16_bs || 0);
                       const ivaBs = Number(zr.tax16Bs || zr.tax_16_bs || 0);
                       const igtfBs = Number(zr.igtf3Bs || zr.igtf_3_bs || 0);
                       const exentoBs = Number(zr.exemptSalesBs || zr.exempt_sales_bs || 0);
+                      const zrSerial = zr.fiscalSerial || zr.registeredMachineNumber || zr.registered_machine_number || 'HKA80';
 
                       return (
                         <tr key={zr.zNumber || idx} className="hover:bg-zinc-50/50 transition-colors">
@@ -357,6 +403,9 @@ export default function FiscalBooksView() {
                           </td>
                           <td className="py-3 px-3 text-zinc-600 font-mono">
                             {zr.date || zr.closeDate || 'N/A'} {zr.time || ''}
+                          </td>
+                          <td className="py-3 px-3 font-mono text-[11px] font-bold text-zinc-700">
+                            {zrSerial}
                           </td>
                           <td className="py-3 px-3 font-mono text-zinc-700">
                             #{zr.firstInvoiceNumber || 1} ➔ #{zr.lastInvoiceNumber || 1}
@@ -396,6 +445,7 @@ export default function FiscalBooksView() {
                     <th className="py-3 px-3">RIF / C.I.</th>
                     <th className="py-3 px-4">Razón Social / Cliente</th>
                     <th className="py-3 px-3">Factura N°</th>
+                    <th className="py-3 px-3">Caja / Serial</th>
                     <th className="py-3 px-3 text-right">Total Facturado (Bs)</th>
                     <th className="py-3 px-3 text-right">Base Imponible (Bs)</th>
                     <th className="py-3 px-3 text-right">IVA 16% (Bs)</th>
@@ -405,7 +455,7 @@ export default function FiscalBooksView() {
                 <tbody className="divide-y divide-zinc-100 text-zinc-700">
                   {monthlyInvoices.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="py-10 text-center text-zinc-400">
+                      <td colSpan={10} className="py-10 text-center text-zinc-400">
                         No hay operaciones fiscales registradas en el mes seleccionado ({selectedMonth}).
                       </td>
                     </tr>
@@ -432,6 +482,10 @@ export default function FiscalBooksView() {
                           </td>
                           <td className="py-3 px-3 font-mono font-bold text-zinc-950">
                             {inv.invoiceNumber || inv.id || idx + 1}
+                          </td>
+                          <td className="py-3 px-3 font-mono text-[11px] text-zinc-600">
+                            <span className="font-bold text-zinc-900">{inv.terminalId || 'CAJA-01'}</span>
+                            {inv.fiscalSerial ? ` · ${inv.fiscalSerial}` : ''}
                           </td>
                           <td className="py-3 px-3 text-right font-bold text-zinc-950 font-mono">
                             {bsTotal.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}

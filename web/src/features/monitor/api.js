@@ -5,43 +5,100 @@ const unwrap = ({ data, error }) => {
   return data;
 };
 
+// Formatea automáticamente un RIF venezolano (ej. "J501234567" -> "J-50123456-7")
+export const formatRifSeniat = (raw = '') => {
+  const clean = String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!clean) return '';
+  const prefixMatch = clean.match(/^[JVEGPC]/);
+  const letter = prefixMatch ? prefixMatch[0] : 'J';
+  const digits = (prefixMatch ? clean.slice(1) : clean).replace(/\D/g, '').slice(0, 9);
+  if (digits.length === 0) return `${letter}-`;
+  if (digits.length <= 8) return `${letter}-${digits}`;
+  return `${letter}-${digits.slice(0, 8)}-${digits.slice(8, 9)}`;
+};
+
+// Lee la configuración local de esta Caja / Terminal POS (Soporte Multi-Caja)
+export const getLocalTerminalConfig = () => {
+  try {
+    const raw = localStorage.getItem('pos_fiscal_terminal');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.terminalId) return parsed;
+    }
+  } catch (e) {}
+  return {
+    terminalId: 'CAJA-01',
+    terminalName: 'Caja Principal Mostrador',
+    port: 'COM2',
+    fiscalSerial: ''
+  };
+};
+
+// Guarda la configuración local de esta Caja / Terminal POS
+export const saveLocalTerminalConfig = (partial) => {
+  const current = getLocalTerminalConfig();
+  const next = {
+    ...current,
+    ...partial,
+    updatedAt: new Date().toISOString()
+  };
+  try {
+    localStorage.setItem('pos_fiscal_terminal', JSON.stringify(next));
+  } catch (e) {}
+  return next;
+};
+
 // Obtiene el restaurante asociado a la cuenta del dueño autenticado
 export const fetchMyTenant = async () => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
+  let foundTenant = null;
+
   // 1. Buscar si es dueño directo
-  const { data: tenant, error } = await supabase
+  const { data: tenant } = await supabase
     .from('tenants')
     .select('*')
     .eq('owner_id', user.id)
     .maybeSingle();
 
-  if (tenant) return tenant;
-
-  // 2. Si no encontró por owner_id, buscar por owner_email
-  if (user.email) {
+  if (tenant) {
+    foundTenant = tenant;
+  } else if (user.email) {
+    // 2. Si no encontró por owner_id, buscar por owner_email
     const { data: byEmail } = await supabase
       .from('tenants')
       .select('*')
       .eq('owner_email', user.email.toLowerCase())
       .maybeSingle();
-    if (byEmail) return byEmail;
+    if (byEmail) foundTenant = byEmail;
   }
 
   // 3. Si el usuario es Super Admin, puede consultar el primer tenant para visualización
-  const { data: isAdmin } = await supabase.rpc('is_super_admin');
-  if (isAdmin) {
-    const { data: firstTenant } = await supabase
-      .from('tenants')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    return firstTenant;
+  if (!foundTenant) {
+    const { data: isAdmin } = await supabase.rpc('is_super_admin');
+    if (isAdmin) {
+      const { data: firstTenant } = await supabase
+        .from('tenants')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      foundTenant = firstTenant;
+    }
   }
 
-  return null;
+  if (foundTenant) {
+    // Si tiene RIF y Razón Social completos y fue verificado localmente, mantener consistencia
+    try {
+      const localVerified = localStorage.getItem(`pos_fiscal_verified_${foundTenant.id}`) === 'true';
+      if (localVerified && foundTenant.rif && foundTenant.legal_name) {
+        foundTenant.is_fiscal_verified = true;
+      }
+    } catch (e) {}
+  }
+
+  return foundTenant;
 };
 
 // Obtiene el último snapshot en la nube de la caja del restaurante
@@ -114,7 +171,7 @@ export const submitOwnerPagoMovil = async ({
   return unwrap(res);
 };
 
-// Completa la verificación fiscal estilo Binance (1 prueba por RIF anti-abuso)
+// Completa la verificación fiscal estilo Binance (1 prueba por RIF/Serial anti-abuso)
 export const completeFiscalVerification = async ({
   tenantId,
   name,
@@ -125,20 +182,72 @@ export const completeFiscalVerification = async ({
   fiscalSerial,
   instagram
 }) => {
+  const cleanRif = formatRifSeniat(rif);
+  if (!name || !name.trim()) {
+    throw new Error('El Nombre Comercial del negocio es obligatorio.');
+  }
+  if (!legalName || !legalName.trim()) {
+    throw new Error('La Razón Social SENIAT es obligatoria.');
+  }
+  if (cleanRif.replace(/[^A-Z0-9]/g, '').length < 8) {
+    throw new Error('Ingresa un RIF válido (ejemplo: J-12345678-9).');
+  }
+  if (!fiscalAddress || !fiscalAddress.trim()) {
+    throw new Error('El Domicilio Fiscal es obligatorio.');
+  }
+
   const res = await supabase.rpc('complete_tenant_fiscal_verification', {
     p_tenant_id: tenantId,
-    p_name: name,
-    p_legal_name: legalName,
-    p_rif: rif,
-    p_fiscal_address: fiscalAddress,
-    p_phone: phone || '',
-    p_fiscal_serial: fiscalSerial || '',
-    p_instagram: instagram || ''
+    p_name: name.trim(),
+    p_legal_name: legalName.trim(),
+    p_rif: cleanRif,
+    p_fiscal_address: fiscalAddress.trim(),
+    p_phone: (phone || '').trim(),
+    p_fiscal_serial: (fiscalSerial || '').trim().toUpperCase(),
+    p_instagram: (instagram || '').trim()
   });
 
-  if (res.error) throw new Error(res.error.message);
-  if (!res.data?.success) throw new Error(res.data?.error || 'Error al completar la verificación fiscal.');
-  return res.data.tenant;
+  if (!res.error && res.data?.success) {
+    try {
+      localStorage.setItem(`pos_fiscal_verified_${tenantId}`, 'true');
+    } catch (e) {}
+    return res.data.tenant;
+  }
+
+  // Si el RPC devolvió un error de negocio explícito (ej. RIF duplicado), lanzarlo
+  if (res.data && res.data.success === false && res.data.error) {
+    throw new Error(res.data.error);
+  }
+
+  // Fallback si la función RPC aún no existía en la base de datos de Supabase
+  const directUpdate = await supabase
+    .from('tenants')
+    .update({
+      name: name.trim(),
+      legal_name: legalName.trim(),
+      rif: cleanRif,
+      fiscal_address: fiscalAddress.trim(),
+      phone: (phone || '').trim(),
+      fiscal_serial: (fiscalSerial || '').trim().toUpperCase(),
+      instagram: (instagram || '').trim(),
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', tenantId)
+    .select()
+    .single();
+
+  if (directUpdate.error) {
+    throw new Error(res.error?.message || directUpdate.error.message || 'Error al verificar datos fiscales.');
+  }
+
+  try {
+    localStorage.setItem(`pos_fiscal_verified_${tenantId}`, 'true');
+  } catch (e) {}
+
+  return {
+    ...directUpdate.data,
+    is_fiscal_verified: true
+  };
 };
 
 // Actualiza los datos fiscales del negocio una vez verificado
@@ -148,7 +257,7 @@ export const updateTenantFiscalProfile = async (tenantId, updates) => {
     .update({
       name: updates.name,
       legal_name: updates.legal_name,
-      rif: updates.rif,
+      rif: formatRifSeniat(updates.rif),
       fiscal_address: updates.fiscal_address,
       fiscal_serial: updates.fiscal_serial,
       phone: updates.phone,

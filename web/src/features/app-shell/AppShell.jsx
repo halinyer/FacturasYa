@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   ShoppingCart,
@@ -572,7 +572,11 @@ function AppShellInner() {
           {activeTab === 'clients' && <ClientsView />}
           {activeTab === 'monitor' && (
             <div className="h-full overflow-y-auto">
-              <OwnerMonitorPage embedded={true} defaultTab="overview" />
+              <OwnerMonitorPage
+                embedded={true}
+                defaultTab="overview"
+                onTenantChange={(updated) => setTenant(updated)}
+              />
             </div>
           )}
         </main>

@@ -23,6 +23,12 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useData } from '../../pos-core/contexts/DataContext';
+import {
+  completeFiscalVerification,
+  formatRifSeniat,
+  getLocalTerminalConfig,
+  saveLocalTerminalConfig
+} from '../monitor/api';
 
 const VENEZUELA_BANKS = [
   '0102 - Banco de Venezuela',
@@ -48,10 +54,12 @@ export default function NotionSettingsModal({
   const data = useData();
   const isElectron = typeof window !== 'undefined' && (Boolean(window?.electronAPI) || window.location.protocol === 'file:');
   const [activeTab, setActiveTab] = useState('fiscal');
-  const [fiscalPort, setFiscalPort] = useState(() => data?.fiscalSettings?.port || 'COM2');
+  const [terminalConfig, setTerminalConfig] = useState(() => getLocalTerminalConfig());
+  const [fiscalPort, setFiscalPort] = useState(() => data?.fiscalSettings?.port || getLocalTerminalConfig().port || 'COM4');
   const [fiscalEnabled, setFiscalEnabled] = useState(() => data?.fiscalSettings?.enabled !== false);
   const [testingFiscal, setTestingFiscal] = useState(false);
   const [detectingPort, setDetectingPort] = useState(false);
+  const [readingS1ForFiscal, setReadingS1ForFiscal] = useState(false);
   const [s1Preview, setS1Preview] = useState(null); // 'fiscal' | 'hardware' | 'subscription' | 'restaurant' | 'account' | 'backup'
   const [toast, setToast] = useState(null);
 
@@ -67,9 +75,41 @@ export default function NotionSettingsModal({
     rif: tenant?.rif || 'J-',
     address: tenant?.fiscal_address || '',
     phone: tenant?.phone || '',
+    fiscalSerial: tenant?.fiscal_serial || getLocalTerminalConfig().fiscalSerial || '',
     instagram: tenant?.instagram || ''
   });
   const [savingFiscal, setSavingFiscal] = useState(false);
+
+  const handleReadChipS1 = async () => {
+    if (!isElectron || !window.electronAPI?.fiscal?.getS1Status) {
+      showToast('La lectura directa por cable serial requiere la app de escritorio (.exe)', 'error');
+      return;
+    }
+    setReadingS1ForFiscal(true);
+    try {
+      const s1 = await window.electronAPI.fiscal.getS1Status(fiscalPort);
+      if (s1 && s1.success !== false) {
+        const formattedRif = s1.rif ? formatRifSeniat(s1.rif) : fiscalForm.rif;
+        const detectedSerial = String(s1.registeredMachineNumber || s1.registered_machine_number || '').trim().toUpperCase();
+        setFiscalForm((prev) => ({
+          ...prev,
+          rif: formattedRif || prev.rif,
+          fiscalSerial: detectedSerial || prev.fiscalSerial
+        }));
+        if (detectedSerial) {
+          const nextTerm = saveLocalTerminalConfig({ fiscalSerial: detectedSerial, port: fiscalPort });
+          setTerminalConfig(nextTerm);
+        }
+        showToast(`¡Chip Fiscal leído! RIF: ${formattedRif} · Serial: ${detectedSerial || 'HKA80'}`);
+      } else {
+        showToast(s1?.error || `No hubo respuesta en ${fiscalPort}. Verifica el puerto en Máquina Fiscal.`, 'error');
+      }
+    } catch (err) {
+      showToast(err.message || 'Error al leer impresora fiscal', 'error');
+    } finally {
+      setReadingS1ForFiscal(false);
+    }
+  };
 
   // 2. Estado Modo Restaurante
   const [restaurantMode, setRestaurantMode] = useState(() => {
@@ -93,36 +133,48 @@ export default function NotionSettingsModal({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [updatingPassword, setUpdatingPassword] = useState(false);
 
-  // Guardar Datos Fiscales
+  // Guardar Datos Fiscales y completar Verificación SENIAT
   const handleSaveFiscal = async (e) => {
     e.preventDefault();
     setSavingFiscal(true);
     try {
+      const formattedRif = formatRifSeniat(fiscalForm.rif);
+      const serialClean = String(fiscalForm.fiscalSerial || '').trim().toUpperCase();
+
       if (tenant?.id && supabase) {
-        const { error } = await supabase
-          .from('tenants')
-          .update({
-            name: fiscalForm.name,
-            legal_name: fiscalForm.legalName,
-            rif: fiscalForm.rif,
-            fiscal_address: fiscalForm.address,
-            phone: fiscalForm.phone,
-            instagram: fiscalForm.instagram,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', tenant.id);
+        const updated = await completeFiscalVerification({
+          tenantId: tenant.id,
+          name: fiscalForm.name.trim(),
+          legalName: (fiscalForm.legalName || fiscalForm.name).trim(),
+          rif: formattedRif,
+          fiscalAddress: (fiscalForm.address || 'Venezuela').trim(),
+          phone: (fiscalForm.phone || '').trim(),
+          fiscalSerial: serialClean,
+          instagram: (fiscalForm.instagram || '').trim()
+        });
 
-        if (error) throw error;
-      }
+        if (serialClean) {
+          const nextTerm = saveLocalTerminalConfig({ fiscalSerial: serialClean });
+          setTerminalConfig(nextTerm);
+        }
 
-      if (onUpdateTenant) {
+        if (onUpdateTenant && updated) {
+          onUpdateTenant(updated);
+        }
+      } else if (onUpdateTenant) {
         onUpdateTenant({
           ...tenant,
-          ...fiscalForm
+          name: fiscalForm.name,
+          legal_name: fiscalForm.legalName,
+          rif: formattedRif,
+          fiscal_address: fiscalForm.address,
+          phone: fiscalForm.phone,
+          fiscal_serial: serialClean,
+          is_fiscal_verified: true
         });
       }
 
-      showToast('Datos fiscales actualizados con éxito');
+      showToast('¡Datos fiscales guardados y negocio verificado ante el SENIAT!');
     } catch (err) {
       showToast(err.message || 'Error al guardar datos fiscales', 'error');
     } finally {
@@ -401,9 +453,44 @@ export default function NotionSettingsModal({
             {/* TAB 1: DATOS FISCALES */}
             {activeTab === 'fiscal' && (
               <form onSubmit={handleSaveFiscal} className="space-y-4">
+                <div className="p-3.5 rounded-xl bg-zinc-50 border border-zinc-200 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <ShieldCheck size={18} className={tenant?.is_fiscal_verified ? 'text-emerald-600' : 'text-amber-600'} />
+                    <div>
+                      <div className="text-xs font-bold text-zinc-950 flex items-center gap-2">
+                        <span>Estado Fiscal del Negocio</span>
+                        {tenant?.is_fiscal_verified ? (
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                            Verificado SENIAT
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">
+                            Pendiente de Verificación
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-zinc-500">
+                        Al guardar tus datos fiscales aquí, tu negocio queda verificado y listo para Libros de Ventas SENIAT.
+                      </p>
+                    </div>
+                  </div>
+
+                  {isElectron && (
+                    <button
+                      type="button"
+                      disabled={readingS1ForFiscal}
+                      onClick={handleReadChipS1}
+                      className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      <Printer size={13} />
+                      <span>{readingS1ForFiscal ? 'Leyendo S1...' : '⚡ Leer RIF y Serial de Impresora'}</span>
+                    </button>
+                  )}
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-zinc-700 mb-1">Nombre Comercial</label>
+                    <label className="block text-xs font-bold text-zinc-700 mb-1">Nombre Comercial *</label>
                     <input
                       type="text"
                       value={fiscalForm.name}
@@ -415,9 +502,10 @@ export default function NotionSettingsModal({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-zinc-700 mb-1">Razón Social Legal</label>
+                    <label className="block text-xs font-bold text-zinc-700 mb-1">Razón Social Legal (SENIAT) *</label>
                     <input
                       type="text"
+                      required
                       value={fiscalForm.legalName}
                       onChange={(e) => setFiscalForm({ ...fiscalForm, legalName: e.target.value })}
                       placeholder="Ej. Inversiones Happy Days C.A."
@@ -426,16 +514,28 @@ export default function NotionSettingsModal({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-zinc-700 mb-1">RIF Fiscal SENIAT</label>
+                    <label className="block text-xs font-bold text-zinc-700 mb-1">RIF Fiscal SENIAT *</label>
                     <input
                       type="text"
                       value={fiscalForm.rif}
                       onChange={(e) => setFiscalForm({ ...fiscalForm, rif: e.target.value.toUpperCase() })}
+                      onBlur={(e) => setFiscalForm((prev) => ({ ...prev, rif: formatRifSeniat(e.target.value) }))}
                       placeholder="J-50123456-0"
                       className="w-full px-3 py-2 text-xs font-mono font-bold rounded-xl border border-zinc-200 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
                       required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-700 mb-1">Serial Máquina Fiscal (HKA80)</label>
+                    <input
+                      type="text"
+                      value={fiscalForm.fiscalSerial}
+                      onChange={(e) => setFiscalForm({ ...fiscalForm, fiscalSerial: e.target.value.toUpperCase() })}
+                      placeholder="Ej. Z7B1234567"
+                      className="w-full px-3 py-2 text-xs font-mono font-bold rounded-xl border border-zinc-200 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 uppercase"
                     />
                   </div>
 
@@ -452,9 +552,10 @@ export default function NotionSettingsModal({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-zinc-700 mb-1">Dirección Fiscal Completa</label>
+                  <label className="block text-xs font-bold text-zinc-700 mb-1">Dirección Fiscal Completa *</label>
                   <textarea
                     rows={2}
+                    required
                     value={fiscalForm.address}
                     onChange={(e) => setFiscalForm({ ...fiscalForm, address: e.target.value })}
                     placeholder="Av. Principal, Edif. Centro, Local 2, Ciudad..."
@@ -466,9 +567,10 @@ export default function NotionSettingsModal({
                   <button
                     type="submit"
                     disabled={savingFiscal}
-                    className="px-5 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold shadow-xs transition-all active:scale-98 disabled:opacity-50"
+                    className="px-5 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold shadow-xs transition-all active:scale-98 disabled:opacity-50 inline-flex items-center gap-1.5 cursor-pointer"
                   >
-                    {savingFiscal ? 'Guardando...' : 'Guardar Datos Fiscales'}
+                    <ShieldCheck size={14} />
+                    <span>{savingFiscal ? 'Verificando...' : 'Guardar y Verificar Negocio'}</span>
                   </button>
                 </div>
               </form>
@@ -477,6 +579,84 @@ export default function NotionSettingsModal({
             {/* TAB 2: HARDWARE FISCAL Y COMANDERA DE COCINA */}
             {activeTab === 'hardware' && (
               <div className="space-y-5">
+                {/* 0. IDENTIDAD DE CAJA / TERMINAL POS (SOPORTE MULTI-CAJA Y MULTI-MÁQUINA FISCAL) */}
+                <div className="border border-zinc-200 rounded-2xl p-4 space-y-3 bg-zinc-50/70 shadow-2xs">
+                  <div className="flex items-center justify-between gap-2 border-b border-zinc-200/80 pb-2.5">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 rounded-xl bg-zinc-900 text-white">
+                        <Laptop size={16} />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-zinc-950">Identidad de esta Caja / Terminal POS (Multi-Caja)</h4>
+                        <p className="text-[11px] text-zinc-500">
+                          Cada PC guarda su propio número de Caja, Puerto COM y Serial Fiscal sin sobrescribir las demás cajas.
+                        </p>
+                      </div>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-lg bg-zinc-900 text-white font-mono text-[11px] font-bold">
+                      {terminalConfig.terminalId}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                    <div>
+                      <label className="block text-[11px] font-bold text-zinc-700 mb-1">Código de Caja en esta PC</label>
+                      <select
+                        value={terminalConfig.terminalId}
+                        onChange={(e) => {
+                          const id = e.target.value;
+                          const defaultNames = {
+                            'CAJA-01': 'Caja Principal',
+                            'CAJA-02': 'Caja Secundaria / Barra',
+                            'CAJA-03': 'Caja Terraza / 3',
+                            'CAJA-04': 'Caja Delivery / 4'
+                          };
+                          const next = saveLocalTerminalConfig({
+                            terminalId: id,
+                            terminalName: defaultNames[id] || terminalConfig.terminalName
+                          });
+                          setTerminalConfig(next);
+                          showToast(`Esta PC quedó asignada como ${id} (${next.terminalName})`);
+                        }}
+                        className="w-full px-3 py-2 rounded-xl border border-zinc-300 bg-white font-bold text-zinc-900"
+                      >
+                        <option value="CAJA-01">CAJA-01 (Principal)</option>
+                        <option value="CAJA-02">CAJA-02 (Caja 2 / Barra)</option>
+                        <option value="CAJA-03">CAJA-03 (Caja 3 / Terraza)</option>
+                        <option value="CAJA-04">CAJA-04 (Caja 4 / Adicional)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-zinc-700 mb-1">Nombre de la Caja</label>
+                      <input
+                        type="text"
+                        value={terminalConfig.terminalName}
+                        onChange={(e) => {
+                          const next = saveLocalTerminalConfig({ terminalName: e.target.value });
+                          setTerminalConfig(next);
+                        }}
+                        placeholder="Ej. Caja Principal"
+                        className="w-full px-3 py-2 rounded-xl border border-zinc-300 bg-white text-zinc-900 font-semibold"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-zinc-700 mb-1">Serial Fiscal de esta Caja</label>
+                      <input
+                        type="text"
+                        value={terminalConfig.fiscalSerial || fiscalForm.fiscalSerial || ''}
+                        onChange={(e) => {
+                          const val = e.target.value.toUpperCase();
+                          const next = saveLocalTerminalConfig({ fiscalSerial: val });
+                          setTerminalConfig(next);
+                        }}
+                        placeholder="Se detecta con S1 o manual"
+                        className="w-full px-3 py-2 rounded-xl border border-zinc-300 bg-white text-zinc-900 font-mono font-bold uppercase"
+                      />
+                    </div>
+                  </div>
+                </div>
                 {/* 1. SECCIÓN COMANDERA DE COCINA (58mm vs 80mm) */}
                 <div className="border border-zinc-200 rounded-2xl p-4 space-y-4 bg-white shadow-2xs">
                   <div className="flex items-center gap-2.5 border-b border-zinc-100 pb-3">
@@ -643,7 +823,12 @@ export default function NotionSettingsModal({
                                   const s1 = await window.electronAPI?.fiscal?.getS1Status?.(fiscalPort);
                                   if (s1 && s1.success !== false) {
                                     setS1Preview(s1);
-                                    showToast(`Conectada en ${fiscalPort} · Serial ${s1.registeredMachineNumber || s1.registered_machine_number || 'HKA80'}`);
+                                    const detectedSerial = String(s1.registeredMachineNumber || s1.registered_machine_number || '').trim().toUpperCase();
+                                    if (detectedSerial) {
+                                      const nextTerm = saveLocalTerminalConfig({ fiscalSerial: detectedSerial, port: fiscalPort });
+                                      setTerminalConfig(nextTerm);
+                                    }
+                                    showToast(`Conectada en ${fiscalPort} · Serial ${detectedSerial || 'HKA80'}`);
                                   } else {
                                     showToast(s1?.error || `Sin respuesta en ${fiscalPort}`, 'error');
                                   }

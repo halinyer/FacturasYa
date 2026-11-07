@@ -21,7 +21,8 @@ import {
   X,
   Copy,
   Check,
-  Sparkles
+  Sparkles,
+  Printer
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthProvider';
 import LoginForm from '../auth/LoginForm';
@@ -33,7 +34,10 @@ import {
   fetchMyPayments,
   submitOwnerPagoMovil,
   completeFiscalVerification,
-  updateTenantFiscalProfile
+  updateTenantFiscalProfile,
+  formatRifSeniat,
+  getLocalTerminalConfig,
+  saveLocalTerminalConfig
 } from './api';
 
 const INSTALLER_URL = import.meta.env.VITE_INSTALLER_URL || 'https://github.com/halinyer/FacturasYa/releases/latest/download/FacturaPOS-1.0.0.exe';
@@ -67,8 +71,9 @@ function formatUsd(val) {
   return '$' + Number(val || 0).toFixed(2);
 }
 
-export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overview' }) {
+export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overview', onTenantChange }) {
   const { session, loading: authLoading, signOut } = useAuth();
+  const isElectron = typeof window !== 'undefined' && Boolean(window.electronAPI);
   const [tenant, setTenant] = useState(null);
   const [snapshot, setSnapshot] = useState(null);
   const [saasConfig, setSaasConfig] = useState(null);
@@ -81,7 +86,7 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
   const [lastSyncTime, setLastSyncTime] = useState(null);
   const [invoiceFilter, setInvoiceFilter] = useState('all');
 
-  // Verificación Fiscal Estilo Binance (Onboarding Progresivo)
+  // Verificación Fiscal Híbrida SENIAT (Auto-Lectura S1 + Manual)
   const [fiscalModalOpen, setFiscalModalOpen] = useState(false);
   const [fiscalForm, setFiscalForm] = useState({
     name: '',
@@ -93,23 +98,63 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
     instagram: ''
   });
   const [fiscalSubmitting, setFiscalSubmitting] = useState(false);
+  const [readingS1, setReadingS1] = useState(false);
   const [fiscalError, setFiscalError] = useState('');
   const [fiscalSuccessMsg, setFiscalSuccessMsg] = useState('');
 
   // Sincronizar formulario cuando se cargue el restaurante
   useEffect(() => {
     if (tenant) {
+      const localTerm = getLocalTerminalConfig();
       setFiscalForm({
         name: tenant.name || '',
         legalName: tenant.legal_name || '',
         rif: tenant.rif || '',
         fiscalAddress: tenant.fiscal_address || '',
         phone: tenant.phone || '',
-        fiscalSerial: tenant.fiscal_serial || '',
+        fiscalSerial: tenant.fiscal_serial || localTerm.fiscalSerial || '',
         instagram: tenant.instagram || ''
       });
     }
   }, [tenant]);
+
+  const handleReadFromFiscalPrinter = async () => {
+    if (!isElectron || !window.electronAPI?.fiscal?.getS1Status) {
+      setFiscalError('La lectura automática por cable serial solo está disponible desde la app de escritorio (.exe). Puedes completar los campos manualmente.');
+      return;
+    }
+    setReadingS1(true);
+    setFiscalError('');
+    setFiscalSuccessMsg('');
+    try {
+      const localTerm = getLocalTerminalConfig();
+      const port = localTerm.port || 'COM4';
+      const s1 = await window.electronAPI.fiscal.getS1Status(port);
+      if (s1 && s1.success) {
+        const formattedRif = s1.rif ? formatRifSeniat(s1.rif) : fiscalForm.rif;
+        const detectedSerial = (s1.registeredMachineNumber || '').trim().toUpperCase();
+        setFiscalForm((prev) => ({
+          ...prev,
+          rif: formattedRif || prev.rif,
+          fiscalSerial: detectedSerial || prev.fiscalSerial
+        }));
+        if (detectedSerial) {
+          saveLocalTerminalConfig({ fiscalSerial: detectedSerial });
+        }
+        setFiscalSuccessMsg(
+          `¡Chip Fiscal leído en ${port}! RIF: ${formattedRif || '—'} · Serial Máquina: ${detectedSerial || '—'}. Completa tu Razón Social y Domicilio Fiscal para finalizar.`
+        );
+      } else {
+        setFiscalError(
+          s1?.error || `No se pudo leer el Estado S1 en ${port}. Verifica que la impresora HKA80 esté encendida o ingresa los datos manualmente.`
+        );
+      }
+    } catch (err) {
+      setFiscalError('Error al consultar la impresora fiscal: ' + (err.message || 'Verifica el puerto COM'));
+    } finally {
+      setReadingS1(false);
+    }
+  };
 
   const handleFiscalSubmit = async (e) => {
     e.preventDefault();
@@ -118,23 +163,28 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
     setFiscalSuccessMsg('');
 
     try {
+      const serialClean = fiscalForm.fiscalSerial.trim().toUpperCase();
       const updated = await completeFiscalVerification({
         tenantId: tenant.id,
         name: fiscalForm.name.trim(),
         legalName: fiscalForm.legalName.trim(),
-        rif: fiscalForm.rif.trim().toUpperCase(),
+        rif: formatRifSeniat(fiscalForm.rif),
         fiscalAddress: fiscalForm.fiscalAddress.trim(),
         phone: fiscalForm.phone.trim(),
-        fiscalSerial: fiscalForm.fiscalSerial.trim().toUpperCase(),
+        fiscalSerial: serialClean,
         instagram: fiscalForm.instagram.trim()
       });
 
+      if (serialClean) {
+        saveLocalTerminalConfig({ fiscalSerial: serialClean });
+      }
       setTenant(updated);
-      setFiscalSuccessMsg('¡Datos fiscales SENIAT verificados! Tu periodo de 14 días y la descarga de FacturaPOS están desbloqueados.');
+      if (onTenantChange) onTenantChange(updated);
+      setFiscalSuccessMsg('¡Datos fiscales SENIAT verificados! Tu negocio y tus Libros de Ventas SENIAT están activos.');
       setTimeout(() => {
         setFiscalModalOpen(false);
         setFiscalSuccessMsg('');
-      }, 2200);
+      }, 1800);
     } catch (err) {
       setFiscalError(err.message || 'Error al verificar datos fiscales.');
     } finally {
@@ -1370,6 +1420,207 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
               >
                 {pagoSubmitting ? 'Confirmando...' : 'Confirmar Reporte de Pago Móvil →'}
               </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE VERIFICACIÓN FISCAL SENIAT (HÍBRIDO: CHIP S1 + FORMULARIO MANUAL) */}
+      {fiscalModalOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-zinc-950/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+          onClick={() => setFiscalModalOpen(false)}
+        >
+          <div
+            className="bg-white rounded-2xl border border-zinc-200 shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 space-y-4 animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-zinc-100 pb-3">
+              <div>
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                  <ShieldCheck size={11} /> Verificación Fiscal SENIAT
+                </span>
+                <h3 className="text-base font-bold text-zinc-950 mt-1">
+                  Verifica los Datos Fiscales de tu Negocio
+                </h3>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  Activa tus Libros de Ventas SENIAT, Forma 30 y sincronización de máquinas fiscales HKA80.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFiscalModalOpen(false)}
+                className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Opción 1: Lectura Automática por Chip Fiscal S1 (si está en Desktop .exe) */}
+            {isElectron ? (
+              <div className="p-3.5 rounded-xl bg-zinc-900 text-white space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 block">
+                      Opción 1 · Detección por Hardware (HKA80)
+                    </span>
+                    <div className="text-xs font-semibold">
+                      Extraer RIF y Serial directamente de la Memoria Fiscal (S1)
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={readingS1}
+                    onClick={handleReadFromFiscalPrinter}
+                    className="px-3 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs transition-all flex items-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50"
+                  >
+                    <Printer size={13} />
+                    <span>{readingS1 ? 'Leyendo S1...' : '⚡ Leer Impresora'}</span>
+                  </button>
+                </div>
+                <p className="text-[11px] text-zinc-400 leading-relaxed">
+                  Consulta el estado S1 por el puerto COM configurado y rellena automáticamente el RIF fiscal y el Serial Único de tu máquina.
+                </p>
+              </div>
+            ) : (
+              <div className="p-3 rounded-xl bg-zinc-50 border border-zinc-200/80 text-[11px] text-zinc-600 flex items-center justify-between gap-3">
+                <span>
+                  💡 <strong>Tip:</strong> Puedes completar los datos manualmente aquí abajo, o desde la app de escritorio (<code>.exe</code>) leer el RIF y Serial directo desde la impresora fiscal.
+                </span>
+              </div>
+            )}
+
+            <form onSubmit={handleFiscalSubmit} className="space-y-3 text-xs">
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-zinc-600 uppercase tracking-wider mb-1">
+                    Nombre Comercial *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={fiscalForm.name}
+                    onChange={(e) => setFiscalForm({ ...fiscalForm, name: e.target.value })}
+                    placeholder="Ej. Helados Happy Days"
+                    className="w-full px-3 py-2 rounded-lg border border-zinc-200 bg-zinc-50/50 text-zinc-900 focus:bg-white focus:outline-none focus:border-zinc-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-zinc-600 uppercase tracking-wider mb-1">
+                    Razón Social SENIAT *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={fiscalForm.legalName}
+                    onChange={(e) => setFiscalForm({ ...fiscalForm, legalName: e.target.value })}
+                    placeholder="Ej. INVERSIONES HAPPY DAYS, C.A."
+                    className="w-full px-3 py-2 rounded-lg border border-zinc-200 bg-zinc-50/50 text-zinc-900 focus:bg-white focus:outline-none focus:border-zinc-900"
+                  />
+                </div>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-zinc-600 uppercase tracking-wider mb-1">
+                    RIF Fiscal SENIAT *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={fiscalForm.rif}
+                    onChange={(e) => setFiscalForm({ ...fiscalForm, rif: e.target.value.toUpperCase() })}
+                    onBlur={(e) => setFiscalForm((prev) => ({ ...prev, rif: formatRifSeniat(e.target.value) }))}
+                    placeholder="J-12345678-9"
+                    className="w-full px-3 py-2 rounded-lg border border-zinc-200 bg-zinc-50/50 text-zinc-900 font-mono uppercase focus:bg-white focus:outline-none focus:border-zinc-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-zinc-600 uppercase tracking-wider mb-1">
+                    Serial Máquina Fiscal (Opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={fiscalForm.fiscalSerial}
+                    onChange={(e) => setFiscalForm({ ...fiscalForm, fiscalSerial: e.target.value.toUpperCase() })}
+                    placeholder="Ej. Z7B1234567"
+                    className="w-full px-3 py-2 rounded-lg border border-zinc-200 bg-zinc-50/50 text-zinc-900 font-mono uppercase focus:bg-white focus:outline-none focus:border-zinc-900"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-zinc-600 uppercase tracking-wider mb-1">
+                  Domicilio Fiscal Exacto *
+                </label>
+                <textarea
+                  rows={2}
+                  required
+                  value={fiscalForm.fiscalAddress}
+                  onChange={(e) => setFiscalForm({ ...fiscalForm, fiscalAddress: e.target.value })}
+                  placeholder="Av. Principal, Local Nro 1, Zona Centro..."
+                  className="w-full px-3 py-2 rounded-lg border border-zinc-200 bg-zinc-50/50 text-zinc-900 focus:bg-white focus:outline-none focus:border-zinc-900"
+                />
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-zinc-600 uppercase tracking-wider mb-1">
+                    Teléfono / WhatsApp *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={fiscalForm.phone}
+                    onChange={(e) => setFiscalForm({ ...fiscalForm, phone: e.target.value })}
+                    placeholder="0414-0000000"
+                    className="w-full px-3 py-2 rounded-lg border border-zinc-200 bg-zinc-50/50 text-zinc-900 focus:bg-white focus:outline-none focus:border-zinc-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-zinc-600 uppercase tracking-wider mb-1">
+                    Instagram / Red Social
+                  </label>
+                  <input
+                    type="text"
+                    value={fiscalForm.instagram}
+                    onChange={(e) => setFiscalForm({ ...fiscalForm, instagram: e.target.value })}
+                    placeholder="@tunegocio"
+                    className="w-full px-3 py-2 rounded-lg border border-zinc-200 bg-zinc-50/50 text-zinc-900 focus:bg-white focus:outline-none focus:border-zinc-900"
+                  />
+                </div>
+              </div>
+
+              {fiscalError && (
+                <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs font-medium">
+                  {fiscalError}
+                </div>
+              )}
+
+              {fiscalSuccessMsg && (
+                <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-1.5">
+                  <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                  <span>{fiscalSuccessMsg}</span>
+                </div>
+              )}
+
+              <div className="pt-2 flex items-center justify-end gap-2 border-t border-zinc-100">
+                <button
+                  type="button"
+                  onClick={() => setFiscalModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-zinc-200 text-zinc-600 hover:bg-zinc-50 font-semibold text-xs"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={fiscalSubmitting}
+                  className="px-5 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 font-semibold text-xs text-white shadow-xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  <ShieldCheck size={14} />
+                  <span>{fiscalSubmitting ? 'Verificando...' : 'Guardar y Verificar Negocio'}</span>
+                </button>
+              </div>
             </form>
           </div>
         </div>

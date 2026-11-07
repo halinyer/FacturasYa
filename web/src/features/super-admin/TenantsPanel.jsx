@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { extendTenant, setTenantStatus, setTenantValidUntil } from './api';
-import { Search, ShieldCheck, CheckCircle2, Clock, AlertTriangle, XCircle, Sparkles } from 'lucide-react';
+import { extendTenant, setTenantStatus, setTenantValidUntil, toggleTenantFiscalVerification } from './api';
+import { Search, ShieldCheck, CheckCircle2, Clock, AlertTriangle, XCircle, Sparkles, Printer } from 'lucide-react';
 
 const FILTERS = [
   ['all', 'Todos'],
@@ -27,7 +27,7 @@ export default function TenantsPanel({ tenants, config, onChange, onError }) {
       tenants.filter(
         (t) =>
           matches(t, filter) &&
-          `${t.name || ''} ${t.legal_name || ''} ${t.owner_email || ''} ${t.rif || ''} ${t.phone || ''}`
+          `${t.name || ''} ${t.legal_name || ''} ${t.owner_email || ''} ${t.rif || ''} ${t.fiscal_serial || ''} ${t.phone || ''}`
             .toLowerCase()
             .includes(query.toLowerCase())
       ),
@@ -35,7 +35,6 @@ export default function TenantsPanel({ tenants, config, onChange, onError }) {
   );
 
   const stats = useMemo(() => {
-    // Excluir la cuenta propia de super admin en las métricas de clientes
     const clientTenants = tenants.filter(t => t.owner_email !== 'signalnotestudio@gmail.com');
     const paying = clientTenants.filter((t) => t.plan !== 'trial' && !t.is_expired);
     const monthly = Number(config?.monthly_price_usd || 30);
@@ -68,6 +67,16 @@ export default function TenantsPanel({ tenants, config, onChange, onError }) {
   const suspend = (t) => {
     if (window.confirm(`¿Suspender a ${t.name}? Su sistema de caja se bloqueará de inmediato.`)) {
       run(() => setTenantStatus(t.id, 'suspended'));
+    }
+  };
+
+  const handleToggleVerification = (t) => {
+    const nextState = !t.is_fiscal_verified;
+    const msg = nextState
+      ? `¿Aprobar manualmente la Verificación Fiscal SENIAT de "${t.name}"?`
+      : `¿Marcar a "${t.name}" como Pendiente de Verificación Fiscal?`;
+    if (window.confirm(msg)) {
+      run(() => toggleTenantFiscalVerification(t, nextState));
     }
   };
 
@@ -133,7 +142,7 @@ export default function TenantsPanel({ tenants, config, onChange, onError }) {
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
           <input
             type="text"
-            placeholder="Buscar por nombre, RIF, correo..."
+            placeholder="Buscar por nombre, RIF, serial, correo..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="w-full sm:w-72 pl-8 pr-3 py-1.5 rounded-xl border border-zinc-200 bg-white text-xs text-zinc-900 focus:outline-none focus:border-zinc-950 shadow-2xs"
@@ -172,8 +181,14 @@ export default function TenantsPanel({ tenants, config, onChange, onError }) {
                       <div className="text-[11px] text-zinc-500">
                         {t.legal_name || 'Sin razón social registrada'}
                       </div>
-                      <div className="font-mono text-[10px] text-zinc-400">
-                        RIF: {t.rif || 'No ingresado'}
+                      <div className="flex items-center gap-2 mt-0.5 font-mono text-[10px] text-zinc-500">
+                        <span>RIF: <strong className="text-zinc-700">{t.rif || 'No ingresado'}</strong></span>
+                        {t.fiscal_serial && (
+                          <span className="px-1.5 py-0.2 rounded bg-zinc-100 border border-zinc-200 text-zinc-700 inline-flex items-center gap-1">
+                            <Printer size={10} />
+                            {t.fiscal_serial}
+                          </span>
+                        )}
                       </div>
                     </td>
 
@@ -183,17 +198,34 @@ export default function TenantsPanel({ tenants, config, onChange, onError }) {
                     </td>
 
                     <td className="py-3 px-4">
-                      {t.is_fiscal_verified ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 text-[10px] font-bold border border-emerald-200">
-                          <CheckCircle2 size={11} className="text-emerald-600" />
-                          <span>Verificado</span>
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 text-[10px] font-bold border border-amber-200">
-                          <Clock size={11} className="text-amber-600" />
-                          <span>Pendiente RIF</span>
-                        </span>
-                      )}
+                      <div className="flex flex-col items-start gap-1">
+                        {t.is_fiscal_verified ? (
+                          <button
+                            type="button"
+                            onClick={() => handleToggleVerification(t)}
+                            title="Haz clic para cambiar estado de verificación fiscal"
+                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[10px] font-bold border border-emerald-200 cursor-pointer transition-colors"
+                          >
+                            <CheckCircle2 size={11} className="text-emerald-600" />
+                            <span>Verificado SENIAT</span>
+                          </button>
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 text-[10px] font-bold border border-amber-200">
+                              <Clock size={11} className="text-amber-600" />
+                              <span>Pendiente</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleToggleVerification(t)}
+                              className="px-2 py-0.5 rounded-md bg-zinc-900 hover:bg-zinc-800 text-white text-[10px] font-semibold cursor-pointer transition-colors"
+                              title="Aprobar verificación fiscal manualmente"
+                            >
+                              ✓ Aprobar
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </td>
 
                     <td className="py-3 px-4">
@@ -231,7 +263,7 @@ export default function TenantsPanel({ tenants, config, onChange, onError }) {
                         <button
                           type="button"
                           onClick={() => run(() => extendTenant(t.id, 30, 'monthly'))}
-                          className="px-2 py-1 rounded-md bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-semibold text-[11px] transition-all"
+                          className="px-2 py-1 rounded-md bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-semibold text-[11px] transition-all cursor-pointer"
                           title="Extender 30 días adicionales"
                         >
                           +30d
@@ -239,7 +271,7 @@ export default function TenantsPanel({ tenants, config, onChange, onError }) {
                         <button
                           type="button"
                           onClick={() => run(() => extendTenant(t.id, 365, 'annual'))}
-                          className="px-2 py-1 rounded-md bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-semibold text-[11px] transition-all"
+                          className="px-2 py-1 rounded-md bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-semibold text-[11px] transition-all cursor-pointer"
                           title="Extender 1 año"
                         >
                           +1a
@@ -247,7 +279,7 @@ export default function TenantsPanel({ tenants, config, onChange, onError }) {
                         <button
                           type="button"
                           onClick={() => manualDate(t)}
-                          className="px-2 py-1 rounded-md bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-semibold text-[11px] transition-all"
+                          className="px-2 py-1 rounded-md bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-semibold text-[11px] transition-all cursor-pointer"
                         >
                           Fecha…
                         </button>
@@ -256,7 +288,7 @@ export default function TenantsPanel({ tenants, config, onChange, onError }) {
                           <button
                             type="button"
                             onClick={() => run(() => setTenantStatus(t.id, 'active'))}
-                            className="px-2 py-1 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-[11px] transition-all"
+                            className="px-2 py-1 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-[11px] transition-all cursor-pointer"
                           >
                             Reactivar
                           </button>
@@ -264,7 +296,7 @@ export default function TenantsPanel({ tenants, config, onChange, onError }) {
                           <button
                             type="button"
                             onClick={() => suspend(t)}
-                            className="px-2 py-1 rounded-md bg-red-50 hover:bg-red-100 text-red-700 font-semibold text-[11px] border border-red-200 transition-all"
+                            className="px-2 py-1 rounded-md bg-red-50 hover:bg-red-100 text-red-700 font-semibold text-[11px] border border-red-200 transition-all cursor-pointer"
                           >
                             Suspender
                           </button>

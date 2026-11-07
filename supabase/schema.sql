@@ -63,6 +63,7 @@ ALTER TABLE public.tenants ADD COLUMN IF NOT EXISTS fiscal_address TEXT DEFAULT 
 ALTER TABLE public.tenants ADD COLUMN IF NOT EXISTS fiscal_serial TEXT DEFAULT '';
 ALTER TABLE public.tenants ADD COLUMN IF NOT EXISTS instagram TEXT DEFAULT '';
 ALTER TABLE public.tenants ADD COLUMN IF NOT EXISTS is_fiscal_verified BOOLEAN DEFAULT false;
+ALTER TABLE public.tenants ADD COLUMN IF NOT EXISTS fiscal_terminals JSONB DEFAULT '[]'::jsonb;
 
 -- 3. TABLA DE PAGOS DE SUSCRIPCIÓN (PAGO MÓVIL / BINANCE)
 CREATE TABLE IF NOT EXISTS public.subscription_payments (
@@ -356,6 +357,22 @@ BEGIN
     );
   END IF;
 
+  -- Anti-abuso adicional: Comprobar si el Serial Fiscal de Máquina HKA ya fue utilizado en otra cuenta
+  IF LENGTH(TRIM(COALESCE(p_fiscal_serial, ''))) >= 5 THEN
+    SELECT id INTO v_existing_id
+    FROM public.tenants
+    WHERE UPPER(REGEXP_REPLACE(COALESCE(fiscal_serial, ''), '[^A-Z0-9]', '', 'g')) = UPPER(REGEXP_REPLACE(p_fiscal_serial, '[^A-Z0-9]', '', 'g'))
+      AND id <> p_tenant_id
+    LIMIT 1;
+
+    IF v_existing_id IS NOT NULL THEN
+      RETURN jsonb_build_object(
+        'success', false,
+        'error', 'Este Serial de Máquina Fiscal SENIAT ya se encuentra vinculado a otra cuenta en FacturasYa.'
+      );
+    END IF;
+  END IF;
+
   SELECT * INTO v_tenant FROM public.tenants WHERE id = p_tenant_id;
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', false, 'error', 'Restaurante no encontrado.');
@@ -546,7 +563,28 @@ BEGIN
   PERFORM public.log_admin_action('reject_payment', v_tenant, jsonb_build_object('payment_id', p_payment_id, 'notes', p_notes));
   RETURN jsonb_build_object('success', true);
 END;
-$$;
+$;
+
+CREATE OR REPLACE FUNCTION public.admin_toggle_fiscal_verification(p_tenant_id UUID, p_verified BOOLEAN)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $
+BEGIN
+  PERFORM public.require_admin_or_service();
+  UPDATE public.tenants
+  SET is_fiscal_verified = COALESCE(p_verified, true),
+      updated_at = NOW()
+  WHERE id = p_tenant_id;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Restaurante no encontrado');
+  END IF;
+
+  PERFORM public.log_admin_action('toggle_fiscal_verification', p_tenant_id, jsonb_build_object('is_fiscal_verified', p_verified));
+  RETURN jsonb_build_object('success', true, 'is_fiscal_verified', p_verified);
+END;
+$;
 
 -- 7.4 Row Level Security
 ALTER TABLE public.saas_config ENABLE ROW LEVEL SECURITY;
@@ -579,7 +617,7 @@ CREATE POLICY "tenants_owner_update" ON public.tenants FOR UPDATE
   USING (owner_id = auth.uid()) WITH CHECK (owner_id = auth.uid());
 -- El dueno solo puede editar datos del negocio, nunca plan, estado, is_fiscal_verified ni fecha de vencimiento directamente
 REVOKE UPDATE ON public.tenants FROM authenticated, anon;
-GRANT UPDATE (name, legal_name, phone, rif, fiscal_address, fiscal_serial, instagram, branding, exchange_rate, local_ip, last_online_at) ON public.tenants TO authenticated;
+GRANT UPDATE (name, legal_name, phone, rif, fiscal_address, fiscal_serial, fiscal_terminals, instagram, branding, exchange_rate, local_ip, last_online_at) ON public.tenants TO authenticated;
 
 -- subscription_payments: el dueno reporta (solo 'pending') y consulta los suyos; el admin ve todos
 DROP POLICY IF EXISTS "payments_select" ON public.subscription_payments;

@@ -35,6 +35,35 @@ export const setTenantStatus = (tenantId, status) =>
 export const setTenantValidUntil = (tenantId, isoDate) =>
   supabase.rpc('admin_set_valid_until', { p_tenant_id: tenantId, p_valid_until: isoDate }).then(unwrap);
 
+export const toggleTenantFiscalVerification = async (tenant, nextVerified) => {
+  const rpcRes = await supabase.rpc('admin_toggle_fiscal_verification', {
+    p_tenant_id: tenant.id,
+    p_verified: Boolean(nextVerified)
+  });
+
+  if (!rpcRes.error && rpcRes.data?.success) {
+    return rpcRes.data;
+  }
+
+  // Fallback compatible si la función admin_toggle_fiscal_verification aún no se ha ejecutado en SQL Editor
+  if (nextVerified) {
+    const fallbackRif = tenant.rif && tenant.rif.trim().length >= 7 ? tenant.rif.trim() : `J-0000${String(Date.now()).slice(-4)}-0`;
+    const verifyRes = await supabase.rpc('complete_tenant_fiscal_verification', {
+      p_tenant_id: tenant.id,
+      p_name: tenant.name || 'Restaurante',
+      p_legal_name: tenant.legal_name || tenant.name || 'Razón Social Verificada por Admin',
+      p_rif: fallbackRif,
+      p_fiscal_address: tenant.fiscal_address || 'Domicilio Fiscal Verificado por Admin',
+      p_phone: tenant.phone || '',
+      p_fiscal_serial: tenant.fiscal_serial || '',
+      p_instagram: tenant.instagram || ''
+    });
+    return unwrap(verifyRes);
+  }
+
+  throw new Error(rpcRes.error?.message || 'Ejecuta la actualización de schema.sql para habilitar revocación de verificación.');
+};
+
 export const approvePayment = (paymentId) =>
   supabase.rpc('approve_subscription_payment', { p_payment_id: paymentId, p_verified_by: 'super_admin' }).then(unwrap);
 

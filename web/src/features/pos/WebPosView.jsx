@@ -35,6 +35,7 @@ import { useData } from '../../pos-core/contexts/DataContext';
 import KitchenTicketModal from './KitchenTicketModal';
 import ClientSelectorModal from './ClientSelectorModal';
 import { printIsolatedTicket } from '../../pos-core/utils/printIsolatedTicket';
+import { getLocalTerminalConfig } from '../monitor/api';
 
 const DEFAULT_HAPPY_PRODUCTS = [];
 
@@ -329,14 +330,17 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
 
     try {
       const now = new Date();
+      const localTerm = getLocalTerminalConfig();
       const invoiceNumber = (docType === 'fiscal' ? 'FACT-' : 'NOTA-') + String(Math.floor(100000 + Math.random() * 900000));
-      const fiscalSerial = tenant?.fiscal_serial || 'Z4A1234567';
+      const fiscalSerial = localTerm.fiscalSerial || tenant?.fiscal_serial || 'Z4A1234567';
 
       const invoiceData = {
         id: invoiceNumber,
         invoiceNumber,
         docType,
         isFiscalInvoice: docType === 'fiscal',
+        terminalId: localTerm.terminalId || 'CAJA-01',
+        terminalName: localTerm.terminalName || 'Caja Principal',
         date: now.toISOString(),
         client: {
           name: activeClient.name || 'Consumidor Final',
