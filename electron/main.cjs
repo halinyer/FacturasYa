@@ -140,17 +140,35 @@ ipcMain.handle('fiscal:launch-emulator', async () => {
 });
 
 
-// Auto-actualizador nativo por GitHub Releases (Sin abrir navegador ni Vercel)
+// Auto-actualizador nativo por GitHub Releases (100% inmune a app.asar statSync y al reloj de Windows)
 ipcMain.handle('app:check-update', async () => {
   return new Promise((resolve) => {
     try {
       const https = require('https');
-      const localIndex = path.join(__dirname, '../dist/index.html');
-      const localMtimeMs = fs.existsSync(localIndex) ? fs.statSync(localIndex).mtimeMs : Date.now();
+      const buildInfoPath = path.join(__dirname, '../dist/build-info.json');
+      let localCommitSha = null;
+      let localBuildTimestamp = null;
+
+      if (fs.existsSync(buildInfoPath)) {
+        try {
+          const info = JSON.parse(fs.readFileSync(buildInfoPath, 'utf8'));
+          localCommitSha = info.commitSha || null;
+          localBuildTimestamp = Number(info.buildTimestamp) || null;
+        } catch (e) {}
+      }
+
+      // Fallback real en disco (fuera de app.asar) si no existiera build-info.json
+      if (!localBuildTimestamp) {
+        try {
+          localBuildTimestamp = fs.statSync(process.execPath).mtimeMs;
+        } catch (e) {
+          localBuildTimestamp = Date.now();
+        }
+      }
 
       const req = https.get(
         'https://api.github.com/repos/halinyer/FacturasYa/releases/latest',
-        { headers: { 'User-Agent': 'FacturaPOS-Updater' }, timeout: 5000 },
+        { headers: { 'User-Agent': 'FacturaPOS-Updater' }, timeout: 6000 },
         (res) => {
           let body = '';
           res.on('data', (chunk) => (body += chunk));
@@ -159,9 +177,25 @@ ipcMain.handle('app:check-update', async () => {
               const json = JSON.parse(body);
               const asset = (json.assets || []).find((a) => a.name && a.name.endsWith('.exe'));
               if (!asset || !asset.updated_at) return resolve({ updateAvailable: false });
+
+              // 1. Comparación exacta por SHA de compilación (Inmune a cualquier diferencia de reloj)
+              const shaMatch = typeof json.body === 'string' ? json.body.match(/BUILD_SHA:([a-f0-9]{7,40})/i) : null;
+              const remoteSha = shaMatch ? shaMatch[1] : null;
+              if (remoteSha && localCommitSha && localCommitSha !== 'local') {
+                if (!remoteSha.startsWith(localCommitSha) && !localCommitSha.startsWith(remoteSha)) {
+                  return resolve({
+                    updateAvailable: true,
+                    updatedAt: asset.updated_at,
+                    downloadUrl: asset.browser_download_url,
+                    remoteSha: remoteSha.slice(0, 7)
+                  });
+                }
+                return resolve({ updateAvailable: false });
+              }
+
+              // 2. Comparación por timestamp UTC del servidor de compilación vs publicación
               const remoteMs = new Date(asset.updated_at).getTime();
-              // Si el ejecutable en GitHub Releases es al menos 3 minutos más nuevo que la compilación local
-              if (remoteMs > localMtimeMs + 180000) {
+              if (remoteMs > localBuildTimestamp + 180000) {
                 return resolve({
                   updateAvailable: true,
                   updatedAt: asset.updated_at,

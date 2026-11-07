@@ -27,6 +27,8 @@ jobs:
           npm --prefix web install
 
       - name: Compilar Web y Empaquetar Instalador Windows (FacturaPOS-1.0.0.exe)
+        env:
+          GITHUB_SHA: ${{ github.sha }}
         run: node scripts/build.cjs
 
       - name: Publicar automaticamente en GitHub Releases (v1.0.0-stable)
@@ -34,6 +36,7 @@ jobs:
         with:
           tag_name: v1.0.0-stable
           name: FacturasYa para Windows v1.0.0
+          body: "BUILD_SHA:${{ github.sha }}"
           files: dist-electron/FacturaPOS-1.0.0.exe
           overwrite_files: true
         env:

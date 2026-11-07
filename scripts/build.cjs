@@ -35,6 +35,22 @@ if (!fs.existsSync(distDir)) {
 }
 fs.cpSync(webDistDir, distDir, { recursive: true });
 
+// Escribir metadatos exactos de compilación (SHA y timestamp UTC) dentro de dist/build-info.json
+// para que el auto-actualizador de Electron no dependa de fs.statSync dentro de app.asar
+let commitSha = process.env.GITHUB_SHA || 'local';
+if (commitSha === 'local') {
+  try {
+    commitSha = execSync('git rev-parse HEAD', { cwd: rootDir }).toString().trim();
+  } catch (e) {}
+}
+const buildInfo = {
+  commitSha,
+  buildTimestamp: Date.now(),
+  builtAt: new Date().toISOString()
+};
+fs.writeFileSync(path.join(distDir, 'build-info.json'), JSON.stringify(buildInfo, null, 2), 'utf8');
+console.log(`🔖 Metadatos de build generados: SHA=${commitSha.slice(0, 7)} (${buildInfo.builtAt})`);
+
 console.log('📦 [3/3] Empaquetando ejecutables Desktop con Electron Builder...');
 execSync('npx electron-builder --win --publish never', { stdio: 'inherit', cwd: rootDir });
 
