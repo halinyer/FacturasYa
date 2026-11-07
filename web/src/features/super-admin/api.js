@@ -23,7 +23,12 @@ export const getConfig = async () =>
 
 export const saveConfig = async (cfg) => {
   const { id, updated_at, ...fields } = cfg;
-  return unwrap(await supabase.from('saas_config').update({ ...fields, updated_at: new Date().toISOString() }).eq('id', 1));
+  const res = await supabase.from('saas_config').update({ ...fields, updated_at: new Date().toISOString() }).eq('id', 1);
+  if (res.error && /bcv_rate/i.test(res.error.message || '')) {
+    const { bcv_rate, ...legacyFields } = fields;
+    return unwrap(await supabase.from('saas_config').update({ ...legacyFields, updated_at: new Date().toISOString() }).eq('id', 1));
+  }
+  return unwrap(res);
 };
 
 export const extendTenant = (tenantId, days, plan = null) =>

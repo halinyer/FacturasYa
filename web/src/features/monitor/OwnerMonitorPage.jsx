@@ -200,11 +200,13 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
     window.open(INSTALLER_URL, '_blank');
   };
 
-  // Modal de Pago Móvil para el dueño
+  // Modal de Pago Móvil / Binance Pay para el dueño
   const [pagoModalOpen, setPagoModalOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('monthly'); // 'monthly' | 'annual'
+  const [pagoMethod, setPagoMethod] = useState('pago_movil'); // 'pago_movil' | 'binance'
   const [pagoBank, setPagoBank] = useState(VENEZUELA_BANKS[0]);
   const [pagoPhone, setPagoPhone] = useState('');
+  const [pagoPayerDoc, setPagoPayerDoc] = useState('');
   const [pagoRef, setPagoRef] = useState('');
   const [pagoSubmitting, setPagoSubmitting] = useState(false);
   const [pagoError, setPagoError] = useState('');
@@ -377,15 +379,21 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
         tenantId: tenant.id,
         tenantName: tenant.name,
         plan: selectedPlan,
+        paymentMethod: pagoMethod,
         amountUsd: priceUsd,
         amountBs,
         rateBcv: rate,
-        bankOrigin: pagoBank,
-        phoneOrigin: pagoPhone,
-        referenceLast6: pagoRef
+        bankOrigin: pagoMethod === 'binance' ? 'Binance Pay (USDT)' : pagoBank,
+        phoneOrigin: pagoMethod === 'binance' ? (session?.user?.email || 'USDT') : pagoPhone,
+        payerDoc: pagoPayerDoc || tenant?.rif || '',
+        referenceLast6: pagoRef,
+        autoVerifyProvider: saasConfig?.auto_verify_provider || 'manual'
       });
 
-      setPagoSuccessMsg('¡Pago reportado con éxito! Se verificará automáticamente y activará tu servicio.');
+      const updatedPays = await fetchMyPayments(tenant.id).catch(() => payments);
+      setPayments(updatedPays);
+
+      setPagoSuccessMsg('¡Pago reportado con éxito! Tu caja cuenta con Pase de Cortesía activo mientras se verifica la referencia.');
       setPagoRef('');
       setTimeout(() => {
         setPagoModalOpen(false);
@@ -1214,7 +1222,14 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
                       <tr key={p.id}>
                         <td className="py-2.5 px-3">{new Date(p.created_at).toLocaleDateString('es-VE')}</td>
                         <td className="py-2.5 px-3 font-mono font-bold text-zinc-950">#{p.reference_last6}</td>
-                        <td className="py-2.5 px-3">{p.bank_origin}</td>
+                        <td className="py-2.5 px-3">
+                          <div>{p.bank_origin}</div>
+                          {p.status === 'rejected' && p.notes && (
+                            <span className="text-[10px] text-red-600 font-semibold block">
+                              Motivo: {p.notes}
+                            </span>
+                          )}
+                        </td>
                         <td className="py-2.5 px-3 font-mono">{formatUsd(p.amount_usd)} ({formatBs(p.amount_bs)})</td>
                         <td className="py-2.5 px-3">
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
@@ -1224,7 +1239,7 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
                               ? 'bg-red-100 text-red-800'
                               : 'bg-amber-100 text-amber-800'
                           }`}>
-                            {p.status === 'approved' ? 'Aprobado' : p.status === 'rejected' ? 'Rechazado' : 'Pendiente'}
+                            {p.status === 'approved' ? 'Aprobado' : p.status === 'rejected' ? 'Rechazado' : 'En Verificación'}
                           </span>
                         </td>
                       </tr>
@@ -1318,86 +1333,170 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
               </button>
             </div>
 
+            {/* Selector de Método: Pago Móvil vs Binance Pay */}
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <button
+                type="button"
+                onClick={() => setPagoMethod('pago_movil')}
+                className={`py-2 px-3 rounded-xl font-bold border transition-all flex items-center justify-center gap-1.5 ${
+                  pagoMethod === 'pago_movil'
+                    ? 'bg-zinc-950 text-white border-zinc-950'
+                    : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50'
+                }`}
+              >
+                <Smartphone size={13} />
+                <span>Pago Móvil (Bs)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPagoMethod('binance')}
+                className={`py-2 px-3 rounded-xl font-bold border transition-all flex items-center justify-center gap-1.5 ${
+                  pagoMethod === 'binance'
+                    ? 'bg-zinc-950 text-white border-zinc-950'
+                    : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50'
+                }`}
+              >
+                <CreditCard size={13} />
+                <span>Binance Pay (USDT)</span>
+              </button>
+            </div>
+
             {/* Datos Bancarios Receptores */}
-            <div className="p-3.5 rounded-xl bg-zinc-50 border border-zinc-200 text-xs space-y-2">
-              <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider block">
-                Datos para hacer tu Pago Móvil:
-              </span>
-              <div className="space-y-1.5 text-zinc-700">
-                <div className="flex justify-between items-center">
-                  <span>Banco:</span>
-                  <strong className="text-zinc-950">{saasConfig?.pago_movil_bank || '0172 - Bancamiga'}</strong>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Teléfono:</span>
-                  <button
-                    type="button"
-                    onClick={() => copyToClipboard(saasConfig?.pago_movil_phone || '0412-0000000', 'phone')}
-                    className="font-mono font-bold text-zinc-950 inline-flex items-center gap-1 hover:underline"
-                  >
-                    <span>{saasConfig?.pago_movil_phone || '0412-0000000'}</span>
-                    {copiedField === 'phone' ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} className="text-zinc-400" />}
-                  </button>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Cédula / RIF:</span>
-                  <button
-                    type="button"
-                    onClick={() => copyToClipboard(saasConfig?.pago_movil_rif_ci || 'V-00000000', 'rif')}
-                    className="font-mono font-bold text-zinc-950 inline-flex items-center gap-1 hover:underline"
-                  >
-                    <span>{saasConfig?.pago_movil_rif_ci || 'V-00000000'}</span>
-                    {copiedField === 'rif' ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} className="text-zinc-400" />}
-                  </button>
-                </div>
-                <div className="flex justify-between items-center pt-1 border-t border-zinc-200">
-                  <span>Monto exacto a transferir:</span>
-                  <strong className="text-emerald-700 font-mono text-sm">
-                    {formatBs((selectedPlan === 'annual' ? Number(saasConfig?.annual_price_usd || 300) : Number(saasConfig?.monthly_price_usd || 30)) * rate)}
-                  </strong>
+            {pagoMethod === 'pago_movil' ? (
+              <div className="p-3.5 rounded-xl bg-zinc-50 border border-zinc-200 text-xs space-y-2">
+                <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider block">
+                  Datos para hacer tu Pago Móvil ({saasConfig?.pago_movil_holder || 'FacturasYa'}):
+                </span>
+                <div className="space-y-1.5 text-zinc-700">
+                  <div className="flex justify-between items-center">
+                    <span>Banco:</span>
+                    <strong className="text-zinc-950">{saasConfig?.pago_movil_bank || '0172 - Bancamiga'}</strong>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>Teléfono:</span>
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(saasConfig?.pago_movil_phone || '0412-0000000', 'phone')}
+                      className="font-mono font-bold text-zinc-950 inline-flex items-center gap-1 hover:underline"
+                    >
+                      <span>{saasConfig?.pago_movil_phone || '0412-0000000'}</span>
+                      {copiedField === 'phone' ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} className="text-zinc-400" />}
+                    </button>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>Cédula / RIF:</span>
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(saasConfig?.pago_movil_rif_ci || 'V-00000000', 'rif')}
+                      className="font-mono font-bold text-zinc-950 inline-flex items-center gap-1 hover:underline"
+                    >
+                      <span>{saasConfig?.pago_movil_rif_ci || 'V-00000000'}</span>
+                      {copiedField === 'rif' ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} className="text-zinc-400" />}
+                    </button>
+                  </div>
+                  <div className="flex justify-between items-center pt-1 border-t border-zinc-200">
+                    <span>Monto exacto a transferir:</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        copyToClipboard(
+                          ((selectedPlan === 'annual' ? Number(saasConfig?.annual_price_usd || 300) : Number(saasConfig?.monthly_price_usd || 30)) * rate).toFixed(2),
+                          'amount_bs'
+                        )
+                      }
+                      className="text-emerald-700 font-bold font-mono text-sm inline-flex items-center gap-1 hover:underline"
+                    >
+                      <span>
+                        {formatBs((selectedPlan === 'annual' ? Number(saasConfig?.annual_price_usd || 300) : Number(saasConfig?.monthly_price_usd || 30)) * rate)}
+                      </span>
+                      {copiedField === 'amount_bs' ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} className="text-emerald-600" />}
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="p-3.5 rounded-xl bg-zinc-50 border border-zinc-200 text-xs space-y-2">
+                <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider block">
+                  Datos para Enviar por Binance Pay (0% Comisión):
+                </span>
+                <div className="space-y-1.5 text-zinc-700">
+                  <div className="flex justify-between items-center">
+                    <span>Correo / Binance ID:</span>
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(saasConfig?.binance_email || 'pagos@facturasya.com', 'binance')}
+                      className="font-mono font-bold text-zinc-950 inline-flex items-center gap-1 hover:underline"
+                    >
+                      <span>{saasConfig?.binance_email || 'pagos@facturasya.com'}</span>
+                      {copiedField === 'binance' ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} className="text-zinc-400" />}
+                    </button>
+                  </div>
+                  <div className="flex justify-between items-center pt-1 border-t border-zinc-200">
+                    <span>Monto exacto en USDT:</span>
+                    <strong className="text-emerald-700 font-mono text-sm">
+                      ${(selectedPlan === 'annual' ? Number(saasConfig?.annual_price_usd || 300) : Number(saasConfig?.monthly_price_usd || 30)).toFixed(2)} USDT
+                    </strong>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Formulario de Reporte */}
             <form onSubmit={handlePagoSubmit} className="space-y-3 text-xs">
-              <div>
-                <label className="block text-zinc-700 font-semibold mb-1">Banco desde donde pagaste</label>
-                <select
-                  value={pagoBank}
-                  onChange={(e) => setPagoBank(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-zinc-200 bg-zinc-50/50 text-zinc-900"
-                >
-                  {VENEZUELA_BANKS.map((b) => (
-                    <option key={b} value={b}>{b}</option>
-                  ))}
-                </select>
-              </div>
+              {pagoMethod === 'pago_movil' && (
+                <>
+                  <div>
+                    <label className="block text-zinc-700 font-semibold mb-1">Banco desde donde pagaste</label>
+                    <select
+                      value={pagoBank}
+                      onChange={(e) => setPagoBank(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg border border-zinc-200 bg-zinc-50/50 text-zinc-900"
+                    >
+                      {VENEZUELA_BANKS.map((b) => (
+                        <option key={b} value={b}>{b}</option>
+                      ))}
+                    </select>
+                  </div>
 
-              <div className="grid grid-cols-2 gap-2.5">
-                <div>
-                  <label className="block text-zinc-700 font-semibold mb-1">Tu Teléfono emisor</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="0412-1234567"
-                    value={pagoPhone}
-                    onChange={(e) => setPagoPhone(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-zinc-200 bg-zinc-50/50 text-zinc-900"
-                  />
-                </div>
-                <div>
-                  <label className="block text-zinc-700 font-semibold mb-1">Últimos 6 dígitos de Referencia</label>
-                  <input
-                    type="text"
-                    required
-                    maxLength={8}
-                    placeholder="Ej. 987654"
-                    value={pagoRef}
-                    onChange={(e) => setPagoRef(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-zinc-200 bg-zinc-50/50 text-zinc-900 font-mono"
-                  />
-                </div>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-zinc-700 font-semibold mb-1">Tu Teléfono emisor</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="0412-1234567"
+                        value={pagoPhone}
+                        onChange={(e) => setPagoPhone(e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg border border-zinc-200 bg-zinc-50/50 text-zinc-900"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-zinc-700 font-semibold mb-1">Cédula / RIF Titular</label>
+                      <input
+                        type="text"
+                        placeholder="V-12345678"
+                        value={pagoPayerDoc}
+                        onChange={(e) => setPagoPayerDoc(e.target.value.toUpperCase())}
+                        className="w-full px-3 py-2 rounded-lg border border-zinc-200 bg-zinc-50/50 text-zinc-900 font-mono uppercase"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div>
+                <label className="block text-zinc-700 font-semibold mb-1">
+                  {pagoMethod === 'pago_movil' ? 'Últimos 6 dígitos de Referencia' : 'Últimos dígitos del Order ID de Binance'}
+                </label>
+                <input
+                  type="text"
+                  required
+                  maxLength={10}
+                  placeholder={pagoMethod === 'pago_movil' ? 'Ej. 987654' : 'Ej. 28394812'}
+                  value={pagoRef}
+                  onChange={(e) => setPagoRef(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-zinc-200 bg-zinc-50/50 text-zinc-900 font-mono font-bold"
+                />
               </div>
 
               {pagoError && (

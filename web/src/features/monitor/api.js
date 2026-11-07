@@ -130,45 +130,147 @@ export const fetchMyPayments = async (tenantId) => {
   return unwrap(res) || [];
 };
 
-// Reportar Pago Móvil desde el celular del dueño
+// Reportar Pago Móvil / Binance Pay con Autoridad de Precio en el Servidor
 export const submitOwnerPagoMovil = async ({
   tenantId,
   tenantName,
-  plan,
+  plan = 'monthly',
+  paymentMethod = 'pago_movil',
   amountUsd,
   amountBs,
   rateBcv,
   bankOrigin,
   phoneOrigin,
-  referenceLast6
+  payerDoc = '',
+  referenceLast6,
+  autoVerifyProvider = 'manual'
 }) => {
-  const cleanRef = String(referenceLast6 || '').replace(/\D/g, '').slice(-6);
-  if (!bankOrigin || !phoneOrigin || cleanRef.length < 4) {
+  const isBinance = paymentMethod === 'binance';
+  const cleanRef = isBinance
+    ? String(referenceLast6 || '').trim().replace(/[^A-Za-z0-9]/g, '').slice(-8).toUpperCase()
+    : String(referenceLast6 || '').replace(/\D/g, '').slice(-6);
+
+  if (!isBinance && (!bankOrigin || !phoneOrigin || cleanRef.length < 4)) {
     throw new Error('Completa el banco emisor, teléfono y los últimos 6 dígitos de la referencia.');
   }
+  if (isBinance && cleanRef.length < 4) {
+    throw new Error('Ingresa los últimos dígitos del Order ID de Binance Pay.');
+  }
 
+  const finalBank = isBinance ? 'Binance Pay (USDT)' : bankOrigin;
+  const finalPhone = isBinance ? (phoneOrigin || 'USDT').trim() : phoneOrigin.trim();
+  const cleanDoc = payerDoc ? formatRifSeniat(payerDoc) : '';
   const daysToAdd = plan === 'annual' ? 365 : 30;
+
+  // 1. Si hay pasarela automática configurada (Pabilo / Cobrix), invocar la Edge Function
+  if (!isBinance && (autoVerifyProvider === 'pabilo' || autoVerifyProvider === 'cobrix')) {
+    try {
+      const { data: fnData, error: fnErr } = await supabase.functions.invoke('verify-pago-movil', {
+        body: {
+          tenantId,
+          tenantName,
+          plan,
+          paymentMethod,
+          amountUsd: Number(amountUsd),
+          amountBs: Number(amountBs),
+          rateBcv: Number(rateBcv),
+          bankOrigin: finalBank,
+          phoneOrigin: finalPhone,
+          payerDoc: cleanDoc,
+          referenceLast6: cleanRef
+        }
+      });
+      if (!fnErr && fnData?.success) {
+        return fnData.payment || fnData;
+      }
+      if (fnData && fnData.success === false && fnData.error) {
+        throw new Error(fnData.error);
+      }
+    } catch (e) {
+      if (e.message && (e.message.includes('registrada') || e.message.includes('monto') || e.message.includes('encontró'))) {
+        throw e;
+      }
+    }
+  }
+
+  // 2. Intentar vía RPC seguro con Autoridad de Precio en el Servidor (report_subscription_payment)
+  const rpcRes = await supabase.rpc('report_subscription_payment', {
+    p_tenant_id: tenantId,
+    p_plan: plan,
+    p_payment_method: paymentMethod,
+    p_bank_origin: finalBank,
+    p_phone_origin: finalPhone,
+    p_payer_doc: cleanDoc,
+    p_reference_last6: cleanRef,
+    p_rate_bcv: Number(rateBcv) || 0
+  });
+
+  if (!rpcRes.error && rpcRes.data) {
+    if (rpcRes.data.success === false) {
+      throw new Error(rpcRes.data.error || 'No se pudo registrar el reporte de pago.');
+    }
+    if (rpcRes.data.payment) {
+      return rpcRes.data.payment;
+    }
+  }
+
+  // 3. Fallback directo a la tabla subscription_payments (compatible antes y después de migración SQL)
+  const fullPayload = {
+    tenant_id: tenantId,
+    tenant_name: tenantName,
+    plan,
+    payment_method: paymentMethod,
+    days_to_add: daysToAdd,
+    amount_usd: Number(amountUsd),
+    amount_bs: Number(amountBs),
+    rate_bcv: Number(rateBcv),
+    bank_origin: finalBank,
+    phone_origin: finalPhone,
+    payer_doc: cleanDoc,
+    reference_last6: cleanRef,
+    status: 'pending',
+    verified_by: 'pending'
+  };
 
   const res = await supabase
     .from('subscription_payments')
-    .insert({
-      tenant_id: tenantId,
-      tenant_name: tenantName,
-      plan,
-      days_to_add: daysToAdd,
-      amount_usd: Number(amountUsd),
-      amount_bs: Number(amountBs),
-      rate_bcv: Number(rateBcv),
-      bank_origin: bankOrigin,
-      phone_origin: phoneOrigin.trim(),
-      reference_last6: cleanRef,
-      status: 'pending',
-      verified_by: 'pending'
-    })
+    .insert(fullPayload)
     .select()
     .single();
 
-  return unwrap(res);
+  if (res.error) {
+    // Si la BD aún no tiene las columnas payment_method / payer_doc, reintentar con columnas base
+    if (/column .* does not exist/i.test(res.error.message || '')) {
+      const legacyRes = await supabase
+        .from('subscription_payments')
+        .insert({
+          tenant_id: tenantId,
+          tenant_name: tenantName,
+          plan,
+          days_to_add: daysToAdd,
+          amount_usd: Number(amountUsd),
+          amount_bs: Number(amountBs),
+          rate_bcv: Number(rateBcv),
+          bank_origin: finalBank,
+          phone_origin: finalPhone,
+          reference_last6: cleanRef,
+          status: 'pending',
+          verified_by: 'pending'
+        })
+        .select()
+        .single();
+      if (legacyRes.error && /uq_sub_payments_active_ref|duplicate key/i.test(legacyRes.error.message || '')) {
+        throw new Error(`La referencia #${cleanRef} ya fue registrada anteriormente.`);
+      }
+      return unwrap(legacyRes);
+    }
+    if (/uq_sub_payments_active_ref|duplicate key/i.test(res.error.message || '')) {
+      throw new Error(`La referencia #${cleanRef} ya fue registrada anteriormente.`);
+    }
+    throw new Error(res.error.message);
+  }
+
+  return res.data;
 };
 
 // Completa la verificación fiscal estilo Binance (1 prueba por RIF/Serial anti-abuso)

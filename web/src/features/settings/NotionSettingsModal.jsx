@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Building2,
   Printer,
@@ -19,7 +19,9 @@ import {
   Smartphone,
   Sparkles,
   ToggleLeft,
-  ToggleRight
+  ToggleRight,
+  Copy,
+  Check
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useData } from '../../pos-core/contexts/DataContext';
@@ -27,7 +29,10 @@ import {
   completeFiscalVerification,
   formatRifSeniat,
   getLocalTerminalConfig,
-  saveLocalTerminalConfig
+  saveLocalTerminalConfig,
+  fetchSaasConfig,
+  fetchMyPayments,
+  submitOwnerPagoMovil
 } from '../monitor/api';
 
 const VENEZUELA_BANKS = [
@@ -38,7 +43,14 @@ const VENEZUELA_BANKS = [
   '0172 - Bancamiga',
   '0114 - Bancaribe',
   '0116 - Banco Occidental de Descuento (BNC)',
-  '0174 - Banplus'
+  '0175 - Banco Bicentenario',
+  '0163 - Banco del Tesoro',
+  '0166 - Banco Agrícola de Venezuela',
+  '0174 - Banplus',
+  '0138 - Banco Plaza',
+  '0151 - Banco Fondo Común (BFC)',
+  '0157 - DelSur Banco Universal',
+  '0171 - Banco Activo'
 ];
 
 export default function NotionSettingsModal({
@@ -47,13 +59,18 @@ export default function NotionSettingsModal({
   tenant,
   subStatus,
   session,
-  onUpdateTenant
+  onUpdateTenant,
+  initialTab = 'fiscal'
 }) {
   if (!isOpen) return null;
 
   const data = useData();
   const isElectron = typeof window !== 'undefined' && (Boolean(window?.electronAPI) || window.location.protocol === 'file:');
-  const [activeTab, setActiveTab] = useState('fiscal');
+  const [activeTab, setActiveTab] = useState(initialTab || 'fiscal');
+
+  useEffect(() => {
+    if (initialTab) setActiveTab(initialTab);
+  }, [initialTab]);
   const [terminalConfig, setTerminalConfig] = useState(() => getLocalTerminalConfig());
   const [fiscalPort, setFiscalPort] = useState(() => data?.fiscalSettings?.port || getLocalTerminalConfig().port || 'COM4');
   const [fiscalEnabled, setFiscalEnabled] = useState(() => data?.fiscalSettings?.enabled !== false);
@@ -121,12 +138,43 @@ export default function NotionSettingsModal({
     }
   });
 
-  // 3. Estado Reporte de Pago Móvil
+  // 3. Estado Reporte de Pago Móvil / Binance Pay
+  const [saasConfig, setSaasConfig] = useState(null);
+  const [myPayments, setMyPayments] = useState([]);
   const [pagoPlan, setPagoPlan] = useState('monthly');
+  const [pagoMethod, setPagoMethod] = useState('pago_movil'); // 'pago_movil' | 'binance'
   const [pagoBank, setPagoBank] = useState(VENEZUELA_BANKS[0]);
-  const [pagoPhone, setPagoPhone] = useState('');
+  const [pagoPhone, setPagoPhone] = useState(tenant?.phone || '');
+  const [pagoPayerDoc, setPagoPayerDoc] = useState(tenant?.rif || 'V-');
   const [pagoRef, setPagoRef] = useState('');
   const [submittingPago, setSubmittingPago] = useState(false);
+  const [copiedKey, setCopiedKey] = useState(null);
+
+  useEffect(() => {
+    fetchSaasConfig().then((cfg) => {
+      if (cfg) setSaasConfig(cfg);
+    }).catch(() => {});
+    if (tenant?.id) {
+      fetchMyPayments(tenant.id).then(setMyPayments).catch(() => {});
+    }
+  }, [tenant?.id]);
+
+  const activeRate =
+    Number(data?.exchangeRate) ||
+    Number(saasConfig?.bcv_rate) ||
+    Number(tenant?.exchange_rate) ||
+    876.80;
+
+  const monthlyUsd = Number(saasConfig?.monthly_price_usd || 30);
+  const annualUsd = Number(saasConfig?.annual_price_usd || 300);
+  const currentPlanUsd = pagoPlan === 'annual' ? annualUsd : monthlyUsd;
+  const currentPlanBs = currentPlanUsd * activeRate;
+
+  const copyText = (val, key) => {
+    navigator.clipboard.writeText(String(val || ''));
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 2000);
+  };
 
   // 4. Estado Contraseña
   const [newPassword, setNewPassword] = useState('');
@@ -190,34 +238,37 @@ export default function NotionSettingsModal({
     showToast(next ? 'Modo Restaurante activado' : 'Modo Caja Rápida activado');
   };
 
-  // Reportar Pago Móvil
+  // Reportar Pago Móvil / Binance Pay unificado con saas_config y RPC seguro
   const handleReportPago = async (e) => {
     e.preventDefault();
     if (!pagoRef.trim() || pagoRef.trim().length < 4) {
-      showToast('Ingresa los últimos dígitos válidos de la referencia', 'error');
+      showToast('Ingresa los últimos dígitos válidos de la referencia bancaria u Order ID', 'error');
       return;
     }
 
     setSubmittingPago(true);
     try {
-      if (supabase && tenant?.id) {
-        const amountUsd = pagoPlan === 'monthly' ? 20 : 190;
-        const { error } = await supabase.from('subscription_payments').insert({
-          tenant_id: tenant.id,
+      if (tenant?.id) {
+        const created = await submitOwnerPagoMovil({
+          tenantId: tenant.id,
+          tenantName: tenant.name,
           plan: pagoPlan,
-          amount_usd: amountUsd,
-          payment_method: 'pago_movil',
-          bank: pagoBank,
-          phone: pagoPhone,
-          reference: pagoRef.trim(),
-          status: 'pending',
-          created_at: new Date().toISOString()
+          paymentMethod: pagoMethod,
+          amountUsd: currentPlanUsd,
+          amountBs: currentPlanBs,
+          rateBcv: activeRate,
+          bankOrigin: pagoMethod === 'binance' ? 'Binance Pay (USDT)' : pagoBank,
+          phoneOrigin: pagoMethod === 'binance' ? (session?.user?.email || 'USDT') : pagoPhone,
+          payerDoc: pagoPayerDoc,
+          referenceLast6: pagoRef.trim(),
+          autoVerifyProvider: saasConfig?.auto_verify_provider || 'manual'
         });
 
-        if (error) throw error;
+        const updatedList = await fetchMyPayments(tenant.id).catch(() => [created, ...myPayments]);
+        setMyPayments(updatedList);
       }
 
-      showToast('Pago reportado. Tu activación se confirmará en breve.');
+      showToast('¡Pago reportado con éxito! Tu servicio cuenta con Pase de Cortesía activo mientras se verifica.');
       setPagoRef('');
     } catch (err) {
       showToast(err.message || 'Error al reportar pago', 'error');
@@ -943,94 +994,338 @@ export default function NotionSettingsModal({
               </div>
             )}
 
-            {/* TAB 4: SUSCRIPCIÓN & PAGO MÓVIL */}
+            {/* TAB 4: SUSCRIPCIÓN & PAGO MÓVIL / BINANCE */}
             {activeTab === 'subscription' && (
               <div className="space-y-5">
                 {/* Banner de días restantes */}
-                <div className="p-4 rounded-xl bg-zinc-900 text-white flex items-center justify-between">
+                <div className="p-4 rounded-xl bg-zinc-900 text-white flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 block">
-                      Plan Actual: {tenant?.plan === 'monthly' ? 'Mensual Activo' : 'Prueba Gratuita'}
+                      Plan Actual: {tenant?.plan === 'annual' ? 'Anual Activo' : tenant?.plan === 'monthly' ? 'Mensual Activo' : 'Prueba Gratuita'}
                     </span>
                     <h3 className="text-sm font-extrabold mt-0.5">
-                      {subStatus?.daysRemaining || 14} Días de Acceso Restantes
+                      {subStatus?.daysRemaining ?? 14} Días de Acceso Restantes
                     </h3>
+                    {tenant?.valid_until && (
+                      <span className="text-[11px] text-zinc-400 block mt-0.5">
+                        Fecha de corte: {new Date(tenant.valid_until).toLocaleDateString('es-VE')}
+                      </span>
+                    )}
                   </div>
                   <div className="text-right">
-                    <span className="text-xs font-mono font-bold text-zinc-300">
-                      Tasa BCV: Bs. 876,80
+                    <span className="text-xs font-mono font-bold text-zinc-200 block">
+                      Tasa BCV: Bs. {activeRate.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                    <span className="text-[10px] text-zinc-400">
+                      Activación automática en tiempo real
                     </span>
                   </div>
                 </div>
 
-                {/* Formulario de Reporte de Pago Móvil */}
-                <form onSubmit={handleReportPago} className="space-y-3.5 border border-zinc-200 rounded-xl p-4">
-                  <h4 className="text-xs font-bold text-zinc-950 flex items-center gap-1.5">
-                    <Smartphone size={15} className="text-emerald-600" />
-                    <span>Reportar Pago Móvil / Transferencia Bancaria</span>
-                  </h4>
+                {/* Selector de Plan (Mensual vs Anual) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setPagoPlan('monthly')}
+                    className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      pagoPlan === 'monthly'
+                        ? 'border-zinc-950 bg-zinc-50 shadow-2xs ring-1 ring-zinc-950'
+                        : 'border-zinc-200 bg-white hover:bg-zinc-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-zinc-950">Plan Mensual (+30 días)</span>
+                      <span className="font-mono font-extrabold text-sm text-zinc-950">${monthlyUsd.toFixed(0)}/mes</span>
+                    </div>
+                    <div className="text-[11px] text-zinc-500 font-mono mt-1">
+                      ≈ Bs. {(monthlyUsd * activeRate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                  </button>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-bold text-zinc-700 mb-1">Selecciona el Plan</label>
-                      <select
-                        value={pagoPlan}
-                        onChange={(e) => setPagoPlan(e.target.value)}
-                        className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 bg-white"
-                      >
-                        <option value="monthly">Plan Mensual — $20 / mes</option>
-                        <option value="annual">Plan Anual — $190 / año (Ahorras 20%)</option>
-                      </select>
+                  <button
+                    type="button"
+                    onClick={() => setPagoPlan('annual')}
+                    className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      pagoPlan === 'annual'
+                        ? 'border-zinc-950 bg-zinc-50 shadow-2xs ring-1 ring-zinc-950'
+                        : 'border-zinc-200 bg-white hover:bg-zinc-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-zinc-950 flex items-center gap-1.5">
+                        <span>Plan Anual (+365 días)</span>
+                        <span className="px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 text-[9px] font-bold">
+                          2 Meses Gratis
+                        </span>
+                      </span>
+                      <span className="font-mono font-extrabold text-sm text-zinc-950">${annualUsd.toFixed(0)}/año</span>
+                    </div>
+                    <div className="text-[11px] text-zinc-500 font-mono mt-1">
+                      ≈ Bs. {(annualUsd * activeRate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                  </button>
+                </div>
+
+                {/* Selector de Método: Pago Móvil vs Binance Pay */}
+                <div className="flex gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setPagoMethod('pago_movil')}
+                    className={`flex-1 py-2 px-3 rounded-xl font-bold border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      pagoMethod === 'pago_movil'
+                        ? 'bg-zinc-950 text-white border-zinc-950 shadow-2xs'
+                        : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50'
+                    }`}
+                  >
+                    <Smartphone size={14} />
+                    <span>Pago Móvil (Bolívares BCV)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPagoMethod('binance')}
+                    className={`flex-1 py-2 px-3 rounded-xl font-bold border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      pagoMethod === 'binance'
+                        ? 'bg-zinc-950 text-white border-zinc-950 shadow-2xs'
+                        : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50'
+                    }`}
+                  >
+                    <CreditCard size={14} />
+                    <span>Binance Pay (USDT Sin Límites)</span>
+                  </button>
+                </div>
+
+                {/* Aviso inteligente para Plan Anual en Pago Móvil */}
+                {pagoPlan === 'annual' && pagoMethod === 'pago_movil' && (
+                  <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900 flex items-center justify-between gap-2">
+                    <span>
+                      💡 <strong>Nota sobre límites bancarios P2P:</strong> Si tu banco tiene límite diario en Bs para el monto anual, puedes pagar por <strong>Binance Pay (USDT)</strong> sin límites.
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setPagoMethod('binance')}
+                      className="px-2.5 py-1 rounded-lg bg-amber-900 text-white font-bold whitespace-nowrap cursor-pointer"
+                    >
+                      Usar USDT
+                    </button>
+                  </div>
+                )}
+
+                {/* Datos Receptores Dinámicos */}
+                {pagoMethod === 'pago_movil' ? (
+                  <div className="p-3.5 rounded-xl bg-zinc-50 border border-zinc-200 text-xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
+                        Cuenta Receptora Pago Móvil ({saasConfig?.pago_movil_holder || 'FacturasYa'}):
+                      </span>
+                      <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                        {saasConfig?.pago_movil_bank || '0172 - Bancamiga'}
+                      </span>
                     </div>
 
-                    <div>
-                      <label className="block text-[11px] font-bold text-zinc-700 mb-1">Banco Emisor</label>
-                      <select
-                        value={pagoBank}
-                        onChange={(e) => setPagoBank(e.target.value)}
-                        className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 bg-white"
-                      >
-                        {VENEZUELA_BANKS.map((b) => (
-                          <option key={b} value={b}>{b}</option>
-                        ))}
-                      </select>
+                    <div className="grid sm:grid-cols-3 gap-2 pt-1">
+                      <div className="p-2.5 rounded-lg bg-white border border-zinc-200/80 flex items-center justify-between">
+                        <div>
+                          <span className="text-[10px] text-zinc-400 block">Teléfono</span>
+                          <strong className="font-mono text-zinc-950">{saasConfig?.pago_movil_phone || '0412-0000000'}</strong>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => copyText(saasConfig?.pago_movil_phone || '0412-0000000', 'pm_phone')}
+                          className="p-1.5 rounded-md hover:bg-zinc-100 text-zinc-500 cursor-pointer"
+                          title="Copiar teléfono"
+                        >
+                          {copiedKey === 'pm_phone' ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
+                        </button>
+                      </div>
+
+                      <div className="p-2.5 rounded-lg bg-white border border-zinc-200/80 flex items-center justify-between">
+                        <div>
+                          <span className="text-[10px] text-zinc-400 block">Cédula / RIF</span>
+                          <strong className="font-mono text-zinc-950">{saasConfig?.pago_movil_rif_ci || 'V-00000000'}</strong>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => copyText(saasConfig?.pago_movil_rif_ci || 'V-00000000', 'pm_rif')}
+                          className="p-1.5 rounded-md hover:bg-zinc-100 text-zinc-500 cursor-pointer"
+                          title="Copiar RIF / Cédula"
+                        >
+                          {copiedKey === 'pm_rif' ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
+                        </button>
+                      </div>
+
+                      <div className="p-2.5 rounded-lg bg-emerald-50/70 border border-emerald-200 flex items-center justify-between">
+                        <div>
+                          <span className="text-[10px] text-emerald-700 font-semibold block">Monto Exacto (Bs)</span>
+                          <strong className="font-mono text-emerald-950">
+                            Bs. {currentPlanBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </strong>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => copyText(currentPlanBs.toFixed(2), 'pm_bs')}
+                          className="p-1.5 rounded-md hover:bg-emerald-100 text-emerald-700 cursor-pointer"
+                          title="Copiar monto en Bs"
+                        >
+                          {copiedKey === 'pm_bs' ? <Check size={13} className="text-emerald-700" /> : <Copy size={13} />}
+                        </button>
+                      </div>
                     </div>
                   </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-bold text-zinc-700 mb-1">Teléfono Pagador</label>
-                      <input
-                        type="text"
-                        value={pagoPhone}
-                        onChange={(e) => setPagoPhone(e.target.value)}
-                        placeholder="0414-1234567"
-                        className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200"
-                        required
-                      />
+                ) : (
+                  <div className="p-3.5 rounded-xl bg-zinc-50 border border-zinc-200 text-xs space-y-2">
+                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">
+                      Datos para Enviar por Binance Pay (0% Comisión):
+                    </span>
+                    <div className="grid sm:grid-cols-2 gap-2">
+                      <div className="p-2.5 rounded-lg bg-white border border-zinc-200/80 flex items-center justify-between">
+                        <div>
+                          <span className="text-[10px] text-zinc-400 block">Correo / Binance ID</span>
+                          <strong className="font-mono text-zinc-950">
+                            {saasConfig?.binance_email || 'pagos@facturasya.com'}
+                          </strong>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => copyText(saasConfig?.binance_email || 'pagos@facturasya.com', 'bn_email')}
+                          className="p-1.5 rounded-md hover:bg-zinc-100 text-zinc-500 cursor-pointer"
+                        >
+                          {copiedKey === 'bn_email' ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
+                        </button>
+                      </div>
+                      <div className="p-2.5 rounded-lg bg-emerald-50/70 border border-emerald-200 flex items-center justify-between">
+                        <div>
+                          <span className="text-[10px] text-emerald-700 font-semibold block">Monto a Enviar (USDT)</span>
+                          <strong className="font-mono text-emerald-950">${currentPlanUsd.toFixed(2)} USDT</strong>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => copyText(currentPlanUsd.toFixed(2), 'bn_usd')}
+                          className="p-1.5 rounded-md hover:bg-emerald-100 text-emerald-700 cursor-pointer"
+                        >
+                          {copiedKey === 'bn_usd' ? <Check size={13} className="text-emerald-700" /> : <Copy size={13} />}
+                        </button>
+                      </div>
                     </div>
+                  </div>
+                )}
 
-                    <div>
-                      <label className="block text-[11px] font-bold text-zinc-700 mb-1">Número de Referencia (Últimos dígitos)</label>
-                      <input
-                        type="text"
-                        value={pagoRef}
-                        onChange={(e) => setPagoRef(e.target.value)}
-                        placeholder="Ej. 849201"
-                        className="w-full px-3 py-2 text-xs font-mono font-bold rounded-lg border border-zinc-200"
-                        required
-                      />
+                {/* Formulario de Reporte */}
+                <form onSubmit={handleReportPago} className="space-y-3.5 border border-zinc-200 rounded-xl p-4 bg-white">
+                  <h4 className="text-xs font-bold text-zinc-950 flex items-center gap-1.5">
+                    <Smartphone size={15} className="text-emerald-600" />
+                    <span>
+                      {pagoMethod === 'pago_movil'
+                        ? 'Reportar Comprobante de Pago Móvil'
+                        : 'Reportar Orden de Binance Pay (USDT)'}
+                    </span>
+                  </h4>
+
+                  {pagoMethod === 'pago_movil' ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-zinc-700 mb-1">Banco Emisor</label>
+                        <select
+                          value={pagoBank}
+                          onChange={(e) => setPagoBank(e.target.value)}
+                          className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200 bg-white"
+                        >
+                          {VENEZUELA_BANKS.map((b) => (
+                            <option key={b} value={b}>{b}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-zinc-700 mb-1">Teléfono Emisor</label>
+                        <input
+                          type="text"
+                          value={pagoPhone}
+                          onChange={(e) => setPagoPhone(e.target.value)}
+                          placeholder="0414-1234567"
+                          className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-zinc-700 mb-1">Cédula / RIF Titular</label>
+                        <input
+                          type="text"
+                          value={pagoPayerDoc}
+                          onChange={(e) => setPagoPayerDoc(e.target.value.toUpperCase())}
+                          placeholder="V-12345678"
+                          className="w-full px-3 py-2 text-xs font-mono rounded-lg border border-zinc-200 uppercase"
+                        />
+                      </div>
                     </div>
+                  ) : null}
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-zinc-700 mb-1">
+                      {pagoMethod === 'pago_movil'
+                        ? 'Últimos 6 dígitos de la Referencia Bancaria *'
+                        : 'Últimos dígitos del Order ID de Binance Pay *'}
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={10}
+                      value={pagoRef}
+                      onChange={(e) => setPagoRef(e.target.value)}
+                      placeholder={pagoMethod === 'pago_movil' ? 'Ej. 984201' : 'Ej. 28394812'}
+                      className="w-full px-3 py-2 text-xs font-mono font-bold rounded-lg border border-zinc-200"
+                      required
+                    />
                   </div>
 
                   <button
                     type="submit"
                     disabled={submittingPago}
-                    className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-all disabled:opacity-50"
+                    className="w-full py-2.5 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-bold shadow-xs transition-all disabled:opacity-50 cursor-pointer"
                   >
-                    {submittingPago ? 'Registrando Pago...' : 'Confirmar y Notificar Pago Móvil'}
+                    {submittingPago
+                      ? 'Verificando y Registrando...'
+                      : `Confirmar Reporte (${pagoPlan === 'annual' ? 'Plan Anual' : 'Plan Mensual'}) →`}
                   </button>
                 </form>
+
+                {/* Historial de Pagos Reportados */}
+                {myPayments.length > 0 && (
+                  <div className="border border-zinc-200 rounded-xl overflow-hidden">
+                    <div className="px-3.5 py-2 bg-zinc-50 border-b border-zinc-200 text-[11px] font-bold text-zinc-700">
+                      Historial de Pagos Reportados
+                    </div>
+                    <div className="divide-y divide-zinc-100 text-xs max-h-40 overflow-y-auto">
+                      {myPayments.slice(0, 6).map((p) => (
+                        <div key={p.id} className="px-3.5 py-2 flex items-center justify-between gap-2">
+                          <div>
+                            <span className="font-mono font-bold text-zinc-950">#{p.reference_last6}</span>
+                            <span className="text-zinc-500 ml-2">{p.bank_origin}</span>
+                            <span className="text-[10px] text-zinc-400 block">
+                              {new Date(p.created_at).toLocaleDateString('es-VE')} · ${Number(p.amount_usd || 0).toFixed(0)}
+                            </span>
+                            {p.status === 'rejected' && p.notes && (
+                              <span className="text-[10px] text-red-600 font-semibold block">
+                                Motivo: {p.notes}
+                              </span>
+                            )}
+                          </div>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              p.status === 'approved'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : p.status === 'rejected'
+                                ? 'bg-red-100 text-red-800'
+                                : 'bg-amber-100 text-amber-800'
+                            }`}
+                          >
+                            {p.status === 'approved' ? 'Aprobado' : p.status === 'rejected' ? 'Rechazado' : 'En Verificación'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

@@ -237,7 +237,11 @@ export async function verifyLicenseWithBackend(tenantId) {
             server_days_remaining: data.days_remaining,
             server_raw_days_remaining: data.raw_days_remaining,
             server_is_expired: data.is_expired,
-            server_verified_at: data.server_now
+            server_verified_at: data.server_now,
+            has_pending_payment: Boolean(data.has_pending_payment),
+            pending_reference: data.pending_reference || '',
+            has_recent_rejection: Boolean(data.has_recent_rejection),
+            grace_active: Boolean(data.grace_active)
           };
           setCurrentTenant(updatedTenant);
           return { ...data, guard };
@@ -259,15 +263,19 @@ export async function verifyLicenseWithBackend(tenantId) {
 }
 
 // Calcula el estado exacto de la suscripción priorizando el veredicto del Backend + Guardia Anti-Atraso de Reloj
-export function evaluateSubscriptionStatus(tenant) {
+export function evaluateSubscriptionStatus(tenant, paymentsList = []) {
   if (!tenant) {
     return {
       isLinked: false,
       isExpired: false,
+      shouldBlockPos: false,
+      isGracePending: false,
+      pendingReference: '',
       isSuspended: false,
       isClockTampered: false,
       isWarningSoon: false,
       daysRemaining: 14,
+      plan: 'trial',
       statusLabel: 'Sin vincular'
     };
   }
@@ -310,11 +318,31 @@ export function evaluateSubscriptionStatus(tenant) {
   const isExpired = isSuspended || isPastDue || isClockTampered || isSealTampered || isOfflineGraceExceeded;
   const isWarningSoon = !isExpired && daysRemaining <= 3;
 
+  // Evaluación de Pase de Cortesía en Verificación (24h) cuando reportó un Pago Móvil y no tiene rechazos recientes
+  const cutoff24h = Date.now() - 24 * 60 * 60 * 1000;
+  const recentPendingFromList = Array.isArray(paymentsList)
+    ? paymentsList.find((p) => p.status === 'pending' && new Date(p.created_at).getTime() >= cutoff24h)
+    : null;
+  const hasRecentRejectionFromList = Array.isArray(paymentsList)
+    ? paymentsList.some((p) => p.status === 'rejected' && new Date(p.verified_at || p.created_at).getTime() >= cutoff24h)
+    : false;
+
+  const isGracePending = Boolean(
+    !isSuspended &&
+    !isClockTampered &&
+    !isSealTampered &&
+    (tenant.grace_active || (Boolean(recentPendingFromList || tenant.has_pending_payment) && !hasRecentRejectionFromList && !tenant.has_recent_rejection))
+  );
+
+  const pendingReference = recentPendingFromList?.reference_last6 || tenant.pending_reference || '';
+  const shouldBlockPos = isExpired && !isGracePending;
+
   let statusLabel = 'Activa';
   if (isClockTampered) statusLabel = 'Bloqueado: Reloj de Windows Atrasado';
   else if (isSealTampered) statusLabel = 'Bloqueado: Integridad de Licencia Violada';
   else if (isOfflineGraceExceeded) statusLabel = 'Bloqueado: Más de 72h Offline (Requiere Sincronización)';
   else if (isSuspended) statusLabel = 'Suspendida por Administración';
+  else if (isExpired && isGracePending) statusLabel = `En Verificación Bancaria (Ref #${pendingReference || 'Pendiente'})`;
   else if (isExpired) statusLabel = 'Suscripción Vencida';
   else if (tenant.plan === 'trial') statusLabel = `Prueba Gratis (${Math.max(0, daysRemaining)} días restantes)`;
   else if (tenant.plan === 'annual') statusLabel = `Plan Anual (${Math.max(0, daysRemaining)} días restantes)`;
@@ -323,6 +351,9 @@ export function evaluateSubscriptionStatus(tenant) {
   return {
     isLinked: true,
     isExpired,
+    shouldBlockPos,
+    isGracePending,
+    pendingReference,
     isSuspended,
     isClockTampered,
     isSealTampered,
@@ -332,6 +363,7 @@ export function evaluateSubscriptionStatus(tenant) {
     daysRemaining: Math.max(0, daysRemaining),
     rawDaysRemaining: daysRemaining,
     validUntilDate: new Date(validUntilMs),
+    plan: tenant.plan || 'trial',
     serverVerifiedAt: tenant.server_verified_at || guard.server_now_iso || null,
     statusLabel
   };

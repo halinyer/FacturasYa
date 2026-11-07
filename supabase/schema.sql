@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS public.saas_config (
   id INT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
   monthly_price_usd NUMERIC(10,2) DEFAULT 30.00,
   annual_price_usd NUMERIC(10,2) DEFAULT 300.00,
+  bcv_rate NUMERIC(12,4) DEFAULT 876.80,
   trial_days INT DEFAULT 14,
   pago_movil_bank TEXT DEFAULT '0172 - Bancamiga',
   pago_movil_rif_ci TEXT DEFAULT 'V-00000000',
@@ -25,6 +26,8 @@ CREATE TABLE IF NOT EXISTS public.saas_config (
   auto_verify_provider TEXT DEFAULT 'manual', -- 'manual' | 'pabilo' | 'cobrix'
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE public.saas_config ADD COLUMN IF NOT EXISTS bcv_rate NUMERIC(12,4) DEFAULT 876.80;
 
 INSERT INTO public.saas_config (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
 
@@ -71,19 +74,26 @@ CREATE TABLE IF NOT EXISTS public.subscription_payments (
   tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
   tenant_name TEXT,
   plan TEXT NOT NULL DEFAULT 'monthly' CHECK (plan IN ('monthly', 'annual')),
+  payment_method TEXT NOT NULL DEFAULT 'pago_movil' CHECK (payment_method IN ('pago_movil', 'binance', 'zelle', 'transfer')),
   days_to_add INT NOT NULL DEFAULT 30,
   amount_usd NUMERIC(10,2) NOT NULL,
   amount_bs NUMERIC(14,2) NOT NULL,
   rate_bcv NUMERIC(12,4) NOT NULL,
   bank_origin TEXT NOT NULL,
   phone_origin TEXT NOT NULL,
+  payer_doc TEXT DEFAULT '',
   reference_last6 TEXT NOT NULL,
+  payment_date DATE DEFAULT CURRENT_DATE,
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
   verified_by TEXT DEFAULT 'pending', -- 'api_auto' | 'super_admin' | 'pending'
   notes TEXT DEFAULT '',
   created_at TIMESTAMPTZ DEFAULT NOW(),
   verified_at TIMESTAMPTZ
 );
+
+ALTER TABLE public.subscription_payments ADD COLUMN IF NOT EXISTS payment_method TEXT DEFAULT 'pago_movil';
+ALTER TABLE public.subscription_payments ADD COLUMN IF NOT EXISTS payer_doc TEXT DEFAULT '';
+ALTER TABLE public.subscription_payments ADD COLUMN IF NOT EXISTS payment_date DATE DEFAULT CURRENT_DATE;
 
 -- Candado anti-fraude: ninguna referencia bancaria puede reusarse en estado pendiente o aprobado
 CREATE UNIQUE INDEX IF NOT EXISTS uq_sub_payments_active_ref
@@ -176,7 +186,8 @@ END;
 $$;
 
 -- 5.B FUNCIÓN RPC DE AUTORIDAD DE TIEMPO EN EL SERVIDOR (PREVIENE TRAMPA DE RELOJ EN WINDOWS)
--- Calcula los días restantes usando exclusivamente NOW() del servidor de Supabase y actualiza el estatus si venció
+-- Calcula los días restantes usando exclusivamente NOW() del servidor de Supabase, actualiza el estatus si venció
+-- y evalúa si existe un Pase de Cortesía en Verificación (pago 'pending' en últimas 24h sin rechazos recientes).
 CREATE OR REPLACE FUNCTION public.verify_tenant_license(
   p_tenant_id UUID
 )
@@ -189,6 +200,10 @@ DECLARE
   v_tenant public.tenants%ROWTYPE;
   v_days_remaining INT;
   v_is_expired BOOLEAN;
+  v_has_pending BOOLEAN := false;
+  v_has_recent_rejection BOOLEAN := false;
+  v_pending_ref TEXT := '';
+  v_grace_active BOOLEAN := false;
 BEGIN
   IF NOT (public.is_super_admin() OR EXISTS (SELECT 1 FROM public.tenants WHERE id = p_tenant_id AND owner_id = auth.uid())) THEN
     RETURN jsonb_build_object('success', false, 'error', 'Acceso denegado');
@@ -212,6 +227,29 @@ BEGIN
     WHERE id = p_tenant_id;
   END IF;
 
+  -- Verificar si tiene un Pago Móvil / Binance en estado 'pending' de las últimas 24 horas
+  SELECT true, reference_last6
+  INTO v_has_pending, v_pending_ref
+  FROM public.subscription_payments
+  WHERE tenant_id = p_tenant_id
+    AND status = 'pending'
+    AND created_at >= (NOW() - INTERVAL '24 hours')
+  ORDER BY created_at DESC
+  LIMIT 1;
+
+  v_has_pending := COALESCE(v_has_pending, false);
+  v_pending_ref := COALESCE(v_pending_ref, '');
+
+  -- Anti-abuso: comprobar si le fue rechazado un pago en las últimas 24 horas
+  SELECT EXISTS (
+    SELECT 1 FROM public.subscription_payments
+    WHERE tenant_id = p_tenant_id
+      AND status = 'rejected'
+      AND COALESCE(verified_at, created_at) >= (NOW() - INTERVAL '24 hours')
+  ) INTO v_has_recent_rejection;
+
+  v_grace_active := (v_has_pending AND NOT v_has_recent_rejection AND v_tenant.status <> 'suspended');
+
   v_days_remaining := CEIL(EXTRACT(EPOCH FROM (v_tenant.valid_until - NOW())) / 86400.0)::INT;
   v_is_expired := (v_tenant.status IN ('past_due', 'suspended')) OR (v_tenant.valid_until <= NOW());
 
@@ -233,7 +271,133 @@ BEGIN
     'days_remaining', GREATEST(0, v_days_remaining),
     'raw_days_remaining', v_days_remaining,
     'is_expired', v_is_expired,
-    'is_suspended', (v_tenant.status = 'suspended')
+    'is_suspended', (v_tenant.status = 'suspended'),
+    'has_pending_payment', v_has_pending,
+    'pending_reference', v_pending_ref,
+    'has_recent_rejection', v_has_recent_rejection,
+    'grace_active', v_grace_active
+  );
+END;
+$$;
+
+-- 5.C FUNCIÓN RPC CON AUTORIDAD DE PRECIO EN EL SERVIDOR PARA REPORTAR PAGO MÓVIL / BINANCE
+-- Impide que un cliente altere el monto en USD desde el navegador y garantiza unicidad de referencia
+CREATE OR REPLACE FUNCTION public.report_subscription_payment(
+  p_tenant_id UUID,
+  p_plan TEXT DEFAULT 'monthly',
+  p_payment_method TEXT DEFAULT 'pago_movil',
+  p_bank_origin TEXT DEFAULT '',
+  p_phone_origin TEXT DEFAULT '',
+  p_payer_doc TEXT DEFAULT '',
+  p_reference_last6 TEXT DEFAULT '',
+  p_rate_bcv NUMERIC DEFAULT 0
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_tenant public.tenants%ROWTYPE;
+  v_config public.saas_config%ROWTYPE;
+  v_clean_ref TEXT;
+  v_plan TEXT;
+  v_method TEXT;
+  v_days INT;
+  v_official_usd NUMERIC(10,2);
+  v_effective_rate NUMERIC(12,4);
+  v_official_bs NUMERIC(14,2);
+  v_dup_id UUID;
+  v_inserted public.subscription_payments%ROWTYPE;
+BEGIN
+  IF NOT (public.is_super_admin() OR EXISTS (SELECT 1 FROM public.tenants WHERE id = p_tenant_id AND owner_id = auth.uid())) THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Acceso denegado para reportar pagos en este restaurante.');
+  END IF;
+
+  SELECT * INTO v_tenant FROM public.tenants WHERE id = p_tenant_id;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Restaurante no encontrado.');
+  END IF;
+
+  SELECT * INTO v_config FROM public.saas_config WHERE id = 1;
+
+  v_plan := CASE WHEN p_plan = 'annual' THEN 'annual' ELSE 'monthly' END;
+  v_method := CASE WHEN p_payment_method IN ('pago_movil', 'binance', 'zelle', 'transfer') THEN p_payment_method ELSE 'pago_movil' END;
+  v_days := CASE WHEN v_plan = 'annual' THEN 365 ELSE 30 END;
+
+  -- Autoridad de precio en el servidor: jamás confiar en el precio USD enviado por el cliente
+  v_official_usd := CASE
+    WHEN v_plan = 'annual' THEN COALESCE(v_config.annual_price_usd, 300.00)
+    ELSE COALESCE(v_config.monthly_price_usd, 30.00)
+  END;
+
+  v_effective_rate := COALESCE(NULLIF(p_rate_bcv, 0), NULLIF(v_config.bcv_rate, 0), NULLIF(v_tenant.exchange_rate, 0), 876.80);
+  v_official_bs := ROUND(v_official_usd * v_effective_rate, 2);
+
+  v_clean_ref := UPPER(REGEXP_REPLACE(TRIM(COALESCE(p_reference_last6, '')), '[^A-Z0-9]', '', 'g'));
+  IF v_method = 'pago_movil' THEN
+    v_clean_ref := RIGHT(REGEXP_REPLACE(v_clean_ref, '\D', '', 'g'), 6);
+  ELSE
+    v_clean_ref := RIGHT(v_clean_ref, 8);
+  END IF;
+
+  IF LENGTH(v_clean_ref) < 4 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Ingresa al menos los últimos 6 dígitos válidos del comprobante o referencia.');
+  END IF;
+
+  -- Verificar duplicados activos
+  SELECT id INTO v_dup_id
+  FROM public.subscription_payments
+  WHERE bank_origin = TRIM(p_bank_origin)
+    AND reference_last6 = v_clean_ref
+    AND status IN ('pending', 'approved')
+  LIMIT 1;
+
+  IF v_dup_id IS NOT NULL THEN
+    RETURN jsonb_build_object(
+      'success', false,
+      'error', 'Esta referencia (#' || v_clean_ref || ') ya fue registrada anteriormente y se encuentra en verificación o aprobada.'
+    );
+  END IF;
+
+  INSERT INTO public.subscription_payments (
+    tenant_id,
+    tenant_name,
+    plan,
+    payment_method,
+    days_to_add,
+    amount_usd,
+    amount_bs,
+    rate_bcv,
+    bank_origin,
+    phone_origin,
+    payer_doc,
+    reference_last6,
+    payment_date,
+    status,
+    verified_by
+  ) VALUES (
+    v_tenant.id,
+    v_tenant.name,
+    v_plan,
+    v_method,
+    v_days,
+    v_official_usd,
+    v_official_bs,
+    v_effective_rate,
+    TRIM(COALESCE(NULLIF(p_bank_origin, ''), 'Pago Móvil')),
+    TRIM(COALESCE(p_phone_origin, '')),
+    UPPER(TRIM(COALESCE(p_payer_doc, ''))),
+    v_clean_ref,
+    CURRENT_DATE,
+    'pending',
+    'pending'
+  )
+  RETURNING * INTO v_inserted;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'payment', row_to_json(v_inserted)
   );
 END;
 $$;
@@ -563,14 +727,14 @@ BEGIN
   PERFORM public.log_admin_action('reject_payment', v_tenant, jsonb_build_object('payment_id', p_payment_id, 'notes', p_notes));
   RETURN jsonb_build_object('success', true);
 END;
-$;
+$$;
 
 CREATE OR REPLACE FUNCTION public.admin_toggle_fiscal_verification(p_tenant_id UUID, p_verified BOOLEAN)
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
-AS $
+AS $$
 BEGIN
   PERFORM public.require_admin_or_service();
   UPDATE public.tenants
@@ -584,7 +748,7 @@ BEGIN
   PERFORM public.log_admin_action('toggle_fiscal_verification', p_tenant_id, jsonb_build_object('is_fiscal_verified', p_verified));
   RETURN jsonb_build_object('success', true, 'is_fiscal_verified', p_verified);
 END;
-$;
+$$;
 
 -- 7.4 Row Level Security
 ALTER TABLE public.saas_config ENABLE ROW LEVEL SECURITY;

@@ -16,7 +16,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Menu,
-  X
+  X,
+  AlertTriangle,
+  ShieldCheck,
+  Smartphone,
+  RefreshCw,
+  Lock
 } from 'lucide-react';
 
 // Contextos compartidos
@@ -24,7 +29,8 @@ import { useAuth as useWebAuth } from '../auth/AuthProvider';
 import { AuthProvider as PosAuthProvider } from '@pos/contexts/AuthContext';
 import { DataProvider, useData } from '@pos/contexts/DataContext';
 import { db } from '@pos/services/dataService';
-import { setCurrentTenant } from '@pos/lib/syncEngine';
+import { setCurrentTenant, getCurrentTenant, verifyLicenseWithBackend, evaluateSubscriptionStatus } from '@pos/lib/syncEngine';
+import { supabase } from '../../lib/supabase';
 
 
 // Módulos operativos completos de Happy Days
@@ -49,7 +55,7 @@ import OwnerMonitorPage from '../monitor/OwnerMonitorPage';
 import TopBarRate from './TopBarRate';
 import NotionSettingsModal from '../settings/NotionSettingsModal';
 import GlobalComandaNotifier from '@pos/components/GlobalComandaNotifier';
-import { fetchMyTenant, fetchTenantSnapshot } from '../monitor/api';
+import { fetchMyTenant, fetchTenantSnapshot, fetchMyPayments, fetchSaasConfig } from '../monitor/api';
 
 const INSTALLER_URL =
   import.meta.env.VITE_INSTALLER_URL || 'https://github.com/halinyer/FacturasYa/releases/latest/download/FacturaPOS-1.0.0.exe';
@@ -72,14 +78,23 @@ function AppShellInner() {
 
   const [tenant, setTenant] = useState(null);
   const [snapshot, setSnapshot] = useState(null);
+  const [tenantPayments, setTenantPayments] = useState([]);
+  const [saasConfig, setSaasConfig] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [verifyingLicense, setVerifyingLicense] = useState(false);
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState('fiscal');
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [installingUpdate, setInstallingUpdate] = useState(false);
+
+  const openSubscriptionSettings = () => {
+    setSettingsInitialTab('subscription');
+    setIsSettingsModalOpen(true);
+  };
 
   useEffect(() => {
     if (!isElectron || !window.electronAPI?.checkUpdate) return;
@@ -96,12 +111,30 @@ function AppShellInner() {
   const loadTenantData = useCallback(async () => {
     try {
       setLoading(true);
-      const tData = await fetchMyTenant();
+      const [tData, cfg] = await Promise.all([
+        fetchMyTenant(),
+        fetchSaasConfig().catch(() => null)
+      ]);
+      if (cfg) setSaasConfig(cfg);
       setTenant(tData);
       if (tData?.id) {
         setCurrentTenant(tData);
-        const snap = await fetchTenantSnapshot(tData.id);
+        const [snap, pays] = await Promise.all([
+          fetchTenantSnapshot(tData.id).catch(() => null),
+          fetchMyPayments(tData.id).catch(() => [])
+        ]);
         setSnapshot(snap);
+        setTenantPayments(pays || []);
+
+        // Verificar licencia contra el reloj oficial del servidor de Supabase
+        verifyLicenseWithBackend(tData.id).then((res) => {
+          if (res?.success && !res.offline) {
+            const sealed = getCurrentTenant();
+            if (sealed && sealed.id === tData.id) {
+              setTenant(sealed);
+            }
+          }
+        }).catch(() => {});
 
         const prevTenantId = localStorage.getItem('pos_active_tenant_id');
         const isSwitchingTenant = prevTenantId && prevTenantId !== tData.id;
@@ -148,18 +181,46 @@ function AppShellInner() {
     }
   }, [session?.user?.id, loadTenantData]);
 
-  // Días de suscripción restantes
+  // Suscripción en Tiempo Real (Supabase Realtime) para desbloqueo o suspensión instantánea en Caja
+  useEffect(() => {
+    if (!tenant?.id || !supabase) return;
+
+    const channel = supabase
+      .channel(`appshell_license_${tenant.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'tenants', filter: `id=eq.${tenant.id}` },
+        (payload) => {
+          if (payload.new) {
+            const sealed = setCurrentTenant(payload.new);
+            setTenant(sealed || payload.new);
+            verifyLicenseWithBackend(tenant.id).catch(() => {});
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'subscription_payments', filter: `tenant_id=eq.${tenant.id}` },
+        () => {
+          fetchMyPayments(tenant.id).then(setTenantPayments).catch(() => {});
+          verifyLicenseWithBackend(tenant.id).then(() => {
+            const sealed = getCurrentTenant();
+            if (sealed && sealed.id === tenant.id) setTenant(sealed);
+          }).catch(() => {});
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [tenant?.id]);
+
+  // Evaluación completa de licencia (Autoridad de Reloj + Pase de Cortesía 24h + Kill Switch)
   const subStatus = useMemo(() => {
     if (!tenant) return null;
-    const now = Date.now();
-    const validUntilMs = tenant.valid_until ? new Date(tenant.valid_until).getTime() : now;
-    const diffDays = Math.ceil((validUntilMs - now) / (86400 * 1000));
-    return {
-      daysRemaining: Math.max(0, diffDays),
-      isExpired: tenant.status === 'past_due' || tenant.status === 'suspended' || diffDays <= 0,
-      plan: tenant.plan || 'trial'
-    };
-  }, [tenant]);
+    return evaluateSubscriptionStatus(tenant, tenantPayments);
+  }, [tenant, tenantPayments]);
 
   // Lista de navegación 100% OPERATIVA (Cero duplicados de configuración o pago en el sidebar)
   const navSections = [
@@ -541,7 +602,10 @@ function AppShellInner() {
 
             <button
               type="button"
-              onClick={() => setIsSettingsModalOpen(true)}
+              onClick={() => {
+                setSettingsInitialTab('fiscal');
+                setIsSettingsModalOpen(true);
+              }}
               className="p-1.5 rounded-xl border border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800 text-zinc-300 hover:text-white transition-colors"
               title="Abrir Ajustes del Negocio (⚙️)"
             >
@@ -550,34 +614,171 @@ function AppShellInner() {
           </div>
         </header>
 
-        {/* VISTAS OPERATIVAS COMPLETAS DE HAPPY DAYS */}
-        <main className="flex-1 overflow-y-auto">
-          {activeTab === 'pos' && (
-            <WebPosView
-              tenant={tenant}
-              snapshot={snapshot}
-              onSaleComplete={() => {}}
-            />
-          )}
-          {activeTab === 'tables' && (
-            <TablesView
-              onGoToPos={() => setActiveTab('pos')}
-            />
-          )}
-          {activeTab === 'dashboard' && <SalesDashboardView />}
-          {activeTab === 'fiscal' && <FiscalBooksView />}
-          {activeTab === 'cash-close' && <CashCloseView />}
-          {activeTab === 'inventory' && <InventoryView />}
-          {activeTab === 'products' && <ProductsView />}
-          {activeTab === 'clients' && <ClientsView />}
-          {activeTab === 'monitor' && (
-            <div className="h-full overflow-y-auto">
-              <OwnerMonitorPage
-                embedded={true}
-                defaultTab="overview"
-                onTenantChange={(updated) => setTenant(updated)}
-              />
+        {/* BANNER PREVENTIVO: VENCIMIENTO EN <= 3 DÍAS */}
+        {subStatus?.isWarningSoon && !subStatus?.isExpired && (
+          <div className="bg-amber-500 text-zinc-950 px-4 py-1.5 text-xs font-bold flex items-center justify-between gap-3 shrink-0 shadow-xs">
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={14} className="shrink-0" />
+              <span>
+                Tu suscripción vence en {subStatus.daysRemaining} {subStatus.daysRemaining === 1 ? 'día' : 'días'}. Reporta tu Pago Móvil o Binance Pay para evitar pausas en facturación.
+              </span>
             </div>
+            <button
+              type="button"
+              onClick={openSubscriptionSettings}
+              className="px-3 py-1 rounded-lg bg-zinc-950 text-white hover:bg-zinc-800 text-[11px] font-extrabold whitespace-nowrap cursor-pointer"
+            >
+              Renovar Ahora →
+            </button>
+          </div>
+        )}
+
+        {/* BANNER PASE DE CORTESÍA EN VERIFICACIÓN (24H) */}
+        {subStatus?.isExpired && subStatus?.isGracePending && (
+          <div className="bg-emerald-600 text-white px-4 py-1.5 text-xs font-semibold flex items-center justify-between gap-3 shrink-0 shadow-xs">
+            <div className="flex items-center gap-2">
+              <ShieldCheck size={15} className="shrink-0" />
+              <span>
+                Pago Móvil {subStatus.pendingReference ? `#${subStatus.pendingReference}` : ''} en verificación bancaria. Tu caja está habilitada con Pase de Cortesía (24h) mientras confirmamos la referencia.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={openSubscriptionSettings}
+              className="px-3 py-1 rounded-lg bg-white text-emerald-900 hover:bg-zinc-100 text-[11px] font-bold whitespace-nowrap cursor-pointer"
+            >
+              Ver Estado
+            </button>
+          </div>
+        )}
+
+        {/* VISTAS OPERATIVAS O KILL SWITCH (PAYWALL) SI ESTÁ VENCIDO/SUSPENDIDO SIN PASE DE CORTESÍA */}
+        <main className="flex-1 overflow-y-auto">
+          {subStatus?.shouldBlockPos && (activeTab === 'pos' || activeTab === 'tables') ? (
+            <div className="min-h-full bg-zinc-50 flex items-center justify-center p-4 sm:p-6">
+              <div className="max-w-lg w-full bg-white border border-zinc-200 rounded-2xl shadow-xl p-6 sm:p-8 space-y-5">
+                <div className="flex items-start justify-between gap-4 border-b border-zinc-100 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-2xl bg-red-50 border border-red-200 text-red-600 flex items-center justify-center shrink-0">
+                      <Lock size={22} />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-red-100 text-red-800">
+                        {subStatus.isClockTampered
+                          ? 'Seguridad de Reloj'
+                          : subStatus.isSuspended
+                          ? 'Servicio Suspendido'
+                          : 'Suscripción Vencida'}
+                      </span>
+                      <h2 className="text-base font-extrabold text-zinc-950 mt-1">
+                        {subStatus.isClockTampered
+                          ? 'Reloj de Windows Desajustado'
+                          : subStatus.isSuspended
+                          ? 'Cuenta Suspendida por Administración'
+                          : 'Renueva tu Suscripción para Facturar'}
+                      </h2>
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-xs text-zinc-600 leading-relaxed">
+                  {subStatus.isClockTampered
+                    ? 'Se detectó que la fecha y hora de esta computadora fue atrasada respecto al servidor oficial. Ajusta la hora automática de Windows y presiona "Verificar Estado" para desbloquear la caja.'
+                    : 'El período de acceso de tu restaurante ha finalizado. Tus productos, inventario, clientes y Libros Fiscales SENIAT están 100% resguardados. Al reportar tu Pago Móvil o Binance Pay tu caja se habilita de inmediato.'}
+                </p>
+
+                {/* Datos rápidos de Pago Móvil */}
+                {!subStatus.isClockTampered && (
+                  <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200 text-xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                        Pago Móvil Directo ({saasConfig?.pago_movil_bank || '0172 - Bancamiga'})
+                      </span>
+                      <span className="font-mono font-extrabold text-zinc-950">
+                        Plan Mensual: ${Number(saasConfig?.monthly_price_usd || 30).toFixed(0)}/mes
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 pt-1 text-[11px]">
+                      <div className="p-2 rounded-lg bg-white border border-zinc-200/80">
+                        <span className="text-zinc-400 block text-[10px]">Teléfono Receptor</span>
+                        <strong className="font-mono text-zinc-950">{saasConfig?.pago_movil_phone || '0412-0000000'}</strong>
+                      </div>
+                      <div className="p-2 rounded-lg bg-white border border-zinc-200/80">
+                        <span className="text-zinc-400 block text-[10px]">Cédula / RIF</span>
+                        <strong className="font-mono text-zinc-950">{saasConfig?.pago_movil_rif_ci || 'V-00000000'}</strong>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-2.5 pt-1">
+                  {!subStatus.isClockTampered && (
+                    <button
+                      type="button"
+                      onClick={openSubscriptionSettings}
+                      className="w-full py-3 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Smartphone size={15} />
+                      <span>Reportar Pago Móvil / Binance Pay y Activar Caja →</span>
+                    </button>
+                  )}
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={verifyingLicense}
+                      onClick={async () => {
+                        setVerifyingLicense(true);
+                        await loadTenantData();
+                        setVerifyingLicense(false);
+                      }}
+                      className="flex-1 py-2.5 px-3 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-800 font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <RefreshCw size={13} className={verifyingLicense ? 'animate-spin' : ''} />
+                      <span>{verifyingLicense ? 'Verificando...' : 'Ya pagué · Verificar Estado'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('fiscal')}
+                      className="py-2.5 px-3 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 font-semibold text-xs transition-all cursor-pointer"
+                    >
+                      Ver Libros SENIAT
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              {activeTab === 'pos' && (
+                <WebPosView
+                  tenant={tenant}
+                  snapshot={snapshot}
+                  onSaleComplete={() => {}}
+                />
+              )}
+              {activeTab === 'tables' && (
+                <TablesView
+                  onGoToPos={() => setActiveTab('pos')}
+                />
+              )}
+              {activeTab === 'dashboard' && <SalesDashboardView />}
+              {activeTab === 'fiscal' && <FiscalBooksView />}
+              {activeTab === 'cash-close' && <CashCloseView />}
+              {activeTab === 'inventory' && <InventoryView />}
+              {activeTab === 'products' && <ProductsView />}
+              {activeTab === 'clients' && <ClientsView />}
+              {activeTab === 'monitor' && (
+                <div className="h-full overflow-y-auto">
+                  <OwnerMonitorPage
+                    embedded={true}
+                    defaultTab="overview"
+                    onTenantChange={(updated) => setTenant(updated)}
+                  />
+                </div>
+              )}
+            </>
           )}
         </main>
       </div>
@@ -585,10 +786,20 @@ function AppShellInner() {
       {/* MODAL CENTRALIZADO DE AJUSTES ESTILO NOTION */}
       <NotionSettingsModal
         isOpen={isSettingsModalOpen}
-        onClose={() => setIsSettingsModalOpen(false)}
+        onClose={() => {
+          setIsSettingsModalOpen(false);
+          if (tenant?.id) {
+            fetchMyPayments(tenant.id).then(setTenantPayments).catch(() => {});
+            verifyLicenseWithBackend(tenant.id).then(() => {
+              const sealed = getCurrentTenant();
+              if (sealed && sealed.id === tenant.id) setTenant(sealed);
+            }).catch(() => {});
+          }
+        }}
         tenant={tenant}
         subStatus={subStatus}
         session={session}
+        initialTab={settingsInitialTab}
         onUpdateTenant={(updated) => setTenant(updated)}
       />
 
