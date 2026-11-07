@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   ShoppingCart,
@@ -48,6 +48,7 @@ import ClientsView from '../clients/ClientsView';
 import OwnerMonitorPage from '../monitor/OwnerMonitorPage';
 import TopBarRate from './TopBarRate';
 import NotionSettingsModal from '../settings/NotionSettingsModal';
+import GlobalComandaNotifier from '@pos/components/GlobalComandaNotifier';
 import { fetchMyTenant, fetchTenantSnapshot } from '../monitor/api';
 
 const INSTALLER_URL =
@@ -666,6 +667,7 @@ export default function AppShell() {
   return (
     <PosAuthProvider>
       <DataProvider>
+        <GlobalComandaNotifier />
         <AppShellInner />
       </DataProvider>
     </PosAuthProvider>

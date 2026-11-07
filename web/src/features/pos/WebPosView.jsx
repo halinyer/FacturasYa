@@ -110,6 +110,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
   });
   const [orderTable, setOrderTable] = useState('Barra / Mostrador');
   const [orderNotes, setOrderNotes] = useState('');
+  const [loadedTableOrder, setLoadedTableOrder] = useState(null);
 
   // Auto-cargar orden entrante transferida desde Mesas / Salón
   useEffect(() => {
@@ -129,6 +130,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
             note: i.note || ''
           }));
           setCart(formattedItems);
+          setLoadedTableOrder(parsed);
           if (parsed.tableName) setOrderTable(parsed.tableName);
           if (parsed.waiterName) setOrderNotes(`Atendido por: ${parsed.waiterName}`);
           setIsPaymentModalOpen(true);
@@ -425,6 +427,15 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
         }
       }
 
+      if (loadedTableOrder?.tableId) {
+        fetch('http://localhost:3001/api/restaurant/table/' + loadedTableOrder.tableId + '/free', {
+          method: 'POST'
+        }).catch(() => {});
+        setLoadedTableOrder(null);
+      }
+      if (loadedTableOrder?.tabId && data?.deleteOpenTab) {
+        data.deleteOpenTab(loadedTableOrder.tabId);
+      }
       setCompletedInvoice(savedInvoice);
       setIsPaymentModalOpen(false);
             setIsReceiptModalOpen(true);

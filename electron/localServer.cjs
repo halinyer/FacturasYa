@@ -1,4 +1,4 @@
-const http = require('http');
+﻿const http = require('http');
 const express = require('express');
 const { Server } = require('socket.io');
 const qrcode = require('qrcode');
@@ -120,6 +120,23 @@ function getOrdersTempPath() {
   return path.join(userDataDir || process.cwd(), 'facturapos_orders.json.tmp');
 }
 
+function sanitizeOrdersData(parsed) {
+  if (!parsed || typeof parsed !== 'object') return null;
+  const openOrders = (parsed.orders || []).filter(o => o.status === 'open' && Array.isArray(o.rounds) && o.rounds.length > 0);
+  if (Array.isArray(parsed.tables)) {
+    parsed.tables.forEach(t => {
+      const hasOpen = openOrders.some(o => o.tableId === t.id);
+      if (!hasOpen) {
+        t.status = 'libre';
+        t.activeOrderId = null;
+      } else if (t.status !== 'cuenta') {
+        t.status = 'ocupada';
+      }
+    });
+  }
+  return parsed;
+}
+
 function loadOrdersData() {
   const p = getOrdersPath();
   const bkp = getOrdersBackupPath();
@@ -127,7 +144,7 @@ function loadOrdersData() {
   if (fs.existsSync(p)) {
     try {
       const data = fs.readFileSync(p, 'utf-8');
-      if (data && data.trim()) return JSON.parse(data);
+      if (data && data.trim()) return sanitizeOrdersData(JSON.parse(data));
     } catch (e) {
       console.warn('[Orders] Archivo primario dañado, intentando .bak:', e);
     }
@@ -135,7 +152,7 @@ function loadOrdersData() {
   if (fs.existsSync(bkp)) {
     try {
       const bkpData = fs.readFileSync(bkp, 'utf-8');
-      if (bkpData && bkpData.trim()) return JSON.parse(bkpData);
+      if (bkpData && bkpData.trim()) return sanitizeOrdersData(JSON.parse(bkpData));
     } catch (e) {}
   }
 
@@ -182,40 +199,7 @@ function saveOrdersData(data) {
   }
 }
 
-const defaultSeedProducts = [
-  { id: 'hd_prod_1', name: '2 Burger Mini!', category: 'Combos', priceUSD: 5.99, image: './happydays/combo_2_burger_mini.jpg' },
-  { id: 'hd_prod_2', name: '4 Burger Pana!', category: 'Combos', priceUSD: 14.99, image: './happydays/combo_4_burger_pana.jpg' },
-  { id: 'hd_prod_3', name: 'Happy Panita!', category: 'Combos', priceUSD: 21.99, image: './happydays/combo_happy_panita.jpg' },
-  { id: 'hd_prod_4', name: 'Full Burger Happy!', category: 'Combos', priceUSD: 24.99, image: './happydays/combo_full_burger_happy.jpg' },
-  { id: 'hd_prod_5', name: 'Full Pollo Happy!', category: 'Combos', priceUSD: 24.99, image: './happydays/combo_full_pollo_happy.jpg' },
-  { id: 'hd_prod_6', name: 'Club House Happy!', category: 'Combos', priceUSD: 34.99, image: './happydays/combo_club_house_happy.jpg' },
-  { id: 'hd_prod_7', name: 'Happy Familiar!', category: 'Combos', priceUSD: 49.99, image: './happydays/combo_happy_familiar.jpg' },
-  { id: 'hd_prod_8', name: 'Parrilla Happy!', category: 'Combos', priceUSD: 49.99, image: './happydays/combo_parrilla_happy.jpg' },
-  // Refrescos y Bebidas
-  { id: 'hd_prod_coca_lata', name: 'Coca-Cola Original (Lata 355ml)', category: 'Refrescos y Bebidas', priceUSD: 1.50, image: './happydays/drinks/coca_cola_lata_355ml.jpg' },
-  { id: 'hd_prod_coca_500', name: 'Coca-Cola Botella 500ml', category: 'Refrescos y Bebidas', priceUSD: 1.80, image: './happydays/drinks/coca_cola_botella_500ml.jpg' },
-  { id: 'hd_prod_coca_15l', name: 'Coca-Cola Botella 1.5 Litros', category: 'Refrescos y Bebidas', priceUSD: 2.50, image: './happydays/drinks/coca_cola_botella_1.5l.jpg' },
-  { id: 'hd_prod_coca_2l', name: 'Coca-Cola Botella 2 Litros', category: 'Refrescos y Bebidas', priceUSD: 3.00, image: './happydays/drinks/coca_cola_botella_2l.jpg' },
-  { id: 'hd_prod_coca_zero', name: 'Coca-Cola Sin Azúcar (Lata 355ml)', category: 'Refrescos y Bebidas', priceUSD: 1.50, image: './happydays/drinks/coca_cola_zero_lata.jpg' },
-  { id: 'hd_prod_7up_lata', name: '7Up (Lata 355ml)', category: 'Refrescos y Bebidas', priceUSD: 1.50, image: './happydays/drinks/7up_lata_355ml.jpg' },
-  { id: 'hd_prod_7up_15l', name: '7Up Botella 1.5 Litros', category: 'Refrescos y Bebidas', priceUSD: 2.50, image: './happydays/drinks/7up_botella_1.5l.jpg' },
-  { id: 'hd_prod_7up_2l', name: '7Up Botella 2 Litros', category: 'Refrescos y Bebidas', priceUSD: 3.00, image: './happydays/drinks/7up_botella_2l.jpg' },
-  { id: 'hd_prod_pepsi_lata', name: 'Pepsi Cola (Lata 355ml)', category: 'Refrescos y Bebidas', priceUSD: 1.50, image: './happydays/drinks/pepsi_lata_355ml.jpg' },
-  { id: 'hd_prod_pepsi_15l', name: 'Pepsi Botella 1.5 Litros', category: 'Refrescos y Bebidas', priceUSD: 2.50, image: './happydays/drinks/pepsi_botella_1.5l.jpg' },
-  { id: 'hd_prod_pepsi_2l', name: 'Pepsi Botella 2 Litros', category: 'Refrescos y Bebidas', priceUSD: 3.00, image: './happydays/drinks/pepsi_botella_2l.jpg' },
-  { id: 'hd_prod_frescolita_lata', name: 'Frescolita (Lata 355ml)', category: 'Refrescos y Bebidas', priceUSD: 1.50, image: './happydays/drinks/frescolita_lata_355ml.jpg' },
-  { id: 'hd_prod_frescolita_15l', name: 'Frescolita Botella 1.5 Litros', category: 'Refrescos y Bebidas', priceUSD: 2.50, image: './happydays/drinks/frescolita_botella_1.5l.jpg' },
-  { id: 'hd_prod_frescolita_2l', name: 'Frescolita Botella 2 Litros', category: 'Refrescos y Bebidas', priceUSD: 3.00, image: './happydays/drinks/frescolita_botella_2l.jpg' },
-  { id: 'hd_prod_chinotto_lata', name: 'Chinotto (Lata 355ml)', category: 'Refrescos y Bebidas', priceUSD: 1.50, image: './happydays/drinks/chinotto_lata_355ml.jpg' },
-  { id: 'hd_prod_chinotto_15l', name: 'Chinotto Botella 1.5 Litros', category: 'Refrescos y Bebidas', priceUSD: 2.50, image: './happydays/drinks/chinotto_botella_1.5l.jpg' },
-  { id: 'hd_prod_hit_naranja_lata', name: 'Hit Naranja (Lata 355ml)', category: 'Refrescos y Bebidas', priceUSD: 1.50, image: './happydays/drinks/hit_naranja_lata.jpg' },
-  { id: 'hd_prod_hit_naranja_15l', name: 'Hit Naranja Botella 1.5 Litros', category: 'Refrescos y Bebidas', priceUSD: 2.50, image: './happydays/drinks/hit_naranja_botella_1.5l.jpg' },
-  { id: 'hd_prod_hit_uva_lata', name: 'Hit Uva (Lata 355ml)', category: 'Refrescos y Bebidas', priceUSD: 1.50, image: './happydays/drinks/hit_uva_lata.jpg' },
-  { id: 'hd_prod_maltin_lata', name: 'Maltín Polar (Lata 355ml)', category: 'Refrescos y Bebidas', priceUSD: 1.50, image: './happydays/drinks/maltin_polar_lata.jpg' },
-  { id: 'hd_prod_maltin_botella', name: 'Maltín Polar (Botella)', category: 'Refrescos y Bebidas', priceUSD: 1.50, image: './happydays/drinks/maltin_polar_botella.jpg' },
-  { id: 'hd_prod_agua_600', name: 'Agua Mineral 600ml', category: 'Refrescos y Bebidas', priceUSD: 1.00, image: './happydays/drinks/agua_mineral_botella.jpg' },
-  { id: 'hd_prod_agua_15l', name: 'Agua Mineral 1.5 Litros', category: 'Refrescos y Bebidas', priceUSD: 1.80, image: './happydays/drinks/agua_mineral_botella.jpg' }
-];
+const defaultSeedProducts = [];
 
 let cachedProducts = null;
 let cachedExchangeRate = 876.80;
@@ -229,7 +213,7 @@ function getMenuData() {
       if (stat.mtimeMs !== lastDbMtime || !cachedProducts) {
         const db = JSON.parse(fs.readFileSync(dbFile, 'utf-8'));
         if (Array.isArray(db.pos_products) && db.pos_products.length > 0) {
-          cachedProducts = db.pos_products.filter(p => p.active !== false);
+          cachedProducts = db.pos_products.filter(p => p.active !== false).map(p => ({ ...p, priceUSD: Number(p.priceUSD ?? p.priceUsd ?? p.price ?? 0) }));
           cachedProducts.sort((a, b) => {
             const aHas = (a.image && typeof a.image === 'string' && a.image.trim().length > 4) ? 1 : 0;
             const bHas = (b.image && typeof b.image === 'string' && b.image.trim().length > 4) ? 1 : 0;
@@ -510,7 +494,7 @@ function createLocalServer() {
       cachedExchangeRate = Number(exchangeRate);
     }
     if (Array.isArray(products) && products.length > 0) {
-      cachedProducts = products.filter(p => p.active !== false);
+      cachedProducts = products.filter(p => p.active !== false).map(p => ({ ...p, priceUSD: Number(p.priceUSD ?? p.priceUsd ?? p.price ?? 0) }));
       cachedProducts.sort((a, b) => {
         const aHas = (a.image && typeof a.image === 'string' && a.image.trim().length > 4) ? 1 : 0;
         const bHas = (b.image && typeof b.image === 'string' && b.image.trim().length > 4) ? 1 : 0;
