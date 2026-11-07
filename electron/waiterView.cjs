@@ -7,13 +7,13 @@ function renderWaiterView(initialState) {
       logoIcon: '⚡',
       badge: 'POS',
       colors: {
-        primary: '#2563eb',
-        primaryHover: '#1d4ed8',
-        dark: '#0f172a',
-        warm: '#d97706',
+        primary: '#09090b',
+        primaryHover: '#27272a',
+        dark: '#09090b',
+        warm: '#71717a',
         green: '#10b981',
-        accentSoft: '#eff6ff',
-        borderSubtle: '#e2e8f0'
+        accentSoft: '#f4f4f5',
+        borderSubtle: '#e4e4e7'
       }
     },
     waiterApp: {
@@ -21,14 +21,14 @@ function renderWaiterView(initialState) {
       shortName: 'POS Comandas'
     }
   };
-  const colors = franchise.branding ? franchise.branding.colors : {
-    primary: '#2563eb',
-    primaryHover: '#1d4ed8',
-    dark: '#0f172a',
-    warm: '#d97706',
+  const colors = {
+    primary: '#09090b',
+    primaryHover: '#27272a',
+    dark: '#09090b',
+    warm: '#71717a',
     green: '#10b981',
-    accentSoft: '#eff6ff',
-    borderSubtle: '#e2e8f0'
+    accentSoft: '#f4f4f5',
+    borderSubtle: '#e4e4e7'
   };
   return `<!DOCTYPE html>
 <html lang="es">
@@ -39,18 +39,18 @@ function renderWaiterView(initialState) {
   <link rel="manifest" href="/waiter-manifest.json">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="${franchise.waiterApp ? franchise.waiterApp.shortName : 'Comandero'}">
-  <meta name="theme-color" content="${colors.dark}">
+  <meta name="theme-color" content="#ffffff">
   <style>
     :root {
-      --brand-primary: ${colors.primary};
-      --brand-primary-hover: ${colors.primaryHover || colors.primary};
-      --brand-dark: ${colors.dark};
-      --brand-warm: ${colors.warm || '#D6862B'};
-      --brand-green: ${colors.green || '#10b981'};
-      --brand-accent-soft: ${colors.accentSoft || '#eff6ff'};
-      --brand-border-subtle: ${colors.borderSubtle || '#e2e8f0'};
+      --brand-primary: #09090b;
+      --brand-primary-hover: #27272a;
+      --brand-dark: #09090b;
+      --brand-warm: #d97706;
+      --brand-green: #10b981;
+      --brand-accent-soft: #f4f4f5;
+      --brand-border-subtle: #e4e4e7;
       
       --safe-top: env(safe-area-inset-top, 0px);
       --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -58,26 +58,42 @@ function renderWaiterView(initialState) {
       --safe-right: env(safe-area-inset-right, 0px);
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
-    body { background: #f8fafc; color: #0f172a; height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; user-select: none; overscroll-behavior: none; }
-    
-    /* Apple Elegant Translucent Header with Notch Safe-Area Protection */
-    header {
-      background: var(--brand-dark);
-      color: #ffffff;
-      padding-top: max(14px, calc(var(--safe-top) + 8px));
-      padding-bottom: 10px;
-      padding-left: max(14px, calc(var(--safe-left) + 8px));
-      padding-right: max(14px, calc(var(--safe-right) + 8px));
-      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.16);
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-font-smoothing: antialiased;
+    }
+    body {
+      background: #fafafa;
+      color: #09090b;
+      height: 100vh;
+      height: 100dvh;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      overflow: hidden;
+      user-select: none;
+      overscroll-behavior: none;
+    }
+    
+    /* Notion Minimalist Header with Safe-Area Protection */
+    header {
+      background: rgba(255, 255, 255, 0.94);
+      color: #09090b;
+      padding-top: max(10px, calc(var(--safe-top) + 6px));
+      padding-bottom: 8px;
+      padding-left: max(16px, calc(var(--safe-left) + 10px));
+      padding-right: max(16px, calc(var(--safe-right) + 10px));
+      border-bottom: 1px solid #e4e4e7;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
       flex-shrink: 0;
       z-index: 50;
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
     }
     .header-main-row {
       display: flex;
@@ -94,63 +110,60 @@ function renderWaiterView(initialState) {
       flex-shrink: 0;
     }
     .brand-logo-icon {
-      width: 36px;
-      height: 36px;
-      border-radius: 11px;
-      background: rgba(255, 255, 255, 0.16);
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: #09090b;
+      color: #ffffff;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.25rem;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.2);
-      border: 1px solid rgba(255,255,255,0.2);
+      font-size: 0.95rem;
+      box-shadow: 0 1px 2px rgba(9, 9, 11, 0.12);
+      border: 1px solid #27272a;
     }
     .brand-text { display: flex; flex-direction: column; line-height: 1.15; }
-    .brand-title { font-weight: 900; font-size: 1.05rem; letter-spacing: -0.2px; text-transform: uppercase; color: #ffffff; }
-    .brand-sub { font-size: 0.65rem; font-weight: 800; color: rgba(255,255,255,0.7); letter-spacing: 0.8px; text-transform: uppercase; }
+    .brand-title { font-weight: 700; font-size: 0.94rem; letter-spacing: -0.02em; color: #09090b; }
+    .brand-sub { font-size: 0.68rem; font-weight: 500; color: #71717a; letter-spacing: 0.01em; }
     
     .header-actions {
       display: flex;
       align-items: center;
-      gap: 7px;
+      gap: 6px;
       flex-shrink: 0;
     }
 
-    /* Prominent Apple-Style Waiter Chip */
+    /* Notion Waiter Profile Chip */
     .apple-waiter-chip {
-      background: rgba(255, 255, 255, 0.14);
-      border: 1px solid rgba(255, 255, 255, 0.22);
-      color: #ffffff;
-      padding: 4px 10px 4px 6px;
-      border-radius: 999px;
-      font-size: 0.8rem;
+      background: #f4f4f5;
+      border: 1px solid #e4e4e7;
+      color: #09090b;
+      padding: 4px 10px 4px 5px;
+      border-radius: 8px;
+      font-size: 0.78rem;
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 7px;
       cursor: pointer;
       transition: all 0.15s ease;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
       user-select: none;
-      max-width: 150px;
+      max-width: 170px;
     }
     .apple-waiter-chip:active {
-      transform: scale(0.95);
-      background: rgba(255, 255, 255, 0.28);
+      transform: scale(0.97);
+      background: #e4e4e7;
     }
     .waiter-avatar {
-      width: 25px;
-      height: 25px;
-      border-radius: 50%;
-      background: var(--brand-primary);
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      background: #09090b;
       color: #ffffff;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 0.72rem;
-      font-weight: 900;
-      border: 1.5px solid rgba(255, 255, 255, 0.6);
+      font-weight: 700;
       flex-shrink: 0;
     }
     .waiter-chip-text {
@@ -161,34 +174,34 @@ function renderWaiterView(initialState) {
       overflow: hidden;
     }
     .waiter-chip-role {
-      font-size: 0.54rem;
-      font-weight: 800;
-      letter-spacing: 0.6px;
-      opacity: 0.75;
+      font-size: 0.56rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: #71717a;
       text-transform: uppercase;
     }
     .waiter-chip-name {
-      font-size: 0.82rem;
-      font-weight: 800;
-      color: #ffffff;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #09090b;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
     .waiter-chip-chevron {
-      opacity: 0.7;
+      color: #71717a;
       flex-shrink: 0;
     }
 
     /* Icon Buttons (Bell & Fullscreen) */
     .icon-btn {
       position: relative;
-      background: rgba(255, 255, 255, 0.12);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      color: #ffffff;
-      width: 36px;
-      height: 36px;
-      border-radius: 10px;
+      background: #ffffff;
+      border: 1px solid #e4e4e7;
+      color: #3f3f46;
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -197,80 +210,81 @@ function renderWaiterView(initialState) {
       flex-shrink: 0;
     }
     .icon-btn:active {
-      transform: scale(0.92);
-      background: rgba(255, 255, 255, 0.25);
+      transform: scale(0.94);
+      background: #f4f4f5;
     }
     .notif-badge {
       position: absolute;
       top: -4px;
       right: -4px;
-      background: #ef4444;
+      background: #10b981;
       color: #ffffff;
-      font-size: 0.68rem;
-      font-weight: 900;
-      min-width: 18px;
-      height: 18px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      min-width: 17px;
+      height: 17px;
       border-radius: 999px;
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 0 4px;
-      border: 2px solid var(--brand-dark);
-      box-shadow: 0 2px 6px rgba(239,68,68,0.6);
-      animation: pulseBadge 1.8s infinite;
+      border: 2px solid #ffffff;
+      box-shadow: 0 2px 4px rgba(16,185,129,0.35);
+      animation: pulseBadge 2s infinite;
     }
     @keyframes pulseBadge {
       0% { transform: scale(1); }
-      50% { transform: scale(1.15); box-shadow: 0 0 10px rgba(239,68,68,0.9); }
+      50% { transform: scale(1.12); }
       100% { transform: scale(1); }
     }
 
-    /* Sub Row: Tasa BCV & Contextual Status (Completely Away from Camera Cutout) */
+    /* Sub Row: Tasa BCV & Contextual Status */
     .header-sub-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
       width: 100%;
-      padding-top: 5px;
-      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding-top: 6px;
+      border-top: 1px solid #f4f4f5;
     }
     .apple-rate-pill {
-      background: rgba(0, 0, 0, 0.32);
-      border: 1px solid rgba(255, 255, 255, 0.16);
-      color: #fde047;
-      font-weight: 800;
-      font-size: 0.76rem;
-      padding: 4px 10px;
-      border-radius: 999px;
+      background: #fafafa;
+      border: 1px solid #e4e4e7;
+      color: #09090b;
+      font-weight: 600;
+      font-size: 0.72rem;
+      padding: 3px 9px;
+      border-radius: 6px;
       display: inline-flex;
       align-items: center;
       gap: 5px;
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-variant-numeric: tabular-nums;
       white-space: nowrap;
     }
-    .rate-pill-icon { font-size: 0.82rem; }
-    .rate-pill-label { color: #94a3b8; font-size: 0.65rem; letter-spacing: 0.4px; text-transform: uppercase; font-weight: 900; }
-    .rate-pill-val { color: #fde047; font-weight: 800; }
+    .rate-pill-icon { font-size: 0.75rem; }
+    .rate-pill-label { color: #71717a; font-size: 0.65rem; letter-spacing: 0.03em; text-transform: uppercase; font-weight: 600; }
+    .rate-pill-val { color: #09090b; font-weight: 700; }
 
     .apple-context-pill {
-      background: rgba(255, 255, 255, 0.12);
-      border: 1px solid rgba(255, 255, 255, 0.16);
-      color: #ffffff;
-      font-weight: 700;
+      background: #fafafa;
+      border: 1px solid #e4e4e7;
+      color: #3f3f46;
+      font-weight: 600;
       font-size: 0.72rem;
-      padding: 4px 10px;
-      border-radius: 999px;
+      padding: 3px 9px;
+      border-radius: 6px;
       display: inline-flex;
       align-items: center;
       gap: 6px;
       white-space: nowrap;
     }
     .context-pill-dot {
-      width: 7px;
-      height: 7px;
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
-      background: var(--brand-green);
-      box-shadow: 0 0 6px var(--brand-green);
+      background: #10b981;
     }
 
     main {
@@ -293,62 +307,60 @@ function renderWaiterView(initialState) {
       padding: 24px 8px;
     }
     .login-header-icon {
-      width: 58px;
-      height: 58px;
-      border-radius: 18px;
-      background: var(--brand-dark);
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: #09090b;
       color: #ffffff;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin: 0 auto 16px auto;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-      border: 2px solid var(--brand-primary);
+      margin: 0 auto 14px auto;
+      box-shadow: 0 2px 6px rgba(9,9,11,0.12);
+      border: 1px solid #27272a;
     }
     .waiter-card-btn {
       width: 100%;
-      padding: 14px 16px;
+      padding: 12px 14px;
       background: #ffffff;
-      border: 1.5px solid #e2e8f0;
-      border-radius: 16px;
-      font-weight: 800;
-      font-size: 0.98rem;
-      color: #0f172a;
+      border: 1px solid #e4e4e7;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.92rem;
+      color: #09090b;
       cursor: pointer;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      box-shadow: 0 3px 8px rgba(0,0,0,0.02);
+      box-shadow: 0 1px 2px rgba(9,9,11,0.03);
       transition: all 0.15s ease;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
     .waiter-card-btn:active {
-      transform: scale(0.98);
-      background: #f8fafc;
-      border-color: var(--brand-primary);
+      transform: scale(0.99);
+      background: #f4f4f5;
+      border-color: #09090b;
     }
     .waiter-card-enter {
-      color: var(--brand-primary);
-      font-weight: 900;
-      font-size: 0.82rem;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+      color: #71717a;
+      font-weight: 600;
+      font-size: 0.78rem;
       display: flex;
       align-items: center;
       gap: 4px;
     }
 
-    /* Apple PIN Modal */
+    /* Notion PIN Modal */
     .modal-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(15, 23, 42, 0.65);
+      background: rgba(9, 9, 11, 0.45);
       display: flex;
       align-items: flex-end;
       z-index: 200;
-      backdrop-filter: blur(6px);
-      -webkit-backdrop-filter: blur(6px);
-      animation: fadeIn 0.2s ease;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      animation: fadeIn 0.18s ease;
     }
     .modal-overlay.center {
       align-items: center;
@@ -358,310 +370,294 @@ function renderWaiterView(initialState) {
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     .pin-modal-card {
       background: #ffffff;
-      border-radius: 24px;
+      border-radius: 16px;
       padding: 22px;
       width: 100%;
-      max-width: 320px;
+      max-width: 310px;
       margin: auto;
       text-align: center;
-      box-shadow: 0 24px 48px rgba(0,0,0,0.25);
-      border: 1px solid #e2e8f0;
-      animation: zoomIn 0.2s ease;
+      box-shadow: 0 20px 40px -15px rgba(9,9,11,0.2);
+      border: 1px solid #e4e4e7;
+      animation: zoomIn 0.18s ease;
     }
-    @keyframes zoomIn { from { transform: scale(0.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-    .pin-dots { display: flex; justify-content: center; gap: 14px; margin: 16px 0 20px 0; }
+    @keyframes zoomIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .pin-dots { display: flex; justify-content: center; gap: 12px; margin: 16px 0 20px 0; }
     .pin-dot {
-      width: 15px;
-      height: 15px;
+      width: 12px;
+      height: 12px;
       border-radius: 50%;
-      border: 2px solid #cbd5e1;
+      border: 1.5px solid #d4d4d8;
       transition: all 0.15s;
-      background: #ffffff;
+      background: #fafafa;
     }
     .pin-dot.filled {
-      background: var(--brand-primary);
-      border-color: var(--brand-primary);
-      transform: scale(1.18);
-      box-shadow: 0 0 8px rgba(37,99,235,0.4);
+      background: #09090b;
+      border-color: #09090b;
+      transform: scale(1.12);
     }
-    .pin-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .pin-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
     .pin-key {
-      background: #f8fafc;
-      border: 1.5px solid #e2e8f0;
-      border-radius: 14px;
-      padding: 14px 0;
-      font-size: 1.45rem;
-      font-weight: 800;
-      color: #0f172a;
+      background: #fafafa;
+      border: 1px solid #e4e4e7;
+      border-radius: 10px;
+      padding: 13px 0;
+      font-size: 1.25rem;
+      font-weight: 600;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      color: #09090b;
       cursor: pointer;
       transition: all 0.1s;
       user-select: none;
     }
     .pin-key:active {
-      background: var(--brand-primary);
+      background: #09090b;
       color: #ffffff;
-      border-color: var(--brand-primary);
-      transform: scale(0.94);
+      border-color: #09090b;
+      transform: scale(0.96);
     }
-    .pin-key.key-action { font-size: 1rem; background: #f1f5f9; color: #64748b; font-weight: 700; }
+    .pin-key.key-action, .pin-key-action { font-size: 0.95rem; background: #f4f4f5; color: #71717a; font-weight: 600; }
 
     /* Sticky Top Bars for Tables and Ordering */
     .tables-top-bar, .order-top-bar {
       position: sticky;
       top: 0;
-      background: #f8fafc;
+      background: rgba(250, 250, 250, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
       z-index: 30;
       margin-left: -16px;
       margin-right: -16px;
       padding: 10px 16px 8px 16px;
-      border-bottom: 1.5px solid #e2e8f0;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.02);
-      margin-bottom: 12px;
+      border-bottom: 1px solid #e4e4e7;
+      margin-bottom: 14px;
     }
 
-    /* Segmented Zone / Category Bars (Apple Style) */
+    /* Segmented Zone / Category Bars (Notion Pill Style) */
     .zones-bar {
       display: flex;
-      gap: 8px;
+      gap: 6px;
       overflow-x: auto;
-      padding: 2px 0 6px 0;
-      margin-bottom: 4px;
+      padding: 2px 0 4px 0;
+      margin-bottom: 2px;
       scrollbar-width: none;
       -webkit-overflow-scrolling: touch;
     }
     .zones-bar::-webkit-scrollbar { display: none; }
     .zone-pill, .cat-pill {
       flex-shrink: 0;
-      height: 38px;
-      padding: 0 16px;
-      border-radius: 999px;
+      height: 34px;
+      padding: 0 13px;
+      border-radius: 8px;
       background: #ffffff;
-      color: #475569;
-      font-weight: 800;
-      font-size: 0.8rem;
-      border: 1.5px solid #e2e8f0;
+      color: #52525b;
+      font-weight: 600;
+      font-size: 0.78rem;
+      border: 1px solid #e4e4e7;
       white-space: nowrap;
       cursor: pointer;
       transition: all 0.12s ease;
-      text-transform: uppercase;
-      letter-spacing: 0.4px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       user-select: none;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+      box-shadow: 0 1px 2px rgba(9,9,11,0.02);
     }
-    .zone-pill:active, .cat-pill:active { transform: scale(0.96); }
-    .zone-pill.active {
-      background: var(--brand-dark);
+    .zone-pill:active, .cat-pill:active { transform: scale(0.97); }
+    .zone-pill.active, .cat-pill.active {
+      background: #09090b;
       color: #ffffff;
-      border-color: var(--brand-dark);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.18);
-    }
-    .cat-pill.active {
-      background: var(--brand-primary);
-      color: #ffffff;
-      border-color: var(--brand-primary);
-      box-shadow: 0 4px 12px rgba(37,99,235,0.3);
+      border-color: #09090b;
+      box-shadow: 0 1px 3px rgba(9,9,11,0.15);
     }
 
-    /* Tables Grid */
-    .tables-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; padding-bottom: 40px; }
+    /* Tables Grid (Notion Card Design) */
+    .tables-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; padding-bottom: 40px; }
     .table-card {
       background: #ffffff;
-      border-radius: 18px;
-      padding: 14px 12px;
+      border-radius: 12px;
+      padding: 14px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      min-height: 120px;
-      border: 2px solid #e2e8f0;
+      min-height: 122px;
+      border: 1px solid #e4e4e7;
       cursor: pointer;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
-      transition: transform 0.12s, border-color 0.12s;
+      box-shadow: 0 1px 2px rgba(9,9,11,0.03);
+      transition: transform 0.12s, border-color 0.12s, box-shadow 0.12s;
       position: relative;
     }
-    .table-card:active { transform: scale(0.96); }
-    .table-card.libre { border-color: var(--brand-green); background: #ffffff; }
-    .table-card.ocupada { border-color: var(--brand-warm); background: #ffffff; }
-    .table-card.cuenta { border-color: #ef4444; background: #fef2f2; animation: pulseRed 2s infinite; }
-    @keyframes pulseRed { 0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.35); } 70% { box-shadow: 0 0 0 6px rgba(239,68,68,0); } 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); } }
-    .table-card.ready-dish { border-color: var(--brand-warm); animation: pulseAmber 1.8s infinite; }
-    @keyframes pulseAmber { 0% { box-shadow: 0 0 0 0 rgba(214,134,43,0.45); } 70% { box-shadow: 0 0 0 8px rgba(214,134,43,0); } 100% { box-shadow: 0 0 0 0 rgba(214,134,43,0); } }
+    .table-card:active { transform: scale(0.98); }
+    .table-card.libre { border-color: #e4e4e7; background: #ffffff; }
+    .table-card.ocupada { border-color: #fcd34d; background: #fffdf9; }
+    .table-card.cuenta { border-color: #7dd3fc; background: #f8fdff; }
+    .table-card.ready-dish { border-color: #10b981; box-shadow: 0 0 0 2px rgba(16,185,129,0.2); }
     
-    .table-name { font-weight: 900; font-size: 1.15rem; color: #0f172a; }
-    .table-status { font-size: 0.68rem; font-weight: 800; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; width: fit-content; margin-top: 4px; letter-spacing: 0.4px; }
-    .status-libre { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+    .table-name { font-weight: 700; font-size: 1.02rem; color: #09090b; letter-spacing: -0.01em; }
+    .table-status { font-size: 0.65rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; width: fit-content; margin-top: 5px; display: inline-flex; align-items: center; gap: 4px; }
+    .status-libre { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
     .status-ocupada { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
-    .status-cuenta { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
-    .table-total { font-weight: 900; font-size: 1.05rem; color: var(--brand-primary); text-align: right; }
+    .status-cuenta { background: #f0f9ff; color: #0369a1; border: 1px solid #bae6fd; }
+    .table-total { font-weight: 700; font-size: 1.05rem; color: #09090b; text-align: right; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
 
     /* Ordering Screen Header Elements */
-    .menu-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-shrink: 0; }
+    .menu-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-shrink: 0; gap: 8px; }
     .table-badge-active {
       display: inline-flex;
       align-items: center;
-      gap: 7px;
+      gap: 6px;
       background: #ffffff;
-      border: 1.5px solid #e2e8f0;
-      border-radius: 999px;
-      padding: 6px 14px;
-      font-size: 0.92rem;
-      font-weight: 900;
-      color: #0f172a;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+      border: 1px solid #e4e4e7;
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 0.84rem;
+      font-weight: 600;
+      color: #09090b;
+      box-shadow: 0 1px 2px rgba(9,9,11,0.03);
     }
-    .table-badge-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--brand-green); box-shadow: 0 0 6px var(--brand-green); }
-    .status-cuenta-badge { background: #fee2e2; color: #b91c1c; font-weight: 800; font-size: 0.76rem; padding: 6px 12px; border-radius: 8px; border: 1px solid #fca5a5; white-space: nowrap; }
-    .back-btn { background: #ffffff; border: 1.5px solid #e2e8f0; padding: 7px 12px; border-radius: 10px; font-weight: 800; font-size: 0.82rem; color: #1e293b; cursor: pointer; display: flex; align-items: center; gap: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); }
-    .bill-btn { background: var(--brand-dark); color: #ffffff; border: none; padding: 7px 12px; border-radius: 10px; font-weight: 800; font-size: 0.82rem; cursor: pointer; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+    .table-badge-dot { width: 7px; height: 7px; border-radius: 50%; background: #10b981; }
+    .status-cuenta-badge { background: #f0f9ff; color: #0369a1; font-weight: 600; font-size: 0.75rem; padding: 6px 10px; border-radius: 8px; border: 1px solid #bae6fd; white-space: nowrap; }
+    .back-btn { background: #ffffff; border: 1px solid #e4e4e7; padding: 6px 11px; border-radius: 8px; font-weight: 600; font-size: 0.78rem; color: #3f3f46; cursor: pointer; display: flex; align-items: center; gap: 5px; box-shadow: 0 1px 2px rgba(9,9,11,0.02); }
+    .bill-btn { background: #09090b; color: #ffffff; border: 1px solid #09090b; padding: 6px 11px; border-radius: 8px; font-weight: 600; font-size: 0.78rem; cursor: pointer; display: flex; align-items: center; gap: 5px; box-shadow: 0 1px 2px rgba(9,9,11,0.1); }
     
     .search-box { position: relative; margin-bottom: 8px; display: flex; align-items: center; }
-    .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none; z-index: 2; }
-    .search-input { width: 100%; height: 44px; padding: 0 40px 0 42px; border-radius: 12px; border: 1.5px solid #cbd5e1; font-size: 0.92rem; background: #ffffff; outline: none; font-weight: 600; color: #0f172a; box-shadow: 0 1px 3px rgba(0,0,0,0.04); transition: all 0.15s; }
-    .search-input:focus { border-color: var(--brand-primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.15); }
-    .search-clear-btn { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: #e2e8f0; border: none; border-radius: 50%; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; color: #475569; cursor: pointer; transition: all 0.15s; z-index: 2; }
-    .search-clear-btn:active { background: #cbd5e1; transform: translateY(-50%) scale(0.92); }
+    .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #a1a1aa; pointer-events: none; z-index: 2; }
+    .search-input { width: 100%; height: 40px; padding: 0 36px 0 38px; border-radius: 8px; border: 1px solid #e4e4e7; font-size: 0.86rem; background: #ffffff; outline: none; font-weight: 500; color: #09090b; box-shadow: 0 1px 2px rgba(9,9,11,0.02); transition: all 0.15s; }
+    .search-input:focus { border-color: #09090b; box-shadow: 0 0 0 2px rgba(9,9,11,0.08); }
+    .search-clear-btn { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: #f4f4f5; border: none; border-radius: 6px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #52525b; cursor: pointer; transition: all 0.15s; z-index: 2; }
+    .search-clear-btn:active { background: #e4e4e7; transform: translateY(-50%) scale(0.94); }
 
-    /* Products Grid */
-    .prods-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 12px; }
+    /* Products Grid (Notion Clean Cards) */
+    .prods-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(162px, 1fr)); gap: 12px; }
     @media (orientation: landscape) and (min-width: 768px) {
-      .prods-grid { grid-template-columns: repeat(auto-fill, minmax(185px, 1fr)); gap: 14px; }
-      .prod-img-box { height: 135px; }
+      .prods-grid { grid-template-columns: repeat(auto-fill, minmax(182px, 1fr)); gap: 14px; }
+      .prod-img-box { height: 132px; }
     }
     .prod-card {
       background: #ffffff;
-      border-radius: 18px;
-      border: 1.5px solid #e2e8f0;
+      border-radius: 12px;
+      border: 1px solid #e4e4e7;
       display: flex;
       flex-direction: column;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+      box-shadow: 0 1px 2px rgba(9,9,11,0.03);
       transition: border-color 0.12s ease, box-shadow 0.12s ease;
       position: relative;
       overflow: hidden;
       user-select: none;
     }
-    .prod-card.tapped { border-color: var(--brand-primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.2); }
+    .prod-card.tapped { border-color: #09090b; }
     
     .prod-img-box {
       width: 100%;
-      height: 122px;
-      background: #ffffff;
+      height: 118px;
+      background: #fafafa;
       display: flex;
       align-items: center;
       justify-content: center;
       position: relative;
-      padding: 6px;
+      padding: 8px;
       box-sizing: border-box;
-      border-bottom: 1px solid #f1f5f9;
+      border-bottom: 1px solid #f4f4f5;
       cursor: pointer;
-      transition: transform 0.12s ease, opacity 0.12s ease;
+      transition: opacity 0.12s ease;
     }
     .prod-img-box:active {
-      transform: scale(0.97);
-      opacity: 0.9;
+      opacity: 0.85;
     }
     .prod-zoom-hint {
       position: absolute;
       bottom: 6px;
       right: 6px;
-      background: rgba(15, 23, 42, 0.72);
+      background: rgba(9, 9, 11, 0.72);
       backdrop-filter: blur(4px);
       -webkit-backdrop-filter: blur(4px);
       color: #ffffff;
-      font-size: 0.62rem;
-      font-weight: 800;
-      padding: 2px 7px;
-      border-radius: 999px;
+      font-size: 0.6rem;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 5px;
       display: flex;
       align-items: center;
       gap: 3px;
       pointer-events: none;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.25);
       z-index: 4;
-      letter-spacing: 0.2px;
     }
-    .prod-img { width: 100%; height: 100%; object-fit: contain; object-position: center; display: block; border-radius: 10px; pointer-events: none; }
-    .prod-img-fallback { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f8fafc; color: var(--brand-primary); gap: 4px; border-radius: 10px; }
-    .prod-img-fallback-text { font-size: 0.65rem; font-weight: 800; color: #64748b; text-transform: uppercase; }
+    .prod-img { width: 100%; height: 100%; object-fit: contain; object-position: center; display: block; border-radius: 8px; pointer-events: none; }
+    .prod-img-fallback { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #fafafa; color: #71717a; gap: 4px; border-radius: 8px; }
+    .prod-img-fallback-text { font-size: 0.62rem; font-weight: 600; color: #a1a1aa; text-transform: uppercase; letter-spacing: 0.04em; }
     
     .prod-cart-badge {
       position: absolute;
       top: 7px;
       right: 7px;
-      background: var(--brand-primary);
+      background: #09090b;
       color: #ffffff;
-      font-weight: 900;
-      min-width: 25px;
-      height: 25px;
-      border-radius: 999px;
+      font-weight: 700;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      min-width: 24px;
+      height: 24px;
+      border-radius: 7px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.78rem;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+      font-size: 0.75rem;
+      box-shadow: 0 2px 6px rgba(9,9,11,0.2);
       z-index: 5;
       padding: 0 5px;
-      border: 2px solid #ffffff;
+      border: 1.5px solid #ffffff;
       pointer-events: none;
     }
-    .prod-cart-badge.pop-badge { animation: popBadge 0.28s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-    @keyframes popBadge { 0% { transform: scale(0.6); } 50% { transform: scale(1.35); } 100% { transform: scale(1); } }
+    .prod-cart-badge.pop-badge { animation: popBadge 0.24s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    @keyframes popBadge { 0% { transform: scale(0.7); } 50% { transform: scale(1.25); } 100% { transform: scale(1); } }
     
-    .prod-body { padding: 10px; display: flex; flex-direction: column; justify-content: space-between; flex: 1; }
+    .prod-body { padding: 10px 11px; display: flex; flex-direction: column; justify-content: space-between; flex: 1; }
     .prod-top-info { display: flex; flex-direction: column; }
     .prod-cat-tag {
       display: inline-flex;
       align-items: center;
       font-size: 0.62rem;
-      font-weight: 800;
-      color: var(--brand-primary);
-      background: var(--brand-accent-soft);
-      border: 1px solid var(--brand-border-subtle);
-      border-radius: 6px;
-      padding: 2px 7px;
+      font-weight: 600;
+      color: #71717a;
+      background: #f4f4f5;
+      border: 1px solid #e4e4e7;
+      border-radius: 5px;
+      padding: 1px 6px;
       width: fit-content;
       max-width: 100%;
-      text-transform: uppercase;
-      letter-spacing: 0.4px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       height: 18px;
       box-sizing: border-box;
-      margin-bottom: 4px;
+      margin-bottom: 5px;
     }
-    .prod-name { font-weight: 800; font-size: 0.86rem; color: #0f172a; line-height: 1.25; height: 2.5em; max-height: 2.5em; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; margin-bottom: 8px; }
+    .prod-name { font-weight: 600; font-size: 0.85rem; color: #09090b; line-height: 1.3; height: 2.6em; max-height: 2.6em; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; margin-bottom: 8px; }
     
     .prod-bottom-info { display: flex; flex-direction: column; margin-top: auto; gap: 6px; }
     .prod-prices-row {
       display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 2px;
-      margin-bottom: 2px;
-      background: #f8fafc;
-      padding: 6px 9px;
-      border-radius: 9px;
-      border: 1px solid #f1f5f9;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 4px;
+      padding: 5px 8px;
+      background: #fafafa;
+      border-radius: 7px;
+      border: 1px solid #f4f4f5;
       width: 100%;
       box-sizing: border-box;
     }
-    .prod-price-usd { font-weight: 900; color: var(--brand-primary); font-size: 1.15rem; line-height: 1.1; letter-spacing: -0.2px; }
-    .prod-price-bs { font-size: 0.74rem; color: #64748b; font-weight: 700; font-family: ui-monospace, SFMono-Regular, monospace; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+    .prod-price-usd { font-weight: 700; color: #09090b; font-size: 0.98rem; line-height: 1.1; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
+    .prod-price-bs { font-size: 0.68rem; color: #71717a; font-weight: 600; font-family: ui-monospace, SFMono-Regular, monospace; font-variant-numeric: tabular-nums; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     
     .prod-action-area { width: 100%; margin-top: 2px; }
     .prod-add-btn {
       width: 100%;
-      height: 36px;
-      background: var(--brand-accent-soft);
-      border: 1.5px solid var(--brand-primary);
-      border-radius: 10px;
-      font-size: 0.78rem;
-      font-weight: 900;
-      color: var(--brand-primary);
-      text-transform: uppercase;
-      letter-spacing: 0.4px;
+      height: 34px;
+      background: #ffffff;
+      border: 1px solid #e4e4e7;
+      border-radius: 8px;
+      font-size: 0.76rem;
+      font-weight: 600;
+      color: #09090b;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -669,33 +665,34 @@ function renderWaiterView(initialState) {
       cursor: pointer;
       transition: all 0.12s ease;
       touch-action: manipulation;
+      box-shadow: 0 1px 2px rgba(9,9,11,0.02);
     }
     .prod-add-btn:active {
-      background: var(--brand-primary);
+      background: #09090b;
       color: #ffffff;
-      transform: scale(0.97);
+      border-color: #09090b;
+      transform: scale(0.98);
     }
 
     .card-qty-stepper {
       width: 100%;
-      height: 36px;
+      height: 34px;
       background: #ffffff;
-      border: 2px solid var(--brand-primary);
-      border-radius: 10px;
+      border: 1.5px solid #09090b;
+      border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       overflow: hidden;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
       user-select: none;
     }
     .card-qty-btn {
-      width: 40px;
+      width: 36px;
       height: 100%;
       background: transparent;
       border: none;
-      font-size: 1.3rem;
-      font-weight: 900;
+      font-size: 1.15rem;
+      font-weight: 700;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -706,79 +703,76 @@ function renderWaiterView(initialState) {
       line-height: 1;
     }
     .card-qty-btn.minus {
-      color: #dc2626;
-      background: #fef2f2;
-      border-right: 1.5px solid #fed7d7;
+      color: #09090b;
+      background: #f4f4f5;
+      border-right: 1px solid #e4e4e7;
     }
     .card-qty-btn.minus:active {
-      background: #dc2626;
-      color: #ffffff;
+      background: #e4e4e7;
     }
     .card-qty-num {
       flex: 1;
       text-align: center;
-      font-size: 1.05rem;
-      font-weight: 900;
-      color: #0f172a;
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: #09090b;
       font-family: ui-monospace, SFMono-Regular, monospace;
     }
     .card-qty-btn.plus {
       color: #ffffff;
-      background: var(--brand-primary);
+      background: #09090b;
     }
     .card-qty-btn.plus:active {
-      filter: brightness(0.9);
-      transform: scale(0.96);
+      background: #27272a;
     }
 
-    /* Bottom Floating Cart Bar (Apple Dynamic Island Style with Safe-Area) */
+    /* Bottom Floating Cart Bar (Notion Dark Dock) */
     .cart-bottom-bar {
       position: fixed;
       bottom: max(10px, calc(var(--safe-bottom) + 6px));
       left: max(12px, calc(var(--safe-left) + 6px));
       right: max(12px, calc(var(--safe-right) + 6px));
-      background: rgba(15, 23, 42, 0.94);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      color: #fff;
-      padding: 12px 18px;
-      border-radius: 20px;
+      background: #09090b;
+      color: #ffffff;
+      padding: 12px 16px;
+      border-radius: 14px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      box-shadow: 0 16px 32px -8px rgba(9, 9, 11, 0.35);
       z-index: 100;
-      border: 1px solid rgba(255,255,255,0.15);
+      border: 1px solid #27272a;
     }
     .cart-totals { display: flex; flex-direction: column; }
-    .cart-count-pill { font-size: 0.7rem; color: #94a3b8; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
-    .cart-total-usd { font-size: 1.35rem; font-weight: 900; color: #ffffff; line-height: 1.1; margin-top: 1px; }
-    .cart-total-bs { font-size: 0.76rem; color: #fde047; font-weight: 800; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .cart-count-pill { font-size: 0.65rem; color: #a1a1aa; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+    .cart-total-usd { font-size: 1.2rem; font-weight: 700; color: #ffffff; line-height: 1.15; margin-top: 1px; font-family: ui-monospace, SFMono-Regular, monospace; font-variant-numeric: tabular-nums; }
+    .cart-total-bs { font-size: 0.72rem; color: #a1a1aa; font-weight: 500; font-family: ui-monospace, SFMono-Regular, monospace; font-variant-numeric: tabular-nums; }
     
-    .cart-actions { display: flex; gap: 10px; align-items: center; }
-    .cart-detail-btn { background: rgba(255,255,255,0.12); border: 1.5px solid rgba(255,255,255,0.22); color: #ffffff; height: 42px; padding: 0 15px; border-radius: 12px; font-weight: 800; font-size: 0.84rem; cursor: pointer; white-space: nowrap; transition: background 0.15s; }
-    .cart-detail-btn:active { background: rgba(255,255,255,0.25); }
-    .cart-send-btn { background: var(--brand-primary); color: #ffffff; border: none; height: 42px; padding: 0 18px; border-radius: 12px; font-weight: 900; font-size: 0.9rem; cursor: pointer; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 4px 14px rgba(0,0,0,0.25); display: flex; align-items: center; gap: 6px; transition: transform 0.1s; }
-    .cart-send-btn:active { transform: scale(0.97); }
+    .cart-actions { display: flex; gap: 8px; align-items: center; }
+    .cart-detail-btn { background: #18181b; border: 1px solid #27272a; color: #ffffff; height: 38px; padding: 0 13px; border-radius: 9px; font-weight: 600; font-size: 0.8rem; cursor: pointer; white-space: nowrap; transition: background 0.15s; }
+    .cart-detail-btn:active { background: #27272a; }
+    .cart-send-btn { background: #10b981; color: #ffffff; border: none; height: 38px; padding: 0 16px; border-radius: 9px; font-weight: 600; font-size: 0.82rem; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 6px; transition: transform 0.1s; }
+    .cart-send-btn:active { transform: scale(0.98); }
 
-    /* Apple Action Sheet for Waiter Switching & Logout */
+    /* Notion Action Sheet for Waiter Switching & Logout */
     .apple-action-sheet {
       background: #ffffff;
       width: 100%;
-      max-width: 420px;
+      max-width: 400px;
       margin: 0 auto;
-      border-radius: 26px 26px 0 0;
+      border-radius: 18px 18px 0 0;
       padding: 16px 20px 24px 20px;
       padding-bottom: max(24px, calc(var(--safe-bottom) + 16px));
       display: flex;
       flex-direction: column;
-      box-shadow: 0 -12px 36px rgba(0,0,0,0.3);
-      animation: slideUp 0.22s ease;
+      box-shadow: 0 -12px 32px rgba(9,9,11,0.18);
+      animation: slideUp 0.2s ease;
+      border-top: 1px solid #e4e4e7;
     }
     .apple-sheet-handle {
-      width: 36px;
+      width: 32px;
       height: 4px;
-      background: #cbd5e1;
+      background: #d4d4d8;
       border-radius: 999px;
       margin: 0 auto 14px auto;
     }
@@ -787,115 +781,112 @@ function renderWaiterView(initialState) {
       margin-bottom: 16px;
     }
     .apple-sheet-avatar {
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
-      background: var(--brand-dark);
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      background: #09090b;
       color: #ffffff;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.3rem;
-      font-weight: 900;
+      font-size: 1.15rem;
+      font-weight: 700;
       margin: 0 auto 6px auto;
-      border: 2px solid var(--brand-primary);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
     .apple-sheet-actions {
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 8px;
     }
     .apple-sheet-btn {
       width: 100%;
-      height: 48px;
-      border-radius: 14px;
-      font-weight: 800;
-      font-size: 0.94rem;
+      height: 44px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.88rem;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
       cursor: pointer;
-      border: none;
+      border: 1px solid transparent;
       transition: all 0.12s ease;
     }
     .apple-sheet-btn.primary {
-      background: var(--brand-primary);
+      background: #09090b;
       color: #ffffff;
-      box-shadow: 0 4px 12px rgba(37,99,235,0.3);
     }
     .apple-sheet-btn.primary:active {
-      transform: scale(0.97);
-      background: var(--brand-primary-hover);
+      transform: scale(0.98);
+      background: #27272a;
     }
     .apple-sheet-btn.danger {
-      background: #fee2e2;
-      color: #b91c1c;
-      border: 1px solid #fecaca;
+      background: #fef2f2;
+      color: #dc2626;
+      border-color: #fecaca;
     }
     .apple-sheet-btn.danger:active {
-      background: #fecaca;
-      transform: scale(0.97);
+      background: #fee2e2;
+      transform: scale(0.98);
     }
     .apple-sheet-btn.cancel {
-      background: #f1f5f9;
-      color: #475569;
+      background: #f4f4f5;
+      color: #52525b;
     }
     .apple-sheet-btn.cancel:active {
-      background: #e2e8f0;
-      transform: scale(0.97);
+      background: #e4e4e7;
     }
 
     /* Modals / Drawers */
     .modal-sheet {
       background: #ffffff;
       width: 100%;
-      border-radius: 26px 26px 0 0;
+      border-radius: 18px 18px 0 0;
       padding: 18px;
       padding-bottom: max(20px, calc(var(--safe-bottom) + 16px));
-      max-height: 85vh;
+      max-height: 86vh;
       display: flex;
       flex-direction: column;
-      box-shadow: 0 -10px 30px rgba(0,0,0,0.3);
-      animation: slideUp 0.22s ease;
-      border-top: 1px solid #e2e8f0;
+      box-shadow: 0 -10px 30px rgba(9,9,11,0.2);
+      animation: slideUp 0.2s ease;
+      border-top: 1px solid #e4e4e7;
     }
     @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #e2e8f0; }
-    .modal-title { font-size: 1.15rem; font-weight: 900; color: #0f172a; display: flex; align-items: center; gap: 6px; }
-    .modal-close-btn { border: none; background: #f1f5f9; width: 32px; height: 32px; border-radius: 50%; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #64748b; font-weight: 700; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #e4e4e7; }
+    .modal-title { font-size: 1.02rem; font-weight: 700; color: #09090b; display: flex; align-items: center; gap: 7px; letter-spacing: -0.01em; }
+    .modal-close-btn { border: 1px solid #e4e4e7; background: #fafafa; width: 30px; height: 30px; border-radius: 8px; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #71717a; font-weight: 600; }
 
     /* Product Detail Sheet & Lightbox */
     .product-detail-sheet {
       background: #ffffff;
       width: 100%;
-      max-width: 480px;
+      max-width: 460px;
       margin: auto;
-      border-radius: 28px;
+      border-radius: 16px;
       overflow: hidden;
       display: flex;
       flex-direction: column;
-      box-shadow: 0 25px 60px rgba(0,0,0,0.35);
-      animation: zoomInSheet 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 20px 50px rgba(9,9,11,0.25);
+      border: 1px solid #e4e4e7;
+      animation: zoomInSheet 0.18s cubic-bezier(0.16, 1, 0.3, 1);
       max-height: 90vh;
       box-sizing: border-box;
     }
     @keyframes zoomInSheet {
-      from { transform: scale(0.92); opacity: 0; }
+      from { transform: scale(0.95); opacity: 0; }
       to { transform: scale(1); opacity: 1; }
     }
     .product-detail-hero {
       position: relative;
       width: 100%;
-      height: 240px;
-      background: #ffffff;
+      height: 220px;
+      background: #fafafa;
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 14px;
       box-sizing: border-box;
-      border-bottom: 1.5px solid #f1f5f9;
+      border-bottom: 1px solid #e4e4e7;
       flex-shrink: 0;
     }
     .product-detail-hero img {
@@ -903,106 +894,99 @@ function renderWaiterView(initialState) {
       height: 100%;
       object-fit: contain;
       object-position: center;
-      filter: drop-shadow(0 6px 16px rgba(0,0,0,0.12));
-      border-radius: 14px;
+      border-radius: 10px;
       cursor: pointer;
     }
     .product-detail-cat-pill {
       position: absolute;
-      top: 14px;
-      left: 14px;
-      background: rgba(255, 255, 255, 0.94);
-      backdrop-filter: blur(8px);
-      color: var(--brand-primary);
-      font-weight: 900;
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      padding: 5px 12px;
-      border-radius: 999px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      border: 1px solid rgba(0,0,0,0.06);
+      top: 12px;
+      left: 12px;
+      background: #ffffff;
+      color: #52525b;
+      font-weight: 600;
+      font-size: 0.7rem;
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: 1px solid #e4e4e7;
     }
     .product-detail-close-btn {
       position: absolute;
-      top: 14px;
-      right: 14px;
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      background: rgba(15, 23, 42, 0.65);
-      backdrop-filter: blur(8px);
-      color: #ffffff;
-      border: none;
-      font-size: 1.3rem;
+      top: 12px;
+      right: 12px;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: #ffffff;
+      color: #09090b;
+      border: 1px solid #e4e4e7;
+      font-size: 1.2rem;
       line-height: 1;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-      transition: transform 0.1s;
       z-index: 5;
     }
-    .product-detail-close-btn:active { transform: scale(0.9); }
     .product-detail-body {
-      padding: 18px 20px 20px 20px;
+      padding: 16px 18px 18px 18px;
       overflow-y: auto;
       flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 12px;
       -webkit-overflow-scrolling: touch;
     }
     .product-detail-title {
-      font-size: 1.35rem;
-      font-weight: 900;
-      color: #0f172a;
-      line-height: 1.2;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #09090b;
+      line-height: 1.25;
+      letter-spacing: -0.01em;
     }
     .product-detail-prices {
       display: flex;
       justify-content: space-between;
       align-items: baseline;
-      background: #f8fafc;
-      padding: 10px 14px;
-      border-radius: 14px;
-      border: 1px solid #e2e8f0;
+      background: #fafafa;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid #e4e4e7;
     }
     .product-detail-usd {
-      font-size: 1.6rem;
-      font-weight: 900;
-      color: var(--brand-primary);
+      font-size: 1.45rem;
+      font-weight: 700;
+      color: #09090b;
+      font-family: ui-monospace, SFMono-Regular, monospace;
       line-height: 1;
     }
     .product-detail-bs {
-      font-size: 1.05rem;
-      font-weight: 800;
-      color: #059669;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #52525b;
       font-family: ui-monospace, monospace;
       text-align: right;
     }
     .product-detail-desc-box {
-      background: #f8fafc;
-      border-radius: 14px;
-      padding: 12px 14px;
-      border: 1px solid #e2e8f0;
+      background: #fafafa;
+      border-radius: 10px;
+      padding: 10px 12px;
+      border: 1px solid #e4e4e7;
     }
     .product-detail-desc-label {
-      font-size: 0.72rem;
-      font-weight: 800;
-      color: #64748b;
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: #71717a;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 5px;
+      letter-spacing: 0.04em;
+      margin-bottom: 4px;
       display: flex;
       align-items: center;
       gap: 5px;
     }
     .product-detail-desc-text {
-      font-size: 0.92rem;
-      color: #334155;
-      font-weight: 600;
+      font-size: 0.86rem;
+      color: #3f3f46;
+      font-weight: 500;
       line-height: 1.45;
     }
     .detail-qty-stepper {
@@ -1011,31 +995,30 @@ function renderWaiterView(initialState) {
       justify-content: center;
       gap: 16px;
       background: #ffffff;
-      border: 1.5px solid #e2e8f0;
-      border-radius: 16px;
-      padding: 6px;
+      border: 1px solid #e4e4e7;
+      border-radius: 10px;
+      padding: 5px;
     }
     .detail-qty-btn {
-      width: 44px;
-      height: 44px;
-      border-radius: 12px;
-      border: none;
-      background: #f1f5f9;
-      color: #0f172a;
-      font-weight: 900;
-      font-size: 1.4rem;
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      border: 1px solid #e4e4e7;
+      background: #fafafa;
+      color: #09090b;
+      font-weight: 700;
+      font-size: 1.25rem;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      transition: all 0.1s;
     }
-    .detail-qty-btn:active { background: #e2e8f0; transform: scale(0.95); }
+    .detail-qty-btn:active { background: #e4e4e7; }
     .detail-qty-num {
-      font-size: 1.4rem;
-      font-weight: 900;
-      color: #0f172a;
-      min-width: 40px;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #09090b;
+      min-width: 36px;
       text-align: center;
       font-family: ui-monospace, monospace;
     }
@@ -1046,130 +1029,124 @@ function renderWaiterView(initialState) {
       margin-top: 6px;
     }
     .note-pill {
-      background: #ffffff;
-      border: 1.5px solid #cbd5e1;
-      color: #475569;
-      padding: 5px 11px;
-      border-radius: 999px;
-      font-size: 0.75rem;
-      font-weight: 800;
+      background: #fafafa;
+      border: 1px solid #e4e4e7;
+      color: #52525b;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.74rem;
+      font-weight: 600;
       cursor: pointer;
-      transition: all 0.12s;
     }
     .note-pill:active {
-      background: var(--brand-accent-soft);
-      border-color: var(--brand-primary);
-      color: var(--brand-primary);
+      background: #09090b;
+      border-color: #09090b;
+      color: #ffffff;
     }
     .detail-add-btn {
       width: 100%;
-      height: 52px;
-      border-radius: 16px;
-      background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-hover) 100%);
+      height: 46px;
+      border-radius: 10px;
+      background: #09090b;
       color: #ffffff;
       border: none;
-      font-size: 1rem;
-      font-weight: 900;
+      font-size: 0.92rem;
+      font-weight: 600;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
       cursor: pointer;
-      box-shadow: 0 4px 16px rgba(37,99,235,0.35);
-      transition: transform 0.1s;
-      letter-spacing: 0.3px;
     }
-    .detail-add-btn:active { transform: scale(0.98); }
+    .detail-add-btn:active { transform: scale(0.99); background: #27272a; }
     
-    .cart-item-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
-    .cart-thumb { width: 44px; height: 44px; border-radius: 8px; background: #ffffff; border: 1px solid #e2e8f0; margin-right: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; padding: 2px; }
-    .qty-btn { width: 34px; height: 34px; border-radius: 8px; border: 1.5px solid #e2e8f0; background: #f8fafc; font-weight: 900; font-size: 1.15rem; display: flex; align-items: center; justify-content: center; color: #0f172a; cursor: pointer; }
-    .qty-btn:active { background: #e2e8f0; }
+    .cart-item-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f4f4f5; }
+    .cart-thumb { width: 42px; height: 42px; border-radius: 8px; background: #fafafa; border: 1px solid #e4e4e7; margin-right: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; padding: 2px; }
+    .qty-btn { width: 32px; height: 32px; border-radius: 7px; border: 1px solid #e4e4e7; background: #fafafa; font-weight: 700; font-size: 1.05rem; display: flex; align-items: center; justify-content: center; color: #09090b; cursor: pointer; }
+    .qty-btn:active { background: #e4e4e7; }
 
-    .alert-banner { position: fixed; top: max(14px, calc(var(--safe-top) + 8px)); left: 12px; right: 12px; background: #15803d; color: #ffffff; padding: 12px 14px; border-radius: 14px; font-weight: 800; font-size: 0.88rem; display: flex; align-items: center; justify-content: space-between; z-index: 1000; box-shadow: 0 10px 25px rgba(0,0,0,0.25); animation: slideDown 0.25s ease; border: 1px solid rgba(255,255,255,0.2); }
-    @keyframes slideDown { from { transform: translateY(-40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .alert-banner { position: fixed; top: max(12px, calc(var(--safe-top) + 8px)); left: 12px; right: 12px; background: #09090b; color: #ffffff; padding: 11px 14px; border-radius: 10px; font-weight: 600; font-size: 0.84rem; display: flex; align-items: center; justify-content: space-between; z-index: 1000; box-shadow: 0 10px 25px rgba(9,9,11,0.2); animation: slideDown 0.2s ease; border: 1px solid #27272a; }
+    @keyframes slideDown { from { transform: translateY(-30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
     /* Takeaway button & Table Order Bar */
     .takeaway-quick-btn {
-      background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
-      color: #ffffff;
-      border: none;
-      padding: 8px 14px;
-      border-radius: 999px;
-      font-size: 0.8rem;
-      font-weight: 800;
+      background: #ffffff;
+      color: #09090b;
+      border: 1px solid #e4e4e7;
+      height: 34px;
+      padding: 0 12px;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      font-weight: 600;
       display: inline-flex;
       align-items: center;
       gap: 6px;
       cursor: pointer;
-      box-shadow: 0 2px 8px rgba(234, 88, 12, 0.35);
+      box-shadow: 0 1px 2px rgba(9,9,11,0.03);
       white-space: nowrap;
       flex-shrink: 0;
-      transition: transform 0.1s;
+      transition: transform 0.1s, background 0.12s;
     }
-    .takeaway-quick-btn:active { transform: scale(0.96); }
+    .takeaway-quick-btn:active { transform: scale(0.97); background: #f4f4f5; }
 
     .table-order-bar {
       background: #ffffff;
-      border: 1.5px solid #e2e8f0;
-      border-radius: 14px;
-      padding: 10px 14px;
+      border: 1px solid #e4e4e7;
+      border-radius: 10px;
+      padding: 10px 12px;
       margin-bottom: 10px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 10px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+      box-shadow: 0 1px 2px rgba(9,9,11,0.02);
     }
     .table-order-bar.cuenta-active {
-      background: #fef2f2;
-      border-color: #fca5a5;
+      background: #f8fdff;
+      border-color: #bae6fd;
     }
     .table-order-left { display: flex; flex-direction: column; gap: 2px; }
     .table-order-status-tag {
-      font-size: 0.7rem;
-      font-weight: 800;
-      text-transform: uppercase;
-      padding: 2px 8px;
-      border-radius: 6px;
+      font-size: 0.65rem;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 999px;
       width: fit-content;
-      letter-spacing: 0.3px;
     }
-    .tag-en-consumo { background: #dbeafe; color: #1e40af; }
-    .tag-en-caja { background: #fee2e2; color: #b91c1c; border: 1px solid #f87171; }
+    .tag-en-consumo { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+    .tag-en-caja { background: #f0f9ff; color: #0369a1; border: 1px solid #bae6fd; }
     .table-order-right { display: flex; align-items: center; gap: 10px; }
     .table-order-totals { text-align: right; }
-    .table-order-usd { font-size: 1.15rem; font-weight: 900; color: #0f172a; line-height: 1.1; }
-    .table-order-bs { font-size: 0.78rem; font-weight: 800; color: #059669; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .table-order-usd { font-size: 1.05rem; font-weight: 700; color: #09090b; line-height: 1.1; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .table-order-bs { font-size: 0.72rem; font-weight: 600; color: #71717a; font-family: ui-monospace, SFMono-Regular, monospace; }
     .btn-view-order {
-      background: var(--brand-dark);
+      background: #09090b;
       color: #ffffff;
       border: none;
-      padding: 8px 12px;
-      border-radius: 10px;
-      font-size: 0.8rem;
-      font-weight: 800;
+      padding: 7px 11px;
+      border-radius: 8px;
+      font-size: 0.76rem;
+      font-weight: 600;
       cursor: pointer;
       display: flex;
       align-items: center;
       gap: 5px;
       white-space: nowrap;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
     }
-    .btn-view-order:active { transform: scale(0.97); }
+    .btn-view-order:active { transform: scale(0.98); background: #27272a; }
 
     .order-summary-box {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 12px;
+      background: #fafafa;
+      border: 1px solid #e4e4e7;
+      border-radius: 10px;
       padding: 12px;
       margin-top: 10px;
     }
     .round-card {
       background: #ffffff;
-      border: 1px solid #e2e8f0;
+      border: 1px solid #e4e4e7;
       border-radius: 10px;
-      padding: 10px;
+      padding: 10px 12px;
       margin-bottom: 8px;
     }
     .round-header {
@@ -1177,32 +1154,31 @@ function renderWaiterView(initialState) {
       justify-content: space-between;
       align-items: center;
       margin-bottom: 6px;
-      padding-bottom: 4px;
-      border-bottom: 1px dashed #e2e8f0;
-      font-size: 0.75rem;
-      font-weight: 800;
-      color: #64748b;
+      padding-bottom: 5px;
+      border-bottom: 1px solid #f4f4f5;
+      font-size: 0.74rem;
+      font-weight: 600;
+      color: #71717a;
     }
     .round-item {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
       padding: 5px 0;
-      font-size: 0.85rem;
-      border-bottom: 1px solid #f8fafc;
+      font-size: 0.84rem;
+      border-bottom: 1px solid #fafafa;
     }
-    .round-item-name { font-weight: 700; color: #1e293b; }
-    .round-item-note { font-size: 0.72rem; color: #dc2626; font-style: italic; margin-top: 1px; }
-    .round-item-price { font-weight: 800; color: #0f172a; text-align: right; }
-    .round-item-price-bs { font-size: 0.7rem; color: #64748b; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .round-item-name { font-weight: 600; color: #09090b; }
+    .round-item-note { font-size: 0.72rem; color: #b45309; font-style: italic; margin-top: 1px; }
+    .round-item-price { font-weight: 700; color: #09090b; text-align: right; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .round-item-price-bs { font-size: 0.68rem; color: #71717a; font-family: ui-monospace, SFMono-Regular, monospace; }
   </style>
   <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
 
-  <!-- Dynamic Header with Dual Rows (Safe from Camera Cutouts) -->
+  <!-- Notion Minimalist Header -->
   <header>
-    <!-- Row 1: Brand & Actions -->
     <div class="header-main-row">
       <div class="brand" onclick="goHome()">
         <div class="brand-logo-icon">
@@ -1212,44 +1188,43 @@ function renderWaiterView(initialState) {
         </div>
         <div class="brand-text">
           <span class="brand-title">${franchise.branding ? franchise.branding.logoText : 'FacturaPOS'}</span>
-          <span class="brand-sub">${franchise.waiterApp ? franchise.waiterApp.shortName : 'Comandero'}</span>
+          <span class="brand-sub">${franchise.waiterApp ? franchise.waiterApp.shortName : 'Comandero de Salón'}</span>
         </div>
       </div>
 
       <div class="header-actions">
-        <!-- Prominent Waiter Profile Chip -->
+        <!-- Waiter Profile Chip -->
         <div id="waiterBtn" class="apple-waiter-chip" onclick="handleWaiterChipClick()" title="Sesión de Mesero">
           <div class="waiter-avatar" id="waiterAvatar">👤</div>
           <div class="waiter-chip-text">
-            <span class="waiter-chip-role">MESERO</span>
+            <span class="waiter-chip-role">Mesero</span>
             <span id="currentWaiterName" class="waiter-chip-name">Seleccionar</span>
           </div>
-          <svg class="waiter-chip-chevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          <svg class="waiter-chip-chevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
 
         <!-- Kitchen Bell -->
         <button id="notifBellBtn" class="icon-btn" onclick="openNotifsModal()" title="Avisos de Cocina">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
           <span id="notifBadge" class="notif-badge" style="display: none;">0</span>
         </button>
 
         <!-- Fullscreen Button -->
         <button id="fullscreenBtn" class="icon-btn" onclick="toggleFullscreen()" title="Pantalla Completa">
-          <svg id="fsEnterIcon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <svg id="fsEnterIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
           </svg>
-          <svg id="fsExitIcon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+          <svg id="fsExitIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
             <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
           </svg>
         </button>
       </div>
     </div>
 
-    <!-- Row 2: Tasa BCV & Contextual Status Strip (Safe from Camera Notch) -->
+    <!-- Row 2: Tasa BCV & Contextual Status Strip -->
     <div class="header-sub-row">
       <div id="tabletRateBadge" class="apple-rate-pill" title="Tasa BCV del Día">
-        <span class="rate-pill-icon">💵</span>
-        <span class="rate-pill-label">BCV:</span>
+        <span class="rate-pill-label">BCV</span>
         <span class="rate-pill-val">Bs. --</span>
       </div>
       <div id="headerContextPill" class="apple-context-pill">
@@ -1261,10 +1236,10 @@ function renderWaiterView(initialState) {
 
   <main id="appContent">
     <div style="margin: auto; text-align: center; color: #71717a; padding: 40px;">
-      <div style="width: 44px; height: 44px; border: 3px solid #e4e4e7; border-top-color: #D52829; border-radius: 50%; margin: 0 auto 14px auto; animation: spin 0.8s linear infinite;"></div>
+      <div style="width: 36px; height: 36px; border: 2.5px solid #e4e4e7; border-top-color: #09090b; border-radius: 50%; margin: 0 auto 14px auto; animation: spin 0.8s linear infinite;"></div>
       <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
-      <div style="font-weight: 800; color: #18181b; font-size: 1rem; margin-bottom: 4px;">Conectando con FacturaPOS...</div>
-      <div style="font-size: 0.8rem;">Sincronizando comanda y catálogo</div>
+      <div style="font-weight: 600; color: #09090b; font-size: 0.92rem; margin-bottom: 4px;">Conectando con FacturaPOS...</div>
+      <div style="font-size: 0.78rem; color: #71717a;">Sincronizando comanda y catálogo en tiempo real</div>
     </div>
   </main>
 
@@ -1276,10 +1251,10 @@ function renderWaiterView(initialState) {
       <div class="cart-total-bs" id="cartTotalBS">Bs. 0.00</div>
     </div>
     <div class="cart-actions">
-      <button class="cart-detail-btn" onclick="openCartModal()">Ver Detalle</button>
+      <button class="cart-detail-btn" onclick="openCartModal()">Ver Comanda</button>
       <button class="cart-send-btn" onclick="promptSelectTableAndSend()">
-        <span>ENVIAR</span>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        <span>Enviar</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
       </button>
     </div>
   </div>
@@ -1350,7 +1325,7 @@ function renderWaiterView(initialState) {
         if (valSpan) {
           valSpan.innerText = 'Bs. ' + rate.toLocaleString('es-VE', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
         } else {
-          badge.innerHTML = '<span class="rate-pill-icon">💵</span><span class="rate-pill-label">BCV:</span><span class="rate-pill-val">Bs. ' + rate.toLocaleString('es-VE', { minimumFractionDigits: 4, maximumFractionDigits: 4 }) + '</span>';
+          badge.innerHTML = '<span class="rate-pill-label">BCV</span><span class="rate-pill-val">Bs. ' + rate.toLocaleString('es-VE', { minimumFractionDigits: 4, maximumFractionDigits: 4 }) + '</span>';
         }
       }
     }
@@ -2083,7 +2058,7 @@ function renderWaiterView(initialState) {
             }).join('') +
           '</div>' +
           '<div style="display:flex; gap:6px; flex-shrink:0;">' +
-            '<button class="takeaway-quick-btn" style="background:linear-gradient(135deg, #10b981 0%, #059669 100%); color:#fff; box-shadow:0 2px 8px rgba(16,185,129,0.3); border:none;" onclick="startNewOrderMenu()">' +
+            '<button class="takeaway-quick-btn" style="background:#09090b; color:#ffffff; border:1px solid #09090b;" onclick="startNewOrderMenu()">' +
               '<span style="font-size:1.1rem; line-height:1;">⚡</span>' +
               '<span>Tomar Pedido</span>' +
             '</button>' +
@@ -2106,23 +2081,23 @@ function renderWaiterView(initialState) {
               return sum + r.items.reduce(function(s, i) { return s + i.quantity; }, 0);
             }, 0) : 0;
 
-            let statusLabel = 'DISPONIBLE';
-            if (t.status === 'ocupada') statusLabel = 'OCUPADA';
-            if (t.status === 'cuenta') statusLabel = 'PIDIÓ CUENTA';
+            let statusLabel = 'Libre';
+            if (t.status === 'ocupada') statusLabel = 'Ocupada';
+            if (t.status === 'cuenta') statusLabel = 'En Caja';
             if (t.isTakeaway || t.zone === 'Para Llevar') {
-              if (t.status === 'libre') statusLabel = 'PARA LLEVAR';
+              if (t.status === 'libre') statusLabel = 'Para Llevar';
             }
 
             return '<div class="table-card ' + t.status + (hasReadyRound ? ' ready-dish' : '') + '" data-id="' + t.id + '" onclick="openTableFromCard(this)">' +
               '<div>' +
                 '<div class="table-name">' + (t.isTakeaway ? '🛍️ ' : '') + t.name + '</div>' +
                 '<div class="table-status status-' + t.status + '">' + statusLabel + '</div>' +
-                (hasReadyRound ? '<div style="background:#D6862B; color:#fff; font-size:0.68rem; font-weight:900; padding:3px 7px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; margin-top:6px; text-transform:uppercase;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> ¡Plato Listo!</div>' : '') +
+                (hasReadyRound ? '<div style="background:#10b981; color:#fff; font-size:0.66rem; font-weight:600; padding:2px 7px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; margin-top:6px;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Listo en cocina</div>' : '') +
               '</div>' +
               (totalUSD > 0 
                 ? '<div>' +
                     '<div class="table-total">$' + totalUSD.toFixed(2) + '</div>' +
-                    '<div style="font-size:0.75rem; color:#059669; font-weight:800; text-align:right; font-family:ui-monospace, monospace; margin-top:1px;">Bs. ' + formattedBS + '</div>' +
+                    '<div style="font-size:0.72rem; color:#71717a; font-weight:600; text-align:right; font-family:ui-monospace, monospace; margin-top:1px;">Bs. ' + formattedBS + '</div>' +
                     '<div style="font-size:0.68rem; color:#71717a; text-align:right; font-weight:700; margin-top:2px;">' + (order ? order.waiterName : '') + (itemCount > 0 ? ' (' + itemCount + ' p.)' : '') + '</div>' +
                   '</div>' 
                 : '<div style="font-size:0.72rem; color:#a1a1aa; font-weight:700; margin-top:8px;">' + (t.zone || 'Salón') + '</div>') +
@@ -2346,11 +2321,11 @@ function renderWaiterView(initialState) {
             (hasImg
               ? '<img class="prod-img" src="' + safeImg + '" alt="' + safeName + '" loading="lazy" onerror="handleProdImgError(this)">' +
                 '<div class="prod-img-fallback" style="display:none;">' +
-                  '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#D6862B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11c0-3.3 2.7-6 6-6h6c3.3 0 6 2.7 6 6v1H3v-1Z"/><path d="M3 16h18v2a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-2Z"/><line x1="2" y1="14" x2="22" y2="14"/></svg>' +
+                  '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11c0-3.3 2.7-6 6-6h6c3.3 0 6 2.7 6 6v1H3v-1Z"/><path d="M3 16h18v2a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-2Z"/><line x1="2" y1="14" x2="22" y2="14"/></svg>' +
                   '<span class="prod-img-fallback-text">' + (p.category || 'FacturaPOS') + '</span>' +
                 '</div>'
               : '<div class="prod-img-fallback">' +
-                  '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#D6862B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11c0-3.3 2.7-6 6-6h6c3.3 0 6 2.7 6 6v1H3v-1Z"/><path d="M3 16h18v2a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-2Z"/><line x1="2" y1="14" x2="22" y2="14"/></svg>' +
+                  '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11c0-3.3 2.7-6 6-6h6c3.3 0 6 2.7 6 6v1H3v-1Z"/><path d="M3 16h18v2a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-2Z"/><line x1="2" y1="14" x2="22" y2="14"/></svg>' +
                   '<span class="prod-img-fallback-text">' + (p.category || 'FacturaPOS') + '</span>' +
                 '</div>'
             ) +
@@ -2626,7 +2601,7 @@ function renderWaiterView(initialState) {
           if (sendBtn) {
             sendBtn.style.display = 'flex';
             sendBtn.disabled = false;
-            sendBtn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+            sendBtn.style.background = '#10b981';
             sendBtn.style.color = '#ffffff';
             const labelSpan = sendBtn.querySelector('span');
             if (labelSpan) labelSpan.innerText = 'ENVIAR RONDA (' + selectedTable.name + ') ➔';
@@ -2643,7 +2618,7 @@ function renderWaiterView(initialState) {
           if (sendBtn) {
             sendBtn.style.display = 'flex';
             sendBtn.disabled = false;
-            sendBtn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+            sendBtn.style.background = '#10b981';
             sendBtn.style.color = '#ffffff';
             const labelSpan = sendBtn.querySelector('span');
             if (labelSpan) {
@@ -2665,7 +2640,7 @@ function renderWaiterView(initialState) {
           if (sendBtn) {
             sendBtn.style.display = 'flex';
             sendBtn.disabled = true;
-            sendBtn.style.background = '#e2e8f0';
+            sendBtn.style.background = '#27272a';
             sendBtn.style.color = '#64748b';
             const labelSpan = sendBtn.querySelector('span');
             if (labelSpan) labelSpan.innerText = '+ 2DA RONDA (Elige productos)';
@@ -2681,7 +2656,7 @@ function renderWaiterView(initialState) {
           if (sendBtn) {
             sendBtn.style.display = 'flex';
             sendBtn.disabled = true;
-            sendBtn.style.background = '#e2e8f0';
+            sendBtn.style.background = '#27272a';
             sendBtn.style.color = '#94a3b8';
             const labelSpan = sendBtn.querySelector('span');
             if (labelSpan) labelSpan.innerText = 'ENVIAR';
@@ -2709,7 +2684,7 @@ function renderWaiterView(initialState) {
         '<div class="modal-sheet">' +
           '<div class="modal-header">' +
             '<div class="modal-title">' +
-              '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D52829" stroke-width="2.5"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>' +
+              '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#09090b" stroke-width="2.5"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>' +
               '<span>Comanda — ' + (selectedTable ? selectedTable.name : 'Nuevo Pedido (Mesa al enviar)') + '</span>' +
             '</div>' +
             '<button class="modal-close-btn" onclick="closeCartModal()">&times;</button>' +
@@ -2723,12 +2698,12 @@ function renderWaiterView(initialState) {
                 '<div class="cart-thumb">' +
                   (hasImg 
                     ? '<img src="' + itemImg + '" style="width:100%; height:100%; object-fit:contain;" onerror="handleProdImgError(this)">' 
-                    : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D6862B" stroke-width="2"><path d="M3 11c0-3.3 2.7-6 6-6h6c3.3 0 6 2.7 6 6v1H3v-1Z"/><path d="M3 16h18v2a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-2Z"/></svg>'
+                    : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="2"><path d="M3 11c0-3.3 2.7-6 6-6h6c3.3 0 6 2.7 6 6v1H3v-1Z"/><path d="M3 16h18v2a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-2Z"/></svg>'
                   ) +
                 '</div>' +
                 '<div style="flex:1;">' +
                   '<div style="font-weight:800; font-size:0.9rem; color:#18181b;">' + i.name + '</div>' +
-                  '<div class="cart-item-price-val" style="font-size:0.8rem; color:#D52829; font-weight:800;">$' + (i.priceUSD * i.quantity).toFixed(2) + ' <span style="font-size:0.7rem; color:#71717a; font-weight:600;">(Bs. ' + ((i.priceUSD * i.quantity) * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ')</span></div>' +
+                  '<div class="cart-item-price-val" style="font-size:0.8rem; color:#09090b; font-weight:800;">$' + (i.priceUSD * i.quantity).toFixed(2) + ' <span style="font-size:0.7rem; color:#71717a; font-weight:600;">(Bs. ' + ((i.priceUSD * i.quantity) * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ')</span></div>' +
                   '<input type="text" placeholder="Nota: ej. sin pepinillos, extra salsa..." data-id="' + i.id + '" value="' + (i.note || '').replace(/"/g, '&quot;') + '" onchange="updateItemNote(this.dataset.id, this.value)" style="width:96%; padding:6px 9px; font-size:0.78rem; border:1px solid #e4e4e7; border-radius:6px; margin-top:4px; outline:none;">' +
                 '</div>' +
                 '<div style="display:flex; align-items:center; gap:6px;">' +
@@ -2744,7 +2719,7 @@ function renderWaiterView(initialState) {
             '<div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:12px;">' +
               '<span style="font-weight:800; color:#71717a; font-size:0.85rem; text-transform:uppercase;">Total Comanda:</span>' +
               '<div style="text-align:right;">' +
-                '<div id="cartModalTotalUSD" style="font-size:1.3rem; font-weight:900; color:#D52829;">$' + totalUSD.toFixed(2) + '</div>' +
+                '<div id="cartModalTotalUSD" style="font-size:1.3rem; font-weight:900; color:#09090b;">$' + totalUSD.toFixed(2) + '</div>' +
                 '<div id="cartModalTotalBS" style="font-size:0.75rem; color:#71717a; font-weight:700; font-family:ui-monospace, monospace;">Bs. ' + totalBS.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</div>' +
               '</div>' +
             '</div>' +
@@ -2849,7 +2824,7 @@ function renderWaiterView(initialState) {
               '</div>' +
               '<div style="font-size:0.78rem; color:#64748b; margin-top:3px;">' +
                 (isSending 
-                  ? (count + ' ítem(s) en orden &bull; <strong style="color:#D52829;">$' + totalUSD.toFixed(2) + '</strong> &bull; Toca la mesa para enviar comanda directo')
+                  ? (count + ' ítem(s) en orden &bull; <strong style="color:#09090b;">$' + totalUSD.toFixed(2) + '</strong> &bull; Toca la mesa para enviar comanda directo')
                   : 'Toca una mesa libre para empezar pedido, o una ocupada para agregarle una ronda.') +
               '</div>' +
             '</div>' +
@@ -2859,7 +2834,7 @@ function renderWaiterView(initialState) {
           '<div style="flex:1; overflow-y:auto; padding:10px 2px 14px 2px; display:flex; flex-direction:column; gap:12px;">' +
             /* Botón rápido Para Llevar y Botón Nuevo Pedido */
             '<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">' +
-              '<button onclick="sendAsQuickTakeaway()" style="height:48px; background:linear-gradient(135deg, #ea580c 0%, #c2410c 100%); color:#fff; border:none; border-radius:12px; font-weight:900; font-size:0.86rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 3px 10px rgba(234,88,12,0.25);">' +
+              '<button onclick="sendAsQuickTakeaway()" style="height:44px; background:#09090b; color:#fff; border:1px solid #09090b; border-radius:10px; font-weight:600; font-size:0.84rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">' +
                 '<span style="font-size:1.15rem;">🛍️</span>' +
                 '<span>' + (isSending ? 'Enviar Para Llevar' : 'Crear Para Llevar') + '</span>' +
               '</button>' +
@@ -3233,7 +3208,7 @@ function renderWaiterView(initialState) {
             '<button onclick="closeNewTakeawayModal()" style="flex:1; height:44px; background:#f1f5f9; border:none; border-radius:10px; font-weight:800; color:#64748b; cursor:pointer;">' +
               'Cancelar' +
             '</button>' +
-            '<button onclick="submitNewTakeaway()" style="flex:2; height:44px; background:linear-gradient(135deg, #ea580c 0%, #c2410c 100%); color:#fff; border:none; border-radius:10px; font-weight:900; font-size:0.92rem; cursor:pointer; box-shadow:0 3px 10px rgba(234,88,12,0.3);">' +
+            '<button onclick="submitNewTakeaway()" style="flex:2; height:44px; background:#09090b; color:#fff; border:none; border-radius:10px; font-weight:600; font-size:0.88rem; cursor:pointer;">' +
               '🛍️ Comenzar Pedido' +
             '</button>' +
           '</div>' +
@@ -3325,7 +3300,7 @@ function renderWaiterView(initialState) {
                   '<span>🔍</span><span>Toca la foto para ampliar</span>' +
                 '</div>'
               : '<div class="prod-img-fallback" style="width:100%; height:100%; border-radius:14px;">' +
-                  '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#D6862B" stroke-width="2"><path d="M3 11c0-3.3 2.7-6 6-6h6c3.3 0 6 2.7 6 6v1H3v-1Z"/><path d="M3 16h18v2a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-2Z"/><line x1="2" y1="14" x2="22" y2="14"/></svg>' +
+                  '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="2"><path d="M3 11c0-3.3 2.7-6 6-6h6c3.3 0 6 2.7 6 6v1H3v-1Z"/><path d="M3 16h18v2a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-2Z"/><line x1="2" y1="14" x2="22" y2="14"/></svg>' +
                   '<span style="font-weight:800; font-size:0.85rem; color:#64748b; margin-top:6px;">' + (p.category || 'Happy Days') + '</span>' +
                 '</div>'
             ) +

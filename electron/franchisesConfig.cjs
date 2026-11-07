@@ -1,4 +1,4 @@
-﻿// Centralized Franchise Engine (CommonJS for Node.js & Electron Local Server)
+// Centralized Franchise Engine (CommonJS for Node.js & Electron Local Server)
 
 const FRANCHISES = {
   facturapos: {
@@ -17,14 +17,14 @@ const FRANCHISES = {
       logoIcon: '⚡',
       badge: 'POS',
       colors: {
-        primary: '#2563eb',          // Azul profesional estilo Apple
-        primaryHover: '#1d4ed8',
-        dark: '#0f172a',             // Slate oscuro Apple
-        warm: '#d97706',             // Ámbar
-        peach: '#f59e0b',
+        primary: '#09090b',          // Notion Zinc-950
+        primaryHover: '#27272a',     // Notion Zinc-800
+        dark: '#09090b',             // Notion Zinc-950
+        warm: '#71717a',             // Notion Zinc-500
+        peach: '#a1a1aa',            // Notion Zinc-400
         green: '#10b981',            // Esmeralda
-        accentSoft: '#eff6ff',
-        borderSubtle: '#e2e8f0'
+        accentSoft: '#f4f4f5',       // Notion Zinc-100
+        borderSubtle: '#e4e4e7'      // Notion Zinc-200
       }
     },
     receipt: {
@@ -56,14 +56,14 @@ const FRANCHISES = {
       logoIcon: '🍔',
       badge: 'HD',
       colors: {
-        primary: '#D52829',          // Rojo Principal
-        primaryHover: '#b81f20',
-        dark: '#601718',             // Granate Profundo
-        warm: '#D6862B',             // Ámbar Dorado
-        peach: '#E99065',            // Melocotón Cálido
-        green: '#7CBE43',            // Verde Fresco
-        accentSoft: '#fef2f2',
-        borderSubtle: '#fecaca'
+        primary: '#09090b',          // Notion Zinc-950 unificado
+        primaryHover: '#27272a',
+        dark: '#09090b',
+        warm: '#71717a',
+        peach: '#a1a1aa',
+        green: '#10b981',
+        accentSoft: '#f4f4f5',
+        borderSubtle: '#e4e4e7'
       }
     },
     receipt: {
