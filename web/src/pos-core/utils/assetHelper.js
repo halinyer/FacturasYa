@@ -1,11 +1,11 @@
 /**
- * Normaliza y resuelve rutas de imágenes tanto en desarrollo local (HTTP)
- * como en producción empaquetada de Electron (protocolo file://) en cualquier PC.
+ * Normaliza y resuelve rutas de imágenes tanto en desarrollo web (HTTP/HTTPS)
+ * como en producción empaquetada de Electron (protocolo file://).
  * 
- * En protocolo file://, una ruta que comience con '/' (ej. '/happydays/logo.png')
- * intenta resolver en la raíz del disco del sistema (C:\happydays\logo.png), lo que
- * falla en PCs ajenas. Al convertirla a './' se resuelve correctamente relativa
- * al index.html dentro de la aplicación empaquetada.
+ * - En protocolo file:// (Electron Desktop): Requiere prefijo relativo './'
+ *   para resolver relativo a dist/index.html dentro de la app empaquetada.
+ * - En protocolo http/https (Web pública / Vercel): Requiere '/' absoluto desde la raíz
+ *   del dominio para no romperse cuando la URL del navegador está en subrutas (/login, /pos, etc.).
  */
 export function getAssetUrl(path) {
   if (!path || typeof path !== 'string') return '';
@@ -20,17 +20,13 @@ export function getAssetUrl(path) {
     return trimmed;
   }
 
-  // Si inicia con '/', transformamos a './' para no romper en file://
-  if (trimmed.startsWith('/')) {
-    return `.${trimmed}`;
+  const clean = trimmed.replace(/^(\.\/|\/)+/, '');
+
+  if (typeof window !== 'undefined' && window.location.protocol === 'file:') {
+    return `./${clean}`;
   }
 
-  // Si no inicia con './', lo aseguramos
-  if (!trimmed.startsWith('./')) {
-    return `./${trimmed}`;
-  }
-
-  return trimmed;
+  return `/${clean}`;
 }
 
 export default getAssetUrl;

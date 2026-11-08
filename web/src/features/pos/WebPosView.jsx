@@ -34,23 +34,32 @@ import { supabase } from '../../lib/supabase';
 import { useData } from '../../pos-core/contexts/DataContext';
 import KitchenTicketModal from './KitchenTicketModal';
 import ClientSelectorModal from './ClientSelectorModal';
+import BankSelector from './BankSelector';
+import { VZLA_BANKS, BankLogo, findBank } from '../../pos-core/utils/venezuelaBanks';
 import { printIsolatedTicket } from '../../pos-core/utils/printIsolatedTicket';
 import { getLocalTerminalConfig } from '../monitor/api';
 
 const DEFAULT_HAPPY_PRODUCTS = [];
 
-// Bancos Oficiales de Venezuela (SUDEBAN)
-const VENEZUELA_BANKS = [
-  { code: '0102', name: '0102 - Banco de Venezuela', logo: '/banks/0102.png' },
-  { code: '0134', name: '0134 - Banesco', logo: '/banks/0134.png' },
-  { code: '0105', name: '0105 - Banco Mercantil', logo: '/banks/0105.png' },
-  { code: '0108', name: '0108 - Banco Provincial (BBVA)', logo: '/banks/0108.png' },
-  { code: '0172', name: '0172 - Bancamiga', logo: '/banks/0172.png' },
-  { code: '0114', name: '0114 - Bancaribe', logo: '/banks/0114.png' },
-  { code: '0174', name: '0174 - Banplus', logo: '/banks/0174.png' },
-  { code: '0163', name: '0163 - Banco del Tesoro', logo: '/banks/0163.png' },
-  { code: '0138', name: '0138 - Banco Plaza', logo: '/banks/0138.png' }
-];
+// Formateador legible para métodos de pago venezolanos
+export function formatPaymentMethodLabel(method) {
+  switch (method) {
+    case 'punto':
+      return 'Punto de Venta';
+    case 'pago_movil':
+      return 'Pago Móvil';
+    case 'efectivo_usd':
+      return 'Efectivo $ (Divisas)';
+    case 'efectivo_bs':
+      return 'Efectivo Bs';
+    case 'zelle':
+      return 'Zelle';
+    case 'mixto':
+      return 'Pago Mixto';
+    default:
+      return method || 'No especificado';
+  }
+}
 
 export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
   const data = useData();
@@ -153,7 +162,8 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
   const [paymentMethod, setPaymentMethod] = useState('efectivo_usd'); // 'efectivo_usd' | 'pago_movil' | 'punto' | 'efectivo_bs' | 'zelle' | 'mixto'
   const [cashUsdReceived, setCashUsdReceived] = useState('');
   const [cashBsReceived, setCashBsReceived] = useState('');
-  const [selectedBank, setSelectedBank] = useState(VENEZUELA_BANKS[0].name);
+  const [selectedBank, setSelectedBank] = useState('0134 - Banesco');
+  const [selectedPuntoBank, setSelectedPuntoBank] = useState('0134 - Banesco');
   const [pagoMovilPhone, setPagoMovilPhone] = useState('');
   const [pagoMovilRef, setPagoMovilRef] = useState('');
   const [puntoRef, setPuntoRef] = useState('');
@@ -376,6 +386,8 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
           pagoMovilBank: (paymentMethod === 'pago_movil' || paymentMethod === 'mixto') ? selectedBank : null,
           pagoMovilRef: (paymentMethod === 'pago_movil' || paymentMethod === 'mixto') ? (pagoMovilRef || '').trim() : null,
           pagoMovilPhone: (paymentMethod === 'pago_movil' || paymentMethod === 'mixto') ? pagoMovilPhone : null,
+          puntoBs: paymentMethod === 'punto' ? cartTotals.finalTotalBs : Number(mixedPayments.punto || 0),
+          puntoBank: (paymentMethod === 'punto' || paymentMethod === 'mixto') ? selectedPuntoBank : null,
           puntoRef: (paymentMethod === 'punto' || paymentMethod === 'mixto') ? puntoRef : null,
           zelleHolder: (paymentMethod === 'zelle' || paymentMethod === 'mixto') ? zelleHolder : null,
           changeUsd: cartTotals.changeUsd,
@@ -444,6 +456,18 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
       setIsPaymentModalOpen(false);
             setIsReceiptModalOpen(true);
       clearCart();
+      setPagoMovilRef('');
+      setPagoMovilPhone('');
+      setPuntoRef('');
+      setCashUsdReceived('');
+      setCashBsReceived('');
+      setMixedPayments({
+        efectivo_usd: '',
+        pago_movil: '',
+        punto: '',
+        efectivo_bs: '',
+        zelle: ''
+      });
     } catch (err) {
       console.error('Error registrando venta:', err);
       alert('Error registrando factura: ' + err.message);
@@ -1009,7 +1033,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
                 {[
                   { id: 'efectivo_usd', label: 'Efectivo $', icon: DollarSign, color: 'text-emerald-600' },
                   { id: 'pago_movil', label: 'Pago Móvil', icon: Smartphone, color: 'text-blue-600' },
-                  { id: 'punto', label: 'Punto POS', icon: CreditCard, color: 'text-sky-600' },
+                  { id: 'punto', label: 'Punto de Venta', icon: CreditCard, color: 'text-sky-600' },
                   { id: 'efectivo_bs', label: 'Efectivo Bs', icon: Banknote, color: 'text-amber-600' },
                   { id: 'zelle', label: 'Zelle', icon: CreditCard, color: 'text-purple-600' },
                   { id: 'mixto', label: 'Mixto', icon: Sparkles, color: 'text-indigo-600' }
@@ -1097,11 +1121,14 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
 
             {/* SECCIÓN DETALLADA: PAGO MÓVIL (BS) */}
             {paymentMethod === 'pago_movil' && (
-              <div className="p-3.5 bg-blue-50/50 rounded-xl border border-blue-200 space-y-2.5">
+              <div className="p-3.5 bg-blue-50/50 rounded-xl border border-blue-200 space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-blue-900">
-                    Monto Oficial a Transferir en Bolívares:
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <Smartphone size={16} className="text-blue-600" />
+                    <span className="text-xs font-bold text-blue-900">
+                      Monto a Transferir por Pago Móvil:
+                    </span>
+                  </div>
                   <span className="text-xs font-black font-mono text-blue-900 bg-blue-100 px-2 py-0.5 rounded">
                     Bs. {cartTotals.finalTotalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
@@ -1109,25 +1136,19 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
 
                 <div>
                   <label className="text-[11px] font-bold text-zinc-700 block mb-1">
-                    Banco Receptor:
+                    Banco Receptor (Destino):
                   </label>
-                  <select
-                    value={selectedBank}
-                    onChange={(e) => setSelectedBank(e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-xl border border-zinc-300 text-xs font-semibold bg-white cursor-pointer"
-                  >
-                    {VENEZUELA_BANKS.map((b) => (
-                      <option key={b.code} value={b.name}>
-                        {b.name}
-                      </option>
-                    ))}
-                  </select>
+                  <BankSelector
+                    selectedBank={selectedBank}
+                    onSelectBank={setSelectedBank}
+                    placeholder="Seleccionar banco receptor..."
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="text-[11px] font-bold text-zinc-700 block mb-1">
-                      Teléfono Emisor:
+                      Teléfono Emisor (Opcional):
                     </label>
                     <input
                       type="text"
@@ -1182,26 +1203,59 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
               </div>
             )}
 
-            {/* SECCIÓN DETALLADA: PUNTO DE VENTA (BS) */}
+            {/* SECCIÓN DETALLADA: PUNTO DE VENTA (TARJETA DÉBITO / CRÉDITO EN DATÁFONO) */}
             {paymentMethod === 'punto' && (
-              <div className="p-3.5 bg-sky-50/50 rounded-xl border border-sky-200 space-y-2">
+              <div className="p-3.5 bg-sky-50/50 rounded-xl border border-sky-200 space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-sky-900">Monto a Pasar por Punto:</span>
-                  <span className="text-xs font-black font-mono text-sky-900 bg-sky-100 px-2 py-0.5 rounded">
-                    Bs. {cartTotals.finalTotalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-sky-100 flex items-center justify-center text-sky-700">
+                      <CreditCard size={17} />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-sky-950 block leading-tight">
+                        Monto a Cobrar en Punto de Venta:
+                      </span>
+                      <span className="text-[10px] text-sky-700 font-medium">
+                        Tarjeta de Débito / Crédito en Datáfono
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs font-black font-mono text-sky-950 bg-sky-100 px-2.5 py-0.5 rounded block">
+                      Bs. {cartTotals.finalTotalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                    <span className="text-[10px] font-mono text-sky-700">
+                      (${cartTotals.finalTotalUsd.toFixed(2)} USD)
+                    </span>
+                  </div>
                 </div>
+
                 <div>
                   <label className="text-[11px] font-bold text-zinc-700 block mb-1">
-                    Número de Lote / Aprobación (Opcional):
+                    Banco / Terminal del Datáfono:
+                  </label>
+                  <BankSelector
+                    selectedBank={selectedPuntoBank}
+                    onSelectBank={setSelectedPuntoBank}
+                    placeholder="Seleccionar banco del terminal..."
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-zinc-700 block mb-1 flex items-center justify-between">
+                    <span>Número de Lote / Recibo / Aprobación:</span>
+                    <span className="text-[10px] text-zinc-400 font-normal">Opcional</span>
                   </label>
                   <input
                     type="text"
-                    placeholder="Ej: Lote 045 - Ref 8912"
+                    placeholder="Ej: Lote 045 - Ref 8912 (Voucher del datáfono)"
                     value={puntoRef}
                     onChange={(e) => setPuntoRef(e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-xl border border-zinc-300 text-xs bg-white"
+                    className="w-full px-3 py-1.5 rounded-xl border border-zinc-300 text-xs bg-white placeholder:text-zinc-400"
                   />
+                  <p className="text-[10px] text-zinc-500 mt-1">
+                    Ingresa el número de comprobante o lote impreso por el datáfono para auditar el cierre del punto.
+                  </p>
                 </div>
               </div>
             )}
@@ -1290,7 +1344,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-sky-600 block mb-0.5">Punto POS (Bs)</label>
+                    <label className="text-[10px] font-bold text-sky-600 block mb-0.5">Punto de Venta (Bs)</label>
                     <input
                       type="number"
                       step="0.01"
@@ -1324,26 +1378,51 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
                   </div>
                 </div>
 
-                {/* Si usa Pago Móvil en el mixto, pedir los 4 dígitos */}
+                {/* Si usa Pago Móvil en el mixto, pedir banco y 4 dígitos */}
                 {Number(mixedPayments.pago_movil) > 0 && (
-                  <div className="pt-2 border-t border-zinc-200 grid grid-cols-2 gap-2">
-                    <select
-                      value={selectedBank}
-                      onChange={(e) => setSelectedBank(e.target.value)}
-                      className="px-2 py-1 rounded-lg border border-zinc-300 text-[11px] bg-white font-semibold"
-                    >
-                      {VENEZUELA_BANKS.map((b) => (
-                        <option key={b.code} value={b.name}>{b.name}</option>
-                      ))}
-                    </select>
-                    <input
-                      type="text"
-                      maxLength={4}
-                      placeholder="4 dígitos ref."
-                      value={pagoMovilRef}
-                      onChange={(e) => setPagoMovilRef(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                      className="px-2 py-1 rounded-lg border border-zinc-300 text-[11px] font-mono font-bold text-center bg-white"
-                    />
+                  <div className="pt-2 border-t border-zinc-200 space-y-1.5">
+                    <span className="text-[10px] font-bold text-blue-700 block">Datos Pago Móvil:</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <BankSelector
+                        selectedBank={selectedBank}
+                        onSelectBank={setSelectedBank}
+                        placeholder="Banco Pago Móvil..."
+                        compact
+                        showQuickChips={false}
+                      />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={4}
+                        placeholder="Últimos 4 dígitos ref."
+                        value={pagoMovilRef}
+                        onChange={(e) => setPagoMovilRef(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                        className="px-2.5 py-1 rounded-lg border border-zinc-300 text-xs font-mono font-bold text-center bg-white"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Si usa Punto de Venta en el mixto, pedir banco del terminal y comprobante */}
+                {Number(mixedPayments.punto) > 0 && (
+                  <div className="pt-2 border-t border-zinc-200 space-y-1.5">
+                    <span className="text-[10px] font-bold text-sky-700 block">Datos Punto de Venta:</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <BankSelector
+                        selectedBank={selectedPuntoBank}
+                        onSelectBank={setSelectedPuntoBank}
+                        placeholder="Banco del Terminal..."
+                        compact
+                        showQuickChips={false}
+                      />
+                      <input
+                        type="text"
+                        placeholder="Lote / Voucher (Opcional)"
+                        value={puntoRef}
+                        onChange={(e) => setPuntoRef(e.target.value)}
+                        className="px-2.5 py-1 rounded-lg border border-zinc-300 text-xs bg-white"
+                      />
+                    </div>
                   </div>
                 )}
 
@@ -1433,10 +1512,34 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
                 <span className="text-zinc-500">Total Bs:</span>
                 <span className="font-bold">Bs. {completedInvoice.totalBs.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-zinc-500">Método:</span>
-                <span className="capitalize">{completedInvoice.paymentMethod}</span>
+                <span className="font-bold text-zinc-950">{formatPaymentMethodLabel(completedInvoice.paymentMethod)}</span>
               </div>
+              {completedInvoice.paymentDetails?.pagoMovilBank && (
+                <div className="flex justify-between items-center text-[11px] text-zinc-600">
+                  <span className="text-zinc-500">Banco PM:</span>
+                  <span className="font-semibold truncate max-w-[170px]">{completedInvoice.paymentDetails.pagoMovilBank}</span>
+                </div>
+              )}
+              {completedInvoice.paymentDetails?.pagoMovilRef && (
+                <div className="flex justify-between items-center text-[11px] text-zinc-600">
+                  <span className="text-zinc-500">Ref PM:</span>
+                  <span className="font-mono font-bold text-emerald-700">{completedInvoice.paymentDetails.pagoMovilRef}</span>
+                </div>
+              )}
+              {completedInvoice.paymentDetails?.puntoBank && (
+                <div className="flex justify-between items-center text-[11px] text-zinc-600">
+                  <span className="text-zinc-500">Terminal Punto:</span>
+                  <span className="font-semibold truncate max-w-[170px]">{completedInvoice.paymentDetails.puntoBank}</span>
+                </div>
+              )}
+              {completedInvoice.paymentDetails?.puntoRef && (
+                <div className="flex justify-between items-center text-[11px] text-zinc-600">
+                  <span className="text-zinc-500">Voucher / Lote:</span>
+                  <span className="font-mono">{completedInvoice.paymentDetails.puntoRef}</span>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2 pt-1">
