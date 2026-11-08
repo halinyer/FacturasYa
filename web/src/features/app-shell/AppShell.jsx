@@ -508,6 +508,7 @@ function AppShellInner() {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-slate-100/80">
         
         {/* BARRA SUPERIOR FIJA ESTILO NOTION (CON TASA BCV EN VIVO) */}
+        {activeTab !== 'pos' && (
         <header
           className="h-12 bg-zinc-900 border-b border-zinc-800 px-4 flex items-center justify-between shrink-0 text-white select-none app-drag-region"
           style={isElectron ? { paddingRight: '144px' } : undefined}
@@ -586,6 +587,7 @@ function AppShellInner() {
             </button>
           </div>
         </header>
+        )}
 
         {/* BANNER PREVENTIVO: VENCIMIENTO EN <= 3 DÍAS */}
         {subStatus?.isWarningSoon && !subStatus?.isExpired && (
@@ -729,6 +731,13 @@ function AppShellInner() {
                   tenant={tenant}
                   snapshot={snapshot}
                   onSaleComplete={() => {}}
+                  onOpenSettings={() => {
+                    setSettingsInitialTab('fiscal');
+                    setIsSettingsModalOpen(true);
+                  }}
+                  isSidebarCollapsed={isSidebarCollapsed}
+                  onToggleSidebar={() => setIsSidebarCollapsed(prev => !prev)}
+                  onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
                 />
               )}
               {activeTab === 'tables' && (

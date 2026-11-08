@@ -33,13 +33,16 @@ import {
   Clock,
   Bookmark,
   Check,
-  ArrowLeftRight
+  ArrowLeftRight,
+  Menu,
+  Settings
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useData } from '../../pos-core/contexts/DataContext';
 import KitchenTicketModal from './KitchenTicketModal';
 import ClientSelectorModal from './ClientSelectorModal';
 import BankSelector from './BankSelector';
+import TopBarRate from '../app-shell/TopBarRate';
 import { VZLA_BANKS, BankLogo, findBank } from '../../pos-core/utils/venezuelaBanks';
 import { printIsolatedTicket } from '../../pos-core/utils/printIsolatedTicket';
 import { getLocalTerminalConfig } from '../monitor/api';
@@ -64,7 +67,15 @@ export function formatPaymentMethodLabel(method) {
   }
 }
 
-export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
+export default function WebPosView({
+  tenant,
+  snapshot,
+  onSaleComplete,
+  onOpenSettings,
+  isSidebarCollapsed = false,
+  onToggleSidebar,
+  onOpenMobileSidebar
+}) {
   const data = useData();
   const isElectron = Boolean(window?.electronAPI?.fiscal);
 
@@ -109,7 +120,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Posición del sidebar de ticket: 'right' (por defecto) o 'left' (para cajeros que prefieren el ticket a la izquierda)
+  // Posición del sidebar de ticket: 'right' (por defecto) o 'left'
   const [sidebarPosition, setSidebarPosition] = useState(() => {
     return localStorage.getItem('pos_sidebar_position') || 'right';
   });
@@ -278,7 +289,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
     };
   }, [cart, bcvRate, docType, paymentMethod, cashUsdReceived, cashBsReceived, mixedPayments]);
 
-  // Manejo del carrito: selección fluida y directa
+  // Manejo del carrito
   const addToCart = (product) => {
     setCart((prev) => {
       const existing = prev.find((i) => i.id === product.id);
@@ -427,7 +438,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
         status: 'paid'
       };
 
-      // 1. SI ESTAMOS EN ELECTRON DESKTOP Y ES FACTURA FISCAL SENIAT: Mandar comando a la máquina fiscal física HKA80
+      // 1. SI ESTAMOS EN ELECTRON DESKTOP Y ES FACTURA FISCAL SENIAT
       if (isElectron && docType === 'fiscal') {
         try {
           const port = data?.fiscalSettings?.port || 'COM2';
@@ -446,7 +457,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
         }
       }
 
-      // 2. Registrar en el DataContext local (actualiza Dashboard, Libros SENIAT y Cierre de Caja al instante)
+      // 2. Registrar en DataContext local
       let savedInvoice = invoiceData;
       if (data?.createInvoice) {
         savedInvoice = data.createInvoice(invoiceData) || invoiceData;
@@ -454,7 +465,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
         savedInvoice = data.addInvoice(invoiceData) || invoiceData;
       }
 
-      // 3. Sincronizar snapshot con Supabase si hay tenant activo
+      // 3. Sincronizar snapshot con Supabase
       if (tenant?.id) {
         const existingInvoices = Array.isArray(snapshot?.invoices) ? snapshot.invoices : [];
         const updatedInvoices = [savedInvoice, ...existingInvoices];
@@ -508,7 +519,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
   };
 
   // CONTENIDO CENTRALIZADO DEL SIDEBAR DE FACTURACIÓN:
-  // DISEÑADO PARA DAR EL MÁXIMO ESPACIO VERTICAL AL LISTADO DE ÍTEMS EN COMANDA
+  // OCUPA EL 100% DE LA ALTURA DISPONIBLE, SIN BARRAS DE SCROLL VISIBLES, CON FOTO EN CADA ÍTEM
   const renderInvoiceSidebarContent = (isMobile = false) => (
     <div className="flex-1 flex flex-col h-full bg-white select-none overflow-hidden">
       
@@ -541,11 +552,14 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
         </div>
       )}
 
-      {/* 2. CABECERA COMPACTA DEL COMPROBANTE DE VENTA */}
-      <div className="px-3.5 py-2.5 border-b border-zinc-200/80 flex items-center justify-between shrink-0 bg-white">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="p-1 rounded-lg bg-zinc-950 text-white shrink-0">
-            <Receipt size={14} />
+      {/* 2. CABECERA ALINEADA AL TOPE SUPERIOR DE LA VENTANA (FULL HEIGHT) */}
+      <div
+        className="px-3.5 py-3 border-b border-zinc-200/80 flex items-center justify-between shrink-0 bg-white app-drag-region"
+        style={!isMobile && isElectron && sidebarPosition === 'right' ? { paddingRight: '144px' } : undefined}
+      >
+        <div className="flex items-center gap-2 min-w-0 app-no-drag">
+          <div className="p-1.5 rounded-lg bg-zinc-950 text-white shrink-0 shadow-2xs">
+            <Receipt size={15} />
           </div>
           <div className="flex items-center gap-2 min-w-0">
             <h2 className="font-extrabold text-xs text-zinc-950 uppercase tracking-wider truncate">
@@ -557,8 +571,8 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
           </div>
         </div>
 
-        <div className="flex items-center gap-1 shrink-0">
-          {/* Botón para alternar posición del ticket: Izquierda o Derecha en Desktop */}
+        <div className="flex items-center gap-1 shrink-0 app-no-drag">
+          {/* Alternador de posición Izquierda / Derecha */}
           {!isMobile && (
             <button
               type="button"
@@ -598,9 +612,8 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
         </div>
       </div>
 
-      {/* 3. RECEPTOR FISCAL & SELECTOR DE DOCUMENTO (FILA COMPACTA UNIFICADA) */}
-      <div className="px-3 py-1.5 bg-zinc-50 border-b border-zinc-200/80 shrink-0 flex items-center justify-between gap-2 text-xs">
-        {/* CLIENTE CON ACCESO RÁPIDO A CAMBIAR / RIF */}
+      {/* 3. RECEPTOR FISCAL & SELECTOR DE DOCUMENTO (FILA COMPACTA) */}
+      <div className="px-3.5 py-1.5 bg-zinc-50 border-b border-zinc-200/80 shrink-0 flex items-center justify-between gap-2 text-xs">
         <button
           type="button"
           onClick={() => setIsClientModalOpen(true)}
@@ -616,7 +629,6 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
           </span>
         </button>
 
-        {/* TIPO DE DOCUMENTO: NOTA vs FISCAL SENIAT */}
         <div className="flex items-center gap-0.5 bg-zinc-200/80 p-0.5 rounded-lg shrink-0">
           <button
             type="button"
@@ -643,15 +655,17 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
         </div>
       </div>
 
-      {/* 4. LISTADO DE PRODUCTOS EN COMANDA (ESPACIO MÁXIMO VERTICAL DEDICADO) */}
-      <div className="flex-1 min-h-[160px] overflow-y-auto p-2.5 sm:p-3 divide-y divide-zinc-100">
+      {/* 4. LISTADO DE PRODUCTOS EN COMANDA:
+             - CADA PRODUCTO TIENE SU FOTOGRAFÍA 1:1
+             - OCUPA TODO EL ALTO CON SCROLL FLUIDO INVISIBLE (.no-scrollbar) */}
+      <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar p-2.5 sm:p-3 space-y-2">
         {cart.length === 0 ? (
           <div className="h-full min-h-[220px] flex flex-col items-center justify-center text-center p-6 text-zinc-400">
-            <div className="w-11 h-11 rounded-2xl bg-zinc-100 flex items-center justify-center mb-2 text-zinc-400">
-              <ShoppingCart size={22} strokeWidth={1.8} />
+            <div className="w-12 h-12 rounded-2xl bg-zinc-100 flex items-center justify-center mb-2.5 text-zinc-400">
+              <ShoppingCart size={24} strokeWidth={1.8} />
             </div>
             <p className="text-xs font-bold text-zinc-700">Comprobante Vacío</p>
-            <p className="text-[11px] text-zinc-400 mt-0.5 max-w-[200px] leading-relaxed">
+            <p className="text-[11px] text-zinc-400 mt-1 max-w-[200px] leading-relaxed">
               Haz clic en los platos o productos del catálogo para agregarlos a la comanda.
             </p>
           </div>
@@ -664,62 +678,83 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
             return (
               <div
                 key={item.id}
-                className="py-2 px-1.5 first:pt-1 last:pb-1 flex items-center justify-between gap-2.5 group hover:bg-zinc-50/80 rounded-xl transition-colors"
+                className="py-2 px-2.5 rounded-xl border border-zinc-100/90 hover:border-zinc-200/90 hover:bg-zinc-50/70 transition-all flex items-center justify-between gap-2.5 group bg-white shadow-2xs"
               >
-                {/* CONTROL DE CANTIDAD + NOMBRE DEL PRODUCTO */}
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  {/* STEPPERS COMPACTOS [-] 1 [+] */}
-                  <div className="flex items-center border border-zinc-200/90 rounded-lg bg-zinc-50/80 shadow-2xs overflow-hidden shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => updateQty(item.id, -1)}
-                      className="w-5 h-6 flex items-center justify-center hover:bg-zinc-200 text-zinc-600 transition-colors cursor-pointer"
-                      title="Restar uno"
-                    >
-                      <Minus size={10} strokeWidth={2.5} />
-                    </button>
-                    <span className="w-6 text-center text-xs font-black font-mono text-zinc-950">
-                      {item.qty}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => updateQty(item.id, 1)}
-                      className="w-5 h-6 flex items-center justify-center hover:bg-zinc-200 text-zinc-600 transition-colors cursor-pointer"
-                      title="Sumar uno"
-                    >
-                      <Plus size={10} strokeWidth={2.5} />
-                    </button>
-                  </div>
-
-                  {/* NOMBRE Y DETALLES */}
-                  <div className="min-w-0 flex-1">
-                    <h4
-                      className="font-bold text-xs text-zinc-950 truncate leading-tight group-hover:text-emerald-700 transition-colors"
-                      title={item.name}
-                    >
-                      {item.name}
-                    </h4>
-                    <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 font-mono mt-0.5">
-                      <span>${itemPrice.toFixed(2)} c/u</span>
-                      <span>·</span>
-                      <span>Bs. {lineTotalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    </div>
+                {/* FOTOGRAFIA DEL PRODUCTO */}
+                <div className="w-11 h-11 rounded-xl bg-zinc-50 border border-zinc-200/80 overflow-hidden shrink-0 flex items-center justify-center p-0.5">
+                  {item.image ? (
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      className="w-full h-full object-contain rounded-lg"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
+                      }}
+                    />
+                  ) : null}
+                  <div
+                    className="w-full h-full flex items-center justify-center text-zinc-400"
+                    style={{ display: item.image ? 'none' : 'flex' }}
+                  >
+                    <Utensils size={17} strokeWidth={1.8} />
                   </div>
                 </div>
 
-                {/* SUBTOTAL DE LÍNEA Y BOTÓN DE ELIMINAR */}
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="font-black text-xs font-mono text-zinc-950">
+                {/* DETALLE Y CANTIDAD */}
+                <div className="min-w-0 flex-1">
+                  <h4
+                    className="font-bold text-xs text-zinc-950 truncate leading-tight group-hover:text-emerald-700 transition-colors"
+                    title={item.name}
+                  >
+                    {item.name}
+                  </h4>
+                  <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 font-mono mt-0.5">
+                    <span className="font-semibold text-zinc-600">${itemPrice.toFixed(2)} c/u</span>
+                    <span>·</span>
+                    <span>Bs. {lineTotalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+
+                  {/* CONTROLES STEPPER [-] 1 [+] Y BOTON QUITAR */}
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <div className="flex items-center border border-zinc-200 rounded-lg bg-zinc-50 shadow-2xs overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => updateQty(item.id, -1)}
+                        className="w-5 h-5 flex items-center justify-center hover:bg-zinc-200 text-zinc-600 transition-colors cursor-pointer"
+                        title="Restar uno"
+                      >
+                        <Minus size={10} strokeWidth={2.5} />
+                      </button>
+                      <span className="w-6 text-center text-xs font-black font-mono text-zinc-950">
+                        {item.qty}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => updateQty(item.id, 1)}
+                        className="w-5 h-5 flex items-center justify-center hover:bg-zinc-200 text-zinc-600 transition-colors cursor-pointer"
+                        title="Sumar uno"
+                      >
+                        <Plus size={10} strokeWidth={2.5} />
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => removeFromCart(item.id)}
+                      className="text-zinc-400 hover:text-rose-600 text-[10px] font-semibold transition-colors cursor-pointer"
+                      title="Quitar"
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
+
+                {/* SUBTOTAL DE LÍNEA */}
+                <div className="text-right shrink-0">
+                  <span className="font-black text-xs sm:text-sm font-mono text-zinc-950 block">
                     ${lineTotalUsd.toFixed(2)}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => removeFromCart(item.id)}
-                    className="text-zinc-300 hover:text-rose-600 p-1 rounded-md transition-colors cursor-pointer"
-                    title="Quitar de comanda"
-                  >
-                    <X size={13} strokeWidth={2.5} />
-                  </button>
                 </div>
               </div>
             );
@@ -727,7 +762,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
         )}
       </div>
 
-      {/* 5. RESUMEN DE TOTALES COMPACTO (USD Y BS AL CAMBIO BCV) */}
+      {/* 5. RESUMEN DE TOTALES COMPACTO DOCK AL FONDO */}
       <div className="px-3.5 py-2.5 bg-zinc-50 border-t border-zinc-200 shrink-0 space-y-1.5 text-xs">
         <div className="flex justify-between items-baseline text-zinc-500 text-[11px]">
           <span>Subtotal ({cartTotals.totalQty} {cartTotals.totalQty === 1 ? 'ítem' : 'ítems'}):</span>
@@ -746,7 +781,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
         {/* TOTAL GRANDE DESTACADO */}
         <div className="pt-1.5 border-t border-zinc-200 flex items-baseline justify-between">
           <div>
-            <span className="font-extrabold text-xs text-zinc-950 block">Total a Liquidar:</span>
+            <span className="font-extrabold text-xs text-zinc-950 block">Total a Pagar:</span>
             <span className="text-[10px] text-zinc-500 font-mono">
               Tasa BCV: Bs. {Number(bcvRate).toFixed(2)}
             </span>
@@ -762,17 +797,17 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
         </div>
       </div>
 
-      {/* 6. SELECTOR RÁPIDO DE MÉTODO DE PAGO (UNA SOLA LÍNEA COMPACTA TIPO CHIPS) */}
-      <div className="px-3 py-1.5 bg-white border-t border-zinc-200/80 shrink-0 flex items-center justify-between gap-1 overflow-x-auto">
+      {/* 6. SELECTOR RÁPIDO DE MÉTODO DE PAGO (UNA SOLA LÍNEA COMPACTA) */}
+      <div className="px-3 py-1.5 bg-white border-t border-zinc-200/80 shrink-0 flex items-center justify-between gap-1 overflow-x-auto no-scrollbar">
         <span className="text-[10px] font-extrabold text-zinc-400 uppercase tracking-wider shrink-0 mr-1">
           Método:
         </span>
-        <div className="flex items-center gap-1 overflow-x-auto">
+        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
           {[
             { id: 'efectivo_usd', label: 'Efectivo $' },
             { id: 'pago_movil', label: 'Pago Móvil' },
             { id: 'punto', label: 'Punto Venta' },
-            { id: 'efectivo_bs', label: 'Efectivo Bs' },
+            { id: 'efectivo_bs', label: 'Bs' },
             { id: 'zelle', label: 'Zelle' },
             { id: 'mixto', label: 'Mixto' }
           ].map((m) => {
@@ -798,7 +833,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
         </div>
       </div>
 
-      {/* 7. BOTONES DE ACCIÓN FOOTER (COMANDA Y COBRAR / PROCESAR VENTA) */}
+      {/* 7. BOTONES DE ACCIÓN FOOTER */}
       <div className="p-3 bg-white border-t border-zinc-200/80 shrink-0 flex items-center gap-2">
         <button
           type="button"
@@ -846,52 +881,95 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
           ========================================================================= */}
       <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden">
         
-        {/* TOOLBAR SUPERIOR DEL PUNTO DE VENTA */}
-        <div className="bg-white border-b border-zinc-200/80 px-4 py-2.5 shrink-0 flex items-center justify-between gap-3">
-          {/* BUSCADOR DE PRODUCTOS */}
-          <div className="relative flex-1 max-w-md">
-            <Search size={15} className="absolute left-3 top-2.5 text-zinc-400" />
-            <input
-              type="text"
-              placeholder="Buscar plato, combo o bebida en el catálogo..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-zinc-200 text-xs focus:outline-none focus:border-zinc-400 bg-zinc-50/50"
-            />
-          </div>
-
-          <div className="text-zinc-400 text-xs font-semibold hidden sm:block">
-            {filteredProducts.length} productos
-          </div>
-
-          {/* ACCESO MÓVIL AL TICKET EN PANTALLAS PEQUEÑAS (< lg) */}
-          <button
-            type="button"
-            onClick={() => setIsMobileDrawerOpen(true)}
-            className={`lg:hidden px-3 py-1.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-              cart.length > 0
-                ? 'bg-zinc-950 text-white border-zinc-950 shadow-xs'
-                : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border-zinc-200'
-            }`}
-            title="Ver comanda completa"
-          >
-            <ShoppingCart size={15} className={cart.length > 0 ? 'text-emerald-400' : 'text-zinc-500'} />
-            <span>Ticket</span>
-            <span className={`px-1.5 py-0.2 rounded-full font-mono text-[11px] ${
-              cart.length > 0 ? 'bg-zinc-800 text-emerald-300 font-bold' : 'bg-zinc-200 text-zinc-600'
-            }`}>
-              {cartTotals.totalQty}
-            </span>
-            {cart.length > 0 && (
-              <span className="font-mono text-zinc-300 text-[11px] border-l border-zinc-700 pl-2">
-                ${cartTotals.finalTotalUsd.toFixed(2)}
-              </span>
+        {/* TOOLBAR SUPERIOR DEL PUNTO DE VENTA (CON TASA BCV, BUSCADOR Y AJUSTES) */}
+        <div
+          className="bg-white border-b border-zinc-200/80 px-4 py-2.5 shrink-0 flex items-center justify-between gap-3 app-drag-region"
+          style={sidebarPosition === 'left' && isElectron ? { paddingRight: '144px' } : undefined}
+        >
+          <div className="flex items-center gap-2 flex-1 max-w-lg app-no-drag">
+            {/* BOTÓN EXPANDIR MENÚ EN TOPBAR CUANDO EL SIDEBAR ESTÁ COLAPSADO (DESKTOP) */}
+            {isSidebarCollapsed && (
+              <button
+                type="button"
+                onClick={onToggleSidebar}
+                className="hidden lg:flex p-1.5 rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 transition-colors cursor-pointer"
+                title="Expandir menú lateral"
+              >
+                <ChevronRight size={16} />
+              </button>
             )}
-          </button>
+
+            {/* BOTÓN MENÚ MÓVIL */}
+            <button
+              type="button"
+              onClick={onOpenMobileSidebar}
+              className="lg:hidden p-1.5 rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100"
+            >
+              <Menu size={18} />
+            </button>
+
+            {/* BUSCADOR DE PRODUCTOS */}
+            <div className="relative flex-1">
+              <Search size={15} className="absolute left-3 top-2.5 text-zinc-400" />
+              <input
+                type="text"
+                placeholder="Buscar plato, combo o bebida en el catálogo..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-zinc-200 text-xs focus:outline-none focus:border-zinc-400 bg-zinc-50/50"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 sm:gap-3 app-no-drag shrink-0">
+            <div className="text-zinc-400 text-xs font-semibold hidden md:block">
+              {filteredProducts.length} productos
+            </div>
+
+            {/* TASA BCV OFICIAL */}
+            <TopBarRate />
+
+            {/* AJUSTES */}
+            {onOpenSettings && (
+              <button
+                type="button"
+                onClick={onOpenSettings}
+                className="p-1.5 rounded-xl border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-100 text-zinc-600 hover:text-zinc-950 transition-colors cursor-pointer"
+                title="Abrir Ajustes del Negocio (⚙️)"
+              >
+                <Settings size={15} />
+              </button>
+            )}
+
+            {/* ACCESO MÓVIL AL TICKET EN PANTALLAS PEQUEÑAS (< lg) */}
+            <button
+              type="button"
+              onClick={() => setIsMobileDrawerOpen(true)}
+              className={`lg:hidden px-3 py-1.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                cart.length > 0
+                  ? 'bg-zinc-950 text-white border-zinc-950 shadow-xs'
+                  : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border-zinc-200'
+              }`}
+              title="Ver comanda completa"
+            >
+              <ShoppingCart size={15} className={cart.length > 0 ? 'text-emerald-400' : 'text-zinc-500'} />
+              <span>Ticket</span>
+              <span className={`px-1.5 py-0.2 rounded-full font-mono text-[11px] ${
+                cart.length > 0 ? 'bg-zinc-800 text-emerald-300 font-bold' : 'bg-zinc-200 text-zinc-600'
+              }`}>
+                {cartTotals.totalQty}
+              </span>
+              {cart.length > 0 && (
+                <span className="font-mono text-zinc-300 text-[11px] border-l border-zinc-700 pl-2">
+                  ${cartTotals.finalTotalUsd.toFixed(2)}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
 
-        {/* FILTRO DE CATEGORÍAS TIPO CHIPS */}
-        <div className="bg-white px-4 py-2 border-b border-zinc-200/80 flex items-center gap-1.5 overflow-x-auto shrink-0">
+        {/* FILTRO DE CATEGORÍAS TIPO CHIPS (CON SCROLL FLUIDO INVISIBLE .no-scrollbar) */}
+        <div className="bg-white px-4 py-2 border-b border-zinc-200/80 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
           {categories.map((cat) => {
             const count = cat === 'Todos' ? products.length : products.filter((p) => p.category === cat).length;
             const isSelected = selectedCategory === cat;
@@ -918,8 +996,8 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
           })}
         </div>
 
-        {/* CATÁLOGO VISUAL DE PRODUCTOS */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5">
+        {/* CATÁLOGO VISUAL DE PRODUCTOS (SCROLL FLUIDO INVISIBLE .no-scrollbar) */}
+        <div className="flex-1 overflow-y-auto no-scrollbar p-4 sm:p-5">
           {products.length === 0 && (
             <div className="max-w-md mx-auto my-16 bg-white rounded-2xl border border-zinc-200/80 p-8 text-center shadow-xs space-y-4">
               <div className="w-12 h-12 rounded-2xl bg-zinc-100 border border-zinc-200 flex items-center justify-center mx-auto text-zinc-500">
@@ -1067,10 +1145,10 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
       </div>
 
       {/* =========================================================================
-          SIDEBAR FIJO DE COMPROBANTE / FACTURA
-          Visible en Desktop (lg: y superior) con ancho amplio y espacio vertical maximizado
+          SIDEBAR FIJO DE COMPROBANTE / FACTURA A TODO EL ALTO DE LA PANTALLA
+          Visible en Desktop (lg: y superior) con ancho amplio y scroll invisible (.no-scrollbar)
           ========================================================================= */}
-      <aside className={`hidden lg:flex w-[400px] xl:w-[430px] h-full ${
+      <aside className={`hidden lg:flex w-[410px] xl:w-[440px] 2xl:w-[460px] h-full ${
         sidebarPosition === 'left' ? 'border-r' : 'border-l'
       } border-zinc-200 bg-white flex-col shrink-0 overflow-hidden shadow-xs`}>
         {renderInvoiceSidebarContent(false)}
@@ -1116,7 +1194,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
           onClick={() => setIsPaymentModalOpen(false)}
         >
           <div
-            className="bg-white rounded-2xl border border-zinc-200 shadow-2xl max-w-lg w-full max-h-[92vh] overflow-y-auto p-5 sm:p-6 space-y-4 animate-in zoom-in-95 duration-150 text-zinc-900"
+            className="bg-white rounded-2xl border border-zinc-200 shadow-2xl max-w-lg w-full max-h-[92vh] overflow-y-auto no-scrollbar p-5 sm:p-6 space-y-4 animate-in zoom-in-95 duration-150 text-zinc-900"
             onClick={(e) => e.stopPropagation()}
           >
             {/* CABECERA CON DOCUMENTO Y CIERRE */}
@@ -1262,7 +1340,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
                 <span className="text-xs font-bold text-emerald-900 block">
                   Billetes Recibidos en Divisas ($ USD):
                 </span>
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
                   {[5, 10, 20, 50, 100].map((val) => (
                     <button
                       key={val}
@@ -1397,7 +1475,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
               </div>
             )}
 
-            {/* SECCIÓN DETALLADA: PUNTO DE VENTA (TARJETA DÉBITO / CRÉDITO EN DATÁFONO - CERO FRICCIÓN) */}
+            {/* SECCIÓN DETALLADA: PUNTO DE VENTA */}
             {paymentMethod === 'punto' && (
               <div className="p-4 bg-sky-50/70 rounded-2xl border border-sky-200 space-y-3">
                 <div className="flex justify-between items-center">
