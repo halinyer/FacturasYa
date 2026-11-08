@@ -626,7 +626,7 @@ function AppShellInner() {
         )}
 
         {/* VISTAS OPERATIVAS O KILL SWITCH (PAYWALL) SI ESTÁ VENCIDO/SUSPENDIDO SIN PASE DE CORTESÍA */}
-        <main className="flex-1 overflow-y-auto">
+        <main className={`flex-1 ${activeTab === 'pos' ? 'overflow-hidden flex flex-col min-h-0' : 'overflow-y-auto'}`}>
           {subStatus?.shouldBlockPos && (activeTab === 'pos' || activeTab === 'tables') ? (
             <div className="min-h-full bg-zinc-50 flex items-center justify-center p-4 sm:p-6">
               <div className="max-w-lg w-full bg-white border border-zinc-200 rounded-2xl shadow-xl p-6 sm:p-8 space-y-5">
