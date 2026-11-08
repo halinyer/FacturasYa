@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Printer,
-  WifiOff,
   QrCode,
   FileSpreadsheet,
   Smartphone,
@@ -11,28 +10,12 @@ import {
   ArrowRight,
   Download,
   Layers,
-  ChevronRight,
-  ExternalLink,
-  DollarSign,
-  TrendingUp,
   Store,
-  Clock,
-  Sparkles,
-  Lock,
-  Receipt,
-  HelpCircle,
   X
 } from 'lucide-react';
 import { supabase, isConfigured } from '../../lib/supabase';
 import { useAuth } from '../auth/AuthProvider';
-
-// Datos de productos para el simulador interactivo
-const DEMO_PRODUCTS = [
-  { id: 'burger', name: 'Hamburguesa Smash Doble', category: 'Cocina', priceUsd: 6.50, qty: 2 },
-  { id: 'pepito', name: 'Pepito Mixto Especial 35cm', category: 'Cocina', priceUsd: 8.50, qty: 1 },
-  { id: 'papas', name: 'Papas Rústicas con Queso', category: 'Entradas', priceUsd: 3.50, qty: 1 },
-  { id: 'bebida', name: 'Refresco / Té Frío 500ml', category: 'Bebidas', priceUsd: 1.50, qty: 2 }
-];
+import NotionAppShowcase from './NotionAppShowcase';
 
 const INSTALLER_URL =
   import.meta.env.VITE_INSTALLER_URL || 'https://github.com/halinyer/FacturasYa/releases/latest/download/FacturaPOS-1.0.0.exe';
@@ -44,19 +27,25 @@ function formatBs(val) {
   });
 }
 
-function formatUsd(val) {
-  return '$' + Number(val || 0).toFixed(2);
-}
-
 export default function LandingPage() {
   const navigate = useNavigate();
   const { session, isAdmin } = useAuth() || {};
-  // Simulador de Tasa BCV y Caja
   const [bcvRate, setBcvRate] = useState(876.80);
-  const [cartItems, setCartItems] = useState(DEMO_PRODUCTS);
-  const [cashUsdReceived, setCashUsdReceived] = useState(10);
-  const [applyIgtf, setApplyIgtf] = useState(true);
-  const [viewReceiptTab, setViewReceiptTab] = useState('ticket'); // 'ticket' | 'breakdown'
+
+  useEffect(() => {
+    if (!isConfigured || !supabase) return;
+    supabase
+      .from('saas_config')
+      .select('bcv_rate')
+      .eq('id', 1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.bcv_rate && Number(data.bcv_rate) > 0) {
+          setBcvRate(Number(data.bcv_rate));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Planes de precio: 'monthly' | 'annual'
   const [billingCycle, setBillingCycle] = useState('monthly');
@@ -99,33 +88,6 @@ export default function LandingPage() {
   }, [form.password]);
 
   const rate = Math.max(1, Number(bcvRate) || 876.80);
-  const activeItems = cartItems.filter((i) => i.qty > 0);
-  const totalBaseUsd = activeItems.reduce((acc, i) => acc + i.priceUsd * i.qty, 0);
-
-  // Cobro mixto: Dólares en efectivo + Pago Móvil en Bs
-  const appliedCashUsd = Math.min(cashUsdReceived, totalBaseUsd);
-  const igtfUsd = applyIgtf ? appliedCashUsd * 0.03 : 0;
-  const finalTotalUsd = totalBaseUsd + igtfUsd;
-
-  const baseImponibleBs = (totalBaseUsd / 1.16) * rate;
-  const iva16Bs = (totalBaseUsd - totalBaseUsd / 1.16) * rate;
-  const igtfBs = igtfUsd * rate;
-  const finalTotalBs = finalTotalUsd * rate;
-
-  const remainingUsd = Math.max(0, totalBaseUsd - appliedCashUsd);
-  const remainingBs = remainingUsd * rate;
-
-  const handleQtyChange = (id, delta) => {
-    setCartItems((prev) =>
-      prev.map((item) => {
-        if (item.id === id) {
-          const nextQty = Math.max(0, Math.min(10, item.qty + delta));
-          return { ...item, qty: nextQty };
-        }
-        return item;
-      })
-    );
-  };
 
   const handleAuthSubmit = async (e) => {
     e.preventDefault();
@@ -139,7 +101,6 @@ export default function LandingPage() {
         throw new Error('Por favor ingresa tu correo y contraseña.');
       }
 
-      // Validaciones específicas de registro
       if (authTab === 'signup') {
         if (form.password.length < 6) {
           throw new Error('La contraseña debe tener un mínimo de 6 caracteres.');
@@ -163,18 +124,15 @@ export default function LandingPage() {
             throw new Error(error.message);
           }
 
-          // Detección anti-enumeración de Supabase (si el usuario ya existía)
           if (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
             throw new Error('Este correo ya se encuentra registrado. Por favor selecciona "Iniciar sesión" o recupera tu contraseña.');
           }
 
-          // Si el proyecto requiere confirmar por correo y no inició sesión automáticamente:
           if (data?.user && !data?.session) {
             setEmailCheckNotice(true);
             return;
           }
         } else {
-          // Inicio de sesión
           const { error } = await supabase.auth.signInWithPassword({
             email: cleanEmail,
             password: form.password
@@ -222,22 +180,15 @@ export default function LandingPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <label className="inline-flex items-center gap-1.5 bg-white border border-zinc-200/80 rounded-md px-2.5 py-0.5 shadow-2xs">
-              <span className="text-zinc-500 font-medium text-[11px]">Tasa BCV referencial:</span>
-              <input
-                type="number"
-                step="0.01"
-                value={bcvRate}
-                onChange={(e) => setBcvRate(e.target.value)}
-                className="w-18 bg-transparent text-right font-semibold text-zinc-900 mono-num focus:outline-none"
-              />
-              <span className="text-[11px] font-semibold text-zinc-400">Bs/$</span>
-            </label>
+            <div className="inline-flex items-center gap-1.5 bg-white border border-zinc-200/80 rounded-md px-2.5 py-0.5 shadow-2xs">
+              <span className="text-zinc-500 font-medium text-[11px]">Tasa BCV:</span>
+              <span className="font-semibold text-zinc-900 mono-num text-[11px]">{rate.toFixed(2)} Bs/$</span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* NAVIGATION BAR (Apple / Stripe style) */}
+      {/* NAVIGATION BAR (Notion / Stripe style) */}
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-zinc-200/70 transition-all">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -253,7 +204,6 @@ export default function LandingPage() {
           </div>
 
           <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-zinc-600">
-            <a href="#simulador" className="hover:text-zinc-950 transition-colors">Simulador en Vivo</a>
             <a href="#comparativa" className="hover:text-zinc-950 transition-colors">¿Por qué FacturasYa?</a>
             <a href="#caracteristicas" className="hover:text-zinc-950 transition-colors">Características</a>
             <a href="#precios" className="hover:text-zinc-950 transition-colors">Planes</a>
@@ -280,7 +230,6 @@ export default function LandingPage() {
               </>
             ) : (
               <>
-                
                 <button
                   type="button"
                   onClick={() => openAuthModal('login')}
@@ -344,19 +293,13 @@ export default function LandingPage() {
               ) : (
                 <button
                   type="button"
-                  onClick={() => openAuthModal("login")}
+                  onClick={() => openAuthModal('login')}
                   className="bg-white hover:bg-zinc-50 text-zinc-900 font-medium text-sm px-5 py-3.5 rounded-xl border border-zinc-200 shadow-2xs transition-all inline-flex items-center gap-2 cursor-pointer"
                 >
                   <span>Iniciar Sesión</span>
                   <ArrowRight size={15} className="text-zinc-500" />
                 </button>
               )}
-              <a
-                href="#simulador"
-                className="bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-medium text-sm px-4 py-3.5 rounded-xl transition-all inline-flex items-center gap-2"
-              >
-                <span>Simulador</span>
-              </a>
             </div>
 
             {/* Micro guarantees */}
@@ -373,225 +316,8 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* SIMULADOR INTERACTIVO DE CAJA (Apple/Stripe Terminal Showcase) */}
-          <div id="simulador" className="mt-16 max-w-5xl mx-auto">
-            <div className="rounded-2xl border border-zinc-200/80 bg-white shadow-[0_4px_24px_rgba(0,0,0,0.06),0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
-              
-              {/* Terminal Window Header (macOS style) */}
-              <div className="bg-zinc-50/80 px-4 py-3 border-b border-zinc-200/70 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-3 h-3 rounded-full bg-zinc-300"></span>
-                    <span className="w-3 h-3 rounded-full bg-zinc-300"></span>
-                    <span className="w-3 h-3 rounded-full bg-zinc-300"></span>
-                  </div>
-                  <span className="text-xs font-semibold text-zinc-600 ml-2">
-                    Terminal POS · FacturasYa v1.0 (Windows)
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold bg-emerald-50 border border-emerald-200/60 rounded px-2 py-0.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                    HKA80 Conectada (COM3)
-                  </span>
-                  <span className="text-zinc-500 font-medium">Tasa BCV: {rate.toFixed(2)} Bs/$</span>
-                </div>
-              </div>
-
-              {/* Terminal Content: 2 Columns */}
-              <div className="grid lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-zinc-200">
-                
-                {/* Columna Izquierda: Menú y Productos de Prueba */}
-                <div className="lg:col-span-7 p-6 space-y-5">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-sm font-bold text-zinc-950">Mesa 4 · Comanda Activa</h3>
-                      <p className="text-xs text-zinc-500">Haz clic en los productos para simular la cuenta en vivo:</p>
-                    </div>
-                    <span className="text-xs text-zinc-500 font-medium">
-                      {activeItems.length} {activeItems.length === 1 ? 'ítem' : 'ítems'} agregados
-                    </span>
-                  </div>
-
-                  {/* Product Cards */}
-                  <div className="grid sm:grid-cols-2 gap-2.5">
-                    {cartItems.map((prod) => (
-                      <div
-                        key={prod.id}
-                        className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between gap-2 ${
-                          prod.qty > 0
-                            ? 'border-zinc-950 bg-zinc-50/50 shadow-2xs'
-                            : 'border-zinc-200/70 hover:border-zinc-300 bg-white'
-                        }`}
-                      >
-                        <div>
-                          <div className="flex items-center justify-between gap-1 text-xs font-semibold text-zinc-900">
-                            <span className="truncate">{prod.name}</span>
-                            <span className="text-[11px] text-zinc-500 font-normal">{prod.category}</span>
-                          </div>
-                          <div className="text-xs text-zinc-600 mono-num mt-1">
-                            {formatUsd(prod.priceUsd)} · <span className="text-zinc-500">{formatBs(prod.priceUsd * rate)}</span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between pt-1 border-t border-zinc-100">
-                          <span className="text-xs font-bold text-zinc-900">
-                            {prod.qty > 0 ? `${prod.qty}x en cuenta` : 'Sin agregar'}
-                          </span>
-                          <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => handleQtyChange(prod.id, -1)}
-                              className="w-6 h-6 rounded-md border border-zinc-200 hover:bg-zinc-100 text-zinc-700 flex items-center justify-center font-bold text-xs"
-                              disabled={prod.qty === 0}
-                            >
-                              -
-                            </button>
-                            <span className="w-5 text-center text-xs font-bold mono-num">{prod.qty}</span>
-                            <button
-                              type="button"
-                              onClick={() => handleQtyChange(prod.id, 1)}
-                              className="w-6 h-6 rounded-md bg-zinc-900 hover:bg-zinc-800 text-white flex items-center justify-center font-bold text-xs"
-                            >
-                              +
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Cobro Mixto Controls */}
-                  <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200/70 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-zinc-950">Modalidad de Pago Mixto:</span>
-                      <label className="inline-flex items-center gap-1.5 text-xs text-zinc-600 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={applyIgtf}
-                          onChange={(e) => setApplyIgtf(e.target.checked)}
-                          className="rounded border-zinc-300 text-zinc-900 focus:ring-0"
-                        />
-                        <span>IGTF 3% a divisas en efectivo</span>
-                      </label>
-                    </div>
-
-                    <div className="grid sm:grid-cols-2 gap-3 text-xs">
-                      <div>
-                        <span className="text-zinc-500 block mb-1">Efectivo en $ recibidos:</span>
-                        <div className="flex gap-1.5">
-                          {[0, 5, 10, 20].map((amt) => (
-                            <button
-                              key={amt}
-                              type="button"
-                              onClick={() => setCashUsdReceived(amt)}
-                              className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-all ${
-                                cashUsdReceived === amt
-                                  ? 'bg-zinc-900 text-white border-zinc-900 shadow-2xs'
-                                  : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-100'
-                              }`}
-                            >
-                              ${amt}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div>
-                        <span className="text-zinc-500 block mb-1">Resto a cobrar por Pago Móvil (Bs):</span>
-                        <div className="p-1.5 px-3 rounded-lg bg-white border border-zinc-200 font-bold mono-num text-sm text-zinc-950 flex items-center justify-between">
-                          <span>{formatBs(remainingBs)}</span>
-                          <span className="text-xs text-zinc-400 font-normal">({formatUsd(remainingUsd)})</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Columna Derecha: Vista Previa Comprobante Fiscal SENIAT */}
-                <div className="lg:col-span-5 p-6 bg-zinc-50/40 flex flex-col justify-between space-y-4">
-                  <div>
-                    <div className="flex items-center justify-between pb-3 border-b border-zinc-200">
-                      <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">
-                        Comprobante Fiscal SENIAT
-                      </span>
-                      <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-2 py-0.5">
-                        Impresora HKA80
-                      </span>
-                    </div>
-
-                    {/* Receipt Body */}
-                    <div className="mt-4 p-4 rounded-xl bg-white border border-zinc-200/90 shadow-2xs font-mono text-[11px] leading-relaxed text-zinc-700 space-y-2">
-                      <div className="text-center pb-2 border-b border-dashed border-zinc-200">
-                        <div className="font-bold text-zinc-950 text-xs">RESTAURANTE EL PORTÓN C.A.</div>
-                        <div>RIF: J-50123456-0</div>
-                        <div>FACTURA FISCAL NRO: <strong className="text-zinc-950">00048291</strong></div>
-                        <div className="text-zinc-400 text-[10px]">MÁQUINA FISCAL: Z1B8049210</div>
-                      </div>
-
-                      <div className="py-1 space-y-1">
-                        {activeItems.length > 0 ? (
-                          activeItems.map((item) => (
-                            <div key={item.id} className="flex justify-between items-start">
-                              <span className="truncate pr-2">
-                                {item.qty}x {item.name.toUpperCase()}
-                              </span>
-                              <span className="mono-num text-zinc-950 font-medium shrink-0">
-                                {formatBs(item.priceUsd * item.qty * rate)}
-                              </span>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="text-center text-zinc-400 py-4 font-sans text-xs">
-                            Selecciona productos a la izquierda para generar la factura
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="pt-2 border-t border-dashed border-zinc-200 space-y-1">
-                        <div className="flex justify-between text-zinc-500">
-                          <span>SUBTOTAL (BASE 16%):</span>
-                          <span className="mono-num">{formatBs(baseImponibleBs)}</span>
-                        </div>
-                        <div className="flex justify-between text-zinc-500">
-                          <span>IVA (16.00%):</span>
-                          <span className="mono-num">{formatBs(iva16Bs)}</span>
-                        </div>
-                        {igtfUsd > 0 && (
-                          <div className="flex justify-between text-amber-700 font-semibold">
-                            <span>IGTF 3% ({formatUsd(appliedCashUsd)}):</span>
-                            <span className="mono-num">{formatBs(igtfBs)}</span>
-                          </div>
-                        )}
-                        <div className="pt-1.5 border-t border-zinc-200 flex justify-between font-bold text-xs text-zinc-950">
-                          <span>TOTAL ({formatUsd(finalTotalUsd)}):</span>
-                          <span className="mono-num text-sm">{formatBs(finalTotalBs)}</span>
-                        </div>
-                      </div>
-
-                      <div className="pt-2 border-t border-dashed border-zinc-200 text-center text-[10px] text-zinc-400">
-                        PAGO DIVISAS: {formatUsd(appliedCashUsd)} | RESTO PAGO MÓVIL: {formatBs(remainingBs)}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="pt-2">
-                    <button
-                      type="button"
-                      onClick={openTrialModal}
-                      className="w-full py-2.5 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white font-semibold text-xs shadow-xs transition-all flex items-center justify-center gap-2"
-                    >
-                      <Printer size={14} />
-                      <span>Probar Facturación Fiscal en tu Local →</span>
-                    </button>
-                  </div>
-                </div>
-
-              </div>
-
-            </div>
-          </div>
+          {/* VENTANA EN MINIATURA ANIMADA ESTILO NOTION (COMPONENTES REALES DE LA APP, NO INTERACTIVA) */}
+          <NotionAppShowcase rate={rate} />
         </div>
       </section>
 
@@ -606,7 +332,7 @@ export default function LandingPage() {
               ¿Por qué los restaurantes en Venezuela eligen FacturasYa?
             </h2>
             <p className="text-sm text-zinc-600 leading-relaxed">
-              Los sistemas antiguos te amarran a costos de entrada de \$800 a \$1,200. Las apps extranjeras en la nube no se comunican con máquinas fiscales del SENIAT. FacturasYa es el híbrido moderno.
+              Los sistemas antiguos te amarran a costos de entrada de $800 a $1,200. Las apps extranjeras en la nube no se comunican con máquinas fiscales del SENIAT. FacturasYa es el híbrido moderno.
             </p>
           </div>
 
@@ -623,10 +349,10 @@ export default function LandingPage() {
               <tbody className="divide-y divide-zinc-100 text-zinc-700">
                 <tr>
                   <td className="py-4 px-5 font-semibold text-zinc-900">Inversión inicial para empezar</td>
-                  <td className="py-4 px-5 text-zinc-500">\$400 – \$1,200 + costo de visita técnica</td>
+                  <td className="py-4 px-5 text-zinc-500">$400 – $1,200 + costo de visita técnica</td>
                   <td className="py-4 px-5 text-zinc-500">Tarjeta en divisas obligatoria mensual</td>
                   <td className="py-4 px-5 bg-zinc-50 font-bold text-emerald-700">
-                    \$0 por 14 días · Luego \$30/mes por Pago Móvil
+                    $0 por 14 días · Luego $30/mes por Pago Móvil
                   </td>
                 </tr>
                 <tr>
@@ -850,7 +576,7 @@ export default function LandingPage() {
                   </div>
                   {billingCycle === 'annual' && (
                     <span className="text-[11px] text-zinc-500 block mt-0.5">
-                      Cobrado como \$300 al año (Ahorras \$60)
+                      Cobrado como $300 al año (Ahorras $60)
                     </span>
                   )}
                 </div>
@@ -924,8 +650,8 @@ export default function LandingPage() {
           </div>
 
           <div className="flex items-center gap-5 font-medium text-zinc-600">
-            <a href="#simulador" className="hover:text-zinc-950">Simulador</a>
             <a href="#comparativa" className="hover:text-zinc-950">Comparativa</a>
+            <a href="#caracteristicas" className="hover:text-zinc-950">Características</a>
             <a href="#precios" className="hover:text-zinc-950">Precios</a>
             {isAdmin && <Link to="/super-admin" className="hover:text-zinc-950">Super Admin</Link>}
           </div>
@@ -1042,7 +768,6 @@ export default function LandingPage() {
                     className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:border-zinc-950 focus:outline-none text-zinc-900 bg-zinc-50/50"
                   />
 
-                  {/* BARRITA DE SEGURIDAD DE CONTRASEÑA (SOLO EN REGISTRO) */}
                   {authTab === 'signup' && form.password.length > 0 && (
                     <div className="space-y-1 mt-2">
                       <div className="h-1.5 w-full bg-zinc-100 rounded-full overflow-hidden flex gap-1">
@@ -1061,7 +786,6 @@ export default function LandingPage() {
                   )}
                 </div>
 
-                {/* CONFIRMACIÓN DE CONTRASEÑA (SOLO EN REGISTRO) */}
                 {authTab === 'signup' && (
                   <div>
                     <label className="block text-zinc-700 font-semibold mb-1">Confirmar contraseña</label>
