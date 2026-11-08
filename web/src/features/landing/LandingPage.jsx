@@ -21,13 +21,6 @@ import NotionAppShowcase from './NotionAppShowcase';
 const INSTALLER_URL =
   import.meta.env.VITE_INSTALLER_URL || 'https://github.com/halinyer/FacturasYa/releases/latest/download/FacturaPOS-1.0.0.exe';
 
-function formatBs(val) {
-  return 'Bs. ' + Number(val || 0).toLocaleString('es-VE', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
-}
-
 export default function LandingPage() {
   const navigate = useNavigate();
   const { session, isAdmin } = useAuth() || {};
@@ -42,9 +35,6 @@ export default function LandingPage() {
       })
       .catch(() => {});
   }, []);
-
-  // Planes de precio: 'monthly' | 'annual'
-  const [billingCycle, setBillingCycle] = useState('monthly');
 
   // Modal de Autenticación
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -306,7 +296,7 @@ export default function LandingPage() {
                   <td className="py-4 px-5 text-zinc-500">Entre $400 y $1,000 de entrada</td>
                   <td className="py-4 px-5 text-zinc-500">Piden tarjeta en dólares cada mes</td>
                   <td className="py-4 px-5 bg-zinc-50 font-bold text-emerald-700">
-                    14 días gratis, luego $30/mes por Pago Móvil
+                    14 días gratis, luego $20/mes por Pago Móvil
                   </td>
                 </tr>
                 <tr>
@@ -433,34 +423,6 @@ export default function LandingPage() {
             <p className="text-sm text-zinc-600">
               Pagas en Bolívares por Pago Móvil a tasa BCV o por Binance Pay.
             </p>
-
-            <div className="pt-2 inline-flex items-center gap-2 p-1 rounded-full bg-zinc-200/60 border border-zinc-200 text-xs font-semibold">
-              <button
-                type="button"
-                onClick={() => setBillingCycle('monthly')}
-                className={`px-4 py-1.5 rounded-full transition-all cursor-pointer ${
-                  billingCycle === 'monthly'
-                    ? 'bg-white text-zinc-950 shadow-2xs'
-                    : 'text-zinc-600 hover:text-zinc-950'
-                }`}
-              >
-                Pago Mensual
-              </button>
-              <button
-                type="button"
-                onClick={() => setBillingCycle('annual')}
-                className={`px-4 py-1.5 rounded-full transition-all inline-flex items-center gap-1.5 cursor-pointer ${
-                  billingCycle === 'annual'
-                    ? 'bg-white text-zinc-950 shadow-2xs'
-                    : 'text-zinc-600 hover:text-zinc-950'
-                }`}
-              >
-                <span>Pago Anual</span>
-                <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded-full">
-                  Ahorras 2 meses
-                </span>
-              </button>
-            </div>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto items-stretch">
@@ -501,28 +463,18 @@ export default function LandingPage() {
             {/* Card 2 */}
             <div className="p-7 rounded-2xl bg-white border-2 border-zinc-950 shadow-md flex flex-col justify-between space-y-6 relative">
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
+                <div>
                   <span className="inline-block text-xs font-semibold px-2.5 py-1 rounded-full bg-zinc-950 text-white">
-                    Plan Completo
-                  </span>
-                  <span className="text-xs font-bold text-emerald-700 mono-num">
-                    {formatBs((billingCycle === 'annual' ? 25 : 30) * rate)} / mes
+                    Suscripción Mensual
                   </span>
                 </div>
 
                 <div>
                   <h3 className="text-lg font-bold text-zinc-950">Licencia por Local</h3>
                   <div className="mt-2 flex items-baseline gap-1">
-                    <span className="text-3xl font-extrabold text-zinc-950 mono-num">
-                      {billingCycle === 'annual' ? '$25' : '$30'}
-                    </span>
-                    <span className="text-xs text-zinc-500 font-medium">/ mes (a tasa BCV)</span>
+                    <span className="text-3xl font-extrabold text-zinc-950 mono-num">$20</span>
+                    <span className="text-xs text-zinc-500 font-medium">/ mes</span>
                   </div>
-                  {billingCycle === 'annual' && (
-                    <span className="text-[11px] text-zinc-500 block mt-0.5">
-                      Pago único anual de $300 (Ahorras $60)
-                    </span>
-                  )}
                 </div>
 
                 <p className="text-xs text-zinc-600 leading-relaxed">
@@ -555,7 +507,7 @@ export default function LandingPage() {
                 <div>
                   <h3 className="text-lg font-bold text-zinc-950">Varias Sucursales</h3>
                   <div className="mt-2 flex items-baseline gap-1">
-                    <span className="text-2xl font-extrabold text-zinc-950">Atención directa</span>
+                    <span className="text-2xl font-extrabold text-zinc-950">A consultar</span>
                   </div>
                 </div>
                 <p className="text-xs text-zinc-600 leading-relaxed">
