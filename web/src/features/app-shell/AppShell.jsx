@@ -50,8 +50,6 @@ import ClientsView from '../clients/ClientsView';
 
 
 
-// Monitor Cloud para el dueño y modales
-import OwnerMonitorPage from '../monitor/OwnerMonitorPage';
 import TopBarRate from './TopBarRate';
 import NotionSettingsModal from '../settings/NotionSettingsModal';
 import GlobalComandaNotifier from '@pos/components/GlobalComandaNotifier';
@@ -245,12 +243,6 @@ function AppShellInner() {
         { id: 'dashboard', label: 'Dashboard de Ventas', icon: LayoutDashboard },
         { id: 'fiscal', label: 'Libros de Compra y Venta', icon: BookOpen, badge: 'Fiscal' },
         { id: 'cash-close', label: 'Cierre de Caja', icon: Calculator, badge: 'Arqueo' }
-      ]
-    },
-    {
-      title: 'En la Nube',
-      items: [
-        { id: 'monitor', label: 'Monitor del Dueño', icon: TrendingUp, badge: 'En vivo' }
       ]
     }
   ];
@@ -750,15 +742,6 @@ function AppShellInner() {
               {activeTab === 'inventory' && <InventoryView />}
               {activeTab === 'products' && <ProductsView />}
               {activeTab === 'clients' && <ClientsView />}
-              {activeTab === 'monitor' && (
-                <div className="h-full overflow-y-auto">
-                  <OwnerMonitorPage
-                    embedded={true}
-                    defaultTab="overview"
-                    onTenantChange={(updated) => setTenant(updated)}
-                  />
-                </div>
-              )}
             </>
           )}
         </main>

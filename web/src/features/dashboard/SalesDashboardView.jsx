@@ -258,7 +258,7 @@ export default function SalesDashboardView() {
             <div className="p-4 rounded-xl bg-sky-50/60 border border-sky-200 space-y-1">
               <div className="flex items-center gap-1.5 text-xs font-bold text-sky-900">
                 <CreditCard size={15} />
-                <span>Punto de Venta POS (Bs)</span>
+                <span>Punto de Venta (Bs)</span>
               </div>
               <span className="text-xl font-black text-sky-950 font-mono block">
                 ${stats.cardTotalUsd.toFixed(2)}
