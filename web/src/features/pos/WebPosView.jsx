@@ -505,7 +505,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
           title="Ver comanda completa"
         >
           <ShoppingCart size={15} className={cart.length > 0 ? 'text-emerald-400' : 'text-zinc-500'} />
-          <span className="hidden sm:inline">Comanda</span>
+          <span className="hidden sm:inline">Carrito</span>
           <span className={`px-1.5 py-0.2 rounded-full font-mono text-[11px] ${
             cart.length > 0 ? 'bg-zinc-800 text-emerald-300 font-bold' : 'bg-zinc-200 text-zinc-600'
           }`}>
@@ -569,7 +569,12 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
             </a>
           </div>
         )}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
+        <div 
+          className="grid gap-4 sm:gap-5"
+          style={{
+            gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))'
+          }}
+        >
           {filteredProducts.map((p) => {
             const price = Number(p.priceUsd || p.price || 0);
             const priceBs = price * bcvRate;
@@ -579,26 +584,32 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
               <div
                 key={p.id}
                 onClick={() => addToCart(p)}
-                className={`group relative rounded-2xl border bg-white overflow-hidden transition-all duration-150 cursor-pointer hover:shadow-md flex flex-col justify-between ${
-                  inCart ? 'border-zinc-950 ring-2 ring-zinc-950/20 shadow-xs' : 'border-zinc-200/80 hover:border-zinc-300'
+                className={`group relative rounded-2xl border bg-white overflow-hidden transition-all duration-150 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 flex flex-col justify-between p-1.5 ${
+                  inCart ? 'border-emerald-600 ring-2 ring-emerald-500/30 bg-emerald-50/20 shadow-sm' : 'border-zinc-200/90 hover:border-zinc-300 shadow-2xs'
                 }`}
               >
-                {/* FOTOGRAFÍA DEL PRODUCTO CON PROPORCIÓN 1:1 */}
-                <div className="aspect-square w-full bg-zinc-100 overflow-hidden relative">
+                {/* FOTOGRAFIA DEL PRODUCTO CON PROPORCION 1:1 AMPLIA */}
+                <div className="aspect-square w-full bg-zinc-50 rounded-xl overflow-hidden relative flex items-center justify-center p-2.5">
                   {p.image ? (
                     <img
                       src={p.image}
                       alt={p.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                      className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-200 rounded-lg"
                       onError={(e) => {
                         e.target.style.display = 'none';
+                        if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
                       }}
                     />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-zinc-300">
-                      <Utensils size={32} />
-                    </div>
-                  )}
+                  ) : null}
+                  <div
+                    className="w-full h-full flex flex-col items-center justify-center text-zinc-300 gap-1"
+                    style={{ display: p.image ? 'none' : 'flex' }}
+                  >
+                    <Utensils size={34} strokeWidth={1.5} className="text-zinc-300" />
+                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+                      {p.category || 'Producto'}
+                    </span>
+                  </div>
 
                   {/* BADGE DE IVA EXENTO / GRAVADO */}
                   <div className="absolute top-2 left-2">
@@ -613,37 +624,40 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
                     )}
                   </div>
 
-                  {/* INDICADOR DE CANTIDAD EN CARRITO (SE SUMA EN SILENCIO SIN MOLESTAR) */}
+                  {/* INDICADOR DE CANTIDAD EN CARRITO (DESTACADO EN ESMERALDA) */}
                   {inCart && (
-                    <div className="absolute top-2 right-2 min-w-[24px] h-6 px-1.5 rounded-full bg-zinc-950 text-white font-bold text-xs flex items-center justify-center shadow-md animate-in zoom-in-75 duration-100">
+                    <div className="absolute top-2.5 right-2.5 min-w-[26px] h-6 px-1.5 rounded-full bg-emerald-600 text-white font-black text-xs flex items-center justify-center shadow-md animate-in zoom-in-75 duration-100">
                       {inCart.qty}
                     </div>
                   )}
                 </div>
 
-                {/* DETALLE DEL PRODUCTO */}
-                <div className="p-3 flex-1 flex flex-col justify-between space-y-2">
+                {/* DETALLE DEL PRODUCTO (ROBUSTO Y CLARO) */}
+                <div className="p-2.5 sm:p-3 flex-1 flex flex-col justify-between space-y-2">
                   <div>
-                    <h3 className="font-bold text-xs text-zinc-950 line-clamp-2 leading-snug group-hover:text-zinc-800">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-0.5 truncate">
+                      {p.category || 'General'}
+                    </span>
+                    <h3 className="font-extrabold text-[13px] text-zinc-950 line-clamp-2 leading-snug group-hover:text-emerald-700 transition-colors">
                       {p.name}
                     </h3>
                     {p.description && (
-                      <p className="text-[10px] text-zinc-400 line-clamp-1 mt-0.5">{p.description}</p>
+                      <p className="text-[11px] text-zinc-500 line-clamp-1 mt-0.5 font-normal">{p.description}</p>
                     )}
                   </div>
 
-                  <div className="pt-1 border-t border-zinc-100 flex items-baseline justify-between">
+                  <div className="pt-2 border-t border-zinc-100 flex items-baseline justify-between">
                     <div>
-                      <span className="text-sm font-extrabold text-zinc-950 font-mono">
+                      <span className="text-base font-black text-emerald-600 font-mono block leading-tight">
                         ${price.toFixed(2)}
                       </span>
-                      <span className="text-[10px] text-zinc-400 font-mono block leading-tight">
+                      <span className="text-[10px] font-bold text-zinc-500 font-mono block">
                         Bs. {priceBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </div>
 
-                    <div className="w-6 h-6 rounded-lg bg-zinc-100 group-hover:bg-zinc-950 group-hover:text-white text-zinc-600 flex items-center justify-center transition-colors">
-                      <Plus size={14} />
+                    <div className="w-7 h-7 rounded-xl bg-zinc-100 group-hover:bg-zinc-950 group-hover:text-white text-zinc-700 flex items-center justify-center transition-colors shadow-2xs">
+                      <Plus size={15} strokeWidth={2.5} />
                     </div>
                   </div>
                 </div>
@@ -714,7 +728,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
                   <ShoppingCart size={16} />
                 </div>
                 <div>
-                  <h2 className="font-extrabold text-sm text-white">Comanda & Carrito</h2>
+                  <h2 className="font-extrabold text-sm text-white">Orden Actual</h2>
                   <p className="text-[11px] text-zinc-400 font-mono">
                     {orderTable} · {cartTotals.totalQty} ítems
                   </p>
@@ -766,7 +780,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
               {cart.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center p-6 text-zinc-400">
                   <ShoppingCart size={40} className="mb-2 text-zinc-300 stroke-1" />
-                  <p className="text-sm font-semibold text-zinc-600">Comanda Vacía</p>
+                  <p className="text-sm font-semibold text-zinc-600">Orden Vacía</p>
                   <p className="text-xs text-zinc-400 mt-1">
                     Haz clic sobre cualquier plato o bebida para agregarlo a la orden.
                   </p>
@@ -877,7 +891,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
                     className="w-full py-2 px-3 rounded-xl border border-zinc-300 bg-white hover:bg-zinc-100 text-zinc-800 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-98"
                   >
                     <ChefHat size={15} className="text-amber-600" />
-                    <span>Mandar Comanda a Cocina</span>
+                    <span>Mandar a Cocina</span>
                   </button>
 
                   <button
@@ -886,7 +900,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
                     className="w-full py-3 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white font-extrabold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md active:scale-98"
                   >
                     <CreditCard size={16} className="text-emerald-400" />
-                    <span>Cobrar Comanda (${cartTotals.finalTotalUsd.toFixed(2)})</span>
+                    <span>COBRAR / PROCESAR VENTA (${cartTotals.finalTotalUsd.toFixed(2)})</span>
                   </button>
                 </div>
               </div>
@@ -932,7 +946,7 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
                   {docType === 'fiscal' ? 'Emitir Factura Fiscal SENIAT' : 'Emitir Nota de Entrega'}
                 </h3>
                 <p className="text-xs text-zinc-500 font-mono mt-0.5">
-                  Liquidación de Comanda · {cartTotals.totalQty} platos
+                  Resumen de Cobro · {cartTotals.totalQty} productos
                 </p>
               </div>
               <button
@@ -1203,59 +1217,38 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
               </div>
             )}
 
-            {/* SECCIÓN DETALLADA: PUNTO DE VENTA (TARJETA DÉBITO / CRÉDITO EN DATÁFONO) */}
+            {/* SECCIÓN DETALLADA: PUNTO DE VENTA (TARJETA DÉBITO / CRÉDITO EN DATÁFONO - CERO FRICCIÓN) */}
             {paymentMethod === 'punto' && (
-              <div className="p-3.5 bg-sky-50/50 rounded-xl border border-sky-200 space-y-3">
+              <div className="p-4 bg-sky-50/70 rounded-2xl border border-sky-200 space-y-3">
                 <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-sky-100 flex items-center justify-center text-sky-700">
-                      <CreditCard size={17} />
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center shrink-0 shadow-xs">
+                      <CreditCard size={20} />
                     </div>
                     <div>
                       <span className="text-xs font-bold text-sky-950 block leading-tight">
-                        Monto a Cobrar en Punto de Venta:
+                        Monto a Cobrar en el Punto:
                       </span>
-                      <span className="text-[10px] text-sky-700 font-medium">
-                        Tarjeta de Débito / Crédito en Datáfono
+                      <span className="text-[11px] text-sky-700 font-medium">
+                        Tarjeta de Débito / Crédito
                       </span>
                     </div>
                   </div>
                   <div className="text-right">
-                    <span className="text-xs font-black font-mono text-sky-950 bg-sky-100 px-2.5 py-0.5 rounded block">
+                    <span className="text-sm sm:text-base font-black font-mono text-sky-950 bg-sky-100/90 px-3 py-1 rounded-lg block">
                       Bs. {cartTotals.finalTotalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
-                    <span className="text-[10px] font-mono text-sky-700">
-                      (${cartTotals.finalTotalUsd.toFixed(2)} USD)
+                    <span className="text-[11px] font-mono font-semibold text-sky-700">
+                      (${cartTotals.finalTotalUsd.toFixed(2)} USD · Tasa BCV: {Number(bcvRate).toFixed(2)})
                     </span>
                   </div>
                 </div>
 
-                <div>
-                  <label className="text-[11px] font-bold text-zinc-700 block mb-1">
-                    Banco / Terminal del Datáfono:
-                  </label>
-                  <BankSelector
-                    selectedBank={selectedPuntoBank}
-                    onSelectBank={setSelectedPuntoBank}
-                    placeholder="Seleccionar banco del terminal..."
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-bold text-zinc-700 block mb-1 flex items-center justify-between">
-                    <span>Número de Lote / Recibo / Aprobación:</span>
-                    <span className="text-[10px] text-zinc-400 font-normal">Opcional</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Ej: Lote 045 - Ref 8912 (Voucher del datáfono)"
-                    value={puntoRef}
-                    onChange={(e) => setPuntoRef(e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-xl border border-zinc-300 text-xs bg-white placeholder:text-zinc-400"
-                  />
-                  <p className="text-[10px] text-zinc-500 mt-1">
-                    Ingresa el número de comprobante o lote impreso por el datáfono para auditar el cierre del punto.
-                  </p>
+                <div className="p-3 bg-white/90 rounded-xl border border-sky-100 text-xs text-sky-900 flex items-center gap-2.5 shadow-2xs">
+                  <CheckCircle2 size={16} className="text-sky-600 shrink-0" />
+                  <span>
+                    Pasa o inserta la tarjeta en el datáfono físico por el monto en Bolívares. Luego haz clic en el botón inferior para emitir el comprobante.
+                  </span>
                 </div>
               </div>
             )}
@@ -1403,26 +1396,16 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
                   </div>
                 )}
 
-                {/* Si usa Punto de Venta en el mixto, pedir banco del terminal y comprobante */}
+                {/* Si usa Punto de Venta en el mixto */}
                 {Number(mixedPayments.punto) > 0 && (
-                  <div className="pt-2 border-t border-zinc-200 space-y-1.5">
-                    <span className="text-[10px] font-bold text-sky-700 block">Datos Punto de Venta:</span>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      <BankSelector
-                        selectedBank={selectedPuntoBank}
-                        onSelectBank={setSelectedPuntoBank}
-                        placeholder="Banco del Terminal..."
-                        compact
-                        showQuickChips={false}
-                      />
-                      <input
-                        type="text"
-                        placeholder="Lote / Voucher (Opcional)"
-                        value={puntoRef}
-                        onChange={(e) => setPuntoRef(e.target.value)}
-                        className="px-2.5 py-1 rounded-lg border border-zinc-300 text-xs bg-white"
-                      />
-                    </div>
+                  <div className="pt-2 border-t border-zinc-200 flex items-center justify-between text-xs text-sky-900 bg-sky-50/60 p-2.5 rounded-xl border border-sky-100">
+                    <span className="font-bold flex items-center gap-1.5">
+                      <CreditCard size={14} className="text-sky-600" />
+                      Monto en Punto de Venta:
+                    </span>
+                    <span className="font-black font-mono text-sky-950">
+                      Bs. {Number(mixedPayments.punto).toFixed(2)}
+                    </span>
                   </div>
                 )}
 
