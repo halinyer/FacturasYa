@@ -20,74 +20,138 @@ import {
   Download,
   ChefHat,
   Bell,
-  Clock,
-  Receipt
+  Clock
 } from 'lucide-react';
+
+// Ilustraciones vectoriales instantáneas (0ms de carga, sin peticiones externas que retrasen la animación)
+function ProductGraphic({ type }) {
+  if (type === 'burger') {
+    return (
+      <svg viewBox="0 0 120 90" className="w-full h-full bg-amber-50/70">
+        <circle cx="60" cy="45" r="34" fill="#fef3c7" />
+        <path d="M32 40 C32 24, 88 24, 88 40 Z" fill="#d97706" />
+        <circle cx="48" cy="31" r="1.5" fill="#fef3c7" />
+        <circle cx="60" cy="29" r="1.5" fill="#fef3c7" />
+        <circle cx="72" cy="32" r="1.5" fill="#fef3c7" />
+        <rect x="30" y="42" width="60" height="4" rx="2" fill="#16a34a" />
+        <polygon points="34,46 86,46 80,51 40,51" fill="#facc15" />
+        <rect x="31" y="48" width="58" height="8" rx="4" fill="#78350f" />
+        <rect x="33" y="58" width="54" height="8" rx="4" fill="#b45309" />
+      </svg>
+    );
+  }
+  if (type === 'pepito') {
+    return (
+      <svg viewBox="0 0 120 90" className="w-full h-full bg-orange-50/70">
+        <circle cx="60" cy="45" r="34" fill="#ffedd5" />
+        <rect x="24" y="34" width="72" height="22" rx="11" fill="#d97706" />
+        <rect x="28" y="39" width="64" height="7" rx="3.5" fill="#78350f" />
+        <path d="M30 41 Q40 36, 50 41 T70 41 T90 41" stroke="#facc15" strokeWidth="3" fill="none" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (type === 'fries') {
+    return (
+      <svg viewBox="0 0 120 90" className="w-full h-full bg-yellow-50/70">
+        <circle cx="60" cy="45" r="34" fill="#fef9c3" />
+        <rect x="42" y="20" width="6" height="28" rx="2" fill="#eab308" />
+        <rect x="50" y="17" width="6" height="30" rx="2" fill="#facc15" />
+        <rect x="58" y="19" width="6" height="28" rx="2" fill="#eab308" />
+        <rect x="66" y="18" width="6" height="29" rx="2" fill="#facc15" />
+        <rect x="74" y="22" width="6" height="25" rx="2" fill="#ca8a04" />
+        <path d="M38 42 L82 42 L76 68 L44 68 Z" fill="#dc2626" />
+        <circle cx="60" cy="55" r="6" fill="#fef2f2" />
+      </svg>
+    );
+  }
+  if (type === 'wings') {
+    return (
+      <svg viewBox="0 0 120 90" className="w-full h-full bg-red-50/60">
+        <circle cx="60" cy="45" r="34" fill="#fee2e2" />
+        <ellipse cx="52" cy="46" rx="18" ry="11" transform="rotate(-18 52 46)" fill="#b45309" />
+        <ellipse cx="68" cy="50" rx="16" ry="10" transform="rotate(15 68 50)" fill="#92400e" />
+        <circle cx="82" cy="43" r="4" fill="#fef3c7" />
+      </svg>
+    );
+  }
+  if (type === 'drink') {
+    return (
+      <svg viewBox="0 0 120 90" className="w-full h-full bg-sky-50/60">
+        <circle cx="60" cy="45" r="34" fill="#e0f2fe" />
+        <path d="M64 16 L70 16 L63 30" stroke="#0284c7" strokeWidth="3" fill="none" strokeLinecap="round" />
+        <path d="M44 28 L76 28 L72 68 L48 68 Z" fill="#f59e0b" opacity="0.85" />
+        <rect x="42" y="25" width="36" height="4" rx="2" fill="#ffffff" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 120 90" className="w-full h-full bg-zinc-100">
+      <circle cx="60" cy="45" r="34" fill="#e4e4e7" />
+      <path d="M46 34 L74 34 L70 68 L50 68 Z" fill="#52525b" />
+      <path d="M44 34 Q60 18, 76 34 Z" fill="#fafafa" />
+      <circle cx="60" cy="22" r="3.5" fill="#e11d48" />
+    </svg>
+  );
+}
 
 const SHOWCASE_PRODUCTS = [
   {
     id: 'p1',
-    name: 'Smash Burger Doble Bacon',
-    description: 'Doble carne 200g, cheddar americano y tocineta',
+    name: 'Smash Burger Doble',
+    description: 'Doble carne, cheddar y tocineta',
     category: 'Hamburguesas',
-    priceUsd: 7.50,
-    isExempt: false,
-    image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=400&q=80'
+    priceUsd: 7.5,
+    art: 'burger'
   },
   {
     id: 'p2',
-    name: 'Pepito Lomito Gratinado 35cm',
-    description: 'Lomito salteado, maíz, papas y queso mozzarella',
+    name: 'Pepito Lomito 35cm',
+    description: 'Lomito, maíz, papas y queso',
     category: 'Pepitos',
-    priceUsd: 9.00,
-    isExempt: false,
-    image: 'https://images.unsplash.com/photo-1619860860774-1e2e17343432?auto=format&fit=crop&w=400&q=80'
+    priceUsd: 9.0,
+    art: 'pepito'
   },
   {
     id: 'p3',
-    name: 'Papas Rústicas Trufadas',
-    description: 'Con parmesano, perejil fresco y salsa de ajo',
+    name: 'Papas Rústicas',
+    description: 'Con queso fundido y tocineta',
     category: 'Entradas',
-    priceUsd: 4.50,
-    isExempt: false,
-    image: 'https://images.unsplash.com/photo-1576107232684-1279f3908594?auto=format&fit=crop&w=400&q=80'
+    priceUsd: 4.5,
+    art: 'fries'
   },
   {
     id: 'p4',
-    name: 'Alitas Crispy BBQ (8 und)',
-    description: 'Glaseadas en salsa BBQ artesanal y ajonjolí',
+    name: 'Alitas BBQ (8 und)',
+    description: 'Salsa BBQ artesanal y ajonjolí',
     category: 'Entradas',
-    priceUsd: 6.50,
-    isExempt: false,
-    image: 'https://images.unsplash.com/photo-1567620832903-9fc6debc209f?auto=format&fit=crop&w=400&q=80'
+    priceUsd: 6.5,
+    art: 'wings'
   },
   {
     id: 'p5',
-    name: 'Té Frío Durazno Jarra',
-    description: 'Refrescante té natural con hielo y limón',
+    name: 'Té Frío Durazno',
+    description: 'Vaso grande con limón',
     category: 'Bebidas',
-    priceUsd: 2.50,
-    isExempt: false,
-    image: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?auto=format&fit=crop&w=400&q=80'
+    priceUsd: 2.5,
+    art: 'drink'
   },
   {
     id: 'p6',
-    name: 'Merengada Oreo Brownie',
-    description: 'Helado cremoso con trozos de brownie casero',
+    name: 'Merengada Brownie',
+    description: 'Helado cremoso con brownie',
     category: 'Bebidas',
-    priceUsd: 5.00,
-    isExempt: false,
-    image: 'https://images.unsplash.com/photo-1572490122747-3968b75cc699?auto=format&fit=crop&w=400&q=80'
+    priceUsd: 5.0,
+    art: 'shake'
   }
 ];
 
 const SHOWCASE_TABLES = [
-  { id: 't1', name: 'Mesa 1', zone: 'Salón', status: 'ocupada', waiter: 'Carlos M.', items: 4, totalUsd: 24.00, mins: '18 min' },
-  { id: 't2', name: 'Mesa 2', zone: 'Salón', status: 'libre', waiter: null, items: 0, totalUsd: 0, mins: null },
-  { id: 't3', name: 'Mesa 3', zone: 'Salón', status: 'cuenta', waiter: 'Valeria R.', items: 6, totalUsd: 38.50, mins: '42 min' },
-  { id: 't4', name: 'Mesa 4', zone: 'Terraza', status: 'ocupada', waiter: 'Valeria R.', items: 3, totalUsd: 19.50, mins: 'Hace 1m' },
-  { id: 't5', name: 'Mesa 5', zone: 'Terraza', status: 'libre', waiter: null, items: 0, totalUsd: 0, mins: null },
-  { id: 't6', name: 'Barra 1', zone: 'Barra', status: 'ocupada', waiter: 'Andrés S.', items: 2, totalUsd: 11.50, mins: '12 min' }
+  { id: 't1', name: 'Mesa 1', zone: 'Salón', status: 'ocupada', waiter: 'Carlos M.', totalUsd: 24.0, mins: '18 min' },
+  { id: 't2', name: 'Mesa 2', zone: 'Salón', status: 'libre', waiter: null, totalUsd: 0, mins: null },
+  { id: 't3', name: 'Mesa 3', zone: 'Salón', status: 'cuenta', waiter: 'Valeria R.', totalUsd: 38.5, mins: '42 min' },
+  { id: 't4', name: 'Mesa 4', zone: 'Terraza', status: 'ocupada', waiter: 'Valeria R.', totalUsd: 19.5, mins: 'Hace 1m' },
+  { id: 't5', name: 'Mesa 5', zone: 'Terraza', status: 'libre', waiter: null, totalUsd: 0, mins: null },
+  { id: 't6', name: 'Barra 1', zone: 'Barra', status: 'ocupada', waiter: 'Andrés S.', totalUsd: 11.5, mins: '12 min' }
 ];
 
 const NAV_SECTIONS = [
@@ -129,21 +193,11 @@ function formatBs(val) {
   });
 }
 
-export default function NotionAppShowcase({ rate = 876.80 }) {
-  // Coreografía automática de 9 pasos que recorre la aplicación real (sin requerir clics del usuario)
-  // 0: POS inicio (1 item)
-  // 1: Cursor suma 2da Smash Burger (2 items)
-  // 2: Cursor suma Pepito Lomito (3 items)
-  // 3: Cursor suma Papas Rústicas (4 items)
-  // 4: Cursor pulsa "Cobrar / Facturar" -> Modal de Factura Fiscal HKA80 emitida
-  // 5: Transición a "Mesas & Salón"
-  // 6: Llega Notificación en vivo de Comanda QR desde Mesa 4
-  // 7: Transición a "Libros SENIAT"
-  // 8: Destello de Reporte Z + Libro de Ventas SENIAT cuadrado
+export default function NotionAppShowcase({ rate = 896.12 }) {
   const [step, setStep] = useState(0);
 
   useEffect(() => {
-    const durations = [1600, 1400, 1400, 1500, 2800, 1600, 2600, 1600, 2800];
+    const durations = [1400, 1200, 1200, 1300, 2400, 1400, 2300, 1400, 2400];
     const timer = setTimeout(() => {
       setStep((prev) => (prev + 1) % durations.length);
     }, durations[step]);
@@ -152,7 +206,6 @@ export default function NotionAppShowcase({ rate = 876.80 }) {
 
   const activeTab = step <= 4 ? 'pos' : step <= 6 ? 'tables' : 'fiscal';
 
-  // Estado derivado del carrito en la escena POS
   const cartCounts = {
     p1: step >= 1 ? 2 : 1,
     p2: step >= 2 ? 1 : 0,
@@ -160,10 +213,9 @@ export default function NotionAppShowcase({ rate = 876.80 }) {
   };
 
   const totalQty = (cartCounts.p1 || 0) + (cartCounts.p2 || 0) + (cartCounts.p3 || 0);
-  const totalUsd = (cartCounts.p1 * 7.50) + (cartCounts.p2 * 9.00) + (cartCounts.p3 * 4.50);
+  const totalUsd = cartCounts.p1 * 7.5 + cartCounts.p2 * 9.0 + cartCounts.p3 * 4.5;
   const totalBs = totalUsd * rate;
 
-  // Posición animada del cursor dentro de la ventana (porcentajes X, Y)
   const cursorPositions = [
     { x: '38%', y: '38%', clicking: false },
     { x: '36%', y: '41%', clicking: true },
@@ -185,20 +237,13 @@ export default function NotionAppShowcase({ rate = 876.80 }) {
       : { label: 'Libros SENIAT', badge: 'Legal' };
 
   return (
-    <div className="mt-14 max-w-6xl mx-auto select-none pointer-events-none" aria-hidden="true">
-      {/* Contenedor con halo sutil estilo Notion / Linear */}
-      <motion.div
-        initial={{ opacity: 0, y: 28, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-        className="relative rounded-2xl p-1.5 sm:p-2 bg-gradient-to-b from-zinc-200/80 via-zinc-200/40 to-zinc-300/60 shadow-[0_24px_70px_-15px_rgba(0,0,0,0.16),0_4px_16px_rgba(0,0,0,0.05)] border border-zinc-200/90"
-      >
-        {/* VENTANA REAL DE LA APLICACIÓN (MISMA ESTRUCTURA QUE APPSHELL.JSX) */}
-        <div className="relative rounded-xl overflow-hidden border border-zinc-800/90 bg-zinc-900 flex h-[500px] sm:h-[560px] text-left">
+    <div className="mt-12 max-w-6xl mx-auto select-none pointer-events-none" aria-hidden="true">
+      <div className="relative rounded-2xl p-1.5 sm:p-2 bg-zinc-200/70 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.14)] border border-zinc-200">
+        {/* VENTANA DE LA APLICACIÓN REAL */}
+        <div className="relative rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900 flex h-[480px] sm:h-[540px] text-left">
           
-          {/* SIDEBAR IDÉNTICO A APPSHELL.JSX */}
+          {/* SIDEBAR */}
           <aside className="hidden md:flex w-56 flex-col bg-zinc-900 text-zinc-300 border-r border-zinc-800 shrink-0">
-            {/* Header del Workspace */}
             <div className="p-3 border-b border-zinc-800 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5 min-w-0">
                 <div className="w-7 h-7 rounded-lg bg-zinc-800 border border-zinc-700 text-white font-extrabold text-[11px] flex items-center justify-center shrink-0">
@@ -209,9 +254,9 @@ export default function NotionAppShowcase({ rate = 876.80 }) {
                     El Portón Grill C.A.
                   </div>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
                     <span className="text-[9px] text-zinc-400 font-semibold truncate">
-                      Suscripción activa
+                      Caja principal activa
                     </span>
                   </div>
                 </div>
@@ -221,7 +266,6 @@ export default function NotionAppShowcase({ rate = 876.80 }) {
               </div>
             </div>
 
-            {/* Navegación Principal */}
             <div className="flex-1 overflow-hidden p-2 space-y-2.5">
               {NAV_SECTIONS.map((section) => (
                 <div key={section.title} className="space-y-0.5">
@@ -234,25 +278,18 @@ export default function NotionAppShowcase({ rate = 876.80 }) {
                     return (
                       <div
                         key={item.id}
-                        className={`relative w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[11px] font-semibold transition-colors ${
-                          isActive ? 'text-white font-bold' : 'text-zinc-400'
+                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[11px] font-semibold transition-colors ${
+                          isActive ? 'bg-zinc-800 text-white font-bold' : 'text-zinc-400'
                         }`}
                       >
-                        {isActive && (
-                          <motion.div
-                            layoutId="notionSidebarActive"
-                            transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                            className="absolute inset-0 rounded-lg bg-zinc-800 shadow-2xs"
-                          />
-                        )}
                         <Icon
                           size={14}
-                          className={`relative z-10 ${isActive ? 'text-emerald-400' : 'text-zinc-400'}`}
+                          className={isActive ? 'text-emerald-400' : 'text-zinc-400'}
                         />
-                        <span className="relative z-10 flex-1 truncate">{item.label}</span>
+                        <span className="flex-1 truncate">{item.label}</span>
                         {item.badge && (
                           <span
-                            className={`relative z-10 text-[8px] px-1.5 py-0.2 rounded-full font-bold ${
+                            className={`text-[8px] px-1.5 py-0.2 rounded-full font-bold ${
                               item.badge === 'Caja'
                                 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                                 : item.badge === 'Legal'
@@ -274,7 +311,6 @@ export default function NotionAppShowcase({ rate = 876.80 }) {
               ))}
             </div>
 
-            {/* Pie del Sidebar */}
             <div className="p-2 border-t border-zinc-800">
               <div className="flex items-center justify-between p-2 rounded-xl bg-zinc-800/80 border border-zinc-700/60">
                 <div className="flex items-center gap-2 min-w-0">
@@ -296,10 +332,10 @@ export default function NotionAppShowcase({ rate = 876.80 }) {
             </div>
           </aside>
 
-          {/* ÁREA PRINCIPAL DE LA VENTANA */}
+          {/* CONTENIDO PRINCIPAL */}
           <div className="flex-1 flex flex-col min-w-0 bg-zinc-50 overflow-hidden relative">
             
-            {/* TOPBAR IDÉNTICO A APPSHELL.JSX */}
+            {/* TOPBAR */}
             <div className="h-11 bg-zinc-900 border-b border-zinc-800 px-4 flex items-center justify-between shrink-0 text-white">
               <div className="flex items-center gap-2">
                 <span className="font-extrabold text-xs tracking-tight text-white">
@@ -311,15 +347,13 @@ export default function NotionAppShowcase({ rate = 876.80 }) {
               </div>
 
               <div className="flex items-center gap-2">
-                {/* Pill de Tasa BCV idéntico a TopBarRate.jsx */}
-                <div className="flex items-center gap-1.5 bg-zinc-800/90 border border-zinc-700/80 rounded-xl px-2.5 py-1 text-[10px]">
+                <div className="flex items-center gap-1.5 bg-zinc-800 border border-zinc-700 rounded-xl px-2.5 py-1 text-[10px]">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
                   <span className="text-zinc-400 font-semibold">BCV:</span>
                   <span className="text-white font-extrabold font-mono">{rate.toFixed(2)} Bs/$</span>
                 </div>
 
-                {/* Controles de ventana estilo Windows Desktop (.exe) */}
-                <div className="hidden sm:flex items-center gap-1.5 pl-2 ml-1 border-l border-zinc-800 text-zinc-500">
+                <div className="hidden sm:flex items-center gap-1.5 pl-2 ml-1 border-l border-zinc-800">
                   <span className="w-2.5 h-2.5 rounded-full bg-zinc-700"></span>
                   <span className="w-2.5 h-2.5 rounded-full bg-zinc-700"></span>
                   <span className="w-2.5 h-2.5 rounded-full bg-zinc-700"></span>
@@ -327,35 +361,29 @@ export default function NotionAppShowcase({ rate = 876.80 }) {
               </div>
             </div>
 
-            {/* VISTAS DINÁMICAS CON TRANSICIÓN FRAMER MOTION */}
+            {/* ESCENAS */}
             <div className="flex-1 overflow-hidden relative flex flex-col">
               <AnimatePresence mode="wait">
                 
-                {/* ESCENA 1: PUNTO DE VENTA REAL (WEBPOSVIEW.JSX) */}
+                {/* ESCENA 1: PUNTO DE VENTA */}
                 {activeTab === 'pos' && (
                   <motion.div
                     key="scene-pos"
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.28 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.18 }}
                     className="flex-1 flex flex-col h-full bg-zinc-50 overflow-hidden relative"
                   >
-                    {/* Toolbar Superior del POS */}
                     <div className="bg-white border-b border-zinc-200/80 px-4 py-2 shrink-0 flex items-center justify-between gap-3">
                       <div className="relative flex-1 max-w-xs">
                         <Search size={13} className="absolute left-2.5 top-2 text-zinc-400" />
                         <div className="w-full pl-8 pr-3 py-1 rounded-xl border border-zinc-200 text-[11px] text-zinc-400 bg-zinc-50/50">
-                          Buscar plato, combo o bebida en el catálogo...
+                          Buscar plato, combo o bebida...
                         </div>
                       </div>
 
-                      <motion.div
-                        key={totalQty}
-                        initial={{ scale: 0.92 }}
-                        animate={{ scale: 1 }}
-                        className="px-2.5 py-1 rounded-xl border bg-zinc-950 text-white border-zinc-950 text-[11px] font-bold flex items-center gap-1.5 shadow-2xs"
-                      >
+                      <div className="px-2.5 py-1 rounded-xl border bg-zinc-950 text-white border-zinc-950 text-[11px] font-bold flex items-center gap-1.5">
                         <ShoppingCart size={13} className="text-emerald-400" />
                         <span>Comanda</span>
                         <span className="px-1.5 py-0.2 rounded-full font-mono text-[10px] bg-zinc-800 text-emerald-300 font-bold">
@@ -364,10 +392,9 @@ export default function NotionAppShowcase({ rate = 876.80 }) {
                         <span className="font-mono text-zinc-300 text-[10px] border-l border-zinc-700 pl-1.5">
                           ${totalUsd.toFixed(2)}
                         </span>
-                      </motion.div>
+                      </div>
                     </div>
 
-                    {/* Chips de Categorías */}
                     <div className="bg-white px-4 py-1.5 border-b border-zinc-200/80 flex items-center gap-1.5 shrink-0">
                       {[
                         { name: 'Todos', count: 6, active: true },
@@ -394,55 +421,32 @@ export default function NotionAppShowcase({ rate = 876.80 }) {
                       ))}
                     </div>
 
-                    {/* Grid de Productos idéntico a WebPosView.jsx */}
                     <div className="flex-1 p-3 sm:p-4 grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3 overflow-hidden">
                       {SHOWCASE_PRODUCTS.map((p) => {
                         const qty = cartCounts[p.id] || 0;
                         const priceBs = p.priceUsd * rate;
 
                         return (
-                          <motion.div
+                          <div
                             key={p.id}
-                            animate={{
-                              scale:
-                                (step === 1 && p.id === 'p1') ||
-                                (step === 2 && p.id === 'p2') ||
-                                (step === 3 && p.id === 'p3')
-                                  ? [1, 0.96, 1]
-                                  : 1
-                            }}
-                            transition={{ duration: 0.25 }}
-                            className={`rounded-2xl border bg-white overflow-hidden flex flex-col justify-between transition-all ${
+                            className={`rounded-2xl border bg-white overflow-hidden flex flex-col justify-between transition-colors ${
                               qty > 0
-                                ? 'border-zinc-950 ring-2 ring-zinc-950/15 shadow-xs'
+                                ? 'border-zinc-950 ring-1 ring-zinc-950/20'
                                 : 'border-zinc-200/80'
                             }`}
                           >
-                            <div className="h-24 sm:h-28 w-full bg-zinc-100 overflow-hidden relative">
-                              <img
-                                src={p.image}
-                                alt={p.name}
-                                className="w-full h-full object-cover"
-                              />
+                            <div className="h-22 sm:h-26 w-full overflow-hidden relative">
+                              <ProductGraphic type={p.art} />
                               <div className="absolute top-1.5 left-1.5">
-                                <span className="px-1.5 py-0.5 rounded-md font-bold text-[8px] bg-emerald-600/90 text-white shadow-2xs">
+                                <span className="px-1.5 py-0.5 rounded-md font-bold text-[8px] bg-emerald-600 text-white">
                                   IVA 16%
                                 </span>
                               </div>
-                              <AnimatePresence>
-                                {qty > 0 && (
-                                  <motion.div
-                                    key={qty}
-                                    initial={{ scale: 0.4, opacity: 0 }}
-                                    animate={{ scale: 1, opacity: 1 }}
-                                    exit={{ scale: 0.4, opacity: 0 }}
-                                    transition={{ type: 'spring', stiffness: 450, damping: 22 }}
-                                    className="absolute top-1.5 right-1.5 min-w-[20px] h-5 px-1 rounded-full bg-zinc-950 text-white font-bold text-[10px] flex items-center justify-center shadow-md"
-                                  >
-                                    {qty}
-                                  </motion.div>
-                                )}
-                              </AnimatePresence>
+                              {qty > 0 && (
+                                <div className="absolute top-1.5 right-1.5 min-w-[20px] h-5 px-1 rounded-full bg-zinc-950 text-white font-bold text-[10px] flex items-center justify-center shadow-xs">
+                                  {qty}
+                                </div>
+                              )}
                             </div>
 
                             <div className="p-2.5 flex-1 flex flex-col justify-between">
@@ -473,17 +477,13 @@ export default function NotionAppShowcase({ rate = 876.80 }) {
                                 </div>
                               </div>
                             </div>
-                          </motion.div>
+                          </div>
                         );
                       })}
                     </div>
 
-                    {/* Barra Inferior Flotante Unificada idéntica a WebPosView.jsx */}
-                    <motion.div
-                      initial={{ y: 20, opacity: 0 }}
-                      animate={{ y: 0, opacity: 1 }}
-                      className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-zinc-950/95 backdrop-blur-md text-white p-1.5 rounded-2xl shadow-2xl border border-zinc-800"
-                    >
+                    {/* Barra Inferior Unificada */}
+                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-zinc-950 text-white p-1.5 rounded-2xl shadow-xl border border-zinc-800">
                       <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-zinc-900 text-[11px] font-semibold">
                         <ShoppingCart size={13} className="text-emerald-400" />
                         <span className="font-bold">{totalQty} ítems</span>
@@ -497,26 +497,21 @@ export default function NotionAppShowcase({ rate = 876.80 }) {
                         <span>Comanda</span>
                       </div>
 
-                      <motion.div
-                        animate={{
-                          scale: step === 4 ? [1, 0.94, 1.03, 1] : 1
-                        }}
-                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-500 text-zinc-950 font-extrabold text-[11px] shadow-xs"
-                      >
+                      <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-500 text-zinc-950 font-extrabold text-[11px]">
                         <Printer size={13} />
                         <span>Cobrar / Facturar</span>
-                      </motion.div>
-                    </motion.div>
+                      </div>
+                    </div>
 
-                    {/* Overlay animado de Emisión Fiscal HKA80 en el Paso 4 */}
+                    {/* Confirmación de Factura Fiscal en Paso 4 */}
                     <AnimatePresence>
                       {step === 4 && (
                         <motion.div
-                          initial={{ opacity: 0, scale: 0.92, y: 12 }}
-                          animate={{ opacity: 1, scale: 1, y: 0 }}
-                          exit={{ opacity: 0, scale: 0.95, y: 8 }}
-                          transition={{ type: 'spring', stiffness: 360, damping: 26 }}
-                          className="absolute inset-0 z-30 bg-zinc-950/35 backdrop-blur-[2px] flex items-center justify-center p-4"
+                          initial={{ opacity: 0, scale: 0.96 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.96 }}
+                          transition={{ duration: 0.18 }}
+                          className="absolute inset-0 z-30 bg-zinc-950/30 flex items-center justify-center p-4"
                         >
                           <div className="bg-white rounded-2xl border border-zinc-200 shadow-2xl max-w-xs w-full p-4 space-y-3">
                             <div className="flex items-center justify-between border-b border-zinc-100 pb-2.5">
@@ -552,14 +547,14 @@ export default function NotionAppShowcase({ rate = 876.80 }) {
                                 <span className="font-bold text-zinc-950">{formatBs(4.5 * rate)}</span>
                               </div>
                               <div className="border-t border-dashed border-zinc-300 pt-1 mt-1 flex justify-between font-bold text-zinc-950 text-[11px]">
-                                <span>TOTAL FISCAL ($28.50):</span>
+                                <span>TOTAL ($28.50):</span>
                                 <span>{formatBs(totalBs)}</span>
                               </div>
                             </div>
 
                             <div className="flex items-center justify-between text-[10px] text-zinc-500">
                               <span>Pago Mixto: $10 Efectivo + Pago Móvil</span>
-                              <span className="text-emerald-700 font-bold">✓ Sincronizado</span>
+                              <span className="text-emerald-700 font-bold">Impresa</span>
                             </div>
                           </div>
                         </motion.div>
@@ -568,17 +563,16 @@ export default function NotionAppShowcase({ rate = 876.80 }) {
                   </motion.div>
                 )}
 
-                {/* ESCENA 2: MESAS & SALÓN REAL (TABLESVIEW.JSX) */}
+                {/* ESCENA 2: MESAS & SALÓN */}
                 {activeTab === 'tables' && (
                   <motion.div
                     key="scene-tables"
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.28 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.18 }}
                     className="flex-1 flex flex-col h-full bg-zinc-50 overflow-hidden relative"
                   >
-                    {/* Header idéntico a TablesView.jsx */}
                     <div className="bg-white border-b border-zinc-200/80 px-5 py-3 shrink-0 flex items-center justify-between gap-2">
                       <div>
                         <div className="flex items-center gap-2">
@@ -593,7 +587,7 @@ export default function NotionAppShowcase({ rate = 876.80 }) {
                           </span>
                         </div>
                         <p className="text-[10px] text-zinc-500 mt-0.5">
-                          Monitoreo en tiempo real de mesas, pedidos de meseros por QR y cocina
+                          Pedidos de mesoneros por QR y cuentas abiertas en vivo
                         </p>
                       </div>
 
@@ -609,7 +603,6 @@ export default function NotionAppShowcase({ rate = 876.80 }) {
                       </div>
                     </div>
 
-                    {/* Grid de Mesas idéntico a TablesView.jsx */}
                     <div className="p-4 grid grid-cols-2 sm:grid-cols-3 gap-3 flex-1 overflow-hidden">
                       {SHOWCASE_TABLES.map((t) => {
                         const isOccupied = t.status === 'ocupada';
@@ -617,18 +610,15 @@ export default function NotionAppShowcase({ rate = 876.80 }) {
                         const isNewQr = step === 6 && t.id === 't4';
 
                         return (
-                          <motion.div
+                          <div
                             key={t.id}
-                            animate={{
-                              scale: isNewQr ? [1, 1.03, 1] : 1
-                            }}
-                            className={`bg-white rounded-2xl border p-3.5 flex flex-col justify-between shadow-2xs ${
+                            className={`bg-white rounded-2xl border p-3.5 flex flex-col justify-between transition-colors ${
                               isNewQr
                                 ? 'border-emerald-500 ring-2 ring-emerald-200'
                                 : isBill
-                                ? 'border-sky-300 ring-2 ring-sky-100/80'
+                                ? 'border-sky-300'
                                 : isOccupied
-                                ? 'border-amber-300 ring-2 ring-amber-50'
+                                ? 'border-amber-300'
                                 : 'border-zinc-200/80'
                             }`}
                           >
@@ -669,36 +659,35 @@ export default function NotionAppShowcase({ rate = 876.80 }) {
                               </div>
                             ) : (
                               <div className="pt-2 border-t border-zinc-100 text-[10px] text-zinc-400">
-                                Disponible para asignar comanda
+                                Mesa libre
                               </div>
                             )}
-                          </motion.div>
+                          </div>
                         );
                       })}
                     </div>
 
-                    {/* Notificación flotante idéntica a GlobalComandaNotifier.jsx en Paso 6 */}
                     <AnimatePresence>
                       {step === 6 && (
                         <motion.div
-                          initial={{ opacity: 0, x: 40, y: -10 }}
-                          animate={{ opacity: 1, x: 0, y: 0 }}
-                          exit={{ opacity: 0, x: 40 }}
-                          transition={{ type: 'spring', stiffness: 360, damping: 25 }}
-                          className="absolute top-14 right-4 z-30 bg-zinc-950 text-white rounded-2xl border border-zinc-800 shadow-2xl p-3.5 max-w-xs flex items-start gap-3"
+                          initial={{ opacity: 0, y: -8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -8 }}
+                          transition={{ duration: 0.18 }}
+                          className="absolute top-14 right-4 z-30 bg-zinc-950 text-white rounded-2xl border border-zinc-800 shadow-xl p-3.5 max-w-xs flex items-start gap-3"
                         >
                           <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shrink-0">
                             <Bell size={15} />
                           </div>
                           <div className="text-[11px] space-y-0.5">
                             <div className="font-extrabold text-white flex items-center gap-1.5">
-                              <span>Nueva Comanda Móvil QR</span>
+                              <span>Comanda recibida</span>
                               <span className="text-[9px] bg-emerald-500 text-zinc-950 font-black px-1.5 py-0.2 rounded">
                                 MESA 4
                               </span>
                             </div>
                             <p className="text-zinc-300 text-[10px]">
-                              Mesonero: <strong>Valeria R.</strong> · 2x Smash Burger + 1x Té Frío enviados a Cocina.
+                              Mesonero: <strong>Valeria R.</strong> · 2x Smash Burger + 1x Té Frío enviados a cocina.
                             </p>
                           </div>
                         </motion.div>
@@ -707,17 +696,16 @@ export default function NotionAppShowcase({ rate = 876.80 }) {
                   </motion.div>
                 )}
 
-                {/* ESCENA 3: LIBROS FISCALES SENIAT REAL (FISCALBOOKSVIEW.JSX) */}
+                {/* ESCENA 3: LIBROS FISCALES SENIAT */}
                 {activeTab === 'fiscal' && (
                   <motion.div
                     key="scene-fiscal"
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.28 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.18 }}
                     className="flex-1 flex flex-col h-full bg-zinc-50 overflow-hidden relative"
                   >
-                    {/* Header idéntico a FiscalBooksView.jsx */}
                     <div className="bg-white border-b border-zinc-200/80 px-5 py-3 shrink-0 flex items-center justify-between gap-2">
                       <div>
                         <div className="flex items-center gap-2">
@@ -727,12 +715,9 @@ export default function NotionAppShowcase({ rate = 876.80 }) {
                           <span className="text-sm font-bold text-zinc-950">
                             Libros Fiscales SENIAT
                           </span>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            Cumplimiento Tributario VE
-                          </span>
                         </div>
                         <p className="text-[10px] text-zinc-500 mt-0.5">
-                          Libros legales de Ventas, Compras y archivo de Cierres Z por máquina fiscal
+                          Libro de Ventas, Compras y Cierres Z listos para tu contador
                         </p>
                       </div>
 
@@ -741,65 +726,60 @@ export default function NotionAppShowcase({ rate = 876.80 }) {
                           <FileSpreadsheet size={12} className="text-amber-700" />
                           <span>Memoria Fiscal Z</span>
                         </div>
-                        <motion.div
-                          animate={{ scale: step === 8 ? [1, 0.94, 1.04, 1] : 1 }}
-                          className="px-2.5 py-1.5 rounded-xl bg-zinc-950 text-white text-[10px] font-bold flex items-center gap-1"
-                        >
+                        <div className="px-2.5 py-1.5 rounded-xl bg-zinc-950 text-white text-[10px] font-bold flex items-center gap-1">
                           <Download size={12} />
-                          <span>Exportar CSV SENIAT</span>
-                        </motion.div>
+                          <span>Exportar Excel SENIAT</span>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Resumen Fiscal Mensual + Tabla SENIAT */}
                     <div className="p-4 space-y-3 flex-1 overflow-hidden">
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                         <div className="bg-white p-3 rounded-xl border border-zinc-200/80">
                           <span className="text-[9px] font-bold uppercase text-zinc-400 block">
-                            Total Facturado (Con IVA)
+                            Total Facturado
                           </span>
                           <span className="text-xs font-extrabold text-zinc-950 font-mono mt-0.5 block">
-                            {formatBs(1485.50 * rate)}
+                            {formatBs(1485.5 * rate)}
                           </span>
                         </div>
                         <div className="bg-white p-3 rounded-xl border border-zinc-200/80">
                           <span className="text-[9px] font-bold uppercase text-zinc-400 block">
-                            Base Imponible (16%)
+                            Base Imponible 16%
                           </span>
                           <span className="text-xs font-extrabold text-zinc-950 font-mono mt-0.5 block">
-                            {formatBs(1280.60 * rate)}
+                            {formatBs(1280.6 * rate)}
                           </span>
                         </div>
                         <div className="bg-white p-3 rounded-xl border border-zinc-200/80">
                           <span className="text-[9px] font-bold uppercase text-zinc-400 block">
-                            Débito Fiscal IVA 16%
+                            IVA 16%
                           </span>
                           <span className="text-xs font-extrabold text-emerald-700 font-mono mt-0.5 block">
-                            {formatBs(204.90 * rate)}
+                            {formatBs(204.9 * rate)}
                           </span>
                         </div>
                         <div className="bg-white p-3 rounded-xl border border-zinc-200/80">
                           <span className="text-[9px] font-bold uppercase text-zinc-400 block">
-                            IGTF 3% Percibido
+                            IGTF 3%
                           </span>
                           <span className="text-xs font-extrabold text-amber-700 font-mono mt-0.5 block">
-                            {formatBs(18.40 * rate)}
+                            {formatBs(18.4 * rate)}
                           </span>
                         </div>
                       </div>
 
-                      {/* Tabla Libro de Ventas SENIAT */}
                       <div className="bg-white rounded-xl border border-zinc-200/80 overflow-hidden">
                         <div className="px-3.5 py-2 bg-zinc-50 border-b border-zinc-200/80 flex items-center justify-between text-[10px] font-bold text-zinc-600">
-                          <span>LIBRO DE VENTAS · MÁQUINA FISCAL Z1B8049210</span>
-                          <span className="text-emerald-700">Reporte Z #0142 Cuadrado</span>
+                          <span>LIBRO DE VENTAS · IMPRESORA HKA80 (Z1B8049210)</span>
+                          <span className="text-emerald-700">Reporte Z #0142 al día</span>
                         </div>
                         <table className="w-full text-left border-collapse text-[10px]">
                           <thead>
                             <tr className="border-b border-zinc-100 text-zinc-400 uppercase text-[9px]">
                               <th className="py-2 px-3">Factura</th>
                               <th className="py-2 px-3">RIF / Cliente</th>
-                              <th className="py-2 px-3">Serial Máquina</th>
+                              <th className="py-2 px-3">Serial</th>
                               <th className="py-2 px-3 text-right">Base 16%</th>
                               <th className="py-2 px-3 text-right">IVA 16%</th>
                               <th className="py-2 px-3 text-right">Total Bs</th>
@@ -807,10 +787,10 @@ export default function NotionAppShowcase({ rate = 876.80 }) {
                           </thead>
                           <tbody className="divide-y divide-zinc-100 font-mono text-zinc-700">
                             {[
-                              { num: '00048291', rif: 'J-40129381-2 · Inversiones Kroma', serial: 'Z1B8049210', usd: 28.50 },
-                              { num: '00048290', rif: 'V-19842104-3 · Carlos Mendoza', serial: 'Z1B8049210', usd: 19.00 },
-                              { num: '00048289', rif: 'V-00000000-0 · Consumidor Final', serial: 'Z1B8049210', usd: 42.00 },
-                              { num: '00048288', rif: 'J-31094821-0 · Alimentos Los Andes', serial: 'Z1B8049210', usd: 64.50 }
+                              { num: '00048291', rif: 'J-40129381-2 · Inversiones Kroma', serial: 'Z1B8049210', usd: 28.5 },
+                              { num: '00048290', rif: 'V-19842104-3 · Carlos Mendoza', serial: 'Z1B8049210', usd: 19.0 },
+                              { num: '00048289', rif: 'V-00000000-0 · Consumidor Final', serial: 'Z1B8049210', usd: 42.0 },
+                              { num: '00048288', rif: 'J-31094821-0 · Alimentos Los Andes', serial: 'Z1B8049210', usd: 64.5 }
                             ].map((row) => {
                               const totalRowBs = row.usd * rate;
                               const baseRowBs = totalRowBs / 1.16;
@@ -837,40 +817,21 @@ export default function NotionAppShowcase({ rate = 876.80 }) {
             </div>
           </div>
 
-          {/* CURSOR ANIMADO ESTILO NOTION / LINEAR */}
+          {/* CURSOR ANIMADO LIGERO */}
           <motion.div
             animate={{
               left: currentCursor.x,
               top: currentCursor.y,
-              scale: currentCursor.clicking ? [1, 0.84, 1] : 1
+              scale: currentCursor.clicking ? 0.88 : 1
             }}
             transition={{
-              left: { type: 'spring', stiffness: 120, damping: 20 },
-              top: { type: 'spring', stiffness: 120, damping: 20 },
-              scale: { duration: 0.25 }
+              left: { type: 'tween', duration: 0.38, ease: 'easeOut' },
+              top: { type: 'tween', duration: 0.38, ease: 'easeOut' },
+              scale: { duration: 0.15 }
             }}
             className="hidden sm:block absolute z-40 pointer-events-none"
           >
-            {/* Onda de clic */}
-            <AnimatePresence>
-              {currentCursor.clicking && (
-                <motion.span
-                  key={step}
-                  initial={{ scale: 0.3, opacity: 0.8 }}
-                  animate={{ scale: 2.2, opacity: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.55 }}
-                  className="absolute -top-2 -left-2 w-6 h-6 rounded-full bg-emerald-400/50"
-                />
-              )}
-            </AnimatePresence>
-            <svg
-              width="22"
-              height="22"
-              viewBox="0 0 24 24"
-              fill="none"
-              className="drop-shadow-[0_4px_8px_rgba(0,0,0,0.35)]"
-            >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="drop-shadow-md">
               <path
                 d="M4 3L11.5 20L14.2 13.2L21 10.5L4 3Z"
                 fill="#09090b"
@@ -881,30 +842,26 @@ export default function NotionAppShowcase({ rate = 876.80 }) {
             </svg>
           </motion.div>
         </div>
-      </motion.div>
+      </div>
 
-      {/* INDICADORES DE ESCENA INFERIORES (SUTILES ESTILO NOTION) */}
+      {/* INDICADORES DE VISTA */}
       <div className="mt-4 flex items-center justify-center gap-2">
         {[
-          { id: 'pos', label: 'Punto de Venta & HKA80' },
-          { id: 'tables', label: 'Salón & Comandas QR' },
-          { id: 'fiscal', label: 'Libros SENIAT & Cierre Z' }
+          { id: 'pos', label: 'Punto de Venta' },
+          { id: 'tables', label: 'Mesas y Comandas' },
+          { id: 'fiscal', label: 'Libros SENIAT' }
         ].map((scene) => {
           const isCurrent = activeTab === scene.id;
           return (
             <div
               key={scene.id}
-              className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-all flex items-center gap-1.5 border ${
+              className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-colors flex items-center gap-1.5 border ${
                 isCurrent
-                  ? 'bg-zinc-900 text-white border-zinc-900 shadow-2xs'
+                  ? 'bg-zinc-900 text-white border-zinc-900'
                   : 'bg-white text-zinc-400 border-zinc-200/70'
               }`}
             >
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${
-                  isCurrent ? 'bg-emerald-400 animate-pulse' : 'bg-zinc-300'
-                }`}
-              />
+              <span className={`w-1.5 h-1.5 rounded-full ${isCurrent ? 'bg-emerald-400' : 'bg-zinc-300'}`} />
               <span>{scene.label}</span>
             </div>
           );

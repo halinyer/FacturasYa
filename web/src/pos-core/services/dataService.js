@@ -877,119 +877,136 @@ export const db = {
           try {
             const parsed = JSON.parse(cached);
             const now = new Date().getTime();
-            // Cache por 10 minutos si la tasa es válida y superior a 100 Bs/$
-            if (now - parsed.timestamp < 600000 && parsed.rate && Number(parsed.rate) > 100) {
+            if (now - parsed.timestamp < 600000 && parsed.rate && Number(parsed.rate) > 10) {
               return Number(parsed.rate);
             }
           } catch (e) {}
         }
       }
-      
+
       let fetchedRate = null;
       let providerName = '';
 
-      // 1. Intentar servidor local (backend Node en puerto 3001 sin bloqueos de red)
+      // 1. Consulta directa y ultrarrápida a DolarApi Oficial (BCV en vivo - funciona en Web, Móvil y Desktop)
       try {
-        const controller = new AbortController();
-        const tId = setTimeout(() => controller.abort(), 3500);
-        const res = await fetch(`http://localhost:3001/api/bcv/rate${force ? '?force=true' : ''}`, { signal: controller.signal });
-        clearTimeout(tId);
+        const res = await fetch('https://ve.dolarapi.com/v1/dolares/oficial', {
+          cache: 'no-store',
+          signal: AbortSignal.timeout(3500)
+        });
         if (res.ok) {
           const data = await res.json();
-          if (data && data.rate && !isNaN(data.rate) && Number(data.rate) > 100) {
-            fetchedRate = Number(data.rate);
-            providerName = data.provider || 'Servidor Local';
+          if (data && data.promedio && !isNaN(data.promedio) && Number(data.promedio) > 10) {
+            fetchedRate = Number(Number(data.promedio).toFixed(2));
+            providerName = 'BCV Oficial (DolarApi)';
           }
         }
-      } catch (eLocal) {}
+      } catch (eApi) {}
 
-      // 2. Consulta directa a API de respaldo (JustCarlux BCV)
+      // 2. Consulta de respaldo a DolarApi lista completa
       if (!fetchedRate) {
         try {
-          const res = await fetch('https://bcv.justcarlux.dev/api/v1/rates', { cache: 'no-cache', signal: AbortSignal.timeout(3500) });
+          const res = await fetch('https://ve.dolarapi.com/v1/dolares', {
+            cache: 'no-store',
+            signal: AbortSignal.timeout(3500)
+          });
+          if (res.ok) {
+            const list = await res.json();
+            const oficial = Array.isArray(list) ? list.find((d) => d.fuente === 'oficial') : null;
+            if (oficial && oficial.promedio && !isNaN(oficial.promedio) && Number(oficial.promedio) > 10) {
+              fetchedRate = Number(Number(oficial.promedio).toFixed(2));
+              providerName = 'BCV Lista (DolarApi)';
+            }
+          }
+        } catch (eList) {}
+      }
+
+      // 3. Consulta a JustCarlux BCV API
+      if (!fetchedRate) {
+        try {
+          const res = await fetch('https://bcv.justcarlux.dev/api/v1/rates', {
+            cache: 'no-store',
+            signal: AbortSignal.timeout(3000)
+          });
           if (res.ok) {
             const data = await res.json();
-            if (data?.rates?.usd && !isNaN(data.rates.usd) && Number(data.rates.usd) > 100) {
-              fetchedRate = Number(data.rates.usd);
-              providerName = 'BCV en Vivo (JustCarlux)';
+            if (data?.rates?.usd && !isNaN(data.rates.usd) && Number(data.rates.usd) > 10) {
+              fetchedRate = Number(Number(data.rates.usd).toFixed(2));
+              providerName = 'BCV (JustCarlux)';
             }
           }
         } catch (eCarlux) {}
       }
 
-      // 3. Consulta a DolarApi Oficial (BCV)
-      if (!fetchedRate) {
+      // 4. Respaldo en servidor local Electron (si está corriendo en PC)
+      if (!fetchedRate && typeof window !== 'undefined' && window.electronAPI) {
         try {
-          const res = await fetch('https://ve.dolarapi.com/v1/dolares/oficial', { cache: 'no-cache', signal: AbortSignal.timeout(3500) });
+          const res = await fetch(`http://localhost:3001/api/bcv/rate${force ? '?force=true' : ''}`, {
+            signal: AbortSignal.timeout(2500)
+          });
           if (res.ok) {
             const data = await res.json();
-            if (data && data.promedio && !isNaN(data.promedio) && Number(data.promedio) > 100) {
-              fetchedRate = Number(data.promedio);
-              providerName = 'DolarApi Oficial (BCV)';
+            if (data && data.rate && !isNaN(data.rate) && Number(data.rate) > 10) {
+              fetchedRate = Number(Number(data.rate).toFixed(2));
+              providerName = data.provider || 'Servidor Local';
             }
           }
-        } catch (eApi) {}
+        } catch (eLocal) {}
       }
 
-      // 4. Consulta de respaldo a DolarApi lista completa
-      if (!fetchedRate) {
-        try {
-          const res = await fetch('https://ve.dolarapi.com/v1/dolares', { cache: 'no-cache', signal: AbortSignal.timeout(3500) });
-          if (res.ok) {
-            const list = await res.json();
-            const oficial = Array.isArray(list) ? list.find(d => d.fuente === 'oficial') : null;
-            if (oficial && oficial.promedio && !isNaN(oficial.promedio) && Number(oficial.promedio) > 100) {
-              fetchedRate = Number(oficial.promedio);
-              providerName = 'DolarApi Lista (BCV)';
-            }
-          }
-        } catch (eList) {}
-      }
-      
-      if (fetchedRate && fetchedRate > 100) {
-        localStorage.setItem('pos_exchange_rate_cache', JSON.stringify({
-          rate: fetchedRate,
-          provider: providerName,
-          timestamp: new Date().getTime()
-        }));
+      if (fetchedRate && fetchedRate > 10) {
+        localStorage.setItem(
+          'pos_exchange_rate_cache',
+          JSON.stringify({
+            rate: fetchedRate,
+            provider: providerName,
+            timestamp: new Date().getTime()
+          })
+        );
         setStorageItem('pos_exchange_rate', fetchedRate);
         return fetchedRate;
       }
-      
+
       return db.getCurrentRate();
     } catch (error) {
-      console.error("Error al consultar tasa oficial BCV:", error);
+      console.error('Error al consultar tasa oficial BCV:', error);
       return db.getCurrentRate();
     }
   },
-  
+
   setManualRate: (rate) => {
     const numRate = Number(rate);
     if (!isNaN(numRate) && numRate > 0) {
       localStorage.setItem('pos_exchange_rate', JSON.stringify(numRate));
+      localStorage.setItem(
+        'pos_exchange_rate_cache',
+        JSON.stringify({
+          rate: numRate,
+          provider: 'Manual',
+          timestamp: new Date().getTime()
+        })
+      );
       setStorageItem('pos_exchange_rate', numRate);
     }
   },
-  
+
   getCurrentRate: () => {
-    const fromStorage = getStorageItem('pos_exchange_rate');
-    if (fromStorage && typeof fromStorage === 'number' && fromStorage > 100) return fromStorage;
-    const manual = localStorage.getItem('pos_exchange_rate');
     const cached = localStorage.getItem('pos_exchange_rate_cache');
-    
-    if (manual) {
-      try {
-        const val = JSON.parse(manual);
-        if (Number(val) > 100) return Number(val);
-      } catch (e) {}
-    }
     if (cached) {
       try {
         const val = JSON.parse(cached);
-        if (val?.rate && Number(val.rate) > 100) return Number(val.rate);
+        if (val?.rate && Number(val.rate) > 10) return Number(val.rate);
       } catch (e) {}
     }
-    return 876.80; // Final active fallback
+    const fromStorage = getStorageItem('pos_exchange_rate');
+    if (fromStorage && typeof fromStorage === 'number' && fromStorage > 10) return fromStorage;
+    const manual = localStorage.getItem('pos_exchange_rate');
+    if (manual) {
+      try {
+        const val = JSON.parse(manual);
+        if (Number(val) > 10) return Number(val);
+      } catch (e) {}
+    }
+    return 896.12;
   },
 
   // OPEN TABS & DELIVERIES (Control de Cuentas Abiertas y Pedidos)

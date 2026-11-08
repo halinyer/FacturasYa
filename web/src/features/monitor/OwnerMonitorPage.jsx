@@ -27,6 +27,7 @@ import {
 import { useAuth } from '../auth/AuthProvider';
 import LoginForm from '../auth/LoginForm';
 import { supabase } from '../../lib/supabase';
+import { db } from '../../pos-core/services/dataService';
 import {
   fetchMyTenant,
   fetchTenantSnapshot,
@@ -282,8 +283,37 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
     };
   }, [tenant?.id]);
 
-  // Cálculos de métricas del día
-  const rate = Number(snapshot?.exchange_rate) || Number(tenant?.exchange_rate) || 876.80;
+  // Cálculos de métricas del día y Tasa BCV Oficial en Vivo
+  const [liveBcvRate, setLiveBcvRate] = useState(null);
+  const [syncingBcv, setSyncingBcv] = useState(false);
+
+  const syncLiveBcvRate = useCallback(async (force = true) => {
+    try {
+      setSyncingBcv(true);
+      const fetched = await db.getExchangeRate(force);
+      if (fetched && Number(fetched) > 10) {
+        setLiveBcvRate(Number(fetched));
+        if (tenant?.id && supabase) {
+          supabase.from('tenants').update({ exchange_rate: Number(fetched) }).eq('id', tenant.id).then(() => {});
+        }
+      }
+    } catch (e) {
+    } finally {
+      setSyncingBcv(false);
+    }
+  }, [tenant?.id]);
+
+  useEffect(() => {
+    syncLiveBcvRate(false);
+  }, [syncLiveBcvRate]);
+
+  const rate =
+    Number(liveBcvRate) ||
+    (Number(snapshot?.exchange_rate) !== 876.8 ? Number(snapshot?.exchange_rate) : 0) ||
+    (Number(tenant?.exchange_rate) !== 876.8 ? Number(tenant?.exchange_rate) : 0) ||
+    Number(snapshot?.exchange_rate) ||
+    Number(tenant?.exchange_rate) ||
+    896.12;
 
   // Filtrar ventas del día
   const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
@@ -491,8 +521,18 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
                   En Vivo
                 </span>
               </div>
-              <span className="text-[11px] text-zinc-500 block">
-                {tenant.rif} · Tasa BCV: <strong className="text-zinc-700 mono-num">{rate.toFixed(2)} Bs/$</strong>
+              <span className="text-[11px] text-zinc-500 inline-flex items-center gap-1.5">
+                <span>{tenant.rif || 'RIF pendiente'} · Tasa BCV:</span>
+                <strong className="text-zinc-800 mono-num">{rate.toFixed(2)} Bs/$</strong>
+                <button
+                  type="button"
+                  onClick={() => syncLiveBcvRate(true)}
+                  disabled={syncingBcv}
+                  className="p-0.5 rounded hover:bg-zinc-100 text-zinc-400 hover:text-zinc-800 transition-colors cursor-pointer"
+                  title="Sincronizar con BCV en vivo"
+                >
+                  <RefreshCw size={11} className={syncingBcv ? 'animate-spin text-emerald-600' : ''} />
+                </button>
               </span>
             </div>
           </div>
