@@ -303,7 +303,7 @@ async function printThermalTicket(options = {}) {
             ? systemPrinters.find(p => p.name.toLowerCase() === targetDevice.toLowerCase())
             : null;
 
-          const defaultPos = systemPrinters.find(p => p.isDefault && /pos|58|thermal|ticket|xp-/i.test(p.name)) ||
+          const defaultPos = systemPrinters.find(p => p.isDefault && /pos|58|80|thermal|ticket|xp-|tm-|receipt|kitchen|comanda|bixolon|star|epson|citizen|xprinter|3nstar|zkteco/i.test(p.name)) ||
                              systemPrinters.find(p => /pos58\s*printer|pos-?58|xp-?58/i.test(p.name));
 
           if (exactUserMatch) {
@@ -311,7 +311,7 @@ async function printThermalTicket(options = {}) {
           } else if (defaultPos) {
             targetDevice = defaultPos.name;
           } else {
-            const anyThermal = systemPrinters.find(p => /pos|58|thermal|ticket|xp-/i.test(p.name));
+            const anyThermal = systemPrinters.find(p => /pos|58|80|thermal|ticket|xp-|tm-|receipt|kitchen|comanda|bixolon|star|epson|citizen|xprinter|3nstar|zkteco/i.test(p.name));
             targetDevice = anyThermal ? anyThermal.name : (systemPrinters.find(p => p.isDefault)?.name || '');
           }
           console.log(`[Printer] Imprimiendo directamente en: '${targetDevice}'`);

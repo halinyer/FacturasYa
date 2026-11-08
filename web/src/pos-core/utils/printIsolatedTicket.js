@@ -139,15 +139,21 @@ export const printIsolatedTicket = async ({
     return { success: false, error: 'No hay contenido para imprimir' };
   }
 
-  const fullHtml = getTicketFullHtml(html, paperSize);
+  // Priorizar deviceName explícito, luego configuración guardada en localStorage
+  const savedPrinter = (typeof localStorage !== 'undefined') ? localStorage.getItem('pos_comanda_printer') : '';
+  const savedPaper = (typeof localStorage !== 'undefined') ? localStorage.getItem('pos_comanda_paper_size') : '';
+  const resolvedDevice = deviceName || savedPrinter || '';
+  const resolvedPaper = paperSize || savedPaper || '58mm';
+
+  const fullHtml = getTicketFullHtml(html, resolvedPaper);
 
   // 1. Vía Electron IPC nativo (Desktop App)
   if (window.electronAPI && typeof window.electronAPI.printWindow === 'function') {
     try {
       const res = await window.electronAPI.printWindow({
         html,
-        paperSize,
-        deviceName: deviceName || '',
+        paperSize: resolvedPaper,
+        deviceName: resolvedDevice,
         silent: true,
         margins: { marginType: 'none' }
       });
@@ -168,8 +174,8 @@ export const printIsolatedTicket = async ({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         html,
-        paperSize,
-        deviceName: deviceName || 'POS58 Printer'
+        paperSize: resolvedPaper,
+        deviceName: resolvedDevice
       })
     });
     if (res.ok) {

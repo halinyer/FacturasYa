@@ -1,3 +1,89 @@
+export function buildKitchenTicketHtml({
+  round,
+  tableName = 'MESA',
+  waiterName = 'MESERO',
+  orderId = '',
+  paperSize = '58mm'
+}) {
+  const is58 = paperSize === '58mm' || !paperSize || paperSize === '48mm';
+  const printableWidth = is58 ? '48mm' : '72mm';
+  const items = Array.isArray(round?.items) ? round.items : [];
+  const totalItems = items.reduce((acc, i) => acc + Number(i?.quantity || 1), 0);
+  const safeTableName = String(tableName || round?.tableName || 'MESA').toUpperCase();
+  const safeWaiterName = String(waiterName || round?.waiterName || 'MESERO').toUpperCase();
+  const roundNumLabel = 'RONDA #' + (round?.roundNumber || 1);
+  const sentDate = round?.sentAt ? new Date(round.sentAt) : new Date();
+  const timeStr = sentDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const dateStr = sentDate.toLocaleDateString([], { day: '2-digit', month: '2-digit', year: '2-digit' });
+
+  const itemsHtml = items.length === 0
+    ? '<div style="text-align: center; padding: 4px 0; font-size: 10px;">Sin platos</div>'
+    : items.map((it, idx) => {
+        const qty = Number(it?.quantity || 1);
+        const name = String(it?.name || it?.productName || 'PRODUCTO').toUpperCase();
+        const note = it?.note ? String(it.note).trim().toUpperCase() : '';
+        const borderStyle = idx < items.length - 1 ? 'border-bottom: 1px dotted #e2e8f0;' : '';
+        return (
+          '<div style="margin-bottom: ' + (is58 ? '3px' : '4px') + '; padding-bottom: 2px; ' + borderStyle + '">' +
+            '<div style="display: flex; align-items: flex-start; gap: 4px;">' +
+              '<span class="k-bold" style="font-size: ' + (is58 ? '12px' : '13px') + '; min-width: 18px;">' + qty + 'x</span>' +
+              '<span class="k-bold" style="font-size: ' + (is58 ? '11px' : '12px') + '; flex: 1; word-break: break-word; line-height: 1.15;">' + name + '</span>' +
+            '</div>' +
+            (note ? (
+              '<div style="font-size: ' + (is58 ? '9.5px' : '10px') + '; font-weight: 700; padding: 1px 3px; margin-top: 1px; margin-left: 18px; border-left: 2px solid #000;">' +
+                '* ' + note +
+              '</div>'
+            ) : '') +
+          '</div>'
+        );
+      }).join('');
+
+  return (
+    '<div class="kitchen-paper" style="width: 100%; max-width: ' + printableWidth + '; margin: 0 auto; box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; font-size: ' + (is58 ? '10.5px' : '11.5px') + '; line-height: 1.2; color: #000000; background: #ffffff; padding: 0 1mm;">' +
+      '<div class="k-center k-bold" style="font-size: ' + (is58 ? '11px' : '12px') + '; letter-spacing: 0.5px;">' +
+        '*** COMANDA COCINA ***' +
+      '</div>' +
+      '<div class="k-divider"></div>' +
+      '<div style="text-align: center; padding: 1px 0;">' +
+        '<div class="k-bold" style="font-size: ' + (is58 ? '15px' : '17px') + '; letter-spacing: 0.2px;">' +
+          safeTableName +
+        '</div>' +
+        ((round?.roundNumber > 1 || round?.isAdditional) ? (
+          '<div style="border: 1px solid #000; font-size: ' + (is58 ? '9px' : '10px') + '; font-weight: 700; padding: 1px 4px; display: inline-block; margin-top: 1px; border-radius: 2px;">' +
+            '*** RONDA #' + (round.roundNumber || 2) + ' (EXTRA) ***' +
+          '</div>'
+        ) : '') +
+      '</div>' +
+      '<div style="display: flex; justify-content: space-between; font-size: ' + (is58 ? '10px' : '11px') + '; font-weight: 700; border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 2px 0; margin: 2px 0;">' +
+        '<span>HORA: ' + timeStr + '</span>' +
+        '<span>' + dateStr + '</span>' +
+      '</div>' +
+      '<div style="display: flex; justify-content: space-between; font-size: ' + (is58 ? '9.5px' : '10.5px') + '; margin: 2px 0;">' +
+        '<span>MESERO: <strong>' + safeWaiterName + '</strong></span>' +
+        '<span><strong>' + roundNumLabel + '</strong></span>' +
+      '</div>' +
+      '<div class="k-divider"></div>' +
+      '<div style="margin: 2px 0;">' +
+        itemsHtml +
+      '</div>' +
+      '<div class="k-divider"></div>' +
+      '<div style="display: flex; justify-content: space-between; font-size: ' + (is58 ? '10px' : '11px') + ';" class="k-bold">' +
+        '<span>TOTAL:</span>' +
+        '<span>' + totalItems + ' PLATO(S)</span>' +
+      '</div>' +
+      '<div class="k-center k-bold" style="font-size: ' + (is58 ? '11px' : '12px') + '; padding: 3px 4px; border: 1.5px solid #000; margin-top: 4px; margin-bottom: 4px;">' +
+        'ENTREGAR A: ' + safeWaiterName +
+      '</div>' +
+      '<div style="text-align: center; font-size: 8px; letter-spacing: 2px; color: #000; margin: 2px 0;">' +
+        '- - - - - - - - - - - - - -' +
+      '</div>' +
+      '<div style="height: 12mm; min-height: 12mm; display: block; line-height: 12px;">' +
+        '&nbsp;<br/>&nbsp;' +
+      '</div>' +
+    '</div>'
+  );
+}
+
 ﻿import React, { useState, useEffect, useRef } from 'react';
 import { X, Printer, Utensils } from 'lucide-react';
 import { printIsolatedTicket } from '../utils/printIsolatedTicket';
@@ -70,6 +156,9 @@ export const KitchenTicketModal = ({
         setPrintToast({ msg: `Aviso impresora: ${res.failureReason || res.error || 'Verifica la impresora'}`, type: 'error' });
       } else {
         setPrintToast({ msg: '¡Comanda enviada a impresión!', type: 'success' });
+        if (autoPrint && typeof onClose === 'function') {
+          setTimeout(onClose, 800);
+        }
       }
     } catch (err) {
       console.warn('Error al imprimir comanda:', err);

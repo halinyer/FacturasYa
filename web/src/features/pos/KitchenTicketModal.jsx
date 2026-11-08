@@ -34,7 +34,7 @@ export default function KitchenTicketModal({
           setPrinters(list);
           const saved = localStorage.getItem('pos_comanda_printer');
           const exists = list.some((p) => p.name === saved);
-          const posPrinter = list.find((p) => /pos|thermal|ticket|58|80/i.test(p.name)) || list.find((p) => p.isDefault) || list[0];
+          const posPrinter = list.find((p) => /pos|58|80|thermal|ticket|xp-|tm-|receipt|kitchen|comanda|bixolon|star|epson|citizen|xprinter|3nstar|zkteco/i.test(p.name)) || list.find((p) => p.isDefault) || list[0];
           
           if (saved && exists) {
             setSelectedPrinter(saved);

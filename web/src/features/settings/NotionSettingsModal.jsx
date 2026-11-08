@@ -24,6 +24,7 @@ import {
   Check
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { printIsolatedTicket } from '../../pos-core/utils/printIsolatedTicket';
 import { useData } from '../../pos-core/contexts/DataContext';
 import {
   completeFiscalVerification,
@@ -129,6 +130,108 @@ export default function NotionSettingsModal({
   };
 
   // 2. Estado Modo Restaurante
+  // 1.1 Estado Impresora Térmica de Comandas (Cocina / Barra)
+  const [printersList, setPrintersList] = useState([]);
+  const [selectedComandaPrinter, setSelectedComandaPrinter] = useState(() => {
+    try {
+      return localStorage.getItem('pos_comanda_printer') || '';
+    } catch {
+      return '';
+    }
+  });
+  const [comandaPaperSize, setComandaPaperSize] = useState(() => {
+    try {
+      return localStorage.getItem('pos_comanda_paper_size') || '58mm';
+    } catch {
+      return '58mm';
+    }
+  });
+  const [directPrintComanda, setDirectPrintComanda] = useState(() => {
+    try {
+      return localStorage.getItem('pos_comanda_direct_print') !== 'false';
+    } catch {
+      return true;
+    }
+  });
+  const [testingComanda, setTestingComanda] = useState(false);
+  const [loadingPrinters, setLoadingPrinters] = useState(false);
+
+  const loadNativePrinters = () => {
+    if (typeof window !== 'undefined' && window.electronAPI && typeof window.electronAPI.getPrinters === 'function') {
+      setLoadingPrinters(true);
+      window.electronAPI.getPrinters()
+        .then((list) => {
+          if (Array.isArray(list)) {
+            setPrintersList(list);
+            const saved = localStorage.getItem('pos_comanda_printer');
+            const exists = list.some((p) => p.name === saved);
+            if (!saved || !exists) {
+              const thermalRegex = /pos|58|80|thermal|ticket|xp-|tm-|receipt|kitchen|comanda|bixolon|star|epson|citizen|xprinter|3nstar|zkteco/i;
+              const autoThermal = list.find((p) => p.isDefault && thermalRegex.test(p.name)) ||
+                                  list.find((p) => thermalRegex.test(p.name)) ||
+                                  list.find((p) => p.isDefault) ||
+                                  list[0];
+              if (autoThermal) {
+                setSelectedComandaPrinter(autoThermal.name);
+                localStorage.setItem('pos_comanda_printer', autoThermal.name);
+              }
+            }
+          }
+        })
+        .catch((err) => console.warn('Error obteniendo impresoras:', err))
+        .finally(() => setLoadingPrinters(false));
+    }
+  };
+
+  useEffect(() => {
+    loadNativePrinters();
+  }, []);
+
+  const handleTestComandaPrint = async () => {
+    if (testingComanda) return;
+    setTestingComanda(true);
+    showToast('Enviando ticket de prueba a la comandera...', 'info');
+
+    try {
+      const now = new Date();
+      const testHtml = `
+        <div class="kitchen-paper k-center">
+          <p class="k-bold" style="font-size: 13px;">${(tenant?.name || 'FACTURASYA').toUpperCase()}</p>
+          <p style="font-size: 10px; margin-top: 2px;">PRUEBA DE COMANDERA DE COCINA</p>
+          <div class="k-divider"></div>
+          <div style="font-size: 10px; text-align: left; margin: 4px 0;">
+            <p><b>Dispositivo:</b> ${selectedComandaPrinter || 'Automática de Windows'}</p>
+            <p><b>Ancho Rollo:</b> ${comandaPaperSize}</p>
+            <p><b>Fecha:</b> ${now.toLocaleDateString('es-VE')} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+            <p><b>Modo:</b> Impresión Térmica 1:1 Silenciosa</p>
+          </div>
+          <div class="k-divider"></div>
+          <p class="k-bold" style="font-size: 11px; margin-top: 4px;">¡CONEXIÓN EXITOSA CON COCINA!</p>
+          <p style="font-size: 9px; margin-top: 2px; color: #555;">La impresora está lista para recibir comandas de mesas.</p>
+          <div class="k-double-divider"></div>
+          <div style="height: 10mm; min-height: 10mm; display: block; line-height: 10px;">&nbsp;<br/>&nbsp;</div>
+        </div>
+      `;
+
+      const res = await printIsolatedTicket({
+        html: testHtml,
+        paperSize: comandaPaperSize,
+        deviceName: selectedComandaPrinter || '',
+        silent: true
+      });
+
+      if (res && res.success === false) {
+        showToast(`Aviso impresora: ${res.failureReason || res.error || 'Verifica la conexión USB del dispositivo'}`, 'error');
+      } else {
+        showToast('¡Comprobante de prueba impreso con éxito en la comandera!');
+      }
+    } catch (e) {
+      showToast('Error al enviar prueba a la comandera: ' + (e.message || e), 'error');
+    } finally {
+      setTestingComanda(false);
+    }
+  };
+
   const [restaurantMode, setRestaurantMode] = useState(() => {
     try {
       const saved = localStorage.getItem('saas_restaurant_mode');
@@ -708,65 +811,176 @@ export default function NotionSettingsModal({
                     </div>
                   </div>
                 </div>
-                {/* 1. SECCIÓN COMANDERA DE COCINA (58mm vs 80mm) */}
+                {/* 1. SECCIÓN COMANDERA DE COCINA (DISPOSITIVO + ANCHO + MODO DIRECTO + PRUEBA) */}
                 <div className="border border-zinc-200 rounded-2xl p-4 space-y-4 bg-white shadow-2xs">
-                  <div className="flex items-center gap-2.5 border-b border-zinc-100 pb-3">
-                    <div className="p-2 rounded-xl bg-amber-50 text-amber-700 border border-amber-200">
-                      <ChefHat size={18} />
+                  <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 rounded-xl bg-amber-50 text-amber-700 border border-amber-200">
+                        <ChefHat size={18} />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-zinc-950">Impresora Térmica de Comandas (Cocina / Barra)</h4>
+                        <p className="text-[11px] text-zinc-500">Tickets de comandas sin diálogo, corte automático y ancho adaptable</p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-zinc-950">Impresora Térmica de Comandas (Cocina / Barra)</h4>
-                      <p className="text-[11px] text-zinc-500">Configura el ancho de papel y la impresora de tickets de comandas</p>
-                    </div>
+
+                    <button
+                      type="button"
+                      disabled={testingComanda}
+                      onClick={handleTestComandaPrint}
+                      className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+                      title="Enviar un ticket corto de prueba a la impresora térmica"
+                    >
+                      <Sparkles size={13} />
+                      <span>{testingComanda ? 'Imprimiendo...' : '⚡ Probar Impresión'}</span>
+                    </button>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-zinc-700 mb-1.5">
+                    {/* Selector de Impresora Detectada en Windows */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-xs font-bold text-zinc-700">
+                          Dispositivo de Impresión (Windows)
+                        </label>
+                        {isElectron && (
+                          <button
+                            type="button"
+                            onClick={loadNativePrinters}
+                            disabled={loadingPrinters}
+                            className="text-[10px] text-zinc-500 hover:text-zinc-900 flex items-center gap-1 cursor-pointer"
+                            title="Refrescar lista de impresoras de Windows"
+                          >
+                            <RefreshCw size={11} className={loadingPrinters ? 'animate-spin' : ''} />
+                            <span>Detectar</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {isElectron ? (
+                        printersList.length > 0 ? (
+                          <select
+                            value={selectedComandaPrinter}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setSelectedComandaPrinter(val);
+                              localStorage.setItem('pos_comanda_printer', val);
+                              showToast(`Comandera configurada en: ${val || 'Automática'}`);
+                            }}
+                            className="w-full px-3 py-2 rounded-xl border border-zinc-300 bg-white text-xs font-bold text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-950 cursor-pointer"
+                          >
+                            <option value="">-- Detección Automática Inteligente --</option>
+                            {printersList.map((p) => {
+                              const isDef = p.isDefault;
+                              const isThermal = /pos|58|80|thermal|ticket|xp-|tm-|receipt|kitchen|comanda|bixolon|star|epson|citizen|xprinter|3nstar|zkteco/i.test(p.name);
+                              return (
+                                <option key={p.name} value={p.name}>
+                                  {p.name} {isDef ? '★ (Predeterminada)' : ''} {isThermal && !isDef ? '⚡ (Térmica)' : ''}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        ) : (
+                          <div className="p-2.5 bg-zinc-50 rounded-xl border border-zinc-200 text-xs text-zinc-600 flex items-center justify-between">
+                            <span>Detectando impresoras del sistema...</span>
+                            <button
+                              type="button"
+                              onClick={loadNativePrinters}
+                              className="text-xs text-emerald-700 font-bold hover:underline cursor-pointer"
+                            >
+                              Reintentar
+                            </button>
+                          </div>
+                        )
+                      ) : (
+                        <div className="p-2.5 bg-zinc-50 rounded-xl border border-zinc-200 text-[11px] text-zinc-600 space-y-1">
+                          <p className="font-semibold text-zinc-900">🌐 Modo Web / Tablet Remota</p>
+                          <p className="text-[10px] text-zinc-500">
+                            Las comandas se canalizan automáticamente a la comandera configurada en la PC de caja principal.
+                          </p>
+                        </div>
+                      )}
+                      <span className="text-[10px] text-zinc-400 block">
+                        {selectedComandaPrinter
+                          ? `Enviará comandas directo a: "${selectedComandaPrinter}"`
+                          : 'Detección automática: buscará cualquier comandera térmica conectada.'}
+                      </span>
+                    </div>
+
+                    {/* Ancho del Rollo Térmico */}
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-bold text-zinc-700">
                         Ancho del Rollo Térmico
                       </label>
                       <div className="flex gap-2">
                         <button
                           type="button"
                           onClick={() => {
+                            setComandaPaperSize('58mm');
                             localStorage.setItem('pos_comanda_paper_size', '58mm');
                             showToast('Rollo de comanda configurado en 58mm (Estándar)');
                           }}
-                          className="flex-1 py-2 px-3 rounded-xl border border-zinc-300 text-xs font-bold hover:bg-zinc-100 text-zinc-800 text-center transition-all cursor-pointer"
+                          className={`flex-1 py-2 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                            comandaPaperSize === '58mm'
+                              ? 'bg-zinc-950 text-white border-zinc-950 shadow-2xs'
+                              : 'bg-white text-zinc-800 border-zinc-300 hover:bg-zinc-100'
+                          }`}
                         >
-                          📄 58 mm (Estrecho)
+                          📄 58 mm (Estándar)
                         </button>
                         <button
                           type="button"
                           onClick={() => {
+                            setComandaPaperSize('80mm');
                             localStorage.setItem('pos_comanda_paper_size', '80mm');
                             showToast('Rollo de comanda configurado en 80mm (Ancho)');
                           }}
-                          className="flex-1 py-2 px-3 rounded-xl border border-zinc-300 text-xs font-bold hover:bg-zinc-100 text-zinc-800 text-center transition-all cursor-pointer"
+                          className={`flex-1 py-2 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                            comandaPaperSize === '80mm'
+                              ? 'bg-zinc-950 text-white border-zinc-950 shadow-2xs'
+                              : 'bg-white text-zinc-800 border-zinc-300 hover:bg-zinc-100'
+                          }`}
                         >
                           📜 80 mm (Ancho cocina)
                         </button>
                       </div>
-                      <span className="text-[10px] text-zinc-400 mt-1 block">
+                      <span className="text-[10px] text-zinc-400 block">
                         58mm para comanderas estándar pequeñas; 80mm para comanderas industriales de cocina.
                       </span>
                     </div>
+                  </div>
 
+                  {/* Interruptor de Impresión Directa en 1 Clic */}
+                  <div className="pt-2 border-t border-zinc-100 flex items-center justify-between">
                     <div>
-                      <label className="block text-xs font-bold text-zinc-700 mb-1.5">
-                        Comportamiento de Impresión
-                      </label>
-                      <div className="p-2.5 bg-zinc-50 rounded-xl border border-zinc-200 text-xs text-zinc-600 space-y-1">
-                        <p className="font-semibold text-zinc-900">⚡ Impresión Térmica Aislada 1:1</p>
-                        <p className="text-[11px] text-zinc-500">
-                          Las comandas no se reducen ni se escalan; imprimen en el tamaño exacto del rollo sin diálogo del navegador en Desktop.
-                        </p>
-                      </div>
+                      <span className="block text-xs font-bold text-zinc-900">
+                        Impresión Directa en 1 Clic (Sin Ventana Emergente)
+                      </span>
+                      <span className="block text-[10px] text-zinc-500">
+                        Al pulsar "Imprimir" en mesas o barra, el ticket sale directo a cocina en segundo plano.
+                      </span>
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = !directPrintComanda;
+                        setDirectPrintComanda(next);
+                        localStorage.setItem('pos_comanda_direct_print', String(next));
+                        showToast(next ? 'Impresión directa en 1 clic activada' : 'Impresión con vista previa activada');
+                      }}
+                      className="text-zinc-600 hover:text-zinc-950 transition-colors cursor-pointer"
+                    >
+                      {directPrintComanda ? (
+                        <ToggleRight size={28} className="text-emerald-600" />
+                      ) : (
+                        <ToggleLeft size={28} className="text-zinc-400" />
+                      )}
+                    </button>
                   </div>
                 </div>
 
-                                {/* 2. SECCIÓN MÁQUINA FISCAL SENIAT */}
+                {/* 2. SECCIÓN MÁQUINA FISCAL SENIAT */}
                 <div className="border border-zinc-200 rounded-2xl p-4 space-y-4 bg-white shadow-2xs">
                   <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
                     <div className="flex items-center gap-2.5">
