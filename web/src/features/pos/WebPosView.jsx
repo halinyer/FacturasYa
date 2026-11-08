@@ -222,45 +222,45 @@ export default function WebPosView({
     });
   }, [products, selectedCategory, searchQuery]);
 
-  // Totales del Carrito
+  // Totales del Carrito (Precios PVP con IVA incluido según normativa SENIAT venezolana)
   const cartTotals = useMemo(() => {
     let subtotalUsd = 0;
-    let baseImponibleUsd = 0;
     let exentoUsd = 0;
 
     cart.forEach((item) => {
       const price = Number(item.priceUsd || item.price || 0);
-      const lineTotal = price * item.qty;
+      const qty = Number(item.qty || 1);
+      const lineTotal = price * qty;
       subtotalUsd += lineTotal;
       if (item.isExempt) {
         exentoUsd += lineTotal;
-      } else {
-        baseImponibleUsd += lineTotal;
       }
     });
 
-    const iva16Usd = baseImponibleUsd * 0.16;
-    const baseTotalUsd = subtotalUsd + iva16Usd;
+    // Desglose fiscal SENIAT: Los precios de catálogo son PVP (IVA 16% ya incluido)
+    const taxableSubtotalUsd = Math.max(0, subtotalUsd - exentoUsd);
+    const baseImponibleUsd = Number((taxableSubtotalUsd / 1.16).toFixed(2));
+    const iva16Usd = Number((taxableSubtotalUsd - baseImponibleUsd).toFixed(2));
 
     // Cálculo del IGTF (3% sobre divisas en efectivo para facturas fiscales SENIAT)
     let igtfUsd = 0;
     if (docType === 'fiscal') {
       if (paymentMethod === 'efectivo_usd' || paymentMethod === 'zelle') {
-        igtfUsd = baseTotalUsd * 0.03;
+        igtfUsd = Number((subtotalUsd * 0.03).toFixed(2));
       } else if (paymentMethod === 'mixto') {
         const cashDivisas = (Number(mixedPayments.efectivo_usd) || 0) + (Number(mixedPayments.zelle) || 0);
-        const cashPart = Math.min(cashDivisas, baseTotalUsd);
-        igtfUsd = cashPart * 0.03;
+        const cashPart = Math.min(cashDivisas, subtotalUsd);
+        igtfUsd = Number((cashPart * 0.03).toFixed(2));
       }
     }
 
-    const finalTotalUsd = baseTotalUsd + igtfUsd;
-    const finalTotalBs = finalTotalUsd * bcvRate;
+    const finalTotalUsd = Number((subtotalUsd + igtfUsd).toFixed(2));
+    const finalTotalBs = Number((finalTotalUsd * bcvRate).toFixed(2));
 
     // Vueltos y saldos para Efectivo USD
     const cashUsdNum = Number(cashUsdReceived) || 0;
     const changeUsd = paymentMethod === 'efectivo_usd' ? Math.max(0, cashUsdNum - finalTotalUsd) : 0;
-    const changeBsFromUsd = changeUsd * bcvRate;
+    const changeBsFromUsd = Number((changeUsd * bcvRate).toFixed(2));
 
     // Vueltos y saldos para Efectivo Bs
     const cashBsNum = Number(cashBsReceived) || 0;
@@ -276,25 +276,25 @@ export default function WebPosView({
     const mixedDifferenceUsd = finalTotalUsd - totalPaidMixedUsd;
 
     return {
-      subtotalUsd,
-      subtotalBs: subtotalUsd * bcvRate,
+      subtotalUsd: Number(subtotalUsd.toFixed(2)),
+      subtotalBs: Number((subtotalUsd * bcvRate).toFixed(2)),
       baseImponibleUsd,
-      baseImponibleBs: baseImponibleUsd * bcvRate,
+      baseImponibleBs: Number((baseImponibleUsd * bcvRate).toFixed(2)),
       exentoUsd,
-      exentoBs: exentoUsd * bcvRate,
+      exentoBs: Number((exentoUsd * bcvRate).toFixed(2)),
       iva16Usd,
-      iva16Bs: iva16Usd * bcvRate,
+      iva16Bs: Number((iva16Usd * bcvRate).toFixed(2)),
       igtfUsd,
-      igtfBs: igtfUsd * bcvRate,
+      igtfBs: Number((igtfUsd * bcvRate).toFixed(2)),
       finalTotalUsd,
       finalTotalBs,
       changeUsd,
       changeBs: changeBsFromUsd || changeBs,
       totalPaidMixedUsd,
       mixedDifferenceUsd,
-      totalQty: cart.reduce((acc, i) => acc + i.qty, 0)
+      totalQty: cart.reduce((acc, i) => acc + (Number(i.qty) || 1), 0)
     };
-  }, [cart, bcvRate, docType, paymentMethod, cashUsdReceived, cashBsReceived, mixedPayments]);
+  }, [cart, docType, paymentMethod, mixedPayments, bcvRate, cashUsdReceived, cashBsReceived]);
 
   // Manejo del carrito
   const addToCart = (product) => {
@@ -405,16 +405,28 @@ export default function WebPosView({
           rif: activeClient.rif || activeClient.cedula || 'V-00000000-0',
           address: activeClient.address || 'Mostrador / Local'
         },
-        items: cart.map((i) => ({
-          id: i.id,
-          name: i.name,
-          qty: i.qty,
-          priceUsd: Number(i.priceUsd || i.price || 0),
-          priceBs: Number(i.priceUsd || i.price || 0) * bcvRate,
-          isExempt: Boolean(i.isExempt),
-          totalUsd: Number(i.priceUsd || i.price || 0) * i.qty,
-          totalBs: Number(i.priceUsd || i.price || 0) * i.qty * bcvRate
-        })),
+        items: cart.map((i) => {
+          const unitPriceUsd = Number(i.priceUsd || i.price || 0);
+          const qty = Number(i.qty || 1);
+          return {
+            id: i.id,
+            productId: i.id,
+            name: i.name,
+            productName: i.name,
+            qty,
+            quantity: qty,
+            price: unitPriceUsd,
+            priceUsd: unitPriceUsd,
+            priceUSD: unitPriceUsd,
+            priceBs: Number((unitPriceUsd * bcvRate).toFixed(2)),
+            isExempt: Boolean(i.isExempt),
+            totalUsd: Number((unitPriceUsd * qty).toFixed(2)),
+            totalUSD: Number((unitPriceUsd * qty).toFixed(2)),
+            totalBs: Number((unitPriceUsd * qty * bcvRate).toFixed(2)),
+            subtotalUsd: Number((unitPriceUsd * qty).toFixed(2)),
+            subtotalBs: Number((unitPriceUsd * qty * bcvRate).toFixed(2))
+          };
+        }),
         subtotalUsd: cartTotals.subtotalUsd,
         subtotalBs: cartTotals.subtotalBs,
         baseImponibleUsd: cartTotals.baseImponibleUsd,
@@ -424,12 +436,16 @@ export default function WebPosView({
         igtfUsd: cartTotals.igtfUsd,
         igtfBs: cartTotals.igtfBs,
         total: cartTotals.finalTotalUsd,
+        totalUSD: cartTotals.finalTotalUsd,
         totalUsd: cartTotals.finalTotalUsd,
         totalBs: cartTotals.finalTotalBs,
         exchangeRate: bcvRate,
         paymentMethod,
         paymentDetails: {
-          cashUsd: paymentMethod === 'efectivo_usd' ? Number(cashUsdReceived) : Number(mixedPayments.efectivo_usd || 0),
+          cashUsd: paymentMethod === 'efectivo_usd' ? cartTotals.finalTotalUsd : Number(mixedPayments.efectivo_usd || 0),
+          cashUsdReceived: Number(cashUsdReceived) || (paymentMethod === 'efectivo_usd' ? cartTotals.finalTotalUsd : 0),
+          cashBs: paymentMethod === 'efectivo_bs' ? cartTotals.finalTotalBs : Number(mixedPayments.efectivo_bs || 0),
+          cashBsReceived: Number(cashBsReceived) || (paymentMethod === 'efectivo_bs' ? cartTotals.finalTotalBs : 0),
           pagoMovilBs: paymentMethod === 'pago_movil' ? cartTotals.finalTotalBs : Number(mixedPayments.pago_movil || 0),
           pagoMovilBank: (paymentMethod === 'pago_movil' || paymentMethod === 'mixto') ? selectedBank : null,
           pagoMovilRef: (paymentMethod === 'pago_movil' || paymentMethod === 'mixto') ? (pagoMovilRef || '').trim() : null,
@@ -437,6 +453,7 @@ export default function WebPosView({
           puntoBs: paymentMethod === 'punto' ? cartTotals.finalTotalBs : Number(mixedPayments.punto || 0),
           puntoBank: (paymentMethod === 'punto' || paymentMethod === 'mixto') ? selectedPuntoBank : null,
           puntoRef: (paymentMethod === 'punto' || paymentMethod === 'mixto') ? puntoRef : null,
+          zelleUsd: paymentMethod === 'zelle' ? cartTotals.finalTotalUsd : Number(mixedPayments.zelle || 0),
           zelleHolder: (paymentMethod === 'zelle' || paymentMethod === 'mixto') ? zelleHolder : null,
           changeUsd: cartTotals.changeUsd,
           changeBs: cartTotals.changeBs
@@ -778,7 +795,7 @@ export default function WebPosView({
 
         {docType === 'fiscal' && (
           <div className="flex justify-between items-baseline text-[10px] text-zinc-500 pt-0.5">
-            <span>Base: ${cartTotals.baseImponibleUsd.toFixed(2)} · IVA (16%): +${cartTotals.iva16Usd.toFixed(2)}</span>
+            <span>Base: ${cartTotals.baseImponibleUsd.toFixed(2)} · IVA (16% incl.): ${cartTotals.iva16Usd.toFixed(2)}</span>
             {cartTotals.igtfUsd > 0 && (
               <span className="text-amber-700 font-bold">+ IGTF (3%): ${cartTotals.igtfUsd.toFixed(2)}</span>
             )}

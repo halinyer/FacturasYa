@@ -362,17 +362,24 @@ export default function TablesView({ onGoToPos }) {
     order.rounds.forEach((rnd) => {
       rnd.items.forEach((item) => {
         const found = consolidatedItems.find(
-          (i) => i.id === item.productId && (i.note || '') === (item.note || '')
+          (i) => (i.id === item.productId || i.id === item.id) && (i.note || '') === (item.note || '')
         );
+        const unitPrice = Number(item.priceUSD ?? item.priceUsd ?? item.unitPrice ?? item.price ?? 0);
+        const qty = Number(item.quantity ?? item.qty ?? 1);
         if (found) {
-          found.quantity += item.quantity;
+          found.quantity += qty;
+          found.qty = found.quantity;
         } else {
           consolidatedItems.push({
-            id: item.productId,
+            id: item.productId || item.id,
+            productId: item.productId || item.id,
             name: item.name,
-            priceUSD: item.priceUSD,
-            quantity: item.quantity,
-            note: item.note
+            price: unitPrice,
+            priceUsd: unitPrice,
+            priceUSD: unitPrice,
+            quantity: qty,
+            qty: qty,
+            note: item.note || ''
           });
         }
       });
@@ -407,18 +414,32 @@ export default function TablesView({ onGoToPos }) {
     order.rounds.forEach((rnd) => {
       rnd.items.forEach((item) => {
         const found = consolidatedItems.find(
-          (i) => i.productName === item.name && i.note === item.note
+          (i) => (i.productName === item.name || i.name === item.name) && (i.note || '') === (item.note || '')
         );
+        const unitPrice = Number(item.priceUSD ?? item.priceUsd ?? item.unitPrice ?? item.price ?? 0);
+        const qty = Number(item.quantity ?? item.qty ?? 1);
         if (found) {
-          found.quantity += item.quantity;
-          found.subtotal += item.priceUSD * item.quantity;
+          found.quantity += qty;
+          found.qty = found.quantity;
+          found.subtotal = Number((found.quantity * unitPrice).toFixed(2));
+          found.subtotalUsd = found.subtotal;
+          found.subtotalBs = Number((found.subtotal * exchangeRate).toFixed(2));
         } else {
           consolidatedItems.push({
+            id: item.productId || item.id,
+            name: item.name,
             productName: item.name,
-            quantity: item.quantity,
-            unitPrice: item.priceUSD,
-            subtotal: Number((item.priceUSD * item.quantity).toFixed(2)),
-            note: item.note
+            quantity: qty,
+            qty: qty,
+            unitPrice: unitPrice,
+            price: unitPrice,
+            priceUsd: unitPrice,
+            priceUSD: unitPrice,
+            priceBs: Number((unitPrice * exchangeRate).toFixed(2)),
+            subtotal: Number((unitPrice * qty).toFixed(2)),
+            subtotalUsd: Number((unitPrice * qty).toFixed(2)),
+            subtotalBs: Number((unitPrice * qty * exchangeRate).toFixed(2)),
+            note: item.note || ''
           });
         }
       });
@@ -682,19 +703,6 @@ export default function TablesView({ onGoToPos }) {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={() => setActiveTab('config')}
-              className={`px-3.5 py-2 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs ${
-                activeTab === 'config'
-                  ? 'bg-zinc-900 text-white border-zinc-900'
-                  : 'bg-white hover:bg-zinc-50 text-zinc-700 border-zinc-200'
-              }`}
-            >
-              <Users size={15} />
-              <span>Meseros y Salón</span>
-            </button>
-
             <button
               type="button"
               onClick={() => setShowQRModal(true)}

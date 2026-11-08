@@ -219,9 +219,9 @@ export default function SalesDashboardView() {
         const id = it.id || it.productId || it.name;
         const name = it.name || 'Producto sin nombre';
         const qty = Number(it.qty || it.quantity || 1);
-        const priceUsd = Number(it.priceUsd || it.price || 0);
+        const priceUsd = Number(it.priceUsd ?? it.priceUSD ?? it.unitPrice ?? it.price ?? 0);
         const invRate = Number(inv.exchangeRate) || exchangeRate;
-        const totalUsd = Number(it.totalUsd || priceUsd * qty);
+        const totalUsd = Number(it.totalUsd ?? it.totalUSD ?? (priceUsd * qty));
         const totalBs = Number(it.totalBs || totalUsd * invRate);
 
         totalItemsQty += qty;

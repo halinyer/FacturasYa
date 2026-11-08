@@ -201,9 +201,9 @@ const InvoicePreview = ({ invoice, onClose }) => {
     }
   };
   const items = invoice.items || [];
-  const totalUSD = Number(invoice.totalUSD || invoice.total || 0);
+  const totalUSD = Number(invoice.totalUSD ?? invoice.totalUsd ?? invoice.total ?? 0);
   const exchangeRate = Number(invoice.exchangeRate || invoice.tasaCambio || 876.80);
-  const totalBs = Number(invoice.totalBs || (totalUSD * exchangeRate));
+  const totalBs = Number(invoice.totalBs ?? (totalUSD * exchangeRate));
   const paymentMethod = invoice.paymentMethod || invoice.metodoPago || 'tarjeta';
   const status = (invoice.status || invoice.estado || 'paid').toLowerCase();
   const isPaid = status === 'paid' || status === 'pagada';
@@ -242,33 +242,33 @@ const InvoicePreview = ({ invoice, onClose }) => {
         {`
           .invoice-overlay {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.82); backdrop-filter: blur(6px);
+            background: rgba(9, 9, 11, 0.55); backdrop-filter: blur(4px);
             display: flex; align-items: center; justify-content: center;
             z-index: 1000; padding: 12px;
           }
           .invoice-modal {
-            background: #0f172a; width: 100%;
+            background: #ffffff; width: 100%;
             max-width: 500px;
-            border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.85);
-            border: 1px solid rgba(255, 255, 255, 0.12); display: flex; flex-direction: column;
+            border-radius: 16px; box-shadow: 0 20px 45px -12px rgba(0, 0, 0, 0.25);
+            border: 1px solid #e4e4e7; display: flex; flex-direction: column;
             max-height: 94vh; overflow: hidden;
             transition: max-width 0.2s ease;
           }
           .invoice-header-bar {
             display: flex; flex-direction: column; gap: 10px;
-            padding: 12px 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            background: #1e293b; color: #f8fafc;
+            padding: 12px 16px; border-bottom: 1px solid #e4e4e7;
+            background: #ffffff; color: #09090b;
           }
           .invoice-content {
             padding: 16px 12px;
-            overflow-y: auto; background: #e2e8f0; color: #000000;
+            overflow-y: auto; background: #f4f4f5; color: #000000;
             display: flex; justify-content: center; align-items: flex-start;
             flex: 1;
           }
           .invoice-footer-bar {
             display: flex; align-items: center; gap: 10px;
-            padding: 12px 16px; background: #1e293b;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 12px 18px; background: #ffffff;
+            border-top: 1px solid #e4e4e7;
           }
           .ticket-paper {
             font-family: Arial, Helvetica, sans-serif;
@@ -373,7 +373,7 @@ const InvoicePreview = ({ invoice, onClose }) => {
           <div className="invoice-header-bar">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Receipt size={18} color={formatType === 'seniat' ? "#10b981" : "#38bdf8"} />
+                <Receipt size={18} color={formatType === "seniat" ? "#059669" : "#09090b"} />
                 <h3 style={{ margin: 0, fontSize: '0.88rem', fontWeight: '800' }}>
                   {formatType === 'seniat' ? `Factura Fiscal SENIAT: Nº ${docNumber}` : `Nota de Entrega: #${docNumber}`}
                 </h3>
@@ -383,7 +383,7 @@ const InvoicePreview = ({ invoice, onClose }) => {
                 onClick={onClose}
                 style={{ 
                   display: 'flex', alignItems: 'center', padding: '6px',
-                  background: 'rgba(255,255,255,0.08)', color: '#fff', border: 'none', borderRadius: '8px',
+                  background: '#f4f4f5', color: '#71717a', border: '1px solid #e4e4e7', borderRadius: '8px',
                   cursor: 'pointer'
                 }}
               >
@@ -394,7 +394,7 @@ const InvoicePreview = ({ invoice, onClose }) => {
             {/* Pestañas de Selección de Formato y Controles de Impresión */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
               {/* Botones de Selección de Modo (Nota de Entrega vs Factura Fiscal) */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#f4f4f5', padding: '3px', borderRadius: '8px', border: '1px solid #e4e4e7' }}>
                 <button
                   type="button"
                   onClick={() => handleSelectFormat('nota_entrega')}
@@ -402,8 +402,9 @@ const InvoicePreview = ({ invoice, onClose }) => {
                     display: 'inline-flex', alignItems: 'center', gap: '5px',
                     padding: '5px 12px', borderRadius: '6px', fontSize: '0.76rem', fontWeight: '800',
                     border: 'none', cursor: 'pointer',
-                    background: formatType === 'nota_entrega' ? '#2563eb' : 'rgba(255,255,255,0.08)',
-                    color: formatType === 'nota_entrega' ? '#ffffff' : '#94a3b8'
+                    background: formatType === 'nota_entrega' ? '#ffffff' : 'transparent',
+                    color: formatType === 'nota_entrega' ? '#09090b' : '#71717a',
+                    boxShadow: formatType === 'nota_entrega' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none'
                   }}
                 >
                   <FileText size={13} /> NOTA DE ENTREGA (NO FISCAL)
@@ -416,8 +417,9 @@ const InvoicePreview = ({ invoice, onClose }) => {
                     display: 'inline-flex', alignItems: 'center', gap: '5px',
                     padding: '5px 12px', borderRadius: '6px', fontSize: '0.76rem', fontWeight: '800',
                     border: 'none', cursor: 'pointer',
-                    background: formatType === 'seniat' ? '#059669' : 'rgba(255,255,255,0.08)',
-                    color: formatType === 'seniat' ? '#ffffff' : '#94a3b8'
+                    background: formatType === 'seniat' ? '#059669' : 'transparent',
+                    color: formatType === 'seniat' ? '#ffffff' : '#71717a',
+                    boxShadow: formatType === 'seniat' ? '0 1px 2px rgba(5,150,105,0.2)' : 'none'
                   }}
                 >
                   <Receipt size={13} /> FACTURA FISCAL SENIAT
@@ -432,9 +434,9 @@ const InvoicePreview = ({ invoice, onClose }) => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{
                       fontSize: '0.72rem',
-                      color: '#86efac',
-                      background: 'rgba(5, 150, 105, 0.2)',
-                      border: '1px solid rgba(134, 239, 172, 0.3)',
+                      color: '#065f46',
+                      background: '#ecfdf5',
+                      border: '1px solid #a7f3d0',
                       padding: '4px 8px',
                       borderRadius: '6px',
                       fontWeight: '700',
@@ -474,7 +476,7 @@ const InvoicePreview = ({ invoice, onClose }) => {
                         }}
                         style={{
                           padding: '4px 6px', borderRadius: '6px', fontSize: '0.72rem',
-                          background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)',
+                          background: '#f4f4f5', color: '#09090b', border: '1px solid #e4e4e7',
                           maxWidth: '120px', cursor: 'pointer'
                         }}
                         title="Seleccionar impresora térmica"
@@ -487,15 +489,16 @@ const InvoicePreview = ({ invoice, onClose }) => {
                       </select>
                     )}
 
-                    <div style={{ display: 'flex', background: 'rgba(255,255,255,0.08)', borderRadius: '6px', padding: '2px' }}>
+                    <div style={{ display: 'flex', background: '#f4f4f5', borderRadius: '6px', padding: '2px', border: '1px solid #e4e4e7' }}>
                       <button
                         type="button"
                         onClick={() => setPaperSize('58mm')}
                         style={{
                           padding: '4px 7px', borderRadius: '4px', fontSize: '0.72rem', fontWeight: '800',
                           border: 'none', cursor: 'pointer',
-                          background: paperSize === '58mm' ? '#e2e8f0' : 'transparent',
-                          color: paperSize === '58mm' ? '#0f172a' : '#94a3b8'
+                          background: paperSize === '58mm' ? '#ffffff' : 'transparent',
+                          color: paperSize === '58mm' ? '#09090b' : '#71717a',
+                          boxShadow: paperSize === '58mm' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none'
                         }}
                       >
                         58mm
@@ -506,8 +509,9 @@ const InvoicePreview = ({ invoice, onClose }) => {
                         style={{
                           padding: '4px 7px', borderRadius: '4px', fontSize: '0.72rem', fontWeight: '800',
                           border: 'none', cursor: 'pointer',
-                          background: paperSize === '80mm' ? '#e2e8f0' : 'transparent',
-                          color: paperSize === '80mm' ? '#0f172a' : '#94a3b8'
+                          background: paperSize === '80mm' ? '#ffffff' : 'transparent',
+                          color: paperSize === '80mm' ? '#09090b' : '#71717a',
+                          boxShadow: paperSize === '80mm' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none'
                         }}
                       >
                         80mm
@@ -519,7 +523,7 @@ const InvoicePreview = ({ invoice, onClose }) => {
                       onClick={handlePrint}
                       style={{ 
                         display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px',
-                        background: '#22c55e', color: '#0f172a', border: 'none', borderRadius: '8px',
+                        background: '#09090b', color: '#ffffff', border: 'none', borderRadius: '8px',
                         fontWeight: '800', cursor: 'pointer', fontSize: '0.78rem'
                       }}
                     >
@@ -611,7 +615,7 @@ const InvoicePreview = ({ invoice, onClose }) => {
                   <div style={{ margin: '4px 0' }}>
                     {items.map((item, idx) => {
                       const qty = Number(item.quantity || item.cantidad || 1);
-                      const unitPriceUSD = Number(item.unitPrice || item.priceUSD || item.price || 0);
+                      const unitPriceUSD = Number(item.priceUsd ?? item.priceUSD ?? item.unitPrice ?? item.price ?? 0);
                       const unitPriceBs = Number(item.priceBs || (unitPriceUSD * exchangeRate));
                       const subtotalBs = Number(item.subtotalBs || (qty * unitPriceBs));
                       const qtyFormatted = Number(qty).toLocaleString('de-DE', {
@@ -767,7 +771,7 @@ const InvoicePreview = ({ invoice, onClose }) => {
                   <div style={{ margin: '2px 0' }}>
                     {items.map((item, idx) => {
                       const qty = Number(item.quantity || item.cantidad || 1);
-                      const unitPriceUSD = Number(item.unitPrice || item.priceUSD || item.price || 0);
+                      const unitPriceUSD = Number(item.priceUsd ?? item.priceUSD ?? item.unitPrice ?? item.price ?? 0);
                       const unitPriceBs = Number(item.priceBs || (unitPriceUSD * exchangeRate));
                       const subtotalBs = Number(item.subtotalBs || (qty * unitPriceBs));
                       const noteText = item.note || item.notes;
@@ -870,8 +874,8 @@ const InvoicePreview = ({ invoice, onClose }) => {
               type="button"
               onClick={onClose}
               style={{
-                padding: '11px 16px', background: 'rgba(255,255,255,0.1)', color: '#cbd5e1',
-                border: '1px solid rgba(255,255,255,0.15)', borderRadius: '10px',
+                padding: '10px 18px', background: '#ffffff', color: '#3f3f46',
+                border: '1px solid #e4e4e7', borderRadius: '10px',
                 fontWeight: '700', fontSize: '0.86rem', cursor: 'pointer'
               }}
             >
@@ -900,10 +904,10 @@ const InvoicePreview = ({ invoice, onClose }) => {
                 onClick={handlePrint}
                 style={{
                   flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                  padding: '12px 18px', background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                  padding: '11px 18px', background: '#09090b',
                   color: '#ffffff', border: 'none', borderRadius: '10px',
-                  fontWeight: '900', fontSize: '0.92rem', cursor: 'pointer',
-                  boxShadow: '0 4px 14px rgba(34, 197, 94, 0.4)'
+                  fontWeight: '900', fontSize: '0.88rem', cursor: 'pointer',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
                 }}
               >
                 <Printer size={18} />

@@ -84,7 +84,7 @@ export function buildKitchenTicketHtml({
   );
 }
 
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Printer, Utensils } from 'lucide-react';
 import { printIsolatedTicket } from '../utils/printIsolatedTicket';
 
@@ -221,25 +221,25 @@ export const KitchenTicketModal = ({
         {`
           .kitchen-modal-overlay {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.82); backdrop-filter: blur(5px);
+            background: rgba(9, 9, 11, 0.55); backdrop-filter: blur(4px);
             display: flex; align-items: center; justify-content: center;
             z-index: 9999; padding: 12px;
           }
           .kitchen-modal-box {
-            background: #0f172a; width: 100%;
+            background: #ffffff; width: 100%;
             max-width: 480px;
-            border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.85);
-            border: 1px solid rgba(255, 255, 255, 0.15); display: flex; flex-direction: column;
+            border-radius: 16px; box-shadow: 0 20px 45px -12px rgba(0, 0, 0, 0.25);
+            border: 1px solid #e4e4e7; display: flex; flex-direction: column;
             max-height: 94vh; overflow: hidden;
           }
           .kitchen-header-bar {
             display: flex; flex-direction: column; gap: 10px;
-            padding: 12px 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            background: #1e293b; color: #f8fafc;
+            padding: 14px 18px; border-bottom: 1px solid #e4e4e7;
+            background: #ffffff; color: #09090b;
           }
           .kitchen-content {
             padding: 16px 12px;
-            overflow-y: auto; background: #e2e8f0; color: #000000;
+            overflow-y: auto; background: #f4f4f5; color: #000000;
             display: flex; justify-content: center; align-items: flex-start;
             flex: 1;
           }
@@ -259,8 +259,8 @@ export const KitchenTicketModal = ({
           }
           .kitchen-footer-bar {
             display: flex; align-items: center; gap: 10px;
-            padding: 12px 16px; background: #1e293b;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 12px 18px; background: #ffffff;
+            border-top: 1px solid #e4e4e7;
           }
           .k-center { text-align: center; }
           .k-bold { font-weight: 700; }
@@ -325,7 +325,7 @@ export const KitchenTicketModal = ({
             {/* Fila 1: Título y Botón Cerrar */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Utensils size={18} color="#f59e0b" />
+                <Utensils size={18} color="#09090b" />
                 <div style={{ fontSize: '0.95rem', fontWeight: '800' }}>
                   Comanda Cocina — {safeTableName}
                 </div>
@@ -336,7 +336,7 @@ export const KitchenTicketModal = ({
                 onClick={onClose}
                 title="Cerrar ventana"
                 style={{
-                  background: 'rgba(255,255,255,0.1)', color: '#fff', border: 'none',
+                  background: '#f4f4f5', color: '#71717a', border: '1px solid #e4e4e7',
                   borderRadius: '8px', padding: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center'
                 }}
               >
@@ -357,9 +357,9 @@ export const KitchenTicketModal = ({
                     }}
                     title="Impresora de Comandas"
                     style={{
-                      background: 'rgba(255,255,255,0.12)',
-                      color: '#f8fafc',
-                      border: '1px solid rgba(255,255,255,0.25)',
+                      background: '#f4f4f5',
+                      color: '#09090b',
+                      border: '1px solid #e4e4e7',
                       borderRadius: '6px',
                       fontSize: '0.76rem',
                       fontWeight: '700',
@@ -379,15 +379,16 @@ export const KitchenTicketModal = ({
                 )}
 
                 {/* Selector de ancho */}
-                <div style={{ display: 'flex', background: 'rgba(255,255,255,0.1)', borderRadius: '6px', padding: '2px', flexShrink: 0 }}>
+                <div style={{ display: 'flex', background: '#f4f4f5', borderRadius: '6px', padding: '2px', flexShrink: 0, border: '1px solid #e4e4e7' }}>
                   <button
                     type="button"
                     onClick={() => setPaperSize('58mm')}
                     style={{
                       padding: '4px 9px', borderRadius: '4px', fontSize: '0.74rem', fontWeight: '800',
                       border: 'none', cursor: 'pointer',
-                      background: is58 ? '#e2e8f0' : 'transparent',
-                      color: is58 ? '#0f172a' : '#94a3b8'
+                      background: is58 ? '#ffffff' : 'transparent',
+                      color: is58 ? '#09090b' : '#71717a',
+                      boxShadow: is58 ? '0 1px 2px rgba(0,0,0,0.06)' : 'none'
                     }}
                   >
                     58mm
@@ -398,8 +399,9 @@ export const KitchenTicketModal = ({
                     style={{
                       padding: '4px 9px', borderRadius: '4px', fontSize: '0.74rem', fontWeight: '800',
                       border: 'none', cursor: 'pointer',
-                      background: !is58 ? '#e2e8f0' : 'transparent',
-                      color: !is58 ? '#0f172a' : '#94a3b8'
+                      background: !is58 ? '#ffffff' : 'transparent',
+                      color: !is58 ? '#09090b' : '#71717a',
+                      boxShadow: !is58 ? '0 1px 2px rgba(0,0,0,0.06)' : 'none'
                     }}
                   >
                     80mm
@@ -414,9 +416,9 @@ export const KitchenTicketModal = ({
                 disabled={isPrinting}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px',
-                  background: '#10b981', color: '#fff', border: 'none', borderRadius: '8px',
-                  fontWeight: '800', cursor: isPrinting ? 'wait' : 'pointer', fontSize: '0.82rem',
-                  boxShadow: '0 2px 8px rgba(16, 185, 129, 0.35)', flexShrink: 0
+                  background: '#09090b', color: '#fff', border: 'none', borderRadius: '8px',
+                  fontWeight: '800', cursor: isPrinting ? 'wait' : 'pointer', fontSize: '0.80rem',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.1)', flexShrink: 0
                 }}
               >
                 <Printer size={15} /> {isPrinting ? 'Imprimiendo...' : 'Imprimir'}
@@ -559,8 +561,8 @@ export const KitchenTicketModal = ({
               type="button"
               onClick={onClose}
               style={{
-                padding: '11px 16px', background: 'rgba(255,255,255,0.1)', color: '#cbd5e1',
-                border: '1px solid rgba(255,255,255,0.15)', borderRadius: '10px',
+                padding: '10px 18px', background: '#ffffff', color: '#3f3f46',
+                border: '1px solid #e4e4e7', borderRadius: '10px',
                 fontWeight: '700', fontSize: '0.86rem', cursor: 'pointer'
               }}
             >
@@ -572,10 +574,10 @@ export const KitchenTicketModal = ({
               disabled={isPrinting}
               style={{
                 flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                padding: '12px 18px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                padding: '11px 18px', background: '#09090b',
                 color: '#ffffff', border: 'none', borderRadius: '10px',
-                fontWeight: '900', fontSize: '0.92rem', cursor: isPrinting ? 'wait' : 'pointer',
-                boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)'
+                fontWeight: '900', fontSize: '0.88rem', cursor: isPrinting ? 'wait' : 'pointer',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
               }}
             >
               <Printer size={18} />
