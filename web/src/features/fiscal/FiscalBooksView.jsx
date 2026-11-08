@@ -1,22 +1,18 @@
 import React, { useState, useMemo } from 'react';
 import {
   BookOpen,
-  FileSpreadsheet,
-  Plus,
-  Download,
   Calendar,
+  Download,
+  Plus,
   Trash2,
-  Edit2,
-  CheckCircle2,
-  AlertCircle,
-  Receipt,
-  Building2,
-  Cpu,
-  FileText,
-  Search,
-  Filter,
   Eye,
-  Layers
+  FileSpreadsheet,
+  Building2,
+  Receipt,
+  Cpu,
+  Search,
+  CheckCircle2,
+  FileText
 } from 'lucide-react';
 import { useData } from '../../pos-core/contexts/DataContext';
 import { CLIENT_CONFIG } from '../../pos-core/config/clientConfig';
@@ -337,23 +333,25 @@ export default function FiscalBooksView() {
       igtfBs: Number(purchaseForm.igtfBs) || 0
     };
 
-    if (editingPurchase && updatePurchase) {
-      updatePurchase(editingPurchase.id, payload);
-      showToast('¡Factura de compra actualizada con éxito!');
-    } else if (addPurchase) {
-      addPurchase({ id: 'PUR-' + Date.now(), ...payload });
-      showToast('¡Factura de compra registrada con éxito!');
+    if (editingPurchase) {
+      if (updatePurchase) updatePurchase(editingPurchase.id, payload);
+      showToast('Factura de compra actualizada exitosamente.');
+    } else {
+      if (addPurchase) addPurchase(payload);
+      showToast('Factura de compra registrada exitosamente.');
     }
 
     setShowPurchaseModal(false);
     setEditingPurchase(null);
   };
 
-  const handleTotalAmountChange = (e) => {
+  // Calcular automáticamente base e IVA al escribir total en compra
+  const handlePurchaseTotalChange = (e) => {
     const total = parseFloat(e.target.value) || 0;
     const exempt = parseFloat(purchaseForm.exemptAmountBs) || 0;
-    const base = Math.max(0, (total - exempt) / 1.16);
-    const iva = base * 0.16;
+    const taxable = Math.max(0, total - exempt);
+    const base = taxable / 1.16;
+    const iva = taxable - base;
 
     setPurchaseForm((prev) => ({
       ...prev,
@@ -366,68 +364,28 @@ export default function FiscalBooksView() {
   return (
     <div className="flex-1 flex flex-col h-full bg-zinc-50 overflow-y-auto">
       {/* HEADER DE MÓDULO NOTION */}
-      <div className="bg-white border-b border-zinc-200/80 px-6 py-4 sticky top-0 z-10">
+      <div className="bg-white border-b border-zinc-200/80 px-6 py-4 sticky top-0 z-10 space-y-4">
+        {/* Fila 1: Título e Identificación Fiscal + Acciones Principales */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-zinc-100 text-zinc-700">
+              <span className="p-1.5 rounded-lg bg-zinc-100 text-zinc-900 border border-zinc-200">
                 <BookOpen size={18} />
               </span>
-              <h1 className="text-xl font-bold text-zinc-950 tracking-tight">Libros de Compra y Venta (SENIAT)</h1>
-              <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <h1 className="text-xl font-bold text-zinc-950 tracking-tight">
+                Libros de Compra y Venta (SENIAT)
+              </h1>
+              <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
                 IVA 16% & IGTF 3% · Forma 30
               </span>
             </div>
             <p className="text-xs text-zinc-500 mt-1">
-              Libros tributarios oficiales exigidos por el SENIAT, resumen de cierres Z, compras y autoliquidación mensual
+              {CLIENT_CONFIG.legalName || 'MI NEGOCIO C.A.'} • RIF: {CLIENT_CONFIG.rif || 'J-00000000-0'} • Cumplimiento de la Ley del IVA y Providencia SNAT/2011/00071
             </p>
           </div>
 
-          {/* FILTROS DE PERÍODO Y BOTÓN DE EXPORTACIÓN */}
+          {/* Acciones Superiores Claras */}
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-1.5 bg-zinc-50 border border-zinc-200 rounded-xl px-2.5 py-1 text-xs font-semibold">
-              <Calendar size={13} className="text-zinc-500" />
-              <select
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="bg-transparent text-zinc-800 focus:outline-none cursor-pointer"
-              >
-                <option value="01">Enero</option>
-                <option value="02">Febrero</option>
-                <option value="03">Marzo</option>
-                <option value="04">Abril</option>
-                <option value="05">Mayo</option>
-                <option value="06">Junio</option>
-                <option value="07">Julio</option>
-                <option value="08">Agosto</option>
-                <option value="09">Septiembre</option>
-                <option value="10">Octubre</option>
-                <option value="11">Noviembre</option>
-                <option value="12">Diciembre</option>
-              </select>
-
-              <select
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(e.target.value)}
-                className="bg-transparent text-zinc-800 focus:outline-none cursor-pointer"
-              >
-                <option value="2024">2024</option>
-                <option value="2025">2025</option>
-                <option value="2026">2026</option>
-                <option value="2027">2027</option>
-              </select>
-
-              <select
-                value={selectedFortnight}
-                onChange={(e) => setSelectedFortnight(e.target.value)}
-                className="bg-transparent text-zinc-800 focus:outline-none cursor-pointer border-l border-zinc-200 pl-1.5"
-              >
-                <option value="all">Mes Completo</option>
-                <option value="q1">1ra Quincena (1-15)</option>
-                <option value="q2">2da Quincena (16-fin)</option>
-              </select>
-            </div>
-
             <button
               type="button"
               onClick={() => {
@@ -458,62 +416,277 @@ export default function FiscalBooksView() {
                   });
                 }
               }}
-              className="px-3 py-1.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-800 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-98"
-              title="Descargar libro en formato CSV oficial SENIAT"
+              className="px-3.5 py-2 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-800 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-98"
+              title="Descargar libro en formato CSV oficial SENIAT para Excel"
             >
-              <Download size={13} />
+              <Download size={14} />
               <span>Exportar CSV SENIAT</span>
             </button>
 
             <button
               type="button"
-              onClick={() => setIsFiscalMemoryModalOpen(true)}
-              className="px-3 py-1.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
-              title="Auditar memoria fiscal de la máquina HKA80"
+              onClick={() => setShowFiscalMemoryModal(true)}
+              className="px-3.5 py-2 rounded-xl border border-zinc-300 bg-zinc-100 hover:bg-zinc-200 text-zinc-900 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-98"
+              title="Auditar y consultar la memoria fiscal de la máquina HKA80"
             >
-              <Cpu size={13} />
+              <Cpu size={14} className="text-zinc-700" />
               <span>Memoria Fiscal Z</span>
             </button>
+
+            {/* Botón contextual de registro */}
+            {activeTab === 'ventas_z' && (
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingZReport(null);
+                  setShowZReportModal(true);
+                }}
+                className="px-3.5 py-2 rounded-xl bg-zinc-950 text-white hover:bg-zinc-800 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-98"
+              >
+                <Plus size={14} className="text-emerald-400" />
+                <span>+ Registrar Cierre Z</span>
+              </button>
+            )}
+
+            {activeTab === 'compras' && (
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingPurchase(null);
+                  setPurchaseForm({
+                    date: new Date().toISOString().split('T')[0],
+                    supplierRif: '',
+                    supplierName: '',
+                    invoiceNumber: '',
+                    controlNumber: '',
+                    transactionType: '01-REG',
+                    affectedInvoice: '',
+                    totalAmountBs: '',
+                    exemptAmountBs: '0',
+                    taxableBaseBs: '',
+                    taxRate: 0.16,
+                    ivaBs: '',
+                    ivaRetainedBs: '0',
+                    retentionNumber: '',
+                    igtfBs: '0',
+                    category: 'Materia Prima / Alimentos',
+                    notes: ''
+                  });
+                  setShowPurchaseModal(true);
+                }}
+                className="px-3.5 py-2 rounded-xl bg-zinc-950 text-white hover:bg-zinc-800 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-98"
+              >
+                <Plus size={14} className="text-emerald-400" />
+                <span>+ Registrar Compra</span>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* PESTAÑAS DE NAVEGACIÓN */}
-        <div className="flex items-center gap-2 border-b border-zinc-200/80 pt-3">
-          {[
-            { id: 'ventas_z', label: 'Libro de Ventas (Reportes Z)', icon: Cpu, count: filteredZReports.length },
-            { id: 'ventas_detalle', label: 'Ventas Detalladas', icon: Receipt, count: salesBookData.length },
-            { id: 'compras', label: 'Libro de Compras', icon: Building2, count: purchasesBookData.length },
-            { id: 'resumen', label: 'Autoliquidación Forma 30', icon: FileSpreadsheet }
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`pb-2 px-3 text-xs font-bold flex items-center gap-1.5 border-b-2 transition-all cursor-pointer ${
-                  isActive
-                    ? 'border-zinc-950 text-zinc-950'
-                    : 'border-transparent text-zinc-500 hover:text-zinc-800'
-                }`}
-              >
-                <Icon size={14} />
-                <span>{tab.label}</span>
-                {tab.count !== undefined && (
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                    isActive ? 'bg-zinc-100 text-zinc-900' : 'bg-zinc-100/70 text-zinc-400'
-                  }`}>
-                    {tab.count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+        {/* Fila 2: Pestañas de Navegación y Filtros de Período Agrupados */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-1 border-t border-zinc-100">
+          {/* PESTAÑAS DE NAVEGACIÓN ESTILO NOTION */}
+          <div className="flex items-center gap-1.5 overflow-x-auto">
+            {[
+              { id: 'ventas_z', label: 'Libro de Ventas (Reportes Z)', icon: Cpu, count: filteredZReports.length },
+              { id: 'ventas_detalle', label: 'Detalle de Facturas', icon: Receipt, count: salesBookData.length },
+              { id: 'compras', label: 'Libro de Compras', icon: Building2, count: purchasesBookData.length },
+              { id: 'resumen', label: 'Autoliquidación Forma 30', icon: FileSpreadsheet }
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
+                    isActive
+                      ? 'bg-zinc-950 text-white shadow-xs'
+                      : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-600'
+                  }`}
+                >
+                  <Icon size={13} />
+                  <span>{tab.label}</span>
+                  {tab.count !== undefined && (
+                    <span
+                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                        isActive ? 'bg-zinc-800 text-zinc-200' : 'bg-zinc-200/80 text-zinc-700'
+                      }`}
+                    >
+                      {tab.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* FILTROS DE PERÍODO (MES, AÑO, QUINCENA) */}
+          <div className="flex items-center gap-1.5 bg-zinc-50 border border-zinc-200 rounded-xl px-2.5 py-1 text-xs font-semibold shrink-0">
+            <Calendar size={13} className="text-zinc-500" />
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="bg-transparent text-zinc-800 focus:outline-none cursor-pointer"
+            >
+              <option value="01">Enero</option>
+              <option value="02">Febrero</option>
+              <option value="03">Marzo</option>
+              <option value="04">Abril</option>
+              <option value="05">Mayo</option>
+              <option value="06">Junio</option>
+              <option value="07">Julio</option>
+              <option value="08">Agosto</option>
+              <option value="09">Septiembre</option>
+              <option value="10">Octubre</option>
+              <option value="11">Noviembre</option>
+              <option value="12">Diciembre</option>
+            </select>
+
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              className="bg-transparent text-zinc-800 focus:outline-none cursor-pointer"
+            >
+              <option value="2024">2024</option>
+              <option value="2025">2025</option>
+              <option value="2026">2026</option>
+              <option value="2027">2027</option>
+            </select>
+
+            <select
+              value={selectedFortnight}
+              onChange={(e) => setSelectedFortnight(e.target.value)}
+              className="bg-transparent text-zinc-800 focus:outline-none cursor-pointer border-l border-zinc-200 pl-1.5"
+            >
+              <option value="all">Mes Completo</option>
+              <option value="q1">1ra Quincena (1-15)</option>
+              <option value="q2">2da Quincena (16-fin)</option>
+            </select>
+          </div>
         </div>
       </div>
 
-      <div className="p-6 space-y-6 max-w-7xl w-full">
+      <div className="p-6 space-y-6 max-w-7xl w-full mx-auto">
+        {/* BANNER PEDAGÓGICO DE ORIGEN DE DATOS ESTILO NOTION */}
+        <div className="bg-white border border-zinc-200/90 rounded-2xl p-4 flex gap-3.5 items-start shadow-2xs">
+          <div className="p-2 rounded-xl bg-zinc-100 text-zinc-900 border border-zinc-200 shrink-0 mt-0.5">
+            <BookOpen size={18} />
+          </div>
+          <div className="text-xs text-zinc-600 leading-relaxed flex-1">
+            <div className="font-extrabold text-zinc-950 text-sm mb-1.5 flex items-center justify-between">
+              <span>¿De dónde sale la información de los Libros Fiscales?</span>
+              <span className="text-[11px] font-normal text-zinc-500 font-mono">SENIAT Providencia SNAT/2011/00071</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 mt-2">
+              <div className="bg-zinc-50 p-3 rounded-xl border border-zinc-200/80">
+                <strong className="text-zinc-950 font-bold block mb-0.5">📈 Libro de Ventas</strong>
+                <span className="text-[11px] text-zinc-500">
+                  Totalizado automáticamente de las ventas del POS y cierres Z registrados en la máquina fiscal HKA.
+                </span>
+              </div>
+              <div className="bg-zinc-50 p-3 rounded-xl border border-zinc-200/80">
+                <strong className="text-zinc-950 font-bold block mb-0.5">🛒 Libro de Compras</strong>
+                <span className="text-[11px] text-zinc-500">
+                  Alimentado de las facturas que te entregan tus <strong>proveedores</strong> para deducir Crédito Fiscal con el botón <em>"+ Registrar Compra"</em>.
+                </span>
+              </div>
+              <div className="bg-zinc-50 p-3 rounded-xl border border-zinc-200/80">
+                <strong className="text-zinc-950 font-bold block mb-0.5">⚖️ Resumen IVA (Forma 30)</strong>
+                <span className="text-[11px] text-zinc-500">
+                  Calcula: <strong>Débito Fiscal (Ventas) − Crédito Fiscal (Compras)</strong> = Cuota a enterar al SENIAT o Saldo a Favor.
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* TARJETAS RESUMEN DE TOTALES DEL PERÍODO (KPIS DINÁMICOS) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Card 1: Total Facturado */}
+          <div className="bg-white border border-zinc-200/80 rounded-2xl p-4 shadow-2xs space-y-1">
+            <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider block">
+              {activeTab === 'compras' ? 'TOTAL COMPRAS (CON IVA)' : 'TOTAL FACTURADO (CON IVA)'}
+            </span>
+            <div className="text-xl font-extrabold font-mono text-zinc-950">
+              Bs. {formatVE(
+                activeTab === 'ventas_z'
+                  ? zReportsTotals.totalSalesBs
+                  : activeTab === 'ventas_detalle'
+                  ? salesTotals.totalVentasBs
+                  : purchasesTotals.totalAmountBs
+              )}
+            </div>
+            <span className="text-[11px] font-bold text-emerald-700 font-mono block">
+              Ref. {formatUSD(
+                activeTab === 'ventas_z'
+                  ? zReportsTotals.totalSalesBs / exchangeRate
+                  : activeTab === 'ventas_detalle'
+                  ? salesTotals.totalUSD
+                  : purchasesTotals.totalAmountBs / exchangeRate
+              )}
+            </span>
+          </div>
+
+          {/* Card 2: Base Imponible 16% */}
+          <div className="bg-white border border-zinc-200/80 rounded-2xl p-4 shadow-2xs space-y-1">
+            <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider block">
+              BASE IMPONIBLE (16%)
+            </span>
+            <div className="text-xl font-extrabold font-mono text-zinc-950">
+              Bs. {formatVE(
+                activeTab === 'ventas_z'
+                  ? zReportsTotals.baseGeneral16Bs
+                  : activeTab === 'ventas_detalle'
+                  ? salesTotals.taxableBaseBs
+                  : purchasesTotals.taxableBaseBs
+              )}
+            </div>
+            <span className="text-[11px] text-zinc-500 block">
+              Alícuota general 16% (Art. 27 Ley IVA)
+            </span>
+          </div>
+
+          {/* Card 3: Débito o Crédito Fiscal */}
+          <div className="bg-white border border-zinc-200/80 rounded-2xl p-4 shadow-2xs space-y-1">
+            <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider block">
+              {activeTab !== 'compras' ? 'DÉBITO FISCAL (IVA COBRADO)' : 'CRÉDITO FISCAL (IVA DEDUCIBLE)'}
+            </span>
+            <div className={`text-xl font-extrabold font-mono ${activeTab !== 'compras' ? 'text-amber-800' : 'text-emerald-800'}`}>
+              Bs. {formatVE(
+                activeTab === 'ventas_z'
+                  ? zReportsTotals.taxGeneral16Bs
+                  : activeTab === 'ventas_detalle'
+                  ? salesTotals.ivaBs
+                  : purchasesTotals.ivaBs
+              )}
+            </div>
+            <span className="text-[11px] text-zinc-500 block">
+              16% s/ Base Imponible
+            </span>
+          </div>
+
+          {/* Card 4: IGTF o Retenciones */}
+          <div className="bg-white border border-zinc-200/80 rounded-2xl p-4 shadow-2xs space-y-1">
+            <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider block">
+              {activeTab !== 'compras' ? 'IGTF PERCIBIDO (3% DIVISAS)' : 'RETENCIONES PRACTICADAS'}
+            </span>
+            <div className="text-xl font-extrabold font-mono text-purple-900">
+              Bs. {formatVE(
+                activeTab === 'ventas_z'
+                  ? zReportsTotals.igtfBs
+                  : activeTab === 'ventas_detalle'
+                  ? salesTotals.igtfBs
+                  : purchasesTotals.ivaRetainedBs
+              )}
+            </div>
+            <span className="text-[11px] text-zinc-500 block">
+              {activeTab !== 'compras' ? 'Enterable al SENIAT' : 'Deducible en declaración'}
+            </span>
+          </div>
+        </div>
+
         {/* TAB 1: LIBRO DE VENTAS POR REPORTES Z */}
         {activeTab === 'ventas_z' && (
           <div className="space-y-4">
@@ -848,7 +1021,7 @@ export default function FiscalBooksView() {
                                 }
                               }}
                               className="p-1 rounded-lg hover:bg-rose-100 text-zinc-400 hover:text-rose-700 transition-colors cursor-pointer"
-                              title="Eliminar compra"
+                              title="Eliminar factura de compra"
                             >
                               <Trash2 size={13} />
                             </button>
@@ -861,7 +1034,7 @@ export default function FiscalBooksView() {
                     <tfoot className="bg-zinc-100/70 border-t-2 border-zinc-300 font-mono font-bold text-zinc-950">
                       <tr>
                         <td colSpan={6} className="py-3 px-4 uppercase text-[10px] tracking-wider font-sans">
-                          TOTALES DE COMPRAS DEL PERÍODO ({purchasesBookData.length} FACTURAS)
+                          TOTALES DEL PERÍODO ({purchasesBookData.length} COMPRAS)
                         </td>
                         <td className="py-3 px-4 text-right">Bs. {formatVE(purchasesTotals.taxableBaseBs)}</td>
                         <td className="py-3 px-4 text-right text-emerald-800">Bs. {formatVE(purchasesTotals.ivaBs)}</td>
@@ -876,34 +1049,29 @@ export default function FiscalBooksView() {
           </div>
         )}
 
-        {/* TAB 4: AUTOLIQUIDACIÓN FORMA 30 SENIAT */}
+        {/* TAB 4: AUTOLIQUIDACIÓN FORMA 30 */}
         {activeTab === 'resumen' && (
-          <div className="space-y-4">
-            <div>
-              <h2 className="font-extrabold text-sm text-zinc-950">Autoliquidación del IVA (Forma 30 SENIAT)</h2>
-              <p className="text-xs text-zinc-500">
-                Comparativa entre Débitos Fiscales (Ventas) y Créditos Fiscales (Compras) para enterar en el portal del SENIAT
-              </p>
-            </div>
-
-            <TaxSummaryForma30 taxSummary={taxSummary} />
-          </div>
+          <TaxSummaryForma30 taxSummary={taxSummary} />
         )}
       </div>
 
       {/* MODAL REGISTRAR COMPRA */}
       {showPurchaseModal && (
         <PurchaseFormModal
-          editingPurchase={editingPurchase}
+          isOpen={showPurchaseModal}
+          onClose={() => {
+            setShowPurchaseModal(false);
+            setEditingPurchase(null);
+          }}
           purchaseForm={purchaseForm}
           setPurchaseForm={setPurchaseForm}
-          onTotalAmountChange={handleTotalAmountChange}
-          onSavePurchase={handleSavePurchase}
-          onClose={() => setShowPurchaseModal(false)}
+          onSave={handleSavePurchase}
+          onTotalChange={handlePurchaseTotalChange}
+          isEditing={Boolean(editingPurchase)}
         />
       )}
 
-      {/* MODAL REGISTRAR REPORTE Z */}
+      {/* MODAL REGISTRAR CIERRE Z */}
       {showZReportModal && (
         <ZReportFormModal
           isOpen={showZReportModal}
@@ -911,17 +1079,17 @@ export default function FiscalBooksView() {
             setShowZReportModal(false);
             setEditingZReport(null);
           }}
-          editingZ={editingZReport}
-          defaultMachineSerial={fiscalSettings.registeredMachineNumber || 'Z1B1234567'}
-          onSave={(payload) => {
-            if (editingZReport && updateZReport) {
-              updateZReport(editingZReport.id, payload);
-              showToast('Reporte Z actualizado.');
-            } else if (addZReport) {
-              addZReport(payload);
-              showToast('Reporte Z registrado con éxito en el libro SENIAT.');
+          editingZReport={editingZReport}
+          onSave={(zData) => {
+            if (editingZReport) {
+              if (updateZReport) updateZReport(editingZReport.id, zData);
+              showToast('Cierre Z actualizado.');
+            } else {
+              if (addZReport) addZReport(zData);
+              showToast('Cierre Z registrado exitosamente.');
             }
             setShowZReportModal(false);
+            setEditingZReport(null);
           }}
         />
       )}
@@ -947,12 +1115,16 @@ export default function FiscalBooksView() {
         />
       )}
 
-      {/* TOAST FLOTANTE */}
+      {/* TOAST DE NOTIFICACIÓN */}
       {toast && (
-        <div className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 px-4 py-2.5 rounded-full text-xs font-bold shadow-lg flex items-center gap-2 text-white animate-in fade-in slide-in-from-bottom-2 ${
-          toast.type === 'error' ? 'bg-rose-600' : 'bg-emerald-600'
-        }`}>
-          {toast.type === 'error' ? <AlertCircle size={15} /> : <CheckCircle2 size={15} />}
+        <div
+          className={`fixed bottom-6 right-6 z-50 px-4 py-2.5 rounded-xl text-xs font-bold shadow-xl border flex items-center gap-2 ${
+            toast.type === 'error'
+              ? 'bg-rose-50 text-rose-800 border-rose-200'
+              : 'bg-zinc-950 text-white border-zinc-800'
+          }`}
+        >
+          <CheckCircle2 size={15} className={toast.type === 'error' ? 'text-rose-600' : 'text-emerald-400'} />
           <span>{toast.msg}</span>
         </div>
       )}

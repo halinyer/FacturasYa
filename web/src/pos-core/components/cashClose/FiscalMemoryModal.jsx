@@ -14,6 +14,23 @@ import {
   Download
 } from 'lucide-react';
 
+function getMonthDateRange(dateStr) {
+  if (!dateStr) {
+    const today = new Date().toISOString().split('T')[0];
+    return { start: today, end: today };
+  }
+  const parts = String(dateStr).split('-');
+  if (parts.length >= 2) {
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    const start = `${parts[0]}-${String(m).padStart(2, '0')}-01`;
+    const lastDay = new Date(y, m, 0).getDate();
+    const end = `${parts[0]}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    return { start, end };
+  }
+  return { start: dateStr, end: dateStr };
+}
+
 function FiscalMemoryModalInner({
   isOpen,
   onClose,
@@ -25,8 +42,9 @@ function FiscalMemoryModalInner({
   posInvoices = [],
   exchangeRate = 876.80
 }) {
-  const [startDate, setStartDate] = useState(() => initialDate || new Date().toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(() => initialDate || new Date().toISOString().split('T')[0]);
+  const initialRange = useMemo(() => getMonthDateRange(initialDate), [initialDate]);
+  const [startDate, setStartDate] = useState(() => initialRange.start);
+  const [endDate, setEndDate] = useState(() => initialRange.end);
   const [startZ, setStartZ] = useState('');
   const [endZ, setEndZ] = useState('');
   const [filterMode, setFilterMode] = useState('date'); // 'date' | 'zNumber'
@@ -36,11 +54,11 @@ function FiscalMemoryModalInner({
   const [errorMsg, setErrorMsg] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
 
-  // Update initial dates if prop changes and modal opens
   useEffect(() => {
     if (isOpen && initialDate) {
-      setStartDate(initialDate);
-      setEndDate(initialDate);
+      const r = getMonthDateRange(initialDate);
+      setStartDate(r.start);
+      setEndDate(r.end);
     }
   }, [isOpen, initialDate]);
 
@@ -62,23 +80,21 @@ function FiscalMemoryModalInner({
 
       const res = await fiscalGetFiscalMemory(options);
       if (res && res.success) {
-        // PowerShell 5.1 serializa listas vacías como {} y de 1 elemento como objeto.
-        // Normalizamos SIEMPRE a arreglo para evitar que la pantalla se caiga.
         let records = res.records;
         if (!Array.isArray(records)) {
           records = (records && typeof records === 'object' && Object.keys(records).length > 0) ? [records] : [];
         }
         setResultData({ ...res, records });
         if (records.length === 0) {
-          setSuccessMsg('Consulta exitosa: No se encontraron cierres Z registrados en ese rango específico en la máquina fiscal.');
+          setSuccessMsg('Consulta exitosa: No se encontraron cierres Z registrados en ese rango específico en la memoria fiscal.');
         } else {
           setSuccessMsg(`¡Consulta exitosa! Se recuperaron ${records.length} reporte(s) Z directamente de la memoria fiscal.`);
         }
       } else {
-        setErrorMsg(res?.error || 'No se pudo leer la memoria fiscal. Verifique que la impresora esté conectada o el emulador en verde.');
+        setErrorMsg(res?.error || 'No se pudo leer la memoria fiscal. Verifique que la impresora esté conectada por COM2 o el emulador en verde.');
       }
     } catch (err) {
-      setErrorMsg(`Error de comunicación: ${err.message}`);
+      setErrorMsg(`Error de comunicación con máquina fiscal: ${err.message}`);
     } finally {
       setLoading(false);
       setTimeout(() => setSuccessMsg(null), 5000);
@@ -110,18 +126,18 @@ function FiscalMemoryModalInner({
         setErrorMsg(res?.error || 'La impresora rechazó el comando de impresión de memoria fiscal.');
       }
     } catch (err) {
-      setErrorMsg(`Error al imprimir: ${err.message}`);
+      setErrorMsg(`Error al imprimir en papel: ${err.message}`);
     } finally {
       setPrintingTicket(false);
       setTimeout(() => setSuccessMsg(null), 5000);
     }
   };
 
-  // Pos invoices filtered for the same range to show direct side-by-side comparison
+  // Comparativa con facturas fiscales del POS en el mismo rango
   const posComparison = useMemo(() => {
-    if (!startDate) return { count: 0, totalBs: 0, baseBs: 0, ivaBs: 0 };
-    const filtered = posInvoices.filter(inv => {
-      if (inv.status === 'voided') return false;
+    if (!startDate) return { count: 0, totalBs: 0 };
+    const filtered = posInvoices.filter((inv) => {
+      if (inv.status === 'voided' || inv.status === 'anulada') return false;
       const d = (inv.date || '').includes('T') ? inv.date.split('T')[0] : (inv.date || '');
       if (filterMode === 'date') {
         return d >= startDate && d <= (endDate || startDate);
@@ -129,9 +145,9 @@ function FiscalMemoryModalInner({
       return true;
     });
 
-    const fiscalOnly = filtered.filter(inv => inv.isFiscalInvoice || inv.fiscalInvoiceNumber);
+    const fiscalOnly = filtered.filter((inv) => inv.isFiscalInvoice || inv.docType === 'fiscal' || inv.fiscalInvoiceNumber);
     const totalBs = fiscalOnly.reduce((sum, inv) => {
-      const bs = inv.totalBs || (inv.totalUSD * (inv.exchangeRate || exchangeRate));
+      const bs = inv.totalBs || ((inv.totalUSD || inv.total || 0) * (inv.exchangeRate || exchangeRate));
       return sum + Number(bs || 0);
     }, 0);
 
@@ -141,152 +157,181 @@ function FiscalMemoryModalInner({
     };
   }, [posInvoices, startDate, endDate, filterMode, exchangeRate]);
 
-  // Totals from queried fiscal memory
+  // Totales acumulados de la memoria fiscal leída
   const memoryTotals = useMemo(() => {
     if (!resultData?.records || resultData.records.length === 0) {
       return { totalSalesBs: 0, baseGeneralBs: 0, taxGeneralBs: 0, exemptBs: 0, devolutionsBs: 0 };
     }
-    return resultData.records.reduce((acc, z) => {
-      acc.totalSalesBs += Number(z.totalSalesBs || 0);
-      acc.baseGeneralBs += Number(z.baseGeneral16Bs || 0);
-      acc.taxGeneralBs += Number(z.taxGeneral16Bs || 0);
-      acc.exemptBs += Number(z.exemptSalesBs || 0);
-      acc.devolutionsBs += Number(z.devolutionsBs || 0);
-      return acc;
-    }, { totalSalesBs: 0, baseGeneralBs: 0, taxGeneralBs: 0, exemptBs: 0, devolutionsBs: 0 });
+    return resultData.records.reduce(
+      (acc, z) => {
+        acc.totalSalesBs += Number(z.totalSalesBs || 0);
+        acc.baseGeneralBs += Number(z.baseGeneral16Bs || 0);
+        acc.taxGeneralBs += Number(z.taxGeneral16Bs || 0);
+        acc.exemptBs += Number(z.exemptSalesBs || 0);
+        acc.devolutionsBs += Number(z.devolutionsBs || 0);
+        return acc;
+      },
+      { totalSalesBs: 0, baseGeneralBs: 0, taxGeneralBs: 0, exemptBs: 0, devolutionsBs: 0 }
+    );
   }, [resultData]);
 
-  const formatBs = (val) => `Bs. ${(Number(val) || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const formatBs = (val) =>
+    `Bs. ${(Number(val) || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  // IMPORTANTE: este return va DESPUÉS de todos los hooks (useMemo) para evitar el error React #310
   if (!isOpen) return null;
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.8)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      zIndex: 2800, backdropFilter: 'blur(5px)', padding: '16px'
-    }}>
-      <div style={{
-        background: '#ffffff', borderRadius: '18px', maxWidth: '1050px', width: '100%',
-        maxHeight: '92vh', display: 'flex', flexDirection: 'column',
-        boxShadow: '0 25px 50px -12px rgba(0,0,0,0.4)', border: '1px solid #cbd5e1',
-        overflow: 'hidden', color: '#0f172a'
-      }}>
+    <div className="fixed inset-0 z-50 bg-zinc-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl max-w-5xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-zinc-200 overflow-hidden text-zinc-950">
         
-        {/* Modal Header */}
-        <div style={{
-          padding: '18px 24px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ padding: '10px', background: '#e0f2fe', borderRadius: '12px', color: '#0284c7' }}>
-              <FileText size={24} />
+        {/* Modal Header Notion */}
+        <div className="px-6 py-4 bg-white border-b border-zinc-200 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-zinc-100 border border-zinc-200 text-zinc-900 flex items-center justify-center">
+              <Cpu size={20} />
             </div>
             <div>
-              <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: '#0f172a' }}>
-                Consulta de Memoria Fiscal SENIAT
-              </h2>
-              <span style={{ fontSize: '0.82rem', color: '#64748b' }}>
-                Auditoría legal de montos, cierres Z y facturas reconocidas por la impresora fiscal The Factory HKA
-              </span>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-extrabold text-zinc-950 tracking-tight">
+                  Auditoría de Memoria Fiscal SENIAT (HKA80)
+                </h2>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                  Puerto: {fiscalSettings?.port || 'COM2'}
+                </span>
+              </div>
+              <p className="text-xs text-zinc-500">
+                Lectura de hardware y conciliación legal de Cierres Z grabados en la memoria física de la máquina
+              </p>
             </div>
           </div>
+
           <button
             type="button"
             onClick={onClose}
-            style={{
-              background: '#f1f5f9', border: 'none', borderRadius: '8px', padding: '8px',
-              cursor: 'pointer', color: '#64748b'
-            }}
+            className="p-1.5 rounded-xl text-zinc-400 hover:text-zinc-800 hover:bg-zinc-100 cursor-pointer transition-colors"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
         {/* Modal Body */}
-        <div style={{ padding: '20px 24px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '18px' }}>
+        <div className="p-6 overflow-y-auto flex-1 space-y-5">
           
           {/* Query Filter Bar */}
-          <div style={{
-            background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px',
-            padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-              <div style={{ display: 'flex', gap: '6px' }}>
+          <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-4 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              {/* Segmented Mode Control */}
+              <div className="flex items-center gap-1 bg-zinc-200/70 p-1 rounded-xl">
                 <button
                   type="button"
                   onClick={() => setFilterMode('date')}
-                  style={{
-                    padding: '6px 14px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer',
-                    background: filterMode === 'date' ? '#0284c7' : '#ffffff',
-                    color: filterMode === 'date' ? '#ffffff' : '#64748b',
-                    border: '1px solid #cbd5e1'
-                  }}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    filterMode === 'date'
+                      ? 'bg-white text-zinc-950 shadow-xs'
+                      : 'text-zinc-600 hover:text-zinc-900'
+                  }`}
                 >
                   📅 Por Rango de Fechas
                 </button>
                 <button
                   type="button"
                   onClick={() => setFilterMode('zNumber')}
-                  style={{
-                    padding: '6px 14px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer',
-                    background: filterMode === 'zNumber' ? '#0284c7' : '#ffffff',
-                    color: filterMode === 'zNumber' ? '#ffffff' : '#64748b',
-                    border: '1px solid #cbd5e1'
-                  }}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    filterMode === 'zNumber'
+                      ? 'bg-white text-zinc-950 shadow-xs'
+                      : 'text-zinc-600 hover:text-zinc-900'
+                  }`}
                 >
-                  🔢 Por Número de Reporte Z
+                  🔢 Por Número de Cierre Z
                 </button>
               </div>
 
-              <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '600' }}>
-                Puerto Activo: <b>{fiscalSettings?.port || 'COM2'}</b>
-              </span>
+              {/* Presets rápidos */}
+              <div className="flex items-center gap-1.5 text-xs">
+                <span className="text-[11px] text-zinc-500 font-semibold">Atajos:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilterMode('date');
+                    const r = getMonthDateRange(initialDate || new Date().toISOString().split('T')[0]);
+                    setStartDate(r.start);
+                    setEndDate(r.end);
+                  }}
+                  className="px-2 py-0.5 rounded-md bg-white border border-zinc-200 hover:bg-zinc-100 text-zinc-700 text-[11px] font-semibold cursor-pointer"
+                >
+                  Mes Actual
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilterMode('date');
+                    const end = new Date().toISOString().split('T')[0];
+                    const startObj = new Date();
+                    startObj.setDate(startObj.getDate() - 30);
+                    const start = startObj.toISOString().split('T')[0];
+                    setStartDate(start);
+                    setEndDate(end);
+                  }}
+                  className="px-2 py-0.5 rounded-md bg-white border border-zinc-200 hover:bg-zinc-100 text-zinc-700 text-[11px] font-semibold cursor-pointer"
+                >
+                  Últimos 30 días
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilterMode('zNumber');
+                    setStartZ('1');
+                    setEndZ('9999');
+                  }}
+                  className="px-2 py-0.5 rounded-md bg-white border border-zinc-200 hover:bg-zinc-100 text-zinc-700 text-[11px] font-semibold cursor-pointer"
+                >
+                  Todo el Historial Z
+                </button>
+              </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <div className="flex flex-wrap items-center gap-3 pt-1">
               {filterMode === 'date' ? (
                 <>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>Desde:</span>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="font-bold text-zinc-600">Desde:</span>
                     <input
                       type="date"
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
-                      style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.88rem' }}
+                      className="px-3 py-1.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 font-mono text-xs focus:outline-none focus:border-zinc-900 shadow-2xs"
                     />
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>Hasta:</span>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="font-bold text-zinc-600">Hasta:</span>
                     <input
                       type="date"
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
-                      style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.88rem' }}
+                      className="px-3 py-1.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 font-mono text-xs focus:outline-none focus:border-zinc-900 shadow-2xs"
                     />
                   </div>
                 </>
               ) : (
                 <>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>Desde Z #:</span>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="font-bold text-zinc-600">Desde Z #:</span>
                     <input
                       type="number"
                       placeholder="Ej: 1"
                       value={startZ}
                       onChange={(e) => setStartZ(e.target.value)}
-                      style={{ width: '100px', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.88rem' }}
+                      className="w-24 px-3 py-1.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 font-mono text-xs focus:outline-none focus:border-zinc-900 shadow-2xs"
                     />
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>Hasta Z #:</span>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="font-bold text-zinc-600">Hasta Z #:</span>
                     <input
                       type="number"
-                      placeholder="Ej: 5"
+                      placeholder="Ej: 50"
                       value={endZ}
                       onChange={(e) => setEndZ(e.target.value)}
-                      style={{ width: '100px', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.88rem' }}
+                      className="w-24 px-3 py-1.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 font-mono text-xs focus:outline-none focus:border-zinc-900 shadow-2xs"
                     />
                   </div>
                 </>
@@ -296,13 +341,9 @@ function FiscalMemoryModalInner({
                 type="button"
                 onClick={handleQueryFiscalMemory}
                 disabled={loading}
-                style={{
-                  padding: '9px 18px', background: '#0284c7', color: '#ffffff',
-                  border: 'none', borderRadius: '8px', fontWeight: '800', fontSize: '0.85rem',
-                  cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px'
-                }}
+                className="px-4 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-all shadow-xs disabled:opacity-50"
               >
-                <Search size={16} />
+                {loading ? <RefreshCw size={13} className="animate-spin" /> : <Search size={13} />}
                 <span>{loading ? 'Consultando Máquina...' : 'Consultar Memoria Fiscal'}</span>
               </button>
 
@@ -310,181 +351,143 @@ function FiscalMemoryModalInner({
                 type="button"
                 onClick={handlePrintPhysicalTicket}
                 disabled={loading || printingTicket}
-                style={{
-                  padding: '9px 16px', background: '#ffffff', color: '#0f172a',
-                  border: '1.5px solid #cbd5e1', borderRadius: '8px', fontWeight: '700', fontSize: '0.85rem',
-                  cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px'
-                }}
-                title="Imprime la tira de papel oficial en la impresora fiscal"
+                className="px-3.5 py-2 rounded-xl border border-zinc-200 hover:bg-zinc-100 bg-white text-zinc-800 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-all shadow-2xs"
+                title="Imprime la tira de papel oficial directamente en la impresora fiscal"
               >
-                <Printer size={16} color="#d97706" />
-                <span>{printingTicket ? 'Imprimiendo Tira...' : 'Imprimir Ticket Fiscal'}</span>
+                <Printer size={13} className="text-amber-600" />
+                <span>{printingTicket ? 'Imprimiendo Tira...' : 'Imprimir Tira en Papel'}</span>
               </button>
             </div>
           </div>
 
           {/* Messages */}
           {errorMsg && (
-            <div style={{
-              background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px',
-              padding: '12px 16px', color: '#991b1b', fontSize: '0.85rem',
-              display: 'flex', alignItems: 'center', gap: '10px'
-            }}>
-              <AlertCircle size={20} />
+            <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 text-rose-800 text-xs font-semibold flex items-center gap-2">
+              <AlertCircle size={16} className="text-rose-600 shrink-0" />
               <span>{errorMsg}</span>
             </div>
           )}
 
           {successMsg && (
-            <div style={{
-              background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '10px',
-              padding: '12px 16px', color: '#065f46', fontSize: '0.85rem',
-              display: 'flex', alignItems: 'center', gap: '10px'
-            }}>
-              <CheckCircle size={20} />
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-emerald-800 text-xs font-semibold flex items-center gap-2">
+              <CheckCircle size={16} className="text-emerald-600 shrink-0" />
               <span>{successMsg}</span>
             </div>
           )}
 
           {/* Results Summary & Side-by-Side Comparison */}
           {resultData && (
-            <>
+            <div className="space-y-4">
               {/* Machine Hardware Info Pills */}
-              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                <span style={{ background: '#f1f5f9', padding: '6px 12px', borderRadius: '8px', fontSize: '0.78rem', color: '#475569', fontWeight: '700' }}>
-                  📠 Serial Máquina: <strong style={{ color: '#0f172a' }}>{resultData.registeredMachineNumber || 'N/A'}</strong>
+              <div className="flex items-center gap-2 flex-wrap text-xs">
+                <span className="bg-zinc-100 border border-zinc-200/80 px-2.5 py-1 rounded-lg text-zinc-600 font-medium">
+                  📠 Serial Máquina: <strong className="text-zinc-950 font-mono">{resultData.registeredMachineNumber || 'HKA80'}</strong>
                 </span>
-                <span style={{ background: '#f1f5f9', padding: '6px 12px', borderRadius: '8px', fontSize: '0.78rem', color: '#475569', fontWeight: '700' }}>
-                  🏢 RIF Empresa: <strong style={{ color: '#0f172a' }}>{resultData.rif || 'N/A'}</strong>
+                <span className="bg-zinc-100 border border-zinc-200/80 px-2.5 py-1 rounded-lg text-zinc-600 font-medium">
+                  🏢 RIF Empresa: <strong className="text-zinc-950 font-mono">{resultData.rif || 'N/A'}</strong>
                 </span>
-                <span style={{ background: '#f1f5f9', padding: '6px 12px', borderRadius: '8px', fontSize: '0.78rem', color: '#475569', fontWeight: '700' }}>
-                  📊 Total Z Históricos en Máquina: <strong style={{ color: '#0f172a' }}>{resultData.totalZInPrinter}</strong>
+                <span className="bg-zinc-100 border border-zinc-200/80 px-2.5 py-1 rounded-lg text-zinc-600 font-medium">
+                  📊 Total Z en Memoria: <strong className="text-zinc-950 font-mono">{resultData.totalZInPrinter}</strong>
                 </span>
-                <span style={{ background: '#e0f2fe', padding: '6px 12px', borderRadius: '8px', fontSize: '0.78rem', color: '#0369a1', fontWeight: '700' }}>
-                  🔍 Z Encontrados en Rango: <strong>{resultData.records?.length || 0}</strong>
+                <span className="bg-zinc-900 text-white px-2.5 py-1 rounded-lg font-bold">
+                  🔍 Reportes Z Recuperados: {resultData.records?.length || 0}
                 </span>
               </div>
 
-              {(!resultData.records || resultData.records.length === 0) && resultData.diagnostic && (
-                <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '10px', padding: '12px 16px', color: '#92400e', fontSize: '0.8rem' }}>
-                  <b>Diagnóstico de la consulta (envíame esto si no aparecen Z):</b>
-                  <div>Contador Z (S1): {resultData.diagnostic.zCounter} · Contador Auditoría (S1): {resultData.diagnostic.auditCounter}</div>
-                  <div>Z devueltos por fecha: {resultData.diagnostic.byDateCount} · por número: {resultData.diagnostic.byNumberCount} · total leídos: {resultData.diagnostic.rawCount ?? 0}</div>
-                  {resultData.diagnostic.byDateError && <div>Error por fecha: {resultData.diagnostic.byDateError}</div>}
-                  {resultData.diagnostic.byNumberError && <div>Error por número: {resultData.diagnostic.byNumberError}</div>}
-                  {resultData.diagnostic.samples && resultData.diagnostic.samples.length > 0 && (
-                    <div>Muestra leída de la máquina: {[].concat(resultData.diagnostic.samples).join(' | ')}</div>
-                  )}
-                </div>
-              )}
-
-              {/* Auditoria Comparativa: Máquina Fiscal vs Sistema POS */}
-              <div style={{
-                display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px'
-              }}>
-                {/* Lo que reconoció la máquina */}
-                <div style={{
-                  background: '#f0fdf4', border: '1.5px solid #86efac', borderRadius: '12px', padding: '16px'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                    <Cpu size={18} color="#16a34a" />
-                    <span style={{ fontWeight: '800', fontSize: '0.88rem', color: '#166534' }}>
-                      Reconocido por la Máquina Fiscal:
-                    </span>
+              {/* Auditoría Comparativa: Máquina Fiscal vs Sistema POS */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                {/* Reconocido por la Máquina Fiscal */}
+                <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-4 space-y-1.5">
+                  <div className="flex items-center gap-2 text-emerald-900 font-extrabold text-xs">
+                    <Cpu size={15} className="text-emerald-700" />
+                    <span>Reconocido por la Memoria Fiscal (HKA80):</span>
                   </div>
-                  <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#15803d', marginBottom: '8px' }}>
+                  <div className="text-xl font-extrabold font-mono text-emerald-950">
                     {formatBs(memoryTotals.totalSalesBs)}
                   </div>
-                  <div style={{ fontSize: '0.76rem', color: '#166534', display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                    <span>• Base Imponible 16%: <b>{formatBs(memoryTotals.baseGeneralBs)}</b></span>
-                    <span>• IVA Débito 16%: <b>{formatBs(memoryTotals.taxGeneralBs)}</b></span>
-                    <span>• Ventas Exentas: <b>{formatBs(memoryTotals.exemptBs)}</b></span>
-                    <span>• Devoluciones/Notas Crédito: <b>{formatBs(memoryTotals.devolutionsBs)}</b></span>
+                  <div className="text-[11px] text-emerald-800 space-y-0.5 pt-1">
+                    <div>• Base Imponible 16%: <strong className="font-mono">{formatBs(memoryTotals.baseGeneralBs)}</strong></div>
+                    <div>• IVA Débito 16%: <strong className="font-mono">{formatBs(memoryTotals.taxGeneralBs)}</strong></div>
+                    <div>• Ventas Exentas: <strong className="font-mono">{formatBs(memoryTotals.exemptBs)}</strong></div>
+                    <div>• Devoluciones/Notas Crédito: <strong className="font-mono">{formatBs(memoryTotals.devolutionsBs)}</strong></div>
                   </div>
                 </div>
 
-                {/* Lo que registró el software FacturaPOS */}
-                <div style={{
-                  background: '#eff6ff', border: '1.5px solid #93c5fd', borderRadius: '12px', padding: '16px'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                    <FileText size={18} color="#2563eb" />
-                    <span style={{ fontWeight: '800', fontSize: '0.88rem', color: '#1e40af' }}>
-                      Registrado en Software FacturaPOS:
-                    </span>
+                {/* Registrado en Software FacturaPOS */}
+                <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-4 space-y-1.5">
+                  <div className="flex items-center gap-2 text-zinc-800 font-extrabold text-xs">
+                    <FileText size={15} className="text-zinc-700" />
+                    <span>Registrado en Software FacturaPOS:</span>
                   </div>
-                  <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#1d4ed8', marginBottom: '8px' }}>
+                  <div className="text-xl font-extrabold font-mono text-zinc-950">
                     {formatBs(posComparison.totalBs)}
                   </div>
-                  <div style={{ fontSize: '0.76rem', color: '#1e40af', display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                    <span>• Facturas fiscales activas en el rango: <b>{posComparison.count} facturas</b></span>
-                    <span>• Cuadre con la máquina: {Math.abs(memoryTotals.totalSalesBs - posComparison.totalBs) < 0.05 ? (
-                      <strong style={{ color: '#16a34a' }}>✅ Cuadre Exacto (0.00 dif)</strong>
-                    ) : (
-                      <strong style={{ color: '#dc2626' }}>
-                        Diferencia de {formatBs(Math.abs(memoryTotals.totalSalesBs - posComparison.totalBs))}
-                      </strong>
-                    )}</span>
+                  <div className="text-[11px] text-zinc-600 space-y-0.5 pt-1">
+                    <div>• Facturas fiscales en el rango: <strong className="font-mono">{posComparison.count} facturas</strong></div>
+                    <div>
+                      • Cuadre con la máquina:{' '}
+                      {Math.abs(memoryTotals.totalSalesBs - posComparison.totalBs) < 0.05 ? (
+                        <strong className="text-emerald-700 font-bold">✅ Cuadre Exacto (0.00 dif)</strong>
+                      ) : (
+                        <strong className="text-rose-700 font-bold">
+                          Diferencia de {formatBs(Math.abs(memoryTotals.totalSalesBs - posComparison.totalBs))}
+                        </strong>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* Data Table */}
-              <div style={{ border: '1px solid #cbd5e1', borderRadius: '12px', overflow: 'hidden' }}>
-                <div style={{
-                  padding: '10px 16px', background: '#f8fafc', borderBottom: '1px solid #cbd5e1',
-                  fontWeight: '800', fontSize: '0.85rem', color: '#334155'
-                }}>
-                  Detalle de Reportes Z Grabados en Memoria ({resultData.records?.length || 0})
+              <div className="border border-zinc-200 rounded-2xl overflow-hidden bg-white shadow-2xs">
+                <div className="px-4 py-3 bg-zinc-50 border-b border-zinc-200 font-bold text-xs text-zinc-800 flex items-center justify-between">
+                  <span>Detalle de Reportes Z Grabados en Memoria ({resultData.records?.length || 0})</span>
+                  <span className="text-[11px] text-zinc-500 font-normal">Grabación inmutable oficial SENIAT</span>
                 </div>
 
-                <div style={{ overflowX: 'auto', maxHeight: '320px' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', textAlign: 'left' }}>
-                    <thead style={{ background: '#f1f5f9', color: '#475569', position: 'sticky', top: 0, zIndex: 10 }}>
+                <div className="overflow-x-auto max-h-80">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-zinc-50/80 border-b border-zinc-200 text-zinc-500 font-bold uppercase tracking-wider text-[10px] sticky top-0 z-10">
                       <tr>
-                        <th style={{ padding: '10px 12px' }}>N° Z</th>
-                        <th style={{ padding: '10px 12px' }}>Fecha Z</th>
-                        <th style={{ padding: '10px 12px' }}>Serie Facturas (Desde – Hasta)</th>
-                        <th style={{ padding: '10px 12px', textAlign: 'right' }}>Ventas Exentas</th>
-                        <th style={{ padding: '10px 12px', textAlign: 'right' }}>Base 16%</th>
-                        <th style={{ padding: '10px 12px', textAlign: 'right' }}>IVA 16%</th>
-                        <th style={{ padding: '10px 12px', textAlign: 'right' }}>Total Ventas (Bs)</th>
-                        <th style={{ padding: '10px 12px', textAlign: 'right' }}>Devoluciones</th>
+                        <th className="py-2.5 px-3">N° Z</th>
+                        <th className="py-2.5 px-3">Fecha Z</th>
+                        <th className="py-2.5 px-3">Serie Facturas</th>
+                        <th className="py-2.5 px-3 text-right">Exento</th>
+                        <th className="py-2.5 px-3 text-right">Base 16%</th>
+                        <th className="py-2.5 px-3 text-right">IVA 16%</th>
+                        <th className="py-2.5 px-3 text-right">Total Ventas (Bs)</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-zinc-100 font-mono">
                       {resultData.records && resultData.records.length > 0 ? (
                         resultData.records.map((z, idx) => (
-                          <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0', background: idx % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
-                            <td style={{ padding: '10px 12px', fontWeight: '800', color: '#0284c7' }}>
-                              #{String(z.zNumber).padStart(4, '0')}
+                          <tr key={idx} className="hover:bg-zinc-50/80 transition-colors">
+                            <td className="py-2.5 px-3 font-bold text-zinc-950">
+                              Z-{String(z.zNumber).padStart(4, '0')}
                             </td>
-                            <td style={{ padding: '10px 12px', fontWeight: '600' }}>
+                            <td className="py-2.5 px-3 text-zinc-700">
                               {z.zDate}
                             </td>
-                            <td style={{ padding: '10px 12px' }}>
+                            <td className="py-2.5 px-3 text-zinc-600 text-[11px]">
                               {z.firstInvoiceNumber ? String(z.firstInvoiceNumber).padStart(8, '0') : 'N/D'} – {String(z.lastInvoiceNumber || 0).padStart(8, '0')}
                             </td>
-                            <td style={{ padding: '10px 12px', textAlign: 'right', color: '#64748b' }}>
+                            <td className="py-2.5 px-3 text-right text-zinc-500">
                               {formatBs(z.exemptSalesBs)}
                             </td>
-                            <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                            <td className="py-2.5 px-3 text-right text-zinc-800">
                               {formatBs(z.baseGeneral16Bs)}
                             </td>
-                            <td style={{ padding: '10px 12px', textAlign: 'right', color: '#d97706', fontWeight: '700' }}>
+                            <td className="py-2.5 px-3 text-right text-amber-700 font-bold">
                               {formatBs(z.taxGeneral16Bs)}
                             </td>
-                            <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '900', color: '#059669' }}>
+                            <td className="py-2.5 px-3 text-right text-zinc-950 font-black">
                               {formatBs(z.totalSalesBs)}
-                            </td>
-                            <td style={{ padding: '10px 12px', textAlign: 'right', color: z.devolutionsBs > 0 ? '#dc2626' : '#94a3b8' }}>
-                              {formatBs(z.devolutionsBs)}
                             </td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={8} style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
+                          <td colSpan={7} className="py-8 text-center text-zinc-400 font-sans">
                             No se encontraron cierres Z registrados en la memoria para este rango.
                           </td>
                         </tr>
@@ -493,17 +496,14 @@ function FiscalMemoryModalInner({
                   </table>
                 </div>
               </div>
-            </>
+            </div>
           )}
 
         </div>
 
-        {/* Modal Footer */}
-        <div style={{
-          padding: '14px 24px', background: '#f8fafc', borderTop: '1px solid #e2e8f0',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px'
-        }}>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        {/* Modal Footer Notion */}
+        <div className="px-6 py-4 bg-zinc-50 border-t border-zinc-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
+          <div className="flex flex-wrap items-center gap-2">
             {resultData?.records && resultData.records.length > 0 && (
               <>
                 <button
@@ -518,15 +518,11 @@ function FiscalMemoryModalInner({
                     });
                     setSuccessMsg('¡Archivo oficial de Reportes Z exportado exitosamente!');
                   }}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '8px',
-                    padding: '9px 16px', background: '#10b981', color: '#ffffff',
-                    border: 'none', borderRadius: '8px', fontWeight: '800', fontSize: '0.85rem',
-                    cursor: 'pointer', boxShadow: '0 2px 6px rgba(16,185,129,0.3)'
-                  }}
+                  className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
                   title="Descargar archivo estructurado en Excel / CSV para el libro fiscal"
                 >
-                  <Download size={16} /> Exportar a Excel (.csv)
+                  <Download size={14} />
+                  <span>Exportar a Excel (.csv)</span>
                 </button>
 
                 {onSyncZReports && (
@@ -536,40 +532,30 @@ function FiscalMemoryModalInner({
                       onSyncZReports(resultData.records, resultData.registeredMachineNumber);
                       setSuccessMsg(`¡${resultData.records.length} Reporte(s) Z asentados exitosamente en el Libro de Ventas!`);
                     }}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: '8px',
-                      padding: '9px 16px', background: '#0284c7', color: '#ffffff',
-                      border: 'none', borderRadius: '8px', fontWeight: '800', fontSize: '0.85rem',
-                      cursor: 'pointer', boxShadow: '0 2px 6px rgba(2,132,199,0.3)'
-                    }}
+                    className="px-3.5 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
                     title="Asentar estos Reportes Z directamente en el Libro de Ventas del sistema"
                   >
-                    <CheckCircle size={16} /> Asentar en Libro de Ventas
+                    <CheckCircle size={14} className="text-emerald-400" />
+                    <span>Asentar en Libro de Ventas</span>
                   </button>
                 )}
               </>
             )}
           </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                padding: '9px 20px', background: '#0f172a', color: '#ffffff',
-                border: 'none', borderRadius: '8px', fontWeight: '700', fontSize: '0.85rem',
-                cursor: 'pointer'
-              }}
-            >
-              Cerrar Consulta
-            </button>
-          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-5 py-2 rounded-xl bg-white hover:bg-zinc-100 border border-zinc-200 text-zinc-700 text-xs font-bold cursor-pointer transition-colors"
+          >
+            Cerrar Consulta
+          </button>
         </div>
 
       </div>
     </div>
   );
 }
-
 
 class FiscalMemoryErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { error: null }; }
@@ -578,12 +564,15 @@ class FiscalMemoryErrorBoundary extends React.Component {
   render() {
     if (this.state.error) {
       return (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.8)', zIndex: 2800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-          <div style={{ background: '#fff', borderRadius: '14px', padding: '24px', maxWidth: '520px', color: '#0f172a' }}>
-            <h3 style={{ marginTop: 0, color: '#991b1b' }}>Error al mostrar la memoria fiscal</h3>
-            <p style={{ fontSize: '0.85rem', wordBreak: 'break-word' }}>{String(this.state.error?.message || this.state.error)}</p>
-            <button type="button" onClick={() => { this.setState({ error: null }); this.props.onClose && this.props.onClose(); }}
-              style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', background: '#0284c7', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+        <div className="fixed inset-0 bg-zinc-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full border border-zinc-200 shadow-2xl text-zinc-950 space-y-3">
+            <h3 className="font-extrabold text-base text-rose-700">Error al mostrar la memoria fiscal</h3>
+            <p className="text-xs text-zinc-600 word-break">{String(this.state.error?.message || this.state.error)}</p>
+            <button
+              type="button"
+              onClick={() => { this.setState({ error: null }); this.props.onClose && this.props.onClose(); }}
+              className="px-4 py-2 rounded-xl bg-zinc-950 text-white text-xs font-bold cursor-pointer hover:bg-zinc-800"
+            >
               Cerrar
             </button>
           </div>

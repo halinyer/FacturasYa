@@ -51,6 +51,7 @@ export default function CashCloseView() {
     deleteCashClose,
     clearInvoicesByDate,
     clearAllSalesData,
+    syncZReports,
     currentLocalDate
   } = data;
 
@@ -1370,6 +1371,7 @@ export default function CashCloseView() {
         fiscalSettings={fiscalSettings}
         fiscalGetFiscalMemory={data?.fiscalGetFiscalMemory}
         fiscalPrintFiscalMemory={data?.fiscalPrintFiscalMemory}
+        onSyncZReports={(records, serial) => syncZReports && syncZReports(records, serial)}
         posInvoices={invoices}
         exchangeRate={exchangeRate}
       />
