@@ -165,13 +165,13 @@ export default function FiscalBooksView() {
               <span className="p-1.5 rounded-lg bg-zinc-100 text-zinc-700">
                 <BookOpen size={18} />
               </span>
-              <h1 className="text-xl font-bold text-zinc-950 tracking-tight">Libros Fiscales SENIAT</h1>
+              <h1 className="text-xl font-bold text-zinc-950 tracking-tight">Libros de Compra y Venta</h1>
               <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                Cumplimiento Tributario VE
+                Fiscal & Cierres Z
               </span>
             </div>
             <p className="text-xs text-zinc-500 mt-1">
-              Libros legales de Ventas, Compras y archivo de Cierres Z según normativa SENIAT
+              Libros legales de Ventas, Compras y archivo de Cierres Z para contabilidad
             </p>
           </div>
 
@@ -214,7 +214,7 @@ export default function FiscalBooksView() {
               className="px-3 py-1.5 rounded-xl bg-zinc-950 text-white text-xs font-bold hover:bg-zinc-800 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
             >
               <Download size={14} />
-              <span>Exportar CSV SENIAT</span>
+              <span>Exportar Libro CSV</span>
             </button>
           </div>
         </div>

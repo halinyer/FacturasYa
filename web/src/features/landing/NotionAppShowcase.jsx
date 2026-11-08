@@ -171,10 +171,10 @@ const NAV_SECTIONS = [
     ]
   },
   {
-    title: 'Administración & SENIAT',
+    title: 'Administración & Finanzas',
     items: [
       { id: 'dashboard', label: 'Dashboard de Ventas', icon: LayoutDashboard },
-      { id: 'fiscal', label: 'Libros SENIAT', icon: BookOpen, badge: 'Legal' },
+      { id: 'fiscal', label: 'Libros de Compra y Venta', icon: BookOpen, badge: 'Fiscal' },
       { id: 'cash-close', label: 'Cierre de Caja', icon: Calculator, badge: 'Arqueo' }
     ]
   },
@@ -234,7 +234,7 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
       ? { label: 'Punto de Venta', badge: 'Caja' }
       : activeTab === 'tables'
       ? { label: 'Mesas & Salón', badge: 'Salas' }
-      : { label: 'Libros SENIAT', badge: 'Legal' };
+      : { label: 'Libros de Compra y Venta', badge: 'Fiscal' };
 
   return (
     <div className="mt-12 max-w-6xl mx-auto select-none pointer-events-none" aria-hidden="true">
@@ -696,7 +696,7 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
                   </motion.div>
                 )}
 
-                {/* ESCENA 3: LIBROS FISCALES SENIAT */}
+                {/* ESCENA 3: LIBROS DE COMPRA Y VENTA */}
                 {activeTab === 'fiscal' && (
                   <motion.div
                     key="scene-fiscal"
@@ -713,11 +713,11 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
                             <BookOpen size={14} />
                           </span>
                           <span className="text-sm font-bold text-zinc-950">
-                            Libros Fiscales SENIAT
+                            Libros de Compra y Venta
                           </span>
                         </div>
                         <p className="text-[10px] text-zinc-500 mt-0.5">
-                          Libro de Ventas, Compras y Cierres Z listos para tu contador
+                          Libro de Ventas, Compras y Cierres Z listos para contabilidad
                         </p>
                       </div>
 
@@ -728,7 +728,7 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
                         </div>
                         <div className="px-2.5 py-1.5 rounded-xl bg-zinc-950 text-white text-[10px] font-bold flex items-center gap-1">
                           <Download size={12} />
-                          <span>Exportar Excel SENIAT</span>
+                          <span>Exportar Excel</span>
                         </div>
                       </div>
                     </div>
@@ -849,7 +849,7 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
         {[
           { id: 'pos', label: 'Punto de Venta' },
           { id: 'tables', label: 'Mesas y Comandas' },
-          { id: 'fiscal', label: 'Libros SENIAT' }
+          { id: 'fiscal', label: 'Libros de Compra y Venta' }
         ].map((scene) => {
           const isCurrent = activeTab === scene.id;
           return (

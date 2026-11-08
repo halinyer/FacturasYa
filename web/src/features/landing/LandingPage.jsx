@@ -384,9 +384,9 @@ export default function LandingPage() {
               <div className="w-10 h-10 rounded-xl bg-white border border-zinc-200 flex items-center justify-center text-zinc-900 shadow-2xs">
                 <FileSpreadsheet size={20} />
               </div>
-              <h3 className="font-bold text-base text-zinc-950">Libros SENIAT en Excel</h3>
+              <h3 className="font-bold text-base text-zinc-950">Libros de Compra y Venta</h3>
               <p className="text-xs text-zinc-600 leading-relaxed">
-                Descarga a fin de mes el Libro de Ventas, Libro de Compras y resumen de Cierres Z listos para enviárselos a tu contador.
+                Descarga a fin de mes el Libro de Ventas, Libro de Compras y resumen de Cierres Z en Excel listos para tu contador.
               </p>
             </div>
 
@@ -532,7 +532,7 @@ export default function LandingPage() {
                 <ul className="space-y-2 text-xs text-zinc-700 pt-2 border-t border-zinc-100 font-medium">
                   <li className="flex items-center gap-2"><CheckCircle2 size={14} className="text-emerald-600" /> Facturación fiscal ilimitada</li>
                   <li className="flex items-center gap-2"><CheckCircle2 size={14} className="text-emerald-600" /> Copia de seguridad en la nube</li>
-                  <li className="flex items-center gap-2"><CheckCircle2 size={14} className="text-emerald-600" /> Libros de Compra y Venta SENIAT</li>
+                  <li className="flex items-center gap-2"><CheckCircle2 size={14} className="text-emerald-600" /> Libros de Compra y Venta (Excel)</li>
                   <li className="flex items-center gap-2"><CheckCircle2 size={14} className="text-emerald-600" /> Soporte directo por WhatsApp</li>
                 </ul>
               </div>

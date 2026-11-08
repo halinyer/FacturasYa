@@ -240,10 +240,10 @@ function AppShellInner() {
       ]
     },
     {
-      title: 'Administración & SENIAT',
+      title: 'Administración & Finanzas',
       items: [
         { id: 'dashboard', label: 'Dashboard de Ventas', icon: LayoutDashboard },
-        { id: 'fiscal', label: 'Libros SENIAT', icon: BookOpen, badge: 'Legal' },
+        { id: 'fiscal', label: 'Libros de Compra y Venta', icon: BookOpen, badge: 'Fiscal' },
         { id: 'cash-close', label: 'Cierre de Caja', icon: Calculator, badge: 'Arqueo' }
       ]
     },
@@ -277,7 +277,7 @@ function AppShellInner() {
     },
     {
       id: 'fiscal',
-      label: 'Libros SENIAT',
+      label: 'Libros de Compra y Venta',
       icon: BookOpen,
       badge: 'Compras / Ventas'
     },
@@ -418,7 +418,7 @@ function AppShellInner() {
                             className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold ${
                               item.badge === 'Caja'
                                 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                                : item.badge === 'Legal'
+                                : item.badge === 'Fiscal' || item.badge === 'Legal'
                                 ? 'bg-sky-500/20 text-sky-300'
                                 : item.badge === 'Salas'
                                 ? 'bg-amber-500/20 text-amber-300'
@@ -694,7 +694,7 @@ function AppShellInner() {
                 <p className="text-xs text-zinc-600 leading-relaxed">
                   {subStatus.isClockTampered
                     ? 'Se detectó que la fecha y hora de esta computadora fue atrasada respecto al servidor oficial. Ajusta la hora automática de Windows y presiona "Verificar Estado" para desbloquear la caja.'
-                    : 'El período de acceso de tu restaurante ha finalizado. Tus productos, inventario, clientes y Libros Fiscales SENIAT están 100% resguardados. Al reportar tu Pago Móvil o Binance Pay tu caja se habilita de inmediato.'}
+                    : 'El período de acceso de tu restaurante ha finalizado. Tus productos, inventario, clientes y Libros Fiscales están 100% resguardados. Al reportar tu Pago Móvil o Binance Pay tu caja se habilita de inmediato.'}
                 </p>
 
                 {/* Datos rápidos de Pago Móvil */}
@@ -753,7 +753,7 @@ function AppShellInner() {
                       onClick={() => setActiveTab('fiscal')}
                       className="py-2.5 px-3 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 font-semibold text-xs transition-all cursor-pointer"
                     >
-                      Ver Libros SENIAT
+                      Ver Libros de Compra y Venta
                     </button>
                   </div>
                 </div>
