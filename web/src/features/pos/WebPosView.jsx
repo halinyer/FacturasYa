@@ -77,7 +77,14 @@ export default function WebPosView({
   onOpenMobileSidebar
 }) {
   const data = useData();
-  const isElectron = Boolean(window?.electronAPI?.fiscal);
+  const isElectron = typeof window !== 'undefined' && (Boolean(window?.electronAPI) || window.location.protocol === 'file:');
+
+  // Sincronizar botones de ventana nativos de Windows a color blanco para fusionar con el sidebar
+  useEffect(() => {
+    if (window?.electronAPI?.setTitleBarOverlay) {
+      window.electronAPI.setTitleBarOverlay({ color: '#ffffff', symbolColor: '#09090b', height: 48 });
+    }
+  }, []);
 
   // Tasa de cambio BCV oficial
   const currentRate = Number(data?.exchangeRate) || Number(snapshot?.exchange_rate || tenant?.exchange_rate) || 876.80;
@@ -1106,9 +1113,36 @@ export default function WebPosView({
                         </span>
                       </div>
 
-                      <div className="w-7 h-7 rounded-xl bg-zinc-100 group-hover:bg-zinc-950 group-hover:text-white text-zinc-700 flex items-center justify-center transition-colors shadow-2xs">
-                        <Plus size={15} strokeWidth={2.5} />
-                      </div>
+                      {inCart ? (
+                        <div
+                          className="flex items-center border border-emerald-500/40 rounded-xl bg-emerald-50/90 shadow-2xs overflow-hidden shrink-0"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => updateQty(p.id, -1)}
+                            className="w-7 h-7 flex items-center justify-center hover:bg-emerald-200 text-emerald-800 transition-colors cursor-pointer"
+                            title="Restar uno"
+                          >
+                            <Minus size={12} strokeWidth={2.5} />
+                          </button>
+                          <span className="px-2 font-black font-mono text-xs text-emerald-950 select-none">
+                            {inCart.qty}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => updateQty(p.id, 1)}
+                            className="w-7 h-7 flex items-center justify-center hover:bg-emerald-200 text-emerald-800 transition-colors cursor-pointer"
+                            title="Sumar uno"
+                          >
+                            <Plus size={12} strokeWidth={2.5} />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="w-7 h-7 rounded-xl bg-zinc-100 group-hover:bg-zinc-950 group-hover:text-white text-zinc-700 flex items-center justify-center transition-colors shadow-2xs shrink-0">
+                          <Plus size={15} strokeWidth={2.5} />
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -74,6 +74,17 @@ function AppShellInner() {
     setSearchParams({ tab });
   };
 
+  // Sincronizar color de los botones de ventana de Windows en Electron (Blanco en POS para fusionar con el sidebar)
+  useEffect(() => {
+    if (window?.electronAPI?.setTitleBarOverlay) {
+      if (activeTab === 'pos') {
+        window.electronAPI.setTitleBarOverlay({ color: '#ffffff', symbolColor: '#09090b', height: 48 });
+      } else {
+        window.electronAPI.setTitleBarOverlay({ color: '#18181b', symbolColor: '#e4e4e7', height: 48 });
+      }
+    }
+  }, [activeTab]);
+
   const [tenant, setTenant] = useState(null);
   const [snapshot, setSnapshot] = useState(null);
   const [tenantPayments, setTenantPayments] = useState([]);

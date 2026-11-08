@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   printWindow: (options) => ipcRenderer.invoke('print-window', options),
   checkUpdate: () => ipcRenderer.invoke('app:check-update'),
   installUpdate: () => ipcRenderer.invoke('app:install-update'),
+  setTitleBarOverlay: (options) => ipcRenderer.invoke('window:set-title-bar-overlay', options),
   fiscal: {
     getPorts: () => ipcRenderer.invoke('fiscal:get-ports'),
     autoDetectPort: (preferredPort) => ipcRenderer.invoke('fiscal:auto-detect-port', preferredPort),

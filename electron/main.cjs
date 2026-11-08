@@ -141,7 +141,19 @@ ipcMain.handle('fiscal:launch-emulator', async () => {
 
 
 // Auto-actualizador nativo por GitHub Releases (100% inmune a app.asar statSync y al reloj de Windows)
-ipcMain.handle('app:check-update', async () => {
+ipcMain.handle('window:set-title-bar-overlay', (event, options) => {
+    if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+      try {
+        mainWindowRef.setTitleBarOverlay(options);
+        return { success: true };
+      } catch (err) {
+        return { success: false, error: err.message };
+      }
+    }
+    return { success: false };
+  });
+
+  ipcMain.handle('app:check-update', async () => {
   return new Promise((resolve) => {
     try {
       const https = require('https');
@@ -588,11 +600,11 @@ function createWindow() {
       backgroundThrottling: false,
     },
     autoHideMenuBar: true,
-    backgroundColor: '#09090b',
+    backgroundColor: '#ffffff',
     titleBarStyle: 'hidden',
     titleBarOverlay: {
-      color: '#18181b',
-      symbolColor: '#e4e4e7',
+      color: '#ffffff',
+      symbolColor: '#09090b',
       height: 48
     },
   };
