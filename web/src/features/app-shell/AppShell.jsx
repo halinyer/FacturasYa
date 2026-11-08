@@ -329,12 +329,23 @@ function AppShellInner() {
         } ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
       >
         {/* HEADER DEL WORKSPACE / NEGOCIO */}
-        <div className="p-3 border-b border-zinc-800 flex items-center justify-between gap-2 shrink-0">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 text-white font-extrabold text-xs flex items-center justify-center shrink-0 shadow-xs">
-              FY
-            </div>
-            {!isSidebarCollapsed && (
+        {isSidebarCollapsed ? (
+          <div className="h-14 border-b border-zinc-800 flex items-center justify-center shrink-0 px-2">
+            <button
+              type="button"
+              onClick={() => setIsSidebarCollapsed(false)}
+              className="w-9 h-9 rounded-lg bg-zinc-800/80 hover:bg-zinc-800 border border-zinc-700/80 hover:border-zinc-500 text-zinc-300 hover:text-white flex items-center justify-center transition-all shadow-xs cursor-pointer group"
+              title="Expandir menú lateral"
+            >
+              <ChevronRight size={16} className="text-zinc-400 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all" />
+            </button>
+          </div>
+        ) : (
+          <div className="h-14 p-3 border-b border-zinc-800 flex items-center justify-between gap-2 shrink-0">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 text-white font-extrabold text-xs flex items-center justify-center shrink-0 shadow-xs">
+                FY
+              </div>
               <div className="min-w-0">
                 <h2 className="text-xs font-bold text-white tracking-tight truncate">
                   {tenant?.name || 'Mi Negocio'}
@@ -346,40 +357,34 @@ function AppShellInner() {
                   </span>
                 </div>
               </div>
-            )}
-          </div>
+            </div>
 
-          <div className="flex items-center gap-1">
-            {/* ROSCA DE CONFIGURACIÓN ESTILO NOTION */}
-            <button
-              type="button"
-              onClick={() => setIsSettingsModalOpen(true)}
-              className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
-              title="Ajustes del Negocio, Hardware y Cuenta (⚙️)"
-            >
-              <Settings size={15} />
-            </button>
+            <div className="flex items-center gap-1 shrink-0">
+              {/* ROSCA DE CONFIGURACIÓN ESTILO NOTION */}
+              <button
+                type="button"
+                onClick={() => setIsSettingsModalOpen(true)}
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+                title="Ajustes del Negocio, Hardware y Cuenta (⚙️)"
+              >
+                <Settings size={15} />
+              </button>
 
-            {/* BOTÓN COLAPSAR (DESKTOP) */}
-            <button
-              type="button"
-              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-              className="hidden lg:flex p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
-              title={isSidebarCollapsed ? 'Expandir menú' : 'Colapsar menú'}
-            >
-              {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-            </button>
+              {/* BOTÓN COLAPSAR (DESKTOP) */}
+              <button
+                type="button"
+                onClick={() => setIsSidebarCollapsed(true)}
+                className="hidden lg:flex p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+                title="Colapsar menú"
+              >
+                <ChevronLeft size={14} />
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* NAVEGACIÓN PRINCIPAL OPERATIVA (CERO DUPLICADOS) */}
         <nav className="flex-1 overflow-y-auto p-2 space-y-3.5">
-          {!isSidebarCollapsed && (
-            <div className="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-
-            </div>
-          )}
-
           {navSections.map((section, sIdx) => (
             <div key={section.title || sIdx} className="space-y-1">
               {!isSidebarCollapsed && (
@@ -399,11 +404,11 @@ function AppShellInner() {
                       setActiveTab(item.id);
                       setIsMobileSidebarOpen(false);
                     }}
-                    className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all group cursor-pointer ${
+                    className={`w-full flex items-center gap-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all group cursor-pointer ${
                       isActive
                         ? 'bg-zinc-800 text-white shadow-2xs font-bold'
                         : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
-                    } ${isSidebarCollapsed ? 'justify-center' : ''}`}
+                    } ${isSidebarCollapsed ? 'justify-center px-0' : 'px-2.5'}`}
                     title={isSidebarCollapsed ? item.label : undefined}
                   >
                     <Icon
@@ -437,52 +442,6 @@ function AppShellInner() {
               })}
             </div>
           ))}
-          {/*
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => {
-                  setActiveTab(item.id);
-                  setIsMobileSidebarOpen(false);
-                }}
-                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-semibold transition-all group ${
-                  isActive
-                    ? 'bg-zinc-800 text-white shadow-2xs font-bold'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
-                } ${isSidebarCollapsed ? 'justify-center' : ''}`}
-                title={isSidebarCollapsed ? item.label : undefined}
-              >
-                <Icon
-                  size={16}
-                  className={isActive ? 'text-emerald-400' : 'text-zinc-400 group-hover:text-zinc-300'}
-                />
-                {!isSidebarCollapsed && (
-                  <>
-                    <span className="flex-1 text-left truncate">{item.label}</span>
-                    {item.badge && (
-                      <span
-                        className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                          item.badge === 'Caja'
-                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                            : item.badge === 'Compras / Ventas'
-                            ? 'bg-sky-500/20 text-sky-300'
-                            : item.badge === 'Mesas'
-                            ? 'bg-amber-500/20 text-amber-300'
-                            : 'bg-zinc-800 text-zinc-400'
-                        }`}
-                      >
-                        {item.badge}
-                      </span>
-                    )}
-                  </>
-                )}
-              </button>
-            );
-          */}
         </nav>
 
         {/* PIE DEL SIDEBAR: BOTÓN DESCARGA WINDOWS + USUARIO CON ACCESO A AJUSTES */}
@@ -493,8 +452,8 @@ function AppShellInner() {
             <button
               type="button"
               onClick={() => setIsDownloadModalOpen(true)}
-              className={`w-full py-2 px-2.5 rounded-lg bg-zinc-800/90 hover:bg-zinc-800 text-zinc-200 text-xs font-semibold border border-zinc-700/80 transition-all flex items-center gap-2 shadow-2xs group ${
-                isSidebarCollapsed ? 'justify-center' : ''
+              className={`w-full py-2 rounded-lg bg-zinc-800/90 hover:bg-zinc-800 text-zinc-200 text-xs font-semibold border border-zinc-700/80 transition-all flex items-center gap-2 shadow-2xs group cursor-pointer ${
+                isSidebarCollapsed ? 'justify-center px-0' : 'px-2.5'
               }`}
               title="Descargar FacturasYa para Windows"
             >
@@ -511,12 +470,12 @@ function AppShellInner() {
           {/* PERFIL CON APERTURA DE CONFIGURACIÓN ESTILO NOTION */}
           <div
             onClick={() => setIsSettingsModalOpen(true)}
-            className={`flex items-center justify-between p-2 rounded-xl bg-zinc-800/80 hover:bg-zinc-800 cursor-pointer transition-all border border-zinc-700/60 group ${
-              isSidebarCollapsed ? 'justify-center' : ''
+            className={`flex items-center rounded-xl bg-zinc-800/80 hover:bg-zinc-800 cursor-pointer transition-all border border-zinc-700/60 group ${
+              isSidebarCollapsed ? 'justify-center p-2' : 'justify-between p-2'
             }`}
             title="Abrir Ajustes de Negocio, Máquina Fiscal y Cuenta"
           >
-            <div className="min-w-0 pr-1 flex items-center gap-2">
+            <div className={`min-w-0 flex items-center gap-2 ${isSidebarCollapsed ? '' : 'pr-1'}`}>
               <div className="w-7 h-7 rounded-lg bg-zinc-700 group-hover:bg-zinc-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
                 {session?.user?.email?.charAt(0).toUpperCase() || 'U'}
               </div>
@@ -534,7 +493,7 @@ function AppShellInner() {
             </div>
 
             {!isSidebarCollapsed && (
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 shrink-0">
                 <Settings size={14} className="text-zinc-400 group-hover:text-white transition-colors" />
                 <button
                   type="button"
@@ -543,7 +502,7 @@ function AppShellInner() {
                     signOut();
                   }}
                   title="Cerrar sesión"
-                  className="p-1 rounded text-zinc-400 hover:text-red-400 hover:bg-zinc-700/60 transition-colors ml-1"
+                  className="p-1 rounded text-zinc-400 hover:text-red-400 hover:bg-zinc-700/60 transition-colors ml-1 cursor-pointer"
                 >
                   <LogOut size={13} />
                 </button>
@@ -569,6 +528,18 @@ function AppShellInner() {
             >
               <Menu size={18} />
             </button>
+
+            {/* BOTÓN EXPANDIR MENÚ EN TOPBAR CUANDO EL SIDEBAR ESTÁ COLAPSADO (DESKTOP) */}
+            {isSidebarCollapsed && (
+              <button
+                type="button"
+                onClick={() => setIsSidebarCollapsed(false)}
+                className="hidden lg:flex p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+                title="Expandir menú lateral"
+              >
+                <ChevronRight size={16} />
+              </button>
+            )}
 
             <div className="flex items-center gap-2">
               <span className="font-extrabold text-sm tracking-tight text-white">
