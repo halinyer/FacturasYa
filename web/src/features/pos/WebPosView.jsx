@@ -32,7 +32,8 @@ import {
   UtensilsCrossed,
   Clock,
   Bookmark,
-  Check
+  Check,
+  ArrowLeftRight
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useData } from '../../pos-core/contexts/DataContext';
@@ -107,6 +108,11 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
 
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Posición del sidebar de ticket: 'right' (por defecto) o 'left' (para cajeros que prefieren el ticket a la izquierda)
+  const [sidebarPosition, setSidebarPosition] = useState(() => {
+    return localStorage.getItem('pos_sidebar_position') || 'right';
+  });
 
   // Carrito de compras
   const [cart, setCart] = useState([]);
@@ -501,15 +507,16 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
     }
   };
 
-  // CONTENIDO CENTRALIZADO DEL SIDEBAR DE FACTURACIÓN (USADO TANTO FIJO EN DESKTOP COMO EN DRAWER MÓVIL)
+  // CONTENIDO CENTRALIZADO DEL SIDEBAR DE FACTURACIÓN:
+  // DISEÑADO PARA DAR EL MÁXIMO ESPACIO VERTICAL AL LISTADO DE ÍTEMS EN COMANDA
   const renderInvoiceSidebarContent = (isMobile = false) => (
     <div className="flex-1 flex flex-col h-full bg-white select-none overflow-hidden">
       
       {/* 1. TABLE ORIGIN BANNER (SI FUE TRANSFERIDA DE SALÓN / MESAS) */}
       {loadedTableOrder && (
-        <div className="p-3 bg-amber-50 border-b border-amber-200 flex items-center justify-between shrink-0">
+        <div className="px-3 py-2 bg-amber-50 border-b border-amber-200 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2 min-w-0">
-            <UtensilsCrossed size={16} className="text-amber-700 shrink-0" />
+            <UtensilsCrossed size={14} className="text-amber-700 shrink-0" />
             <div className="truncate">
               <span className="font-bold text-amber-950 text-xs block leading-tight truncate">
                 {loadedTableOrder.tableName || 'Mesa del Salón'}
@@ -527,30 +534,46 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
                 setCart([]);
               }
             }}
-            className="px-2 py-1 rounded-lg border border-amber-300 bg-white hover:bg-amber-100 text-[10px] font-bold text-amber-900 cursor-pointer shrink-0 transition-colors"
+            className="px-2 py-0.5 rounded-lg border border-amber-300 bg-white hover:bg-amber-100 text-[10px] font-bold text-amber-900 cursor-pointer shrink-0 transition-colors"
           >
             Desvincular
           </button>
         </div>
       )}
 
-      {/* 2. CABECERA DEL COMPROBANTE DE VENTA */}
-      <div className="p-3.5 border-b border-zinc-200/80 flex items-center justify-between shrink-0 bg-white">
+      {/* 2. CABECERA COMPACTA DEL COMPROBANTE DE VENTA */}
+      <div className="px-3.5 py-2.5 border-b border-zinc-200/80 flex items-center justify-between shrink-0 bg-white">
         <div className="flex items-center gap-2 min-w-0">
-          <div className="p-1.5 rounded-lg bg-zinc-950 text-white shrink-0">
-            <Receipt size={16} />
+          <div className="p-1 rounded-lg bg-zinc-950 text-white shrink-0">
+            <Receipt size={14} />
           </div>
-          <div>
-            <h2 className="font-extrabold text-xs text-zinc-950 uppercase tracking-wider">
-              Comprobante de Venta
+          <div className="flex items-center gap-2 min-w-0">
+            <h2 className="font-extrabold text-xs text-zinc-950 uppercase tracking-wider truncate">
+              Comprobante
             </h2>
-            <p className="text-[11px] text-zinc-500 font-mono">
-              {orderTable} · {cartTotals.totalQty} {cartTotals.totalQty === 1 ? 'ítem' : 'ítems'}
-            </p>
+            <span className="px-2 py-0.5 rounded-full font-mono text-[10px] font-extrabold bg-zinc-100 text-zinc-700 border border-zinc-200">
+              {cartTotals.totalQty} {cartTotals.totalQty === 1 ? 'ítem' : 'ítems'}
+            </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
+          {/* Botón para alternar posición del ticket: Izquierda o Derecha en Desktop */}
+          {!isMobile && (
+            <button
+              type="button"
+              onClick={() => {
+                const nextPos = sidebarPosition === 'right' ? 'left' : 'right';
+                setSidebarPosition(nextPos);
+                localStorage.setItem('pos_sidebar_position', nextPos);
+              }}
+              className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 text-xs cursor-pointer transition-colors"
+              title={sidebarPosition === 'right' ? 'Mover ticket al lateral izquierdo' : 'Mover ticket al lateral derecho'}
+            >
+              <ArrowLeftRight size={13} />
+            </button>
+          )}
+
           {cart.length > 0 && (
             <button
               type="button"
@@ -558,9 +581,10 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
               className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-zinc-100 text-xs font-semibold cursor-pointer transition-colors"
               title="Vaciar orden"
             >
-              <Trash2 size={16} />
+              <Trash2 size={14} />
             </button>
           )}
+
           {isMobile && (
             <button
               type="button"
@@ -568,76 +592,67 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
               className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-950 hover:bg-zinc-100 text-xs cursor-pointer"
               title="Cerrar comanda"
             >
-              <X size={18} />
+              <X size={16} />
             </button>
           )}
         </div>
       </div>
 
-      {/* 3. RECEPTOR FISCAL & SELECTOR DE TIPO DE COMPROBANTE */}
-      <div className="p-3 bg-zinc-50/80 border-b border-zinc-200/80 shrink-0 space-y-2">
-        {/* CLIENTE FISCAL */}
-        <div className="flex items-center justify-between text-xs">
-          <div className="flex items-center gap-2 min-w-0 flex-1 pr-2">
-            <User size={14} className="text-zinc-500 shrink-0" />
-            <div className="truncate">
-              <span className="font-bold text-zinc-900 block truncate leading-tight text-xs">
-                {activeClient.name}
-              </span>
-              <span className="font-mono text-zinc-500 text-[10px]">
-                {activeClient.rif}
-              </span>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setIsClientModalOpen(true)}
-            className="px-2.5 py-1 rounded-lg border border-zinc-300 bg-white hover:bg-zinc-100 text-[11px] font-bold text-zinc-800 cursor-pointer shrink-0 transition-colors shadow-2xs"
-          >
-            Cambiar / RIF
-          </button>
-        </div>
+      {/* 3. RECEPTOR FISCAL & SELECTOR DE DOCUMENTO (FILA COMPACTA UNIFICADA) */}
+      <div className="px-3 py-1.5 bg-zinc-50 border-b border-zinc-200/80 shrink-0 flex items-center justify-between gap-2 text-xs">
+        {/* CLIENTE CON ACCESO RÁPIDO A CAMBIAR / RIF */}
+        <button
+          type="button"
+          onClick={() => setIsClientModalOpen(true)}
+          className="flex items-center gap-1.5 min-w-0 flex-1 text-left px-2 py-1 rounded-lg hover:bg-white hover:border-zinc-300 border border-transparent transition-all cursor-pointer truncate"
+          title={`Cliente: ${activeClient.name} (${activeClient.rif})`}
+        >
+          <User size={13} className="text-zinc-500 shrink-0" />
+          <span className="font-bold text-zinc-900 truncate text-[11px] block leading-tight">
+            {activeClient.name}
+          </span>
+          <span className="text-[10px] text-zinc-400 font-mono shrink-0 hidden sm:inline">
+            ({activeClient.rif})
+          </span>
+        </button>
 
-        {/* TIPO DE DOCUMENTO: NOTA DE ENTREGA vs FACTURA SENIAT */}
-        <div className="grid grid-cols-2 gap-1.5 bg-zinc-200/70 p-1 rounded-xl">
+        {/* TIPO DE DOCUMENTO: NOTA vs FISCAL SENIAT */}
+        <div className="flex items-center gap-0.5 bg-zinc-200/80 p-0.5 rounded-lg shrink-0">
           <button
             type="button"
             onClick={() => setDocType('nota_entrega')}
-            className={`py-1.5 px-2 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+            className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold transition-all cursor-pointer ${
               docType === 'nota_entrega'
-                ? 'bg-white text-zinc-950 shadow-xs'
+                ? 'bg-white text-zinc-950 shadow-2xs'
                 : 'text-zinc-600 hover:text-zinc-950'
             }`}
           >
-            <FileText size={13} className={docType === 'nota_entrega' ? 'text-blue-600' : 'text-zinc-400'} />
-            <span>Nota Entrega</span>
+            Nota
           </button>
-
           <button
             type="button"
             onClick={() => setDocType('fiscal')}
-            className={`py-1.5 px-2 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+            className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold transition-all cursor-pointer ${
               docType === 'fiscal'
-                ? 'bg-emerald-600 text-white shadow-xs'
+                ? 'bg-emerald-600 text-white shadow-2xs'
                 : 'text-zinc-600 hover:text-zinc-950'
             }`}
           >
-            <Printer size={13} className={docType === 'fiscal' ? 'text-white' : 'text-zinc-400'} />
-            <span>Factura SENIAT</span>
+            SENIAT
           </button>
         </div>
       </div>
 
-      {/* 4. LISTADO DE PRODUCTOS EN COMANDA (SCROLL INDEPENDIENTE) */}
-      <div className="flex-1 overflow-y-auto p-3 sm:p-3.5 space-y-2 divide-y divide-zinc-100">
+      {/* 4. LISTADO DE PRODUCTOS EN COMANDA (ESPACIO MÁXIMO VERTICAL DEDICADO) */}
+      <div className="flex-1 min-h-[160px] overflow-y-auto p-2.5 sm:p-3 divide-y divide-zinc-100">
         {cart.length === 0 ? (
-          <div className="h-full min-h-[180px] flex flex-col items-center justify-center text-center p-6 text-zinc-400">
-            <div className="w-12 h-12 rounded-2xl bg-zinc-100 flex items-center justify-center mb-2.5 text-zinc-400">
-              <ShoppingCart size={24} strokeWidth={1.8} />
+          <div className="h-full min-h-[220px] flex flex-col items-center justify-center text-center p-6 text-zinc-400">
+            <div className="w-11 h-11 rounded-2xl bg-zinc-100 flex items-center justify-center mb-2 text-zinc-400">
+              <ShoppingCart size={22} strokeWidth={1.8} />
             </div>
-            <p className="text-xs font-bold text-zinc-700">Orden Vacía</p>
-            <p className="text-[11px] text-zinc-400 mt-1 max-w-[200px] leading-relaxed">
-              Selecciona productos o platos del catálogo para agregarlos al comprobante.
+            <p className="text-xs font-bold text-zinc-700">Comprobante Vacío</p>
+            <p className="text-[11px] text-zinc-400 mt-0.5 max-w-[200px] leading-relaxed">
+              Haz clic en los platos o productos del catálogo para agregarlos a la comanda.
             </p>
           </div>
         ) : (
@@ -647,65 +662,64 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
             const lineTotalBs = lineTotalUsd * bcvRate;
 
             return (
-              <div key={item.id} className="pt-2 first:pt-0 flex items-start gap-2.5 group">
-                {item.image ? (
-                  <img
-                    src={item.image}
-                    alt={item.name}
-                    className="w-10 h-10 rounded-xl object-contain shrink-0 border border-zinc-200 bg-zinc-50 p-0.5"
-                  />
-                ) : (
-                  <div className="w-10 h-10 rounded-xl bg-zinc-100 border border-zinc-200 text-zinc-400 flex items-center justify-center shrink-0">
-                    <Utensils size={16} />
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-1.5">
-                    <h4 className="font-bold text-xs text-zinc-950 truncate leading-snug" title={item.name}>
-                      {item.name}
-                    </h4>
-                    <span className="font-black text-xs font-mono text-zinc-950 shrink-0">
-                      ${lineTotalUsd.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-[10px] text-zinc-400 font-mono mt-0.5">
-                    <span>${itemPrice.toFixed(2)} c/u</span>
-                    <span>Bs. {lineTotalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-
-                  {/* STEPPERS DE CANTIDAD */}
-                  <div className="flex items-center justify-between mt-1.5">
-                    <div className="flex items-center border border-zinc-200 rounded-lg bg-zinc-50 overflow-hidden shadow-2xs">
-                      <button
-                        type="button"
-                        onClick={() => updateQty(item.id, -1)}
-                        className="px-2 py-0.5 hover:bg-zinc-200 text-zinc-600 transition-colors cursor-pointer"
-                        title="Restar uno"
-                      >
-                        <Minus size={11} strokeWidth={2.5} />
-                      </button>
-                      <span className="px-2 text-xs font-bold font-mono text-zinc-950">
-                        {item.qty}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => updateQty(item.id, 1)}
-                        className="px-2 py-0.5 hover:bg-zinc-200 text-zinc-600 transition-colors cursor-pointer"
-                        title="Sumar uno"
-                      >
-                        <Plus size={11} strokeWidth={2.5} />
-                      </button>
-                    </div>
-
+              <div
+                key={item.id}
+                className="py-2 px-1.5 first:pt-1 last:pb-1 flex items-center justify-between gap-2.5 group hover:bg-zinc-50/80 rounded-xl transition-colors"
+              >
+                {/* CONTROL DE CANTIDAD + NOMBRE DEL PRODUCTO */}
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  {/* STEPPERS COMPACTOS [-] 1 [+] */}
+                  <div className="flex items-center border border-zinc-200/90 rounded-lg bg-zinc-50/80 shadow-2xs overflow-hidden shrink-0">
                     <button
                       type="button"
-                      onClick={() => removeFromCart(item.id)}
-                      className="text-zinc-400 hover:text-rose-600 p-1 text-[11px] transition-colors cursor-pointer"
-                      title="Quitar de orden"
+                      onClick={() => updateQty(item.id, -1)}
+                      className="w-5 h-6 flex items-center justify-center hover:bg-zinc-200 text-zinc-600 transition-colors cursor-pointer"
+                      title="Restar uno"
                     >
-                      <X size={14} />
+                      <Minus size={10} strokeWidth={2.5} />
+                    </button>
+                    <span className="w-6 text-center text-xs font-black font-mono text-zinc-950">
+                      {item.qty}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => updateQty(item.id, 1)}
+                      className="w-5 h-6 flex items-center justify-center hover:bg-zinc-200 text-zinc-600 transition-colors cursor-pointer"
+                      title="Sumar uno"
+                    >
+                      <Plus size={10} strokeWidth={2.5} />
                     </button>
                   </div>
+
+                  {/* NOMBRE Y DETALLES */}
+                  <div className="min-w-0 flex-1">
+                    <h4
+                      className="font-bold text-xs text-zinc-950 truncate leading-tight group-hover:text-emerald-700 transition-colors"
+                      title={item.name}
+                    >
+                      {item.name}
+                    </h4>
+                    <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 font-mono mt-0.5">
+                      <span>${itemPrice.toFixed(2)} c/u</span>
+                      <span>·</span>
+                      <span>Bs. {lineTotalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* SUBTOTAL DE LÍNEA Y BOTÓN DE ELIMINAR */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="font-black text-xs font-mono text-zinc-950">
+                    ${lineTotalUsd.toFixed(2)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removeFromCart(item.id)}
+                    className="text-zinc-300 hover:text-rose-600 p-1 rounded-md transition-colors cursor-pointer"
+                    title="Quitar de comanda"
+                  >
+                    <X size={13} strokeWidth={2.5} />
+                  </button>
                 </div>
               </div>
             );
@@ -713,40 +727,24 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
         )}
       </div>
 
-      {/* 5. RESUMEN DE TOTALES Y DESGLOSE FISCAL */}
-      <div className="p-3 bg-zinc-50 border-t border-zinc-200 shrink-0 space-y-1.5 text-xs">
-        <div className="flex justify-between text-zinc-500 text-[11px]">
-          <span>Subtotal productos:</span>
+      {/* 5. RESUMEN DE TOTALES COMPACTO (USD Y BS AL CAMBIO BCV) */}
+      <div className="px-3.5 py-2.5 bg-zinc-50 border-t border-zinc-200 shrink-0 space-y-1.5 text-xs">
+        <div className="flex justify-between items-baseline text-zinc-500 text-[11px]">
+          <span>Subtotal ({cartTotals.totalQty} {cartTotals.totalQty === 1 ? 'ítem' : 'ítems'}):</span>
           <span className="font-mono font-bold text-zinc-800">${cartTotals.subtotalUsd.toFixed(2)}</span>
         </div>
 
         {docType === 'fiscal' && (
-          <>
-            <div className="flex justify-between text-zinc-500 text-[10px]">
-              <span>Base Gravada (16%):</span>
-              <span className="font-mono">${cartTotals.baseImponibleUsd.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-emerald-700 font-semibold text-[10px]">
-              <span>IVA Fiscal (16%):</span>
-              <span className="font-mono">+${cartTotals.iva16Usd.toFixed(2)}</span>
-            </div>
+          <div className="flex justify-between items-baseline text-[10px] text-zinc-500 pt-0.5">
+            <span>Base: ${cartTotals.baseImponibleUsd.toFixed(2)} · IVA (16%): +${cartTotals.iva16Usd.toFixed(2)}</span>
             {cartTotals.igtfUsd > 0 && (
-              <div className="flex justify-between text-amber-700 font-semibold text-[10px]">
-                <span>+ IGTF (3% Divisas):</span>
-                <span className="font-mono">+${cartTotals.igtfUsd.toFixed(2)}</span>
-              </div>
+              <span className="text-amber-700 font-bold">+ IGTF (3%): ${cartTotals.igtfUsd.toFixed(2)}</span>
             )}
-            {cartTotals.exentoUsd > 0 && (
-              <div className="flex justify-between text-zinc-500 text-[10px]">
-                <span>Ventas Exentas:</span>
-                <span className="font-mono">${cartTotals.exentoUsd.toFixed(2)}</span>
-              </div>
-            )}
-          </>
+          </div>
         )}
 
-        {/* TOTAL GRANDE PROMINENTE (USD & BS AL CAMBIO BCV) */}
-        <div className="pt-2 border-t border-zinc-200 flex items-baseline justify-between">
+        {/* TOTAL GRANDE DESTACADO */}
+        <div className="pt-1.5 border-t border-zinc-200 flex items-baseline justify-between">
           <div>
             <span className="font-extrabold text-xs text-zinc-950 block">Total a Liquidar:</span>
             <span className="text-[10px] text-zinc-500 font-mono">
@@ -764,21 +762,20 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
         </div>
       </div>
 
-      {/* 6. SELECTOR RÁPIDO DE MÉTODO DE PAGO INTEGRADO EN SIDEBAR */}
-      <div className="p-3 bg-white border-t border-zinc-200 shrink-0 space-y-2">
-        <span className="text-[10px] font-extrabold text-zinc-400 uppercase tracking-wider block">
-          Método de Pago:
+      {/* 6. SELECTOR RÁPIDO DE MÉTODO DE PAGO (UNA SOLA LÍNEA COMPACTA TIPO CHIPS) */}
+      <div className="px-3 py-1.5 bg-white border-t border-zinc-200/80 shrink-0 flex items-center justify-between gap-1 overflow-x-auto">
+        <span className="text-[10px] font-extrabold text-zinc-400 uppercase tracking-wider shrink-0 mr-1">
+          Método:
         </span>
-        <div className="grid grid-cols-3 gap-1 text-xs">
+        <div className="flex items-center gap-1 overflow-x-auto">
           {[
-            { id: 'efectivo_usd', label: 'Efectivo $', icon: DollarSign, color: 'text-emerald-600' },
-            { id: 'pago_movil', label: 'Pago Móvil', icon: Smartphone, color: 'text-blue-600' },
-            { id: 'punto', label: 'Punto Venta', icon: CreditCard, color: 'text-sky-600' },
-            { id: 'efectivo_bs', label: 'Efectivo Bs', icon: Banknote, color: 'text-amber-600' },
-            { id: 'zelle', label: 'Zelle', icon: CreditCard, color: 'text-purple-600' },
-            { id: 'mixto', label: 'Mixto', icon: Sparkles, color: 'text-indigo-600' }
+            { id: 'efectivo_usd', label: 'Efectivo $' },
+            { id: 'pago_movil', label: 'Pago Móvil' },
+            { id: 'punto', label: 'Punto Venta' },
+            { id: 'efectivo_bs', label: 'Efectivo Bs' },
+            { id: 'zelle', label: 'Zelle' },
+            { id: 'mixto', label: 'Mixto' }
           ].map((m) => {
-            const Icon = m.icon;
             const isSelected = paymentMethod === m.id;
             return (
               <button
@@ -788,135 +785,46 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
                   setPaymentMethod(m.id);
                   setRefError('');
                 }}
-                className={`py-1.5 px-2 rounded-xl border flex flex-col items-center gap-0.5 transition-all cursor-pointer text-center ${
+                className={`px-2 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap cursor-pointer transition-all ${
                   isSelected
-                    ? 'border-zinc-950 bg-zinc-950 text-white font-bold shadow-xs'
-                    : 'border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700'
+                    ? 'bg-zinc-950 text-white shadow-2xs'
+                    : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
                 }`}
               >
-                <Icon size={14} className={isSelected ? 'text-emerald-400' : m.color} />
-                <span className="text-[10px] font-bold leading-tight">{m.label}</span>
+                {m.label}
               </button>
             );
           })}
         </div>
-
-        {/* DETALLE INLINE DEL MÉTODO SELECCIONADO EN EL SIDEBAR */}
-        {paymentMethod === 'efectivo_usd' && (
-          <div className="p-2.5 rounded-xl bg-emerald-50/60 border border-emerald-200 space-y-1.5 text-xs">
-            <div className="flex items-center gap-1 overflow-x-auto pb-0.5">
-              {[5, 10, 20, 50, 100].map((val) => (
-                <button
-                  key={val}
-                  type="button"
-                  onClick={() => setCashUsdReceived(String(val))}
-                  className={`px-2 py-0.5 rounded-md border font-mono font-bold text-[11px] cursor-pointer transition-colors ${
-                    Number(cashUsdReceived) === val
-                      ? 'bg-emerald-600 text-white border-emerald-700'
-                      : 'bg-white text-zinc-800 border-zinc-200 hover:bg-zinc-100'
-                  }`}
-                >
-                  ${val}
-                </button>
-              ))}
-              <button
-                type="button"
-                onClick={() => setCashUsdReceived(String(cartTotals.finalTotalUsd.toFixed(2)))}
-                className="px-2 py-0.5 rounded-md border border-emerald-300 bg-white text-emerald-800 text-[10px] font-bold cursor-pointer"
-              >
-                Exacto
-              </button>
-            </div>
-            {cartTotals.changeUsd > 0 && (
-              <div className="flex justify-between items-center text-[11px] font-bold text-emerald-950 pt-1 border-t border-emerald-200">
-                <span>Vuelto:</span>
-                <span className="font-mono">${cartTotals.changeUsd.toFixed(2)} USD (Bs. {cartTotals.changeBs.toFixed(2)})</span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {paymentMethod === 'pago_movil' && (
-          <div className="p-2.5 rounded-xl bg-blue-50/60 border border-blue-200 space-y-2 text-xs">
-            <BankSelector
-              selectedBank={selectedBank}
-              onSelectBank={setSelectedBank}
-              placeholder="Banco receptor..."
-              compact
-              showQuickChips={false}
-            />
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                inputMode="numeric"
-                maxLength={4}
-                placeholder="4 dígitos ref. (Ej: 3481)"
-                value={pagoMovilRef}
-                onChange={(e) => {
-                  const cleaned = e.target.value.replace(/\D/g, '').slice(0, 4);
-                  setPagoMovilRef(cleaned);
-                  if (refError) setRefError('');
-                }}
-                className={`flex-1 px-2.5 py-1 rounded-lg border font-mono font-bold text-center text-xs bg-white ${
-                  pagoMovilRef.length === 4 ? 'border-emerald-500 bg-emerald-50' : 'border-zinc-300'
-                }`}
-              />
-              <span className={`text-[10px] font-mono font-bold ${
-                pagoMovilRef.length === 4 ? 'text-emerald-700' : 'text-zinc-400'
-              }`}>
-                {pagoMovilRef.length === 4 ? '✓ Listo' : `${pagoMovilRef.length}/4`}
-              </span>
-            </div>
-          </div>
-        )}
-
-        {paymentMethod === 'punto' && (
-          <div className="p-2.5 rounded-xl bg-sky-50/60 border border-sky-200 text-xs flex items-center justify-between">
-            <div className="flex items-center gap-2 min-w-0">
-              <CreditCard size={18} className="text-sky-600 shrink-0" />
-              <div className="truncate">
-                <span className="font-bold text-sky-950 block text-[11px] leading-tight">
-                  Punto de Venta (Tarjeta)
-                </span>
-                <span className="text-[10px] text-sky-700">
-                  Pasar en datáfono por:
-                </span>
-              </div>
-            </div>
-            <span className="font-black font-mono text-xs text-sky-950 bg-sky-100 px-2 py-0.5 rounded-md">
-              Bs. {cartTotals.finalTotalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </span>
-          </div>
-        )}
       </div>
 
-      {/* 7. BOTONES DE ACCIÓN FOOTER (COCINA Y COBRAR / PROCESAR VENTA) */}
-      <div className="p-3 bg-white border-t border-zinc-200/80 shrink-0 space-y-2">
+      {/* 7. BOTONES DE ACCIÓN FOOTER (COMANDA Y COBRAR / PROCESAR VENTA) */}
+      <div className="p-3 bg-white border-t border-zinc-200/80 shrink-0 flex items-center gap-2">
         <button
           type="button"
           onClick={() => setIsKitchenModalOpen(true)}
-          className="w-full py-2 px-3 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-800 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs active:scale-98"
+          className="p-2.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 transition-all cursor-pointer shadow-2xs shrink-0"
+          title="Mandar ticket a cocina"
         >
-          <ChefHat size={15} className="text-amber-600" />
-          <span>Mandar a Cocina</span>
+          <ChefHat size={17} className="text-amber-600" />
         </button>
 
         <button
           type="button"
           disabled={cart.length === 0 || isSubmittingSale}
           onClick={handleOpenPayment}
-          className={`w-full py-3.5 px-4 rounded-xl font-extrabold text-xs sm:text-sm transition-all flex items-center justify-between gap-2 shadow-md active:scale-98 cursor-pointer ${
+          className={`flex-1 py-3 px-3.5 rounded-xl font-extrabold text-xs sm:text-sm transition-all flex items-center justify-between gap-2 shadow-md active:scale-98 cursor-pointer ${
             cart.length === 0 || isSubmittingSale
               ? 'bg-zinc-200 text-zinc-400 cursor-not-allowed border-zinc-200'
               : 'bg-zinc-950 hover:bg-zinc-800 text-white shadow-zinc-900/10'
           }`}
           title="Cobrar orden y emitir comprobante (Enter)"
         >
-          <div className="flex items-center gap-2">
-            <CreditCard size={17} className={cart.length > 0 ? 'text-emerald-400' : 'text-zinc-400'} />
-            <span>COBRAR / PROCESAR VENTA</span>
+          <div className="flex items-center gap-2 truncate">
+            <CreditCard size={16} className={cart.length > 0 ? 'text-emerald-400' : 'text-zinc-400'} />
+            <span className="truncate">COBRAR / PROCESAR VENTA</span>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 shrink-0">
             <span className="font-mono text-emerald-300 font-black">
               ${cartTotals.finalTotalUsd.toFixed(2)}
             </span>
@@ -931,10 +839,10 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
   );
 
   return (
-    <div className="flex-1 flex flex-col lg:flex-row h-full w-full bg-zinc-50 overflow-hidden relative select-none">
+    <div className={`flex-1 flex flex-col ${sidebarPosition === 'left' ? 'lg:flex-row-reverse' : 'lg:flex-row'} h-full w-full bg-zinc-50 overflow-hidden relative select-none`}>
       
       {/* =========================================================================
-          COLUMNA IZQUIERDA: CATÁLOGO, BUSCADOR Y CATEGORÍAS (AMPLIO Y FLUIDO)
+          ÁREA DE CATÁLOGO, BUSCADOR Y CATEGORÍAS
           ========================================================================= */}
       <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden">
         
@@ -1159,10 +1067,12 @@ export default function WebPosView({ tenant, snapshot, onSaleComplete }) {
       </div>
 
       {/* =========================================================================
-          COLUMNA DERECHA: SIDEBAR FIJO DE COMPROBANTE / FACTURA (ESTILO HAPPY DAYS)
-          Permanentemente visible en Desktop (lg: y superior)
+          SIDEBAR FIJO DE COMPROBANTE / FACTURA
+          Visible en Desktop (lg: y superior) con ancho amplio y espacio vertical maximizado
           ========================================================================= */}
-      <aside className="hidden lg:flex w-[390px] xl:w-[420px] h-full border-l border-zinc-200 bg-white flex-col shrink-0 overflow-hidden shadow-xs">
+      <aside className={`hidden lg:flex w-[400px] xl:w-[430px] h-full ${
+        sidebarPosition === 'left' ? 'border-r' : 'border-l'
+      } border-zinc-200 bg-white flex-col shrink-0 overflow-hidden shadow-xs`}>
         {renderInvoiceSidebarContent(false)}
       </aside>
 
