@@ -489,7 +489,11 @@ export default function NotionSettingsModal({
         setMyPayments(updatedList);
       }
 
-      showToast('¡Pago reportado con éxito! Tu servicio cuenta con Pase de Cortesía activo mientras se verifica.');
+      const isSuspended = tenant?.status === 'suspended';
+      const msg = isSuspended
+        ? '¡Pago reportado con éxito! Tu comprobante fue enviado al Administrador para su aprobación.'
+        : '¡Pago reportado con éxito! Tu servicio cuenta con Pase de Cortesía activo mientras se verifica.';
+      showToast(msg);
       setPagoRef('');
       setReceiptFile(null);
       setReceiptPreview('');

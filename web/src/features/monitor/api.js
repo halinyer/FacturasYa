@@ -289,29 +289,40 @@ export const submitOwnerPagoMovil = async ({
   }
 
   // 3. Intentar vía RPC seguro con Autoridad de Precio en el Servidor (report_subscription_payment)
-  const rpcRes = await supabase.rpc('report_subscription_payment', {
-    p_tenant_id: tenantId,
-    p_plan: plan,
-    p_payment_method: paymentMethod,
-    p_bank_origin: finalBank,
-    p_phone_origin: finalPhone,
-    p_payer_doc: cleanDoc,
-    p_reference_last6: cleanRef,
-    p_rate_bcv: Number(rateBcv) || 0,
-    p_receipt_url: finalReceiptUrl
-  });
+  try {
+    const rpcRes = await supabase.rpc('report_subscription_payment', {
+      p_tenant_id: tenantId,
+      p_plan: plan,
+      p_payment_method: paymentMethod,
+      p_bank_origin: finalBank,
+      p_phone_origin: finalPhone,
+      p_payer_doc: cleanDoc,
+      p_reference_last6: cleanRef,
+      p_rate_bcv: Number(rateBcv) || 0,
+      p_receipt_url: finalReceiptUrl
+    });
 
-  if (!rpcRes.error && rpcRes.data) {
-    if (rpcRes.data.success === false) {
-      throw new Error(rpcRes.data.error || 'No se pudo registrar el reporte de pago.');
+    if (!rpcRes.error && rpcRes.data) {
+      if (rpcRes.data.success === false) {
+        throw new Error(rpcRes.data.error || 'No se pudo registrar el reporte de pago.');
+      }
+      if (rpcRes.data.payment) {
+        return rpcRes.data.payment;
+      }
     }
-    if (rpcRes.data.payment) {
-      return rpcRes.data.payment;
+  } catch (rpcErr) {
+    if (rpcErr.message && /ya fue registrada|ya fue reportada/i.test(rpcErr.message)) {
+      throw rpcErr;
     }
+    console.warn('RPC report_subscription_payment fallback to direct insert:', rpcErr);
   }
 
-  // 4. Fallback directo a la tabla subscription_payments (con soporte de capture y columnas actualizadas)
-  const fullPayload = {
+  // 4. Inserción directa resiliente a subscription_payments
+  const metaNote = cleanDoc
+    ? `[${paymentMethod.toUpperCase()}] Titular: ${cleanDoc}`
+    : `[${paymentMethod.toUpperCase()}]`;
+
+  const modernPayload = {
     tenant_id: tenantId,
     tenant_name: tenantName,
     plan,
@@ -326,49 +337,69 @@ export const submitOwnerPagoMovil = async ({
     payer_doc: cleanDoc,
     reference_last6: cleanRef,
     receipt_url: finalReceiptUrl,
+    notes: metaNote,
     status: 'pending',
     verified_by: 'pending'
   };
 
-  const res = await supabase
-    .from('subscription_payments')
-    .insert(fullPayload)
-    .select()
-    .single();
+  const basePayload = {
+    tenant_id: tenantId,
+    tenant_name: tenantName,
+    plan,
+    days_to_add: daysToAdd,
+    amount_usd: Number(amountUsd),
+    amount_bs: Number(amountBs),
+    rate_bcv: Number(rateBcv),
+    bank_origin: finalBank,
+    phone_origin: finalPhone,
+    client_phone: finalPhone,
+    reference_last6: cleanRef,
+    receipt_url: finalReceiptUrl,
+    notes: metaNote,
+    status: 'pending',
+    verified_by: 'pending'
+  };
 
-  if (res.error) {
-    // Si la BD aún no tiene columnas nuevas, reintentar con columnas base
-    if (/column .* does not exist/i.test(res.error.message || '')) {
-      const legacyRes = await supabase
-        .from('subscription_payments')
-        .insert({
-          tenant_id: tenantId,
-          tenant_name: tenantName,
-          plan,
-          days_to_add: daysToAdd,
-          amount_usd: Number(amountUsd),
-          amount_bs: Number(amountBs),
-          rate_bcv: Number(rateBcv),
-          bank_origin: finalBank,
-          phone_origin: finalPhone,
-          reference_last6: cleanRef,
-          status: 'pending',
-          verified_by: 'pending'
-        })
-        .select()
-        .single();
-      if (legacyRes.error && /uq_sub_payments_active_ref|duplicate key/i.test(legacyRes.error.message || '')) {
-        throw new Error(`La referencia #${cleanRef} de ${finalBank} ya fue reportada anteriormente y está en proceso de verificación.`);
+  // Se realiza la inserción SIN forzar .select().single() para evitar rechazos por RLS SELECT
+  let insertErr = null;
+  let usedPayload = modernPayload;
+
+  const tryInsert = await supabase.from('subscription_payments').insert(modernPayload);
+  if (tryInsert.error) {
+    insertErr = tryInsert.error;
+    if (/column .* does not exist/i.test(tryInsert.error.message || '')) {
+      const retryBase = await supabase.from('subscription_payments').insert(basePayload);
+      if (!retryBase.error) {
+        insertErr = null;
+        usedPayload = basePayload;
+      } else {
+        insertErr = retryBase.error;
       }
-      return unwrap(legacyRes);
     }
-    if (/uq_sub_payments_active_ref|duplicate key/i.test(res.error.message || '')) {
-      throw new Error(`La referencia #${cleanRef} de ${finalBank} ya fue reportada anteriormente y está en proceso de verificación.`);
-    }
-    throw new Error(res.error.message);
   }
 
-  return res.data;
+  if (insertErr) {
+    if (/uq_sub_payments_active_ref|duplicate key/i.test(insertErr.message || '')) {
+      throw new Error(`La referencia #${cleanRef} de ${finalBank} ya fue reportada anteriormente y está en proceso de verificación.`);
+    }
+    throw new Error(insertErr.message || 'Error registrando el pago en la base de datos.');
+  }
+
+  const createdPayment = {
+    id: 'pay_' + Date.now(),
+    ...usedPayload,
+    created_at: new Date().toISOString()
+  };
+
+  try {
+    const rawLocal = localStorage.getItem('saas_subscription_payments');
+    const existing = rawLocal ? JSON.parse(rawLocal) : [];
+    const updated = [createdPayment, ...existing.filter((p) => p.reference_last6 !== cleanRef)];
+    localStorage.setItem('saas_subscription_payments', JSON.stringify(updated));
+    window.dispatchEvent(new CustomEvent('facturasya_payment_reported', { detail: createdPayment }));
+  } catch (e) {}
+
+  return createdPayment;
 };
 
 // Completa la verificación fiscal estilo Binance (1 prueba por RIF/Serial anti-abuso)

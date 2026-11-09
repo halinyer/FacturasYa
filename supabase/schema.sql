@@ -346,7 +346,8 @@ BEGIN
     ELSE COALESCE(v_config.monthly_price_usd, 30.00)
   END;
 
-  v_effective_rate := COALESCE(NULLIF(p_rate_bcv, 0), NULLIF(v_config.bcv_rate, 0), NULLIF(v_tenant.exchange_rate, 0), 876.80);
+  -- Tasa efectiva (resiliente si la columna bcv_rate no existe en saas_config)
+  v_effective_rate := COALESCE(NULLIF(p_rate_bcv, 0), NULLIF(v_tenant.exchange_rate, 0), 876.80);
   v_official_bs := ROUND(v_official_usd * v_effective_rate, 2);
 
   v_clean_ref := UPPER(REGEXP_REPLACE(TRIM(COALESCE(p_reference_last6, '')), '[^A-Z0-9]', '', 'g'));

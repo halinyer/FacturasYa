@@ -163,14 +163,15 @@ function AppShellInner() {
         setTenantPayments(pays || []);
 
         // Verificar licencia contra el reloj oficial del servidor de Supabase
-        verifyLicenseWithBackend(tData.id).then((res) => {
-          if (res?.success && !res.offline) {
+        try {
+          const licRes = await verifyLicenseWithBackend(tData.id);
+          if (licRes?.success && !licRes.offline) {
             const sealed = getCurrentTenant();
             if (sealed && sealed.id === tData.id) {
               setTenant(sealed);
             }
           }
-        }).catch(() => {});
+        } catch (e) {}
 
         const prevTenantId = localStorage.getItem('pos_active_tenant_id');
         const isSwitchingTenant = prevTenantId && prevTenantId !== tData.id;

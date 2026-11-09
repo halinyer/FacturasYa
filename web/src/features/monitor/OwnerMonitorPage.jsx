@@ -708,7 +708,12 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
       const updatedPays = await fetchMyPayments(tenant.id).catch(() => payments);
       setPayments(updatedPays);
 
-      setPagoSuccessMsg('¡Pago reportado con éxito! Tu caja cuenta con Pase de Cortesía activo mientras se verifica la referencia.');
+      const isSuspended = tenant?.status === 'suspended';
+      setPagoSuccessMsg(
+        isSuspended
+          ? '¡Pago reportado con éxito! Tu comprobante fue enviado al Administrador para su aprobación.'
+          : '¡Pago reportado con éxito! Tu caja cuenta con Pase de Cortesía activo mientras se verifica la referencia.'
+      );
       setPagoRef('');
       setPagoReceiptFile(null);
       setPagoReceiptPreview('');
