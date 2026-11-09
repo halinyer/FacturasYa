@@ -577,9 +577,12 @@ export default function FiscalBooksView() {
       selectedFortnight,
       machineNumber: fiscalSettings?.registeredMachineNumber || companyProfile.machineNumber,
       rif: companyProfile.rif,
-      legalName: companyProfile.legalName
+      legalName: companyProfile.legalName,
+      fiscalAddress: companyProfile.fiscalAddress,
+      taxpayerType: companyProfile.taxpayerType,
+      purchasesTotals
     });
-    showToast(`¡Se exportaron ${filteredZReports.length} reporte(s) Z en formato CSV SENIAT!`);
+    showToast(`¡Se exportaron ${filteredZReports.length} reporte(s) Z con Resumen Forma 30 en CSV!`);
     setShowExportMenu(false);
   };
 
@@ -614,15 +617,8 @@ export default function FiscalBooksView() {
   };
 
   const handleMainExportClick = () => {
-    if (activeTab === 'ventas_z') {
-      handleExportZReports();
-    } else if (activeTab === 'ventas_detalle') {
-      handleExportDetailedSales();
-    } else if (activeTab === 'compras') {
-      handleExportPurchases();
-    } else if (activeTab === 'resumen') {
-      handleExportFullExcelWorkbook();
-    }
+    // La exportación principal siempre genera la Plantilla Oficial de 3 Hojas en Excel (.xlsx)
+    handleExportFullExcelWorkbook();
   };
 
   return (
@@ -657,17 +653,12 @@ export default function FiscalBooksView() {
                   type="button"
                   onClick={handleMainExportClick}
                   className="px-3.5 py-2 hover:bg-zinc-50 text-zinc-800 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer rounded-l-xl active:scale-98"
-                  title="Descargar libro en formato oficial para Excel"
+                  title="Descargar libro en formato oficial para Excel (.xlsx) con 3 hojas interconectadas: COMPRAS, VENTAS y RESUMEN FORMA 30"
                 >
-                  <Download size={14} className="text-emerald-600" />
-                  <span>
-                    {activeTab === 'resumen'
-                      ? 'Exportar Plantilla Excel (.xlsx)'
-                      : activeTab === 'ventas_z'
-                      ? 'Exportar Reportes Z CSV'
-                      : activeTab === 'ventas_detalle'
-                      ? 'Exportar Ventas CSV'
-                      : 'Exportar Compras CSV'}
+                  <FileSpreadsheet size={15} className="text-emerald-600" />
+                  <span>Exportar Plantilla Excel (.xlsx)</span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 font-bold ml-0.5">
+                    3 Hojas
                   </span>
                 </button>
 
@@ -729,8 +720,10 @@ export default function FiscalBooksView() {
                     >
                       <Cpu size={16} className="text-zinc-700 shrink-0 mt-0.5" />
                       <div>
-                        <div className="font-bold">Libro Consolidado de Reportes Z</div>
-                        <p className="text-[10px] text-zinc-500 font-normal">{filteredZReports.length} registro(s) diarios asentados</p>
+                        <div className="font-bold flex items-center gap-1.5">
+                          <span>Reportes Z + Resumen Forma 30 (.csv)</span>
+                        </div>
+                        <p className="text-[10px] text-zinc-500 font-normal">{filteredZReports.length} registro(s) Z con estructura oficial COMPRA VENTAS</p>
                       </div>
                     </button>
 

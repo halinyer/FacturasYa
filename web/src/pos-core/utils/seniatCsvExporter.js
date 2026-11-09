@@ -219,19 +219,45 @@ export function exportZReportsToCSV({
   zReports = [],
   machineNumber = '',
   rif = '',
-  legalName = ''
+  legalName = '',
+  fiscalAddress = '',
+  taxpayerType = '',
+  purchasesTotals = {},
+  customDateRange = null
 }) {
   const records = (zRecords && zRecords.length > 0) ? zRecords : (zReports || []);
-  const companyProfile = getFiscalCompanyProfile({ legalName, rif, machineNumber });
+  const companyProfile = getFiscalCompanyProfile({ legalName, rif, machineNumber, fiscalAddress, taxpayerType });
   const cleanRif = (companyProfile.rif || '').replace(/[^A-Za-z0-9]/g, '');
-  const filename = `Libro_de_Ventas_Reportes_Z_SENIAT_${cleanRif}_${selectedMonth}-${selectedYear}.csv`;
+  const m = String(selectedMonth || new Date().getMonth() + 1).padStart(2, '0');
+  const y = selectedYear || new Date().getFullYear();
+  const monthNames = {
+    '01': 'ENE', '02': 'FEB', '03': 'MAR', '04': 'ABR',
+    '05': 'MAY', '06': 'JUN', '07': 'JUL', '08': 'AGO',
+    '09': 'SEP', '10': 'OCT', '11': 'NOV', '12': 'DIC'
+  };
+  const mCode = monthNames[m] || m;
+  const filename = `COMPRA VENTAS ${mCode} - Reportes Z y Resumen.csv`;
   const lines = [];
+
+  let startDay = '01';
+  let endDay = '31';
+  if (selectedFortnight === 'q1') {
+    startDay = '01';
+    endDay = '15';
+  } else if (selectedFortnight === 'q2') {
+    startDay = '16';
+    endDay = String(new Date(y, parseInt(m, 10), 0).getDate()).padStart(2, '0');
+  } else {
+    startDay = '01';
+    endDay = String(new Date(y, parseInt(m, 10), 0).getDate()).padStart(2, '0');
+  }
+  const dateRangeStr = customDateRange || `Del ${startDay}-${m}-${y} Al ${endDay}-${m}-${y}`;
 
   lines.push(`"${companyProfile.legalName}"`);
   lines.push(`"RIF: ${companyProfile.rif}"`);
   lines.push(`"LIBRO DE VENTAS (IVA) - CONSOLIDADO DIARIO POR REPORTES Z DE MAQUINA FISCAL"`);
   lines.push(`"Base Legal: Providencia Administrativa SENIAT SNAT/2011/00071 (Articulos 77 y 78)"`);
-  lines.push(`"Periodo Fiscal: Mes ${selectedMonth}/${selectedYear} (${selectedFortnight === 'all' ? 'Mes Completo' : selectedFortnight === 'q1' ? '1ra Quincena' : '2da Quincena'})"`);
+  lines.push(`"Periodo Fiscal: Mes ${selectedMonth}/${selectedYear} (${selectedFortnight === 'all' ? 'Mes Completo' : selectedFortnight === 'q1' ? '1ra Quincena' : '2da Quincena'}) - ${dateRangeStr}"`);
   lines.push(`"Serial Maquina Fiscal: ${companyProfile.machineNumber || 'N/A'}"`);
   lines.push('"Moneda de Registro: Bolivares (Bs.)"');
   lines.push('');
@@ -331,6 +357,72 @@ export function exportZReportsToCSV({
     `"${formatVE(totSales - totDevs)}"`
   ];
   lines.push(totLine.join(';'));
+
+  // ESTRUCTURA EXACTA OFICIAL RESUMEN FORMA 30 (COMPRA VENTAS NOV / OCT - Resumen.csv)
+  const totPurchasesExempt = Number(purchasesTotals?.exemptAmountBs || purchasesTotals?.exemptBs || 0);
+  const totPurchasesBase16 = Number(purchasesTotals?.taxableBaseBs || purchasesTotals?.baseBs || 0);
+  const totPurchasesTax16 = Number(purchasesTotals?.ivaBs || 0);
+  const retencionesPeriodo = Number(purchasesTotals?.ivaRetainedBs || 0);
+  const cuotaTributaria = Math.max(0, totTax16 - totPurchasesTax16);
+  const excedenteCredito = Math.max(0, totPurchasesTax16 - totTax16);
+  const retencionesDescontadas = Math.min(cuotaTributaria, retencionesPeriodo);
+  const saldoRetenciones = Math.max(0, retencionesPeriodo - retencionesDescontadas);
+  const totalPagar = Math.max(0, cuotaTributaria - retencionesDescontadas);
+
+  lines.push('');
+  lines.push('');
+  lines.push(',,,,');
+  lines.push(',,RAZON SOCIAL DEL CONTRIBUYENTE,Nº DE RIF,');
+  lines.push(`,,"${companyProfile.legalName}","${companyProfile.rif}",`);
+  lines.push(',,,,');
+  lines.push(',,DIRECCION FISCAL,TIPO DE CONTRIBUYENTE,');
+  lines.push(`,,"${companyProfile.fiscalAddress || 'Venezuela'}","${companyProfile.taxpayerType || 'ORDINARIO'}",`);
+  lines.push(',,,,');
+  lines.push(',,RESUMEN DE LIBRO DE COMPRA Y VENTAS,,');
+  lines.push(`,,${dateRangeStr},,`);
+  lines.push(',,,,');
+  lines.push(',N°,DEBITOS FISCALES,BASE IMPONIBLE,DEBITO FISCAL');
+  lines.push(`,1,Ventas Internas no Gravadas,"${formatVE(totExempt)}",`);
+  lines.push(',2,Ventas de Exportación,,');
+  lines.push(`,3,Ventas Internas Gravadas por Alícuota General,"${formatVE(totBase16)}","${formatVE(totTax16)}"`);
+  lines.push(',4,Ventas Internas Gravadas Alic General mas adicional,,');
+  lines.push(',5,Ventas Internas Gravadas por alic reducida,,');
+  lines.push(`,6,Total Vtas y Debitos Fiscales para efectos det,"${formatVE(totExempt + totBase16)}","${formatVE(totTax16)}"`);
+  lines.push(',7,Ajustes a los Débitos Fiscales de períodos anteriores,,');
+  lines.push(',8,Certificados de Débitos Fiscales Exonerados,,');
+  lines.push(`,9,Total Débitos Fiscales,,"${formatVE(totTax16)}"`);
+  lines.push(',,,,');
+  lines.push(',N°,CREDITOS FISCALES,BASE IMPONIBLE,CREDITO FISCAL');
+  lines.push(`,10,Compras no gravadas y/o sin derecho a Credito Fiscal,"${formatVE(totPurchasesExempt)}",`);
+  lines.push(',11,Importación Gravadas por Alícuota General,,');
+  lines.push(',12,"Importaciones Gravadas por Alícuota General más');
+  lines.push('Alícuota Adicional",,');
+  lines.push(',13,Importaciones Gravadas por Alícuota Reducida,,');
+  lines.push(`,14,Compras Internas Gravadas por Alícuota General,"${formatVE(totPurchasesBase16)}","${formatVE(totPurchasesTax16)}"`);
+  lines.push(',15,Compras Int Gravadas por Alícuota General más Alícuota Adicional,,');
+  lines.push(',16,Compras Internas Gravadas por Alícuota Reducida,,');
+  lines.push(`,17,Total Compras y Créditos Fiscales del Período,"${formatVE(totPurchasesExempt + totPurchasesBase16)}","${formatVE(totPurchasesTax16)}"`);
+  lines.push(',18,Créditos Fiscales Totalmente Deducibles,,');
+  lines.push(',19,Créditos Fiscales producto de la Aplicación del % de la prorrata,,');
+  lines.push(',20,Total Créditos Fiscales deducibles,,');
+  lines.push(',21,Excedente Créditos Fiscales del mes Anterior,,');
+  lines.push(',22,Reintegro Solicitado (sólo Exportadores),,');
+  lines.push(',23,Reintegro Solicitado (sólo a entes exonerados),,');
+  lines.push(',24,Ajustes a los Créditos Fiscales de períodos anteriores,,');
+  lines.push(',25,Cert de Débitos Fiscales Exonerados. Registrado en el período,,');
+  lines.push(`,26,Total Créditos Fiscales,,"${formatVE(totPurchasesTax16)}"`);
+  lines.push(',,,,');
+  lines.push(',N°,AUTOLIQUIDACION,,');
+  lines.push(`,27,Total Cuota Tributaria del Período,,"${formatVE(cuotaTributaria)}"`);
+  lines.push(`,28,Excedente de Crédito Fiscal para el mes siguiente,,"${formatVE(excedenteCredito)}"`);
+  lines.push(`,29,Sub-total Impuesto a Pagar,,"${formatVE(cuotaTributaria)}"`);
+  lines.push(',30,Retenciones Acumuladas por Descontar,"0,00",');
+  lines.push(`,31,Retenciones del Período,"${formatVE(retencionesPeriodo)}",`);
+  lines.push(`,32,Total Retenciones,"${formatVE(retencionesPeriodo)}",`);
+  lines.push(`,33,Retenciones Soportadas y Descontadas en esta Declaración,,"${formatVE(retencionesDescontadas)}"`);
+  lines.push(`,34,Saldo de Retenciones de IVA no aplicado,,"${formatVE(saldoRetenciones)}"`);
+  lines.push(',35,Sub-total Impuesto a Pagar,,');
+  lines.push(`,36,Total a Pagar,,"${formatVE(totalPagar)}"`);
 
   const csvContent = '\uFEFF' + lines.join('\r\n');
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });

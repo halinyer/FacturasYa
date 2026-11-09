@@ -11,7 +11,8 @@ import {
   Cpu, 
   RefreshCw,
   Hash,
-  Download
+  Download,
+  FileSpreadsheet
 } from 'lucide-react';
 
 function getMonthDateRange(dateStr) {
@@ -508,21 +509,55 @@ function FiscalMemoryModalInner({
               <>
                 <button
                   type="button"
+                  onClick={async () => {
+                    try {
+                      const { exportFullSeniatWorkbook } = await import('../../utils/seniatExcelExporter');
+                      const m = (startDate || '').split('-')[1] || String(new Date().getMonth() + 1).padStart(2, '0');
+                      const y = (startDate || '').split('-')[0] || String(new Date().getFullYear());
+                      await exportFullSeniatWorkbook({
+                        selectedMonth: m,
+                        selectedYear: y,
+                        zReports: resultData.records,
+                        isUsingZ: true,
+                        customDateRange: `Del ${startDate || '01'} Al ${endDate || '31'}`,
+                        companyProfile: {
+                          legalName: resultData.legalName,
+                          rif: resultData.rif,
+                          machineNumber: resultData.registeredMachineNumber
+                        }
+                      });
+                      setSuccessMsg('¡Plantilla Excel oficial (.xlsx) de 3 hojas descargada con éxito!');
+                    } catch (err) {
+                      console.error(err);
+                      alert('Error al generar plantilla Excel: ' + err.message);
+                    }
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-98"
+                  title="Descargar libro en formato oficial para Excel (.xlsx) con 3 hojas interconectadas: COMPRAS, VENTAS y RESUMEN FORMA 30"
+                >
+                  <FileSpreadsheet size={14} />
+                  <span>Exportar Plantilla Excel (.xlsx)</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => {
                     exportZReportsToCSV({
-                      selectedMonth: (startDate || '').split('-')[1] || '10',
+                      selectedMonth: (startDate || '').split('-')[1] || '11',
                       selectedYear: (startDate || '').split('-')[0] || '2026',
                       zRecords: resultData.records,
                       machineNumber: resultData.registeredMachineNumber,
-                      rif: resultData.rif
+                      rif: resultData.rif,
+                      legalName: resultData.legalName,
+                      customDateRange: `Del ${startDate || '01'} Al ${endDate || '31'}`
                     });
-                    setSuccessMsg('¡Archivo oficial de Reportes Z exportado exitosamente!');
+                    setSuccessMsg('¡Archivo CSV con Reportes Z y Resumen Forma 30 exportado!');
                   }}
-                  className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
-                  title="Descargar archivo estructurado en Excel / CSV para el libro fiscal"
+                  className="px-3.5 py-2 rounded-xl bg-white hover:bg-zinc-100 text-zinc-800 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border border-zinc-200 shadow-2xs"
+                  title="Descargar archivo CSV estructurado con Reportes Z y Resumen Forma 30"
                 >
-                  <Download size={14} />
-                  <span>Exportar a Excel (.csv)</span>
+                  <Download size={14} className="text-zinc-600" />
+                  <span>Exportar CSV con Resumen</span>
                 </button>
 
                 {onSyncZReports && (
