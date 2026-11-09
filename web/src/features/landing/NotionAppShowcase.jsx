@@ -28,10 +28,12 @@ import {
   RefreshCw,
   Play,
   Pause,
-  Zap
+  BookOpen,
+  Download,
+  FileSpreadsheet
 } from 'lucide-react';
 
-// Ilustraciones vectoriales instantáneas y nítidas sin peticiones de red externas
+// Ilustraciones vectoriales instantáneas y nítidas
 function ProductGraphic({ type }) {
   if (type === 'burger') {
     return (
@@ -171,7 +173,7 @@ function ProductGraphic({ type }) {
   return null;
 }
 
-// Configuración de los 3 perfiles de negocio adaptables
+// 3 Perfiles de Negocio
 const BUSINESS_MODES = {
   restaurant: {
     id: 'restaurant',
@@ -181,7 +183,6 @@ const BUSINESS_MODES = {
     hasTables: true,
     hasBarcodes: false,
     navPill: 'Modo Restaurante',
-    description: 'Comandas a cocina, gestión de mesas, comandero móvil y división de cuentas.',
     products: [
       { id: 'r1', name: 'Smash Burger Doble', detail: 'Doble carne, cheddar y tocineta', priceUsd: 7.5, art: 'burger' },
       { id: 'r2', name: 'Pepito Lomito 35cm', detail: 'Lomito, maíz, papas y queso', priceUsd: 9.0, art: 'pepito' },
@@ -194,7 +195,9 @@ const BUSINESS_MODES = {
       { id: 'm1', name: 'Mesa 1', zone: 'Salón', status: 'ocupada', totalUsd: 21.0, mins: '14 min', waiter: 'Carlos M.' },
       { id: 'm2', name: 'Mesa 2', zone: 'Salón', status: 'libre', totalUsd: 0, mins: null, waiter: null },
       { id: 'm3', name: 'Mesa 3', zone: 'Terraza', status: 'cuenta', totalUsd: 38.5, mins: '42 min', waiter: 'Valeria R.' },
-      { id: 'm4', name: 'Mesa 4', zone: 'Terraza', status: 'ocupada', totalUsd: 16.5, mins: 'Hace 5m', waiter: 'Valeria R.' }
+      { id: 'm4', name: 'Mesa 4', zone: 'Terraza', status: 'ocupada', totalUsd: 16.5, mins: 'Hace 5m', waiter: 'Valeria R.' },
+      { id: 'm5', name: 'Mesa 5', zone: 'Salón', status: 'libre', totalUsd: 0, mins: null, waiter: null },
+      { id: 'm6', name: 'Barra 1', zone: 'Barra', status: 'ocupada', totalUsd: 11.0, mins: '8 min', waiter: 'Carlos M.' }
     ]
   },
   ice_cream: {
@@ -205,7 +208,6 @@ const BUSINESS_MODES = {
     hasTables: false,
     hasBarcodes: false,
     navPill: 'Modo Heladería',
-    description: 'Venta rápida de mostrador, combinaciones de sabores, conos, tinas y peso en KG.',
     products: [
       { id: 'h1', name: 'Barquilla 2 Sabores', detail: 'Mantecado + Chocolate Suizo', priceUsd: 3.5, art: 'icecream_cone' },
       { id: 'h2', name: 'Tina 1/2 Litro (3 Sabores)', detail: 'Empaque térmico para llevar', priceUsd: 6.0, art: 'icecream_tub' },
@@ -224,7 +226,6 @@ const BUSINESS_MODES = {
     hasTables: false,
     hasBarcodes: true,
     navPill: 'Modo Retail',
-    description: 'Lector de códigos de barra, control de inventario en vivo, SKU y tickets al instante.',
     products: [
       { id: 'b1', name: 'Harina PAN Maíz Blanco 1kg', detail: 'SKU: 7591038 · Stock: 48 und', priceUsd: 1.4, art: 'grocery' },
       { id: 'b2', name: 'Aceite Vegetal 1 Litro', detail: 'SKU: 7592004 · Stock: 24 und', priceUsd: 3.2, art: 'oil' },
@@ -244,127 +245,67 @@ function formatBs(val) {
   });
 }
 
-// Pasos de la animación estilo Notion (guion cinemático que muestra la versatilidad del software)
-const ANIMATION_BEATS = [
-  // Beat 0: Enfoque inicial en Restaurante
+// Pasos del Tour Animado: Recorre los DISTINTOS DASHBOARDS del sistema
+const DASHBOARD_TOUR_BEATS = [
+  // 1. Dashboard de Punto de Venta
   {
-    mode: 'restaurant',
     view: 'pos',
-    cart: { r1: 1 },
-    modal: false,
-    success: false,
-    scanning: false,
-    cursor: { x: '28%', y: '36%', clicking: false, label: 'Notion POS' },
-    caption: 'Modo Restaurante: Selecciona productos y mesas con 1 clic',
-    duration: 1700
-  },
-  // Beat 1: Cursor hace clic en Pepito Lomito (se agrega al carrito)
-  {
     mode: 'restaurant',
-    view: 'pos',
     cart: { r1: 1, r2: 1 },
     modal: false,
-    success: false,
-    scanning: false,
-    cursor: { x: '45%', y: '40%', clicking: true, label: '+ Pepito Lomito' },
-    caption: 'Cálculo instantáneo en USD ($) y Bolívares (Bs. BCV)',
-    duration: 1700
+    cursor: { x: '45%', y: '42%', clicking: true, label: '🛒 Dashboard POS (Caja)' },
+    caption: 'Dashboard 1: Punto de Venta con catálogo visual, cobro rápido y cálculo bimoneda $ / Bs.',
+    duration: 3000
   },
-  // Beat 2: Cursor glides al Switcher superior para cambiar a Heladería
+  // 2. Dashboard de Mesas & Salón
   {
+    view: 'tables',
     mode: 'restaurant',
-    view: 'pos',
     cart: { r1: 1, r2: 1 },
     modal: false,
-    success: false,
-    scanning: false,
-    cursor: { x: '28%', y: '4%', clicking: true, label: 'Cambiar a Heladería 🍦' },
-    caption: 'Arquitectura modular: Elige tu necesidad como en Notion',
-    duration: 1800
+    cursor: { x: '35%', y: '40%', clicking: false, label: '🍽️ Dashboard Mesas & Salón' },
+    caption: 'Dashboard 2: Mapa interactivo de mesas, comandas automáticas a cocina y cuentas abiertas.',
+    duration: 3200
   },
-  // Beat 3: Morphing a Heladería & Selección de Tina de Helado
+  // 3. Dashboard del Monitor Móvil del Dueño
   {
-    mode: 'ice_cream',
-    view: 'pos',
-    cart: { h1: 1 },
+    view: 'monitor',
+    mode: 'restaurant',
+    cart: { r1: 1, r2: 1 },
     modal: false,
-    success: false,
-    scanning: false,
-    cursor: { x: '46%', y: '38%', clicking: false, label: 'Sabores & Tinas' },
-    caption: 'Modo Heladería: Gestión por tinas, barquillas y combinaciones',
-    duration: 1800
+    cursor: { x: '50%', y: '45%', clicking: false, label: '📱 Monitor del Dueño en Vivo' },
+    caption: 'Dashboard 3: Monitoreo en vivo desde el celular: ventas de hoy, pago móvil vs efectivo y arqueo.',
+    duration: 3200
   },
-  // Beat 4: Clic en Tina 1/2 Litro
+  // 4. Dashboard de Libros Fiscales & Reporte Z
   {
-    mode: 'ice_cream',
-    view: 'pos',
-    cart: { h1: 1, h2: 1 },
+    view: 'fiscal',
+    mode: 'restaurant',
+    cart: { r1: 1, r2: 1 },
     modal: false,
-    success: false,
-    scanning: false,
-    cursor: { x: '46%', y: '40%', clicking: true, label: '+ Tina 1/2 Litro' },
-    caption: 'Presentaciones térmicas, toppings y peso automático',
-    duration: 1800
+    cursor: { x: '55%', y: '35%', clicking: false, label: '📑 Dashboard Libros & Cierre Z' },
+    caption: 'Dashboard 4: Libros de compra y venta, reporte Z diario oficial y exportación de Forma 30.',
+    duration: 3200
   },
-  // Beat 5: Cursor glides al Switcher para cambiar a Retail / Minimarket
+  // 5. Adaptabilidad a Heladería
   {
-    mode: 'ice_cream',
     view: 'pos',
-    cart: { h1: 1, h2: 1 },
+    mode: 'ice_cream',
+    cart: { h1: 2, h2: 1 },
     modal: false,
-    success: false,
-    scanning: false,
-    cursor: { x: '46%', y: '4%', clicking: true, label: 'Cambiar a Retail 🛍️' },
-    caption: 'Adaptación sin recargar: Activa escaneo de barras y stock',
-    duration: 1800
+    cursor: { x: '48%', y: '42%', clicking: true, label: '🍦 Modo Heladería & Sabores' },
+    caption: 'Adaptación como Notion: Cambia a Heladería con tinas por litro, barquillas y café.',
+    duration: 3000
   },
-  // Beat 6: Escaneo con rayo láser en Retail (Harina PAN)
+  // 6. Adaptabilidad a Retail
   {
+    view: 'pos',
     mode: 'retail',
-    view: 'pos',
-    cart: { b1: 1 },
-    modal: false,
-    success: false,
-    scanning: true,
-    cursor: { x: '28%', y: '38%', clicking: true, label: '⚡ Escáner Láser BEEP!' },
-    caption: 'Lector de códigos de barra y sincronización de stock en vivo',
-    duration: 2000
-  },
-  // Beat 7: Cursor añade Aceite y se mueve al botón de cobro
-  {
-    mode: 'retail',
-    view: 'pos',
     cart: { b1: 2, b2: 1 },
     modal: false,
-    success: false,
-    scanning: false,
-    cursor: { x: '88%', y: '86%', clicking: true, label: 'Cobrar Venta' },
-    caption: 'Cobro rápido bimoneda con arqueo automático',
-    duration: 1800
-  },
-  // Beat 8: Se abre el Modal de Cobro estilo Notion (Pago Móvil)
-  {
-    mode: 'retail',
-    view: 'pos',
-    cart: { b1: 2, b2: 1 },
-    modal: true,
-    success: false,
-    scanning: false,
-    cursor: { x: '58%', y: '72%', clicking: true, label: 'Confirmar & Ticket' },
-    caption: 'Desglose en Pago Móvil, Efectivo $ y Punto de Venta',
-    duration: 2000
-  },
-  // Beat 9: Éxito e impresión de ticket fiscal
-  {
-    mode: 'retail',
-    view: 'pos',
-    cart: { b1: 2, b2: 1 },
-    modal: true,
-    success: true,
-    scanning: false,
-    cursor: { x: '50%', y: '50%', clicking: false, label: '✅ Ticket Impreso' },
-    caption: '¡Factura emitida! Impresora HKA80 y caja cuadrada sin descuadres',
-    duration: 2800
+    cursor: { x: '46%', y: '42%', clicking: true, label: '🛍️ Modo Retail & Código de Barras' },
+    caption: 'Adaptación como Notion: Cambia a Retail con lector de barras, SKU y stock en tiempo real.',
+    duration: 3000
   }
 ];
 
@@ -373,88 +314,78 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   const userInteractionTimeoutRef = useRef(null);
 
-  // Estados interactivos locales
-  const [manualMode, setManualMode] = useState(null);
-  const [manualView, setManualView] = useState(null);
-  const [manualCart, setManualCart] = useState(null);
-  const [manualModal, setManualModal] = useState(null);
-  const [manualSuccess, setManualSuccess] = useState(null);
+  // Estados interactivos directos
+  const [activeView, setActiveView] = useState('pos'); // 'pos' | 'tables' | 'monitor' | 'fiscal'
+  const [activeMode, setActiveMode] = useState('restaurant'); // 'restaurant' | 'ice_cream' | 'retail'
+  const [cart, setCart] = useState({ r1: 1, r3: 1 });
+  const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
+  const [simulatedPaymentSuccess, setSimulatedPaymentSuccess] = useState(false);
 
-  // Obtenemos los valores activos (priorizando el estado del beat automático, o manual si el usuario interactuó)
-  const activeBeatData = ANIMATION_BEATS[currentBeat] || ANIMATION_BEATS[0];
+  const activeBeatData = DASHBOARD_TOUR_BEATS[currentBeat] || DASHBOARD_TOUR_BEATS[0];
 
-  const activeMode = manualMode !== null ? manualMode : activeBeatData.mode;
-  const activeView = manualView !== null ? manualView : activeBeatData.view;
-  const cart = manualCart !== null ? manualCart : activeBeatData.cart;
-  const checkoutModalOpen = manualModal !== null ? manualModal : activeBeatData.modal;
-  const simulatedPaymentSuccess = manualSuccess !== null ? manualSuccess : activeBeatData.success;
-  const isScanning = !manualMode && activeBeatData.scanning;
+  // Si está en auto-play, sincronizar vista y modo con el beat
+  useEffect(() => {
+    if (isAutoPlaying) {
+      setActiveView(activeBeatData.view);
+      setActiveMode(activeBeatData.mode);
+      setCart(activeBeatData.cart);
+      setCheckoutModalOpen(activeBeatData.modal);
+    }
+  }, [currentBeat, isAutoPlaying, activeBeatData]);
 
-  const currentMode = BUSINESS_MODES[activeMode] || BUSINESS_MODES.restaurant;
-  const currentCursor = activeBeatData.cursor;
-
-  // Ciclo automático de animación (solo cuando no hay pausa manual del usuario)
+  // Temporizador de tour automático
   useEffect(() => {
     if (!isAutoPlaying) return;
 
-    const currentDuration = activeBeatData.duration || 2000;
     const timer = setTimeout(() => {
-      setCurrentBeat((prev) => (prev + 1) % ANIMATION_BEATS.length);
-    }, currentDuration);
+      setCurrentBeat((prev) => (prev + 1) % DASHBOARD_TOUR_BEATS.length);
+    }, activeBeatData.duration || 3000);
 
     return () => clearTimeout(timer);
   }, [currentBeat, isAutoPlaying, activeBeatData.duration]);
 
-  // Manejo de interacción humana: Si el usuario toca o hace clic, pausamos temporalmente el autómata
+  // Manejador de pausa por interacción humana
   const pauseAutoForUser = () => {
     setIsAutoPlaying(false);
     if (userInteractionTimeoutRef.current) {
       clearTimeout(userInteractionTimeoutRef.current);
     }
-    // Reanudar automáticamente tras 8 segundos de inactividad
     userInteractionTimeoutRef.current = setTimeout(() => {
-      // Limpiamos los overrides manuales y reanudamos el ciclo suavemente
-      setManualMode(null);
-      setManualView(null);
-      setManualCart(null);
-      setManualModal(null);
-      setManualSuccess(null);
       setIsAutoPlaying(true);
-    }, 8000);
+    }, 10000);
+  };
+
+  const handleSelectDashboard = (viewKey) => {
+    pauseAutoForUser();
+    setActiveView(viewKey);
+    setCheckoutModalOpen(false);
   };
 
   const handleSelectMode = (modeKey) => {
     pauseAutoForUser();
-    setManualMode(modeKey);
-    setManualView('pos');
-    setManualModal(false);
-    setManualSuccess(false);
-
+    setActiveMode(modeKey);
+    setCheckoutModalOpen(false);
     if (modeKey === 'restaurant') {
-      setManualCart({ r1: 2, r3: 1 });
+      setCart({ r1: 1, r3: 1 });
     } else if (modeKey === 'ice_cream') {
-      setManualCart({ h1: 2, h2: 1 });
+      setCart({ h1: 2, h2: 1 });
     } else {
-      setManualCart({ b1: 3, b2: 1 });
+      setCart({ b1: 2, b2: 1 });
     }
   };
 
   const addToCart = (product) => {
     pauseAutoForUser();
-    setManualCart((prev) => {
-      const base = prev !== null ? prev : cart;
-      return {
-        ...base,
-        [product.id]: (base[product.id] || 0) + 1
-      };
-    });
+    setCart((prev) => ({
+      ...prev,
+      [product.id]: (prev[product.id] || 0) + 1
+    }));
   };
 
   const removeFromCart = (productId) => {
     pauseAutoForUser();
-    setManualCart((prev) => {
-      const base = prev !== null ? prev : cart;
-      const next = { ...base };
+    setCart((prev) => {
+      const next = { ...prev };
       if (next[productId] > 1) {
         next[productId] -= 1;
       } else {
@@ -466,26 +397,29 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
 
   const clearCart = () => {
     pauseAutoForUser();
-    setManualCart({});
+    setCart({});
   };
 
   const handleSimulateCheckout = () => {
     pauseAutoForUser();
-    setManualModal(true);
-    setManualSuccess(false);
+    setCheckoutModalOpen(true);
+    setSimulatedPaymentSuccess(false);
   };
 
   const handleConfirmSimulatedPayment = () => {
     pauseAutoForUser();
-    setManualSuccess(true);
+    setSimulatedPaymentSuccess(true);
     setTimeout(() => {
-      setManualModal(false);
-      setManualSuccess(false);
-      setManualCart({});
+      setCheckoutModalOpen(false);
+      setSimulatedPaymentSuccess(false);
+      clearCart();
     }, 2200);
   };
 
-  // Cálculo de totales en $ y Bs en tiempo real
+  const currentMode = BUSINESS_MODES[activeMode] || BUSINESS_MODES.restaurant;
+  const currentCursor = activeBeatData.cursor;
+
+  // Totales de la comanda
   const cartSummary = useMemo(() => {
     let totalQty = 0;
     let totalUsd = 0;
@@ -505,73 +439,94 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
   return (
     <div className="mt-8 max-w-6xl mx-auto select-none">
 
-      {/* SELECTOR SEGMENTADO DE PERFIL ESTILO NOTION */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4 px-2">
-        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-zinc-100 border border-zinc-200/90 shadow-2xs">
-          {Object.entries(BUSINESS_MODES).map(([key, mode]) => {
-            const isSelected = activeMode === key;
+      {/* SELECTOR MAESTRO DE LOS DISTINTOS DASHBOARDS (LO QUE EL USUARIO PIDIÓ) */}
+      <div className="flex flex-col md:flex-row items-center justify-between gap-3 mb-4 px-2">
+        
+        {/* Selector de Dashboards */}
+        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-zinc-100 border border-zinc-200/90 shadow-2xs overflow-x-auto max-w-full">
+          {[
+            { id: 'pos', label: 'Punto de Venta', icon: ShoppingCart },
+            { id: 'tables', label: 'Mesas & Salón', icon: Utensils },
+            { id: 'monitor', label: 'Monitor del Dueño', icon: Smartphone },
+            { id: 'fiscal', label: 'Libros Fiscales (Z)', icon: BookOpen }
+          ].map((dash) => {
+            const Icon = dash.icon;
+            const isSelected = activeView === dash.id;
             return (
               <button
-                key={key}
+                key={dash.id}
                 type="button"
-                onClick={() => handleSelectMode(key)}
-                className={`relative px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                  isSelected
-                    ? 'text-zinc-950 font-extrabold'
-                    : 'text-zinc-600 hover:text-zinc-950 hover:bg-zinc-50'
+                onClick={() => handleSelectDashboard(dash.id)}
+                className={`relative px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                  isSelected ? 'text-zinc-950 font-black' : 'text-zinc-600 hover:text-zinc-950 hover:bg-zinc-50'
                 }`}
               >
                 {isSelected && (
                   <motion.div
-                    layoutId="activePillMode"
+                    layoutId="activeDashPill"
                     className="absolute inset-0 bg-white rounded-xl shadow-xs border border-zinc-200/80"
-                    transition={{ type: 'spring', bounce: 0.18, duration: 0.4 }}
+                    transition={{ type: 'spring', bounce: 0.18, duration: 0.35 }}
                   />
                 )}
-                <span className="relative z-10">{key === 'restaurant' ? '🍔' : key === 'ice_cream' ? '🍦' : '🛍️'}</span>
-                <span className="relative z-10">{mode.tag}</span>
+                <Icon size={14} className={`relative z-10 ${isSelected ? 'text-emerald-600' : 'text-zinc-500'}`} />
+                <span className="relative z-10">{dash.label}</span>
               </button>
             );
           })}
         </div>
 
-        {/* CÁPSULA DE ESTADO DE LA ANIMACIÓN ESTILO NOTION */}
+        {/* Selector de Perfil de Negocio (Adaptabilidad) */}
         <div className="flex items-center gap-2">
-          <div className="text-xs text-zinc-600 font-medium flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-100 border border-zinc-200/80 shadow-2xs">
-            <span className={`w-2 h-2 rounded-full ${isAutoPlaying ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
-            <span className="text-[11px] font-semibold text-zinc-800">
-              {isAutoPlaying ? activeBeatData.caption : 'Modo interactivo manual activo'}
-            </span>
+          <div className="flex items-center gap-1 p-1 rounded-xl bg-zinc-100 border border-zinc-200/80 text-xs">
+            {Object.entries(BUSINESS_MODES).map(([key, mode]) => {
+              const isSelected = activeMode === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => handleSelectMode(key)}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer flex items-center gap-1 text-[11px] ${
+                    isSelected ? 'bg-zinc-900 text-white shadow-2xs' : 'text-zinc-600 hover:text-zinc-950'
+                  }`}
+                >
+                  <span>{key === 'restaurant' ? '🍔' : key === 'ice_cream' ? '🍦' : '🛍️'}</span>
+                  <span className="hidden sm:inline">{mode.tag.split('&')[0]}</span>
+                </button>
+              );
+            })}
           </div>
 
           <button
             type="button"
-            onClick={() => {
-              if (isAutoPlaying) {
-                setIsAutoPlaying(false);
-              } else {
-                setManualMode(null);
-                setManualView(null);
-                setManualCart(null);
-                setManualModal(null);
-                setManualSuccess(null);
-                setIsAutoPlaying(true);
-              }
-            }}
+            onClick={() => setIsAutoPlaying(!isAutoPlaying)}
             className="p-1.5 rounded-xl bg-white hover:bg-zinc-100 text-zinc-700 border border-zinc-200/80 shadow-2xs text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-all"
-            title={isAutoPlaying ? 'Pausar animación' : 'Reanudar animación'}
+            title={isAutoPlaying ? 'Pausar tour automático' : 'Reanudar tour automático'}
           >
             {isAutoPlaying ? <Pause size={12} className="text-zinc-500" /> : <Play size={12} className="text-emerald-600" />}
             <span className="hidden sm:inline">{isAutoPlaying ? 'Pausar' : 'Auto'}</span>
           </button>
         </div>
+
       </div>
 
-      {/* VENTANA NOTION SAAS ELEGANTE */}
+      {/* CÁPSULA EXPLICATIVA DE QUÉ DASHBOARD ESTÁS VIENDO */}
+      <div className="mb-3 px-3 py-1.5 rounded-xl bg-zinc-100/90 border border-zinc-200/80 flex items-center justify-between text-xs text-zinc-600">
+        <div className="flex items-center gap-2">
+          <span className={`w-2 h-2 rounded-full ${isAutoPlaying ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+          <span className="font-semibold text-zinc-900">
+            {isAutoPlaying ? activeBeatData.caption : `Explorando: ${activeView === 'pos' ? 'Dashboard Punto de Venta' : activeView === 'tables' ? 'Dashboard Mesas & Salón' : activeView === 'monitor' ? 'Dashboard Móvil del Dueño' : 'Dashboard Libros Fiscales SENIAT'}`}
+          </span>
+        </div>
+        <span className="text-[11px] text-zinc-400 font-mono hidden sm:inline">
+          Tasa BCV: {rate.toFixed(2)} Bs/$
+        </span>
+      </div>
+
+      {/* VENTANA DEL SOFTWARE CON LOS DISTINTOS DASHBOARDS */}
       <div className="relative rounded-2xl p-1.5 sm:p-2 bg-zinc-200/80 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.18)] border border-zinc-300/80">
         <div className="relative rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900 flex flex-col md:flex-row h-[560px] text-left">
           
-          {/* SIDEBAR ADAPTABLE SEGÚN EL PERFIL */}
+          {/* SIDEBAR DEL SISTEMA */}
           <aside className="hidden md:flex w-52 flex-col bg-zinc-900 text-zinc-300 border-r border-zinc-800 shrink-0 select-none">
             
             {/* Header del local en Sidebar */}
@@ -594,19 +549,16 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
               </div>
             </div>
 
-            {/* Opciones de menú según el perfil */}
+            {/* Opciones de menú con acceso directo a cada dashboard */}
             <div className="flex-1 overflow-hidden p-2 space-y-3">
               <div>
                 <div className="px-2 pb-1 text-[9px] font-bold uppercase tracking-wider text-zinc-500">
-                  Caja & Ventas
+                  Operaciones & Caja
                 </div>
                 <div className="space-y-0.5">
                   <button
                     type="button"
-                    onClick={() => {
-                      pauseAutoForUser();
-                      setManualView('pos');
-                    }}
+                    onClick={() => handleSelectDashboard('pos')}
                     className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                       activeView === 'pos' ? 'bg-zinc-800 text-white font-bold' : 'text-zinc-400 hover:text-zinc-200'
                     }`}
@@ -618,47 +570,40 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
                     </span>
                   </button>
 
-                  {currentMode.hasTables && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        pauseAutoForUser();
-                        setManualView('tables');
-                      }}
-                      className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                        activeView === 'tables' ? 'bg-zinc-800 text-white font-bold' : 'text-zinc-400 hover:text-zinc-200'
-                      }`}
-                    >
-                      <Utensils size={13} className={activeView === 'tables' ? 'text-amber-400' : 'text-zinc-400'} />
-                      <span className="flex-1 text-left">Mesas & Salón</span>
-                      <span className="text-[9px] px-1.5 py-0.2 rounded font-mono bg-amber-500/20 text-amber-300">
-                        4
-                      </span>
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleSelectDashboard('tables')}
+                    className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      activeView === 'tables' ? 'bg-zinc-800 text-white font-bold' : 'text-zinc-400 hover:text-zinc-200'
+                    }`}
+                  >
+                    <Utensils size={13} className={activeView === 'tables' ? 'text-amber-400' : 'text-zinc-400'} />
+                    <span className="flex-1 text-left">Mesas & Salón</span>
+                    <span className="text-[9px] px-1.5 py-0.2 rounded font-mono bg-amber-500/20 text-amber-300">
+                      4
+                    </span>
+                  </button>
                 </div>
               </div>
 
               <div>
                 <div className="px-2 pb-1 text-[9px] font-bold uppercase tracking-wider text-zinc-500">
-                  Gestión Inteligente
+                  Finanzas & Legal
                 </div>
-                <div className="space-y-0.5 text-zinc-400 text-xs font-medium">
-                  <div className="px-2.5 py-1.5 rounded-lg hover:bg-zinc-800/40 flex items-center gap-2">
-                    <Package size={13} />
-                    <span>{currentMode.categoryLabel}</span>
-                  </div>
-                  {currentMode.hasBarcodes ? (
-                    <div className="px-2.5 py-1.5 rounded-lg bg-zinc-800/60 text-emerald-400 flex items-center gap-2 font-bold">
-                      <Barcode size={13} />
-                      <span>Códigos de Barra</span>
-                    </div>
-                  ) : (
-                    <div className="px-2.5 py-1.5 rounded-lg hover:bg-zinc-800/40 flex items-center gap-2">
-                      <Boxes size={13} />
-                      <span>Control de Stock</span>
-                    </div>
-                  )}
+                <div className="space-y-0.5">
+                  <button
+                    type="button"
+                    onClick={() => handleSelectDashboard('fiscal')}
+                    className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      activeView === 'fiscal' ? 'bg-zinc-800 text-white font-bold' : 'text-zinc-400 hover:text-zinc-200'
+                    }`}
+                  >
+                    <BookOpen size={13} className={activeView === 'fiscal' ? 'text-purple-400' : 'text-zinc-400'} />
+                    <span className="flex-1 text-left">Libros Fiscales</span>
+                    <span className="text-[8px] px-1 py-0.2 rounded bg-purple-500/20 text-purple-300 font-bold">
+                      SENIAT
+                    </span>
+                  </button>
                 </div>
               </div>
 
@@ -668,10 +613,7 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
                 </div>
                 <button
                   type="button"
-                  onClick={() => {
-                    pauseAutoForUser();
-                    setManualView('monitor');
-                  }}
+                  onClick={() => handleSelectDashboard('monitor')}
                   className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                     activeView === 'monitor' ? 'bg-zinc-800 text-white font-bold' : 'text-zinc-400 hover:text-zinc-200'
                   }`}
@@ -685,7 +627,7 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
               </div>
             </div>
 
-            {/* Indicador de Tasa BCV Oficial */}
+            {/* Footer con Tasa Oficial */}
             <div className="p-2.5 border-t border-zinc-800 bg-zinc-950/60">
               <div className="flex items-center justify-between text-[10px]">
                 <span className="text-zinc-400 font-medium">Tasa Oficial BCV:</span>
@@ -694,361 +636,390 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
             </div>
           </aside>
 
-          {/* ÁREA DE TRABAJO PRINCIPAL */}
+          {/* ÁREA DE CONTENIDO: RENDERIZA EL DASHBOARD SELECCIONADO */}
           <main className="flex-1 flex flex-col min-w-0 bg-zinc-50 overflow-hidden relative">
             
-            {/* TOPBAR DE LA APLICACIÓN */}
+            {/* TOPBAR DEL SOFTWARE */}
             <div className="h-11 bg-zinc-900 border-b border-zinc-800 px-3 sm:px-4 flex items-center justify-between shrink-0 text-white">
               <div className="flex items-center gap-2">
                 <span className="font-extrabold text-xs text-white">
                   {activeView === 'pos'
-                    ? 'Punto de Venta'
+                    ? 'Dashboard 1: Punto de Venta & Caja'
                     : activeView === 'tables'
-                    ? 'Mesas & Salón'
-                    : 'Monitor del Dueño en Vivo'}
+                    ? 'Dashboard 2: Mesas & Salón / Comandas'
+                    : activeView === 'monitor'
+                    ? 'Dashboard 3: Monitor del Dueño en Celular'
+                    : 'Dashboard 4: Libros Fiscales SENIAT & Reporte Z'}
                 </span>
                 <span className="text-[9px] px-2 py-0.5 rounded-full font-bold bg-zinc-800 text-zinc-300 border border-zinc-700">
                   {currentMode.tag}
                 </span>
               </div>
 
-              {/* Selector de Vistas en pantallas pequeñas */}
-              <div className="flex items-center gap-1.5">
-                <div className="flex items-center gap-1 p-0.5 rounded-lg bg-zinc-800 border border-zinc-700 text-[10px]">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      pauseAutoForUser();
-                      setManualView('pos');
-                    }}
-                    className={`px-2 py-0.5 rounded font-bold cursor-pointer transition-all ${
-                      activeView === 'pos' ? 'bg-zinc-950 text-white shadow-2xs' : 'text-zinc-400'
-                    }`}
-                  >
-                    Caja
-                  </button>
-                  {currentMode.hasTables && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        pauseAutoForUser();
-                        setManualView('tables');
-                      }}
-                      className={`px-2 py-0.5 rounded font-bold cursor-pointer transition-all ${
-                        activeView === 'tables' ? 'bg-zinc-950 text-white shadow-2xs' : 'text-zinc-400'
-                      }`}
-                    >
-                      Mesas
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      pauseAutoForUser();
-                      setManualView('monitor');
-                    }}
-                    className={`px-2 py-0.5 rounded font-bold cursor-pointer transition-all ${
-                      activeView === 'monitor' ? 'bg-zinc-950 text-white shadow-2xs' : 'text-zinc-400'
-                    }`}
-                  >
-                    Celular
-                  </button>
-                </div>
-
-                <div className="hidden sm:flex items-center gap-1.5 pl-2 border-l border-zinc-800 text-xs">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                  <span className="text-[10px] text-zinc-400 font-mono font-semibold">100% Offline-Ready</span>
-                </div>
+              <div className="flex items-center gap-1.5 text-xs text-zinc-400">
+                <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                <span className="font-mono text-[10px]">100% Offline-Ready</span>
               </div>
             </div>
 
-            {/* VISTA 1: PUNTO DE VENTA (CATÁLOGO + CARRITO) */}
-            {activeView === 'pos' && (
-              <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-                
-                {/* Cuadrícula de Productos */}
-                <div className="flex-1 flex flex-col overflow-hidden bg-zinc-100/60 p-3 relative">
-                  
-                  {/* Buscador / Escáner */}
-                  <div className="mb-2.5 flex items-center justify-between gap-2">
-                    <div className="relative flex-1 max-w-sm">
-                      <Search size={13} className="absolute left-2.5 top-2.5 text-zinc-400" />
-                      <input
-                        type="text"
-                        readOnly
-                        value={currentMode.hasBarcodes ? 'Lector de código de barras activo...' : 'Buscar producto o categoría...'}
-                        className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-zinc-200 text-xs bg-white text-zinc-600 shadow-2xs cursor-default"
-                      />
-                    </div>
-                    <span className="text-[11px] text-zinc-500 font-semibold hidden sm:inline">
-                      {currentMode.products.length} productos listos
-                    </span>
-                  </div>
+            <AnimatePresence mode="wait">
 
-                  {/* Grid de productos con morphing Framer Motion */}
-                  <motion.div
-                    key={activeMode}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.25 }}
-                    className="flex-1 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 gap-2.5 pr-0.5"
-                  >
-                    {currentMode.products.map((p) => {
-                      const inCartQty = cart[p.id] || 0;
-                      const isProductBeingScanned = isScanning && p.id === 'b1';
-
-                      return (
-                        <div
-                          key={p.id}
-                          onClick={() => addToCart(p)}
-                          className={`group relative rounded-xl border p-2 flex flex-col justify-between transition-all cursor-pointer bg-white hover:border-zinc-400 hover:shadow-xs active:scale-98 ${
-                            inCartQty > 0 ? 'border-zinc-900 ring-1 ring-zinc-900/10' : 'border-zinc-200'
-                          }`}
-                        >
-                          {/* Efecto de láser rojo al escanear en Retail */}
-                          {isProductBeingScanned && (
-                            <motion.div
-                              initial={{ top: '0%' }}
-                              animate={{ top: ['0%', '100%', '0%'] }}
-                              transition={{ duration: 0.8, repeat: Infinity }}
-                              className="absolute left-0 right-0 h-0.5 bg-red-500 shadow-[0_0_8px_#ef4444] z-20 pointer-events-none"
-                            />
-                          )}
-
-                          <div className="h-20 w-full rounded-lg overflow-hidden mb-2 relative">
-                            <ProductGraphic type={p.art} />
-                            {inCartQty > 0 && (
-                              <span className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-zinc-950 text-white text-[10px] font-mono font-bold flex items-center justify-center shadow-xs">
-                                {inCartQty}
-                              </span>
-                            )}
-                          </div>
-                          <div>
-                            <div className="font-bold text-xs text-zinc-950 line-clamp-1 leading-tight group-hover:text-emerald-700 transition-colors">
-                              {p.name}
-                            </div>
-                            <div className="text-[10px] text-zinc-400 line-clamp-1 mt-0.5">
-                              {p.detail}
-                            </div>
-                            <div className="mt-2 flex items-baseline justify-between pt-1 border-t border-zinc-100">
-                              <span className="font-mono font-extrabold text-xs text-zinc-950">
-                                ${p.priceUsd.toFixed(2)}
-                              </span>
-                              <span className="text-[10px] text-emerald-700 font-mono font-bold">
-                                {formatBs(p.priceUsd * rate)}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </motion.div>
-                </div>
-
-                {/* Carrito de Comanda / Ticket de Venta */}
-                <div className="w-full lg:w-72 bg-white border-t lg:border-t-0 lg:border-l border-zinc-200/90 flex flex-col shrink-0">
-                  <div className="p-3 border-b border-zinc-200/80 flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 font-bold text-xs text-zinc-900">
-                      <ShoppingCart size={14} className="text-emerald-600" />
-                      <span>Cuenta Actual</span>
-                      <span className="px-1.5 py-0.2 rounded-full font-mono text-[10px] bg-zinc-100 text-zinc-700 font-bold">
-                        {cartSummary.totalQty}
+              {/* DASHBOARD 1: PUNTO DE VENTA & CAJA */}
+              {activeView === 'pos' && (
+                <motion.div
+                  key="dash-pos"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="flex-1 flex flex-col lg:flex-row overflow-hidden"
+                >
+                  {/* Catálogo de Productos */}
+                  <div className="flex-1 flex flex-col overflow-hidden bg-zinc-100/60 p-3">
+                    <div className="mb-2.5 flex items-center justify-between gap-2">
+                      <div className="relative flex-1 max-w-sm">
+                        <Search size={13} className="absolute left-2.5 top-2.5 text-zinc-400" />
+                        <input
+                          type="text"
+                          readOnly
+                          value={currentMode.hasBarcodes ? 'Lector de código de barras activo...' : 'Buscar producto o categoría...'}
+                          className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-zinc-200 text-xs bg-white text-zinc-600 shadow-2xs cursor-default"
+                        />
+                      </div>
+                      <span className="text-[11px] text-zinc-500 font-semibold hidden sm:inline">
+                        {currentMode.products.length} productos listos
                       </span>
                     </div>
-                    {cartSummary.totalQty > 0 && (
-                      <button
-                        type="button"
-                        onClick={clearCart}
-                        className="text-[10px] text-zinc-400 hover:text-red-600 font-semibold cursor-pointer"
-                      >
-                        Vaciar
-                      </button>
-                    )}
-                  </div>
 
-                  {/* Lista de items en carrito */}
-                  <div className="flex-1 overflow-y-auto p-2.5 divide-y divide-zinc-100 max-h-48 lg:max-h-none text-xs">
-                    {cartSummary.totalQty === 0 ? (
-                      <div className="py-12 text-center text-zinc-400 text-xs">
-                        <ShoppingCart size={22} className="mx-auto mb-2 text-zinc-300" />
-                        <span>Carrito vacío. Haz clic en cualquier plato o producto para agregarlo.</span>
-                      </div>
-                    ) : (
-                      currentMode.products.map((p) => {
-                        const q = cart[p.id] || 0;
-                        if (q === 0) return null;
+                    <div className="flex-1 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 gap-2.5 pr-0.5">
+                      {currentMode.products.map((p) => {
+                        const inCartQty = cart[p.id] || 0;
                         return (
-                          <div key={p.id} className="py-2 flex items-center justify-between gap-2">
-                            <div className="min-w-0 flex-1">
-                              <span className="font-semibold text-zinc-900 block truncate">{p.name}</span>
-                              <span className="text-[10px] text-zinc-400 font-mono">
-                                ${p.priceUsd.toFixed(2)} c/u · {formatBs(p.priceUsd * rate)}
-                              </span>
+                          <div
+                            key={p.id}
+                            onClick={() => addToCart(p)}
+                            className={`group relative rounded-xl border p-2 flex flex-col justify-between transition-all cursor-pointer bg-white hover:border-zinc-400 hover:shadow-xs active:scale-98 ${
+                              inCartQty > 0 ? 'border-zinc-900 ring-1 ring-zinc-900/10' : 'border-zinc-200'
+                            }`}
+                          >
+                            <div className="h-20 w-full rounded-lg overflow-hidden mb-2 relative">
+                              <ProductGraphic type={p.art} />
+                              {inCartQty > 0 && (
+                                <span className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-zinc-950 text-white text-[10px] font-mono font-bold flex items-center justify-center shadow-xs">
+                                  {inCartQty}
+                                </span>
+                              )}
                             </div>
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <button
-                                type="button"
-                                onClick={() => removeFromCart(p.id)}
-                                className="w-5 h-5 rounded bg-zinc-100 hover:bg-zinc-200 text-zinc-700 flex items-center justify-center font-bold text-xs cursor-pointer"
-                              >
-                                -
-                              </button>
-                              <span className="w-5 text-center font-mono font-bold text-xs text-zinc-950">{q}</span>
-                              <button
-                                type="button"
-                                onClick={() => addToCart(p)}
-                                className="w-5 h-5 rounded bg-zinc-100 hover:bg-zinc-200 text-zinc-700 flex items-center justify-center font-bold text-xs cursor-pointer"
-                              >
-                                +
-                              </button>
+                            <div>
+                              <div className="font-bold text-xs text-zinc-950 line-clamp-1 leading-tight group-hover:text-emerald-700 transition-colors">
+                                {p.name}
+                              </div>
+                              <div className="text-[10px] text-zinc-400 line-clamp-1 mt-0.5">
+                                {p.detail}
+                              </div>
+                              <div className="mt-2 flex items-baseline justify-between pt-1 border-t border-zinc-100">
+                                <span className="font-mono font-extrabold text-xs text-zinc-950">
+                                  ${p.priceUsd.toFixed(2)}
+                                </span>
+                                <span className="text-[10px] text-emerald-700 font-mono font-bold">
+                                  {formatBs(p.priceUsd * rate)}
+                                </span>
+                              </div>
                             </div>
                           </div>
                         );
-                      })
-                    )}
-                  </div>
-
-                  {/* Totales y Botón de Cobro */}
-                  <div className="p-3 bg-zinc-50 border-t border-zinc-200/90 space-y-2">
-                    <div className="flex items-baseline justify-between text-xs">
-                      <span className="text-zinc-500 font-semibold">Total Dólares:</span>
-                      <strong className="font-mono font-extrabold text-base text-zinc-950">
-                        ${cartSummary.totalUsd.toFixed(2)}
-                      </strong>
+                      })}
                     </div>
-                    <div className="flex items-baseline justify-between text-xs pt-1 border-t border-zinc-200/60">
-                      <span className="text-zinc-500 font-semibold">Total Bolívares (BCV):</span>
-                      <strong className="font-mono font-bold text-xs text-emerald-700">
-                        {formatBs(cartSummary.totalBs)}
-                      </strong>
-                    </div>
-
-                    <button
-                      type="button"
-                      disabled={cartSummary.totalQty === 0}
-                      onClick={handleSimulateCheckout}
-                      className="w-full py-2.5 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 active:scale-98"
-                    >
-                      <DollarSign size={13} className="text-emerald-400" />
-                      <span>Cobrar (${cartSummary.totalUsd.toFixed(2)}) →</span>
-                    </button>
                   </div>
-                </div>
-              </div>
-            )}
 
-            {/* VISTA 2: MAPA DE MESAS (RESTAURANTE) */}
-            {activeView === 'tables' && currentMode.hasTables && (
-              <div className="flex-1 p-4 overflow-y-auto bg-zinc-100/50">
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <h4 className="font-bold text-sm text-zinc-950">Mapa de Mesas y Salón</h4>
-                    <p className="text-[11px] text-zinc-500">Visualiza mesas ocupadas, cuentas abiertas y rotación.</p>
-                  </div>
-                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800">
-                    2 Mesas Ocupadas
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {currentMode.tables.map((t) => (
-                    <div
-                      key={t.id}
-                      className={`p-3.5 rounded-2xl border transition-all ${
-                        t.status === 'ocupada'
-                          ? 'bg-amber-50/70 border-amber-200 shadow-2xs'
-                          : t.status === 'cuenta'
-                          ? 'bg-emerald-50/70 border-emerald-200 shadow-2xs'
-                          : 'bg-white border-zinc-200'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-bold text-xs text-zinc-950">{t.name}</span>
-                        <span
-                          className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold uppercase ${
-                            t.status === 'ocupada'
-                              ? 'bg-amber-200 text-amber-900'
-                              : t.status === 'cuenta'
-                              ? 'bg-emerald-200 text-emerald-900'
-                              : 'bg-zinc-100 text-zinc-500'
-                          }`}
-                        >
-                          {t.status}
+                  {/* Carrito de Comanda */}
+                  <div className="w-full lg:w-72 bg-white border-t lg:border-t-0 lg:border-l border-zinc-200/90 flex flex-col shrink-0">
+                    <div className="p-3 border-b border-zinc-200/80 flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 font-bold text-xs text-zinc-900">
+                        <ShoppingCart size={14} className="text-emerald-600" />
+                        <span>Cuenta Actual</span>
+                        <span className="px-1.5 py-0.2 rounded-full font-mono text-[10px] bg-zinc-100 text-zinc-700 font-bold">
+                          {cartSummary.totalQty}
                         </span>
                       </div>
-                      <div className="text-[11px] text-zinc-500">{t.zone}</div>
-                      {t.status !== 'libre' ? (
-                        <div className="mt-2 pt-2 border-t border-zinc-200/60">
-                          <div className="font-mono font-bold text-sm text-zinc-950">${t.totalUsd.toFixed(2)}</div>
-                          <div className="text-[10px] text-zinc-400 flex items-center justify-between mt-0.5">
-                            <span>{t.waiter}</span>
-                            <span>{t.mins}</span>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="mt-4 text-[10px] text-zinc-400 font-medium">Disponible para comensal</div>
+                      {cartSummary.totalQty > 0 && (
+                        <button
+                          type="button"
+                          onClick={clearCart}
+                          className="text-[10px] text-zinc-400 hover:text-red-600 font-semibold cursor-pointer"
+                        >
+                          Vaciar
+                        </button>
                       )}
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
 
-            {/* VISTA 3: MONITOR MÓVIL DEL DUEÑO */}
-            {activeView === 'monitor' && (
-              <div className="flex-1 p-4 overflow-y-auto bg-zinc-950 text-white flex items-center justify-center">
-                <div className="w-full max-w-sm rounded-3xl border border-zinc-800 bg-zinc-900 p-4 shadow-2xl space-y-3">
-                  <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
-                    <div className="flex items-center gap-1.5">
-                      <Smartphone size={14} className="text-emerald-400" />
-                      <span className="text-xs font-bold text-white">Monitor en tu Celular</span>
+                    <div className="flex-1 overflow-y-auto p-2.5 divide-y divide-zinc-100 max-h-48 lg:max-h-none text-xs">
+                      {cartSummary.totalQty === 0 ? (
+                        <div className="py-12 text-center text-zinc-400 text-xs">
+                          <ShoppingCart size={22} className="mx-auto mb-2 text-zinc-300" />
+                          <span>Carrito vacío. Haz clic en cualquier plato o producto para agregarlo.</span>
+                        </div>
+                      ) : (
+                        currentMode.products.map((p) => {
+                          const q = cart[p.id] || 0;
+                          if (q === 0) return null;
+                          return (
+                            <div key={p.id} className="py-2 flex items-center justify-between gap-2">
+                              <div className="min-w-0 flex-1">
+                                <span className="font-semibold text-zinc-900 block truncate">{p.name}</span>
+                                <span className="text-[10px] text-zinc-400 font-mono">
+                                  ${p.priceUsd.toFixed(2)} c/u
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => removeFromCart(p.id)}
+                                  className="w-5 h-5 rounded bg-zinc-100 hover:bg-zinc-200 text-zinc-700 flex items-center justify-center font-bold text-xs cursor-pointer"
+                                >
+                                  -
+                                </button>
+                                <span className="w-5 text-center font-mono font-bold text-xs text-zinc-950">{q}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => addToCart(p)}
+                                  className="w-5 h-5 rounded bg-zinc-100 hover:bg-zinc-200 text-zinc-700 flex items-center justify-center font-bold text-xs cursor-pointer"
+                                >
+                                  +
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
                     </div>
-                    <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 font-bold">
-                      En Vivo
-                    </span>
+
+                    <div className="p-3 bg-zinc-50 border-t border-zinc-200/90 space-y-2">
+                      <div className="flex items-baseline justify-between text-xs">
+                        <span className="text-zinc-500 font-semibold">Total Dólares:</span>
+                        <strong className="font-mono font-extrabold text-base text-zinc-950">
+                          ${cartSummary.totalUsd.toFixed(2)}
+                        </strong>
+                      </div>
+                      <div className="flex items-baseline justify-between text-xs pt-1 border-t border-zinc-200/60">
+                        <span className="text-zinc-500 font-semibold">Total Bolívares (BCV):</span>
+                        <strong className="font-mono font-bold text-xs text-emerald-700">
+                          {formatBs(cartSummary.totalBs)}
+                        </strong>
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={cartSummary.totalQty === 0}
+                        onClick={handleSimulateCheckout}
+                        className="w-full py-2.5 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 active:scale-98"
+                      >
+                        <DollarSign size={13} className="text-emerald-400" />
+                        <span>Cobrar (${cartSummary.totalUsd.toFixed(2)}) →</span>
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* DASHBOARD 2: MESAS & SALÓN */}
+              {activeView === 'tables' && (
+                <motion.div
+                  key="dash-tables"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="flex-1 p-4 overflow-y-auto bg-zinc-100/50"
+                >
+                  <div className="flex items-center justify-between mb-3 bg-white p-3 rounded-xl border border-zinc-200/80">
+                    <div>
+                      <h4 className="font-bold text-sm text-zinc-950">Dashboard de Control de Salón y Mesas</h4>
+                      <p className="text-[11px] text-zinc-500">Visualiza mesas ocupadas, cuentas abiertas, meseros y rotación.</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-200">
+                        4 Cuentas Abiertas
+                      </span>
+                      <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-200">
+                        2 Mesas Libres
+                      </span>
+                    </div>
                   </div>
 
-                  <div>
-                    <span className="text-[10px] text-zinc-400 block">Ventas de Hoy ({currentMode.businessName})</span>
-                    <strong className="text-2xl font-mono font-extrabold text-white">$482.50</strong>
-                    <span className="text-[11px] text-emerald-400 font-mono block mt-0.5">
-                      ≈ {formatBs(482.5 * rate)}
-                    </span>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {BUSINESS_MODES.restaurant.tables.map((t) => (
+                      <div
+                        key={t.id}
+                        className={`p-3.5 rounded-2xl border transition-all ${
+                          t.status === 'ocupada'
+                            ? 'bg-amber-50/70 border-amber-200 shadow-2xs'
+                            : t.status === 'cuenta'
+                            ? 'bg-emerald-50/70 border-emerald-200 shadow-2xs'
+                            : 'bg-white border-zinc-200'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-bold text-xs text-zinc-950">{t.name}</span>
+                          <span
+                            className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold uppercase ${
+                              t.status === 'ocupada'
+                                ? 'bg-amber-200 text-amber-900'
+                                : t.status === 'cuenta'
+                                ? 'bg-emerald-200 text-emerald-900'
+                                : 'bg-zinc-100 text-zinc-500'
+                            }`}
+                          >
+                            {t.status}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-zinc-500">{t.zone}</div>
+                        {t.status !== 'libre' ? (
+                          <div className="mt-2 pt-2 border-t border-zinc-200/60">
+                            <div className="font-mono font-bold text-sm text-zinc-950">${t.totalUsd.toFixed(2)}</div>
+                            <div className="text-[10px] text-zinc-400 flex items-center justify-between mt-0.5">
+                              <span>{t.waiter}</span>
+                              <span>{t.mins}</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="mt-4 text-[10px] text-zinc-400 font-medium">Disponible para comensal</div>
+                        )}
+                      </div>
+                    ))}
                   </div>
+                </motion.div>
+              )}
 
-                  <div className="grid grid-cols-2 gap-2 pt-1 text-xs">
-                    <div className="p-2 rounded-xl bg-zinc-800/80 border border-zinc-700/60">
-                      <span className="text-[10px] text-zinc-400 block">Pago Móvil (Bs)</span>
-                      <strong className="font-mono text-white">$265.00</strong>
+              {/* DASHBOARD 3: MONITOR DEL DUEÑO EN CELULAR */}
+              {activeView === 'monitor' && (
+                <motion.div
+                  key="dash-monitor"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="flex-1 p-4 overflow-y-auto bg-zinc-950 text-white flex items-center justify-center"
+                >
+                  <div className="w-full max-w-sm rounded-3xl border border-zinc-800 bg-zinc-900 p-4 shadow-2xl space-y-3">
+                    <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+                      <div className="flex items-center gap-1.5">
+                        <Smartphone size={14} className="text-emerald-400" />
+                        <span className="text-xs font-bold text-white">Dashboard Móvil del Dueño</span>
+                      </div>
+                      <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 font-bold">
+                        En Vivo · Cloud
+                      </span>
                     </div>
-                    <div className="p-2 rounded-xl bg-zinc-800/80 border border-zinc-700/60">
-                      <span className="text-[10px] text-zinc-400 block">Efectivo ($ / Bs)</span>
-                      <strong className="font-mono text-white">$217.50</strong>
-                    </div>
-                  </div>
 
-                  <div className="p-2.5 rounded-xl bg-zinc-800/50 border border-zinc-800 text-[11px] text-zinc-300 space-y-1">
-                    <div className="flex justify-between">
-                      <span>Caja Principal:</span>
-                      <span className="text-emerald-400 font-semibold">Abierta sin descuadres</span>
+                    <div>
+                      <span className="text-[10px] text-zinc-400 block">Ventas de Hoy ({currentMode.businessName})</span>
+                      <strong className="text-2xl font-mono font-extrabold text-white">$482.50</strong>
+                      <span className="text-[11px] text-emerald-400 font-mono block mt-0.5">
+                        ≈ {formatBs(482.5 * rate)}
+                      </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Tickets emitidos:</span>
-                      <span className="font-mono text-white font-bold">29 ventas</span>
+
+                    <div className="grid grid-cols-2 gap-2 pt-1 text-xs">
+                      <div className="p-2 rounded-xl bg-zinc-800/80 border border-zinc-700/60">
+                        <span className="text-[10px] text-zinc-400 block">Pago Móvil (Bs)</span>
+                        <strong className="font-mono text-white">$265.00</strong>
+                      </div>
+                      <div className="p-2 rounded-xl bg-zinc-800/80 border border-zinc-700/60">
+                        <span className="text-[10px] text-zinc-400 block">Efectivo ($ / Bs)</span>
+                        <strong className="font-mono text-white">$217.50</strong>
+                      </div>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-zinc-800/50 border border-zinc-800 text-[11px] text-zinc-300 space-y-1">
+                      <div className="flex justify-between">
+                        <span>Caja Principal:</span>
+                        <span className="text-emerald-400 font-semibold">Abierta sin descuadres</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Tickets emitidos:</span>
+                        <span className="font-mono text-white font-bold">29 ventas</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
-            )}
+                </motion.div>
+              )}
+
+              {/* DASHBOARD 4: LIBROS FISCALES SENIAT & CIERRE Z */}
+              {activeView === 'fiscal' && (
+                <motion.div
+                  key="dash-fiscal"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="flex-1 p-4 overflow-y-auto bg-zinc-100/50"
+                >
+                  <div className="bg-white rounded-xl border border-zinc-200/90 shadow-2xs overflow-hidden">
+                    <div className="p-3 border-b border-zinc-200/80 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1 rounded-md bg-purple-100 text-purple-800">
+                          <BookOpen size={14} />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-xs text-zinc-950">Dashboard Fiscal & Libro de Ventas</h4>
+                          <span className="text-[10px] text-zinc-500">Impresora HKA80 (Z1B8049210) · Reporte Z #0142 al día</span>
+                        </div>
+                      </div>
+
+                      <div className="px-2.5 py-1 rounded-lg bg-zinc-950 text-white text-[11px] font-bold flex items-center gap-1">
+                        <Download size={12} />
+                        <span>Excel Forma 30</span>
+                      </div>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-[11px] font-mono">
+                        <thead className="bg-zinc-50 text-zinc-500 font-bold border-b border-zinc-200 text-[10px] uppercase">
+                          <tr>
+                            <th className="py-2 px-3">Factura</th>
+                            <th className="py-2 px-3">RIF / Cliente</th>
+                            <th className="py-2 px-3">Serial</th>
+                            <th className="py-2 px-3 text-right">Base 16%</th>
+                            <th className="py-2 px-3 text-right">IVA 16%</th>
+                            <th className="py-2 px-3 text-right">Total Bs</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-100">
+                          {[
+                            { num: '00048291', rif: 'J-40129381-2 · Inversiones Kroma', serial: 'Z1B8049210', usd: 28.5 },
+                            { num: '00048290', rif: 'V-19842104-3 · Carlos Mendoza', serial: 'Z1B8049210', usd: 19.0 },
+                            { num: '00048289', rif: 'V-00000000-0 · Consumidor Final', serial: 'Z1B8049210', usd: 42.0 },
+                            { num: '00048288', rif: 'J-31094821-0 · Alimentos Los Andes', serial: 'Z1B8049210', usd: 64.5 }
+                          ].map((row) => {
+                            const totalRowBs = row.usd * rate;
+                            const baseRowBs = totalRowBs / 1.16;
+                            const ivaRowBs = totalRowBs - baseRowBs;
+                            return (
+                              <tr key={row.num} className="hover:bg-zinc-50">
+                                <td className="py-2 px-3 font-bold text-zinc-950">#{row.num}</td>
+                                <td className="py-2 px-3 font-sans truncate max-w-[150px]">{row.rif}</td>
+                                <td className="py-2 px-3 text-zinc-500">{row.serial}</td>
+                                <td className="py-2 px-3 text-right">{formatBs(baseRowBs)}</td>
+                                <td className="py-2 px-3 text-right text-emerald-700">{formatBs(ivaRowBs)}</td>
+                                <td className="py-2 px-3 text-right font-bold text-zinc-950">{formatBs(totalRowBs)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+            </AnimatePresence>
 
             {/* MODAL SIMULADO DE COBRO Y EMISIÓN DE TICKET */}
             {checkoutModalOpen && (
               <div
                 className="absolute inset-0 z-30 bg-zinc-950/70 backdrop-blur-xs flex items-center justify-center p-3 animate-in fade-in duration-150"
-                onClick={() => {
-                  pauseAutoForUser();
-                  setManualModal(false);
-                }}
+                onClick={() => setCheckoutModalOpen(false)}
               >
                 <div
                   className="bg-white rounded-2xl p-4 max-w-sm w-full shadow-2xl space-y-3"
@@ -1081,10 +1052,7 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
                         </div>
                         <button
                           type="button"
-                          onClick={() => {
-                            pauseAutoForUser();
-                            setManualModal(false);
-                          }}
+                          onClick={() => setCheckoutModalOpen(false)}
                           className="w-5 h-5 rounded-full hover:bg-zinc-100 flex items-center justify-center text-zinc-400 cursor-pointer"
                         >
                           <X size={12} />
@@ -1150,7 +1118,6 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
                 }}
                 className="absolute z-50 pointer-events-none -ml-1 -mt-1 hidden sm:flex items-center gap-1.5"
               >
-                {/* Ripple al hacer clic */}
                 {currentCursor.clicking && (
                   <motion.div
                     key={`click-ripple-${currentBeat}`}
@@ -1184,38 +1151,30 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
         </div>
       </div>
 
-      {/* BARRA INFERIOR DE PASOS Y CONTROLES ESTILO NOTION */}
+      {/* INDICADORES DE VISTA INFERIORES CON ACCESO DIRECTO */}
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 px-2">
         <div className="flex flex-wrap items-center gap-1.5">
           {[
-            { beat: 0, label: 'Restaurante', icon: '🍔' },
-            { beat: 3, label: 'Heladería', icon: '🍦' },
-            { beat: 6, label: 'Retail & Minimarket', icon: '🛍️' },
-            { beat: 8, label: 'Cobro & Ticket', icon: '🧾' }
+            { id: 'pos', label: '1. Punto de Venta', icon: '🛒' },
+            { id: 'tables', label: '2. Mesas & Salón', icon: '🍽️' },
+            { id: 'monitor', label: '3. Monitor Móvil', icon: '📱' },
+            { id: 'fiscal', label: '4. Libros Fiscales', icon: '📑' }
           ].map((item) => {
-            const isActive =
-              (item.beat === 0 && (currentBeat >= 0 && currentBeat <= 2)) ||
-              (item.beat === 3 && (currentBeat >= 3 && currentBeat <= 4)) ||
-              (item.beat === 6 && (currentBeat >= 5 && currentBeat <= 7)) ||
-              (item.beat === 8 && currentBeat >= 8);
-
+            const isCurrent = activeView === item.id;
             return (
               <button
-                key={item.beat}
+                key={item.id}
                 type="button"
-                onClick={() => {
-                  pauseAutoForUser();
-                  setCurrentBeat(item.beat);
-                }}
+                onClick={() => handleSelectDashboard(item.id)}
                 className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-all flex items-center gap-1.5 border cursor-pointer ${
-                  isActive
+                  isCurrent
                     ? 'bg-zinc-950 text-white border-zinc-950 shadow-xs'
                     : 'bg-white text-zinc-500 border-zinc-200 hover:text-zinc-900 hover:bg-zinc-50'
                 }`}
               >
                 <span>{item.icon}</span>
                 <span>{item.label}</span>
-                {isActive && isAutoPlaying && (
+                {isCurrent && isAutoPlaying && (
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 )}
               </button>
@@ -1224,7 +1183,7 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
         </div>
 
         <div className="text-[11px] text-zinc-400 font-medium">
-          💡 Puedes hacer clic en cualquier producto o pestaña para interactuar manualmente
+          💡 Haz clic en cualquier pestaña para ver ese dashboard al instante
         </div>
       </div>
 
