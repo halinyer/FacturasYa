@@ -21,11 +21,23 @@ import {
   ToggleLeft,
   ToggleRight,
   Copy,
-  Check
+  Check,
+  Sliders,
+  Store,
+  Boxes,
+  Package
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { printIsolatedTicket } from '../../pos-core/utils/printIsolatedTicket';
 import { useData } from '../../pos-core/contexts/DataContext';
+import {
+  BUSINESS_PROFILES,
+  BUSINESS_PROFILES_LIST,
+  getActiveBusinessProfile,
+  setActiveBusinessProfile
+} from '../../pos-core/config/businessProfiles';
+import { HELADOS_LA_CASCADA_PRODUCTS } from '../../pos-core/data/heladosLaCascadaData';
+import { db } from '../../pos-core/services/dataService';
 import {
   completeFiscalVerification,
   formatRifSeniat,
@@ -240,6 +252,46 @@ export default function NotionSettingsModal({
       return true;
     }
   });
+
+  // Perfil de Negocio Modular (Notion-style)
+  const [activeProfile, setActiveProfileState] = useState(() => getActiveBusinessProfile(tenant));
+  const [profileFeatures, setProfileFeatures] = useState(() => getActiveBusinessProfile(tenant).features);
+
+  const handleSelectProfileInSettings = async (profileId) => {
+    const prof = BUSINESS_PROFILES[profileId] || BUSINESS_PROFILES.restaurant;
+    setActiveProfileState(prof);
+    setProfileFeatures(prof.features);
+    setActiveBusinessProfile(prof.id, prof.id === 'custom' ? prof.features : null);
+
+    if (tenant?.id && supabase) {
+      try {
+        await supabase.from('tenants').update({
+          business_type: prof.id,
+          features: prof.features,
+          updated_at: new Date().toISOString()
+        }).eq('id', tenant.id);
+      } catch (e) {}
+    }
+    showToast(`Perfil cambiado a: ${prof.name}`);
+  };
+
+  const handleToggleModuleInSettings = async (featureKey) => {
+    const next = { ...profileFeatures, [featureKey]: !profileFeatures[featureKey] };
+    setProfileFeatures(next);
+    setActiveProfileState((prev) => ({ ...prev, id: 'custom', features: next }));
+    setActiveBusinessProfile('custom', next);
+
+    if (tenant?.id && supabase) {
+      try {
+        await supabase.from('tenants').update({
+          business_type: 'custom',
+          features: next,
+          updated_at: new Date().toISOString()
+        }).eq('id', tenant.id);
+      } catch (e) {}
+    }
+    showToast(`Módulo actualizado`);
+  };
 
   // 3. Estado Reporte de Pago Móvil / Binance Pay
   const [saasConfig, setSaasConfig] = useState(null);
@@ -496,15 +548,15 @@ export default function NotionSettingsModal({
 
               <button
                 type="button"
-                onClick={() => setActiveTab('restaurant')}
+                onClick={() => setActiveTab('profile')}
                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-left transition-all ${
-                  activeTab === 'restaurant'
+                  activeTab === 'profile' || activeTab === 'restaurant'
                     ? 'bg-zinc-900 text-white shadow-xs font-bold'
                     : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/60'
                 }`}
               >
-                <Utensils size={15} />
-                <span className="flex-1">Modo Restaurante</span>
+                <Sliders size={15} />
+                <span className="flex-1">Perfil de Negocio & Módulos</span>
               </button>
 
               <div className="pt-3 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
@@ -1171,39 +1223,171 @@ export default function NotionSettingsModal({
               </div>
             )}
 
-            {/* TAB 3: MODO RESTAURANTE */}
-            {activeTab === 'restaurant' && (
+            {/* TAB 3: PERFIL DE NEGOCIO Y MÓDULOS MODULARES (ESTILO NOTION) */}
+            {(activeTab === 'profile' || activeTab === 'restaurant') && (
               <div className="space-y-5">
-                <div className="flex items-center justify-between p-4 rounded-xl border border-zinc-200 bg-zinc-50">
-                  <div className="space-y-0.5">
-                    <span className="block text-xs font-bold text-zinc-950">
-                      Mapa de Mesas, Cuentas Abiertas y Salón
-                    </span>
-                    <span className="block text-xs text-zinc-500">
-                      Habilita la asignación de pedidos a mesas físicas, comandas a cocina y cuentas pendientes.
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={toggleRestaurant}
-                    className="p-1 text-zinc-900 transition-transform active:scale-95"
-                    title={restaurantMode ? 'Desactivar Modo Restaurante' : 'Activar Modo Restaurante'}
-                  >
-                    {restaurantMode ? (
-                      <ToggleRight size={36} className="text-emerald-600" />
-                    ) : (
-                      <ToggleLeft size={36} className="text-zinc-400" />
-                    )}
-                  </button>
+                <div className="space-y-1">
+                  <h3 className="text-sm font-bold text-zinc-950">
+                    Giro y Operativa del Negocio
+                  </h3>
+                  <p className="text-xs text-zinc-500">
+                    Adapta la interfaz de FacturasYa para que coincida exactamente con las necesidades de tu establecimiento:
+                  </p>
                 </div>
 
-                <div className="p-3.5 bg-zinc-100 rounded-xl text-xs text-zinc-600 space-y-1">
-                  <p>
-                    <strong>Estado actual:</strong> {restaurantMode ? '🟢 Mesas y Salón Habilitados' : '⚪ Modo Caja Rápida (Mostrador)'}
-                  </p>
-                  <p className="text-[11px] text-zinc-500">
-                    Al activar el modo restaurante, el sidebar mostrará la pestaña "Mesas & Salón" y podrás crear comandas para cocina o barra.
-                  </p>
+                {/* Tarjetas de Selección de Perfil */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {BUSINESS_PROFILES_LIST.filter((p) => p.id !== 'custom').map((p) => {
+                    const isSelected = activeProfile.id === p.id;
+
+                    return (
+                      <div
+                        key={p.id}
+                        onClick={() => handleSelectProfileInSettings(p.id)}
+                        className={`p-3.5 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                          isSelected
+                            ? 'border-zinc-950 bg-zinc-50/80 shadow-xs ring-1 ring-zinc-950/20'
+                            : 'border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50/50'
+                        }`}
+                      >
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xl">{p.icon}</span>
+                            <span className={`text-[9px] font-extrabold px-1.5 py-0.2 rounded-full ${
+                              isSelected ? 'bg-zinc-950 text-white' : 'bg-zinc-100 text-zinc-600'
+                            }`}>
+                              {p.badge}
+                            </span>
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-xs text-zinc-950">{p.name}</h4>
+                            <p className="text-[10px] text-zinc-500 mt-0.5 line-clamp-3 leading-tight">{p.description}</p>
+                          </div>
+                        </div>
+
+                        <div className="pt-2 mt-2 border-t border-zinc-100 flex items-center justify-between text-[10px] font-bold">
+                          <span className={isSelected ? 'text-zinc-950' : 'text-zinc-400'}>
+                            {isSelected ? '✓ Activo' : 'Activar'}
+                          </span>
+                          <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+                            isSelected ? 'border-zinc-950 bg-zinc-950 text-white' : 'border-zinc-300 bg-white'
+                          }`}>
+                            {isSelected && <div className="w-1 h-1 rounded-full bg-white" />}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Precarga de Catálogo Oficial de Helados */}
+                {activeProfile.id === 'ice_cream' && (
+                  <div className="p-3.5 bg-amber-50 rounded-xl border border-amber-200/90 flex items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">🍨</span>
+                      <div>
+                        <span className="font-bold text-amber-950 block">Catálogo Oficial Helados La Cascada</span>
+                        <span className="text-[10px] text-amber-800/80 block">60+ helados con 4 escalas de precios listas para facturar.</span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm('¿Precargar el catálogo oficial de Helados La Cascada con sus 4 precios (Detal, Mayor, Congelador, Microdistribuidor)?')) {
+                          db.rawSet('pos_products', HELADOS_LA_CASCADA_PRODUCTS);
+                          try { localStorage.setItem('pos_products', JSON.stringify(HELADOS_LA_CASCADA_PRODUCTS)); } catch (e) {}
+                          showToast('¡Catálogo de Helados La Cascada cargado exitosamente!');
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-amber-900 text-white text-[11px] font-bold hover:bg-amber-950 transition-colors shrink-0 cursor-pointer"
+                    >
+                      Cargar Catálogo
+                    </button>
+                  </div>
+                )}
+
+                {/* Control Fino de Módulos */}
+                <div className="border border-zinc-200 rounded-xl p-3.5 bg-zinc-50/50 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-zinc-950">Módulos de Interfaz Habilitados</h4>
+                    <span className="text-[10px] text-zinc-400 font-semibold">
+                      {activeProfile.id === 'custom' ? 'Personalizado' : 'Preset activo'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    <div className="flex items-center justify-between p-2.5 bg-white rounded-lg border border-zinc-200/80">
+                      <div>
+                        <span className="font-bold text-zinc-900 block text-[11px]">Mesas & Salón</span>
+                        <span className="text-[10px] text-zinc-400">Mostrar pestaña y comensales</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleModuleInSettings('hasTables')}
+                        className="cursor-pointer"
+                      >
+                        {profileFeatures.hasTables ? (
+                          <ToggleRight size={24} className="text-emerald-600" />
+                        ) : (
+                          <ToggleLeft size={24} className="text-zinc-400" />
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between p-2.5 bg-white rounded-lg border border-zinc-200/80">
+                      <div>
+                        <span className="font-bold text-zinc-900 block text-[11px]">Comandas a Cocina</span>
+                        <span className="text-[10px] text-zinc-400">Tickets para barra o fogones</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleModuleInSettings('hasKitchenTickets')}
+                        className="cursor-pointer"
+                      >
+                        {profileFeatures.hasKitchenTickets ? (
+                          <ToggleRight size={24} className="text-emerald-600" />
+                        ) : (
+                          <ToggleLeft size={24} className="text-zinc-400" />
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between p-2.5 bg-white rounded-lg border border-zinc-200/80">
+                      <div>
+                        <span className="font-bold text-zinc-900 block text-[11px]">Escalas de Precios</span>
+                        <span className="text-[10px] text-zinc-400">Detal, Mayor 6+, Congelador</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleModuleInSettings('hasMultiPricing')}
+                        className="cursor-pointer"
+                      >
+                        {profileFeatures.hasMultiPricing ? (
+                          <ToggleRight size={24} className="text-emerald-600" />
+                        ) : (
+                          <ToggleLeft size={24} className="text-zinc-400" />
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between p-2.5 bg-white rounded-lg border border-zinc-200/80">
+                      <div>
+                        <span className="font-bold text-zinc-900 block text-[11px]">Lector de Barras</span>
+                        <span className="text-[10px] text-zinc-400">Búsqueda rápida con escáner</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleModuleInSettings('hasBarcode')}
+                        className="cursor-pointer"
+                      >
+                        {profileFeatures.hasBarcode ? (
+                          <ToggleRight size={24} className="text-emerald-600" />
+                        ) : (
+                          <ToggleLeft size={24} className="text-zinc-400" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

@@ -668,6 +668,11 @@ export async function pushLocalSnapshotToCloud(snapshotData) {
       inventory: snapshotData.inventory || [],
       inventory_logs: (snapshotData.inventoryLogs || []).slice(0, 200),
       z_reports: (snapshotData.zReports || []).slice(0, 200),
+      settings: {
+        businessType: tenant.business_type || (typeof window !== 'undefined' ? localStorage.getItem('pos_business_profile') : null) || 'restaurant',
+        features: typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('pos_business_features') || '{}') : {},
+        ...(snapshotData.settings || {})
+      },
       exchange_rate: Number(snapshotData.exchangeRate) || 876.80,
       updated_at: new Date().toISOString()
     });

@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useData } from '../../pos-core/contexts/DataContext';
 import { compressImage } from '../../pos-core/utils/imageUtils';
+import { getActiveBusinessProfile } from '../../pos-core/config/businessProfiles';
 
 export default function ProductsView() {
   const data = useData();
@@ -40,6 +41,18 @@ export default function ProductsView() {
   const [description, setDescription] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [isCompressingImg, setIsCompressingImg] = useState(false);
+
+  // Escalas de Precios / Mayor (Heladería & Comercio)
+  const [businessProfile, setBusinessProfile] = useState(() => getActiveBusinessProfile());
+  const [priceMayor, setPriceMayor] = useState('');
+  const [priceCongelador, setPriceCongelador] = useState('');
+  const [priceMicrodistribuidor, setPriceMicrodistribuidor] = useState('');
+
+  React.useEffect(() => {
+    const onProfileChanged = () => setBusinessProfile(getActiveBusinessProfile());
+    window.addEventListener('business-profile-changed', onProfileChanged);
+    return () => window.removeEventListener('business-profile-changed', onProfileChanged);
+  }, []);
 
   // Categorías únicas
   const categories = useMemo(() => {
@@ -69,6 +82,9 @@ export default function ProductsView() {
     setName('');
     setCategory('General');
     setPriceUsd('');
+    setPriceMayor('');
+    setPriceCongelador('');
+    setPriceMicrodistribuidor('');
     setSku('PRD-' + Math.floor(100 + Math.random() * 900));
     setIsExempt(false);
     setDescription('');
@@ -80,7 +96,10 @@ export default function ProductsView() {
     setEditingProduct(p);
     setName(p.name || '');
     setCategory(p.category || 'General');
-    setPriceUsd(String(p.priceUsd || p.price || ''));
+    setPriceUsd(String(p.priceDetal || p.priceUsd || p.price || ''));
+    setPriceMayor(p.priceMayor != null ? String(p.priceMayor) : '');
+    setPriceCongelador(p.priceCongelador != null ? String(p.priceCongelador) : '');
+    setPriceMicrodistribuidor(p.priceMicrodistribuidor != null ? String(p.priceMicrodistribuidor) : '');
     setSku(p.sku || '');
     setIsExempt(Boolean(p.isExempt));
     setDescription(p.description || '');
@@ -108,6 +127,10 @@ export default function ProductsView() {
     if (!name.trim() || !priceUsd) return;
 
     const numericPrice = Number(priceUsd) || 0;
+    const pMayor = priceMayor !== '' ? Number(priceMayor) : Number((numericPrice * 0.8).toFixed(2));
+    const pCong = priceCongelador !== '' ? Number(priceCongelador) : Number((numericPrice * 0.72).toFixed(2));
+    const pMicro = priceMicrodistribuidor !== '' ? Number(priceMicrodistribuidor) : Number((numericPrice * 0.65).toFixed(2));
+
     const prodData = {
       id: editingProduct?.id || 'prod_' + Date.now(),
       name: name.trim(),
@@ -115,6 +138,10 @@ export default function ProductsView() {
       priceUsd: numericPrice,
       priceUSD: numericPrice,
       price: numericPrice,
+      priceDetal: numericPrice,
+      priceMayor: pMayor,
+      priceCongelador: pCong,
+      priceMicrodistribuidor: pMicro,
       sku: sku.trim(),
       isExempt: Boolean(isExempt),
       taxRate: isExempt ? 0 : 0.16,
@@ -287,6 +314,15 @@ export default function ProductsView() {
                         <span className="text-[11px] text-zinc-400 font-mono block leading-tight">
                           Bs. {priceBs.toFixed(2)}
                         </span>
+                        {businessProfile?.features?.hasMultiPricing && (
+                          <div className="flex items-center gap-1.5 text-[10px] font-mono mt-1 flex-wrap">
+                            <span className="text-emerald-700 font-bold" title="Mayorista (6+)">M: ${(Number(p.priceMayor || price * 0.8)).toFixed(2)}</span>
+                            <span>·</span>
+                            <span className="text-amber-700 font-bold" title="Cliente Congelador">C: ${(Number(p.priceCongelador || price * 0.72)).toFixed(2)}</span>
+                            <span>·</span>
+                            <span className="text-purple-700 font-bold" title="Microdistribuidor">D: ${(Number(p.priceMicrodistribuidor || price * 0.65)).toFixed(2)}</span>
+                          </div>
+                        )}
                       </div>
 
                       <button
@@ -354,8 +390,13 @@ export default function ProductsView() {
                             {p.category || 'General'}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-right font-bold text-zinc-950 font-mono text-sm">
-                          ${price.toFixed(2)}
+                        <td className="py-3 px-4 text-right">
+                          <div className="font-bold text-zinc-950 font-mono text-sm">${price.toFixed(2)}</div>
+                          {businessProfile?.features?.hasMultiPricing && (
+                            <div className="text-[10px] text-zinc-400 font-mono">
+                              M: ${(Number(p.priceMayor || price * 0.8)).toFixed(2)} | C: ${(Number(p.priceCongelador || price * 0.72)).toFixed(2)}
+                            </div>
+                          )}
                         </td>
                         <td className="py-3 px-4 text-right font-mono text-zinc-500">
                           Bs. {priceBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -506,6 +547,51 @@ export default function ProductsView() {
                   </div>
                 </div>
               </div>
+
+              {/* ESCALAS DE PRECIOS POR VOLUMEN / MAYORISTA */}
+              {businessProfile?.features?.hasMultiPricing && (
+                <div className="p-3 bg-amber-50/80 rounded-xl border border-amber-200/90 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-amber-950 text-xs">Escalas de Precios / Mayor</span>
+                    <span className="text-[10px] text-amber-700">Precios especiales automáticos</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="text-[10px] font-bold text-emerald-800 block mb-0.5">1. Mayor (6+)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder={priceUsd ? (Number(priceUsd) * 0.8).toFixed(2) : '0.00'}
+                        value={priceMayor}
+                        onChange={(e) => setPriceMayor(e.target.value)}
+                        className="w-full px-2 py-1.5 rounded-lg border border-emerald-200 text-xs font-mono font-bold bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-amber-800 block mb-0.5">2. Congelador</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder={priceUsd ? (Number(priceUsd) * 0.72).toFixed(2) : '0.00'}
+                        value={priceCongelador}
+                        onChange={(e) => setPriceCongelador(e.target.value)}
+                        className="w-full px-2 py-1.5 rounded-lg border border-amber-200 text-xs font-mono font-bold bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-purple-800 block mb-0.5">3. Microdistrib.</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder={priceUsd ? (Number(priceUsd) * 0.65).toFixed(2) : '0.00'}
+                        value={priceMicrodistribuidor}
+                        onChange={(e) => setPriceMicrodistribuidor(e.target.value)}
+                        className="w-full px-2 py-1.5 rounded-lg border border-purple-200 text-xs font-mono font-bold bg-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="p-3 bg-zinc-50 rounded-xl border border-zinc-200 flex items-center justify-between">
                 <div>

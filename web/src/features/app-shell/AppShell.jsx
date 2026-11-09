@@ -33,9 +33,9 @@ import { setCurrentTenant, getCurrentTenant, verifyLicenseWithBackend, evaluateS
 import { supabase } from '../../lib/supabase';
 
 
-// Módulos operativos completos de Happy Days
+// Módulos operativos con Carga Perezosa (Zero Overhead de Memoria)
 import WebPosView from '../pos/WebPosView';
-import TablesView from '../tables/TablesView';
+const TablesView = React.lazy(() => import('../tables/TablesView'));
 import SalesDashboardView from '../dashboard/SalesDashboardView';
 import FiscalBooksView from '../fiscal/FiscalBooksView';
 import CashCloseView from '../cash-close/CashCloseView';
@@ -43,15 +43,10 @@ import InventoryView from '../inventory/InventoryView';
 import ProductsView from '../products/ProductsView';
 import ClientsView from '../clients/ClientsView';
 
-
-
-
-
-
-
-
 import TopBarRate from './TopBarRate';
 import NotionSettingsModal from '../settings/NotionSettingsModal';
+import BusinessProfileSelectorModal from '../settings/BusinessProfileSelectorModal';
+import { getActiveBusinessProfile } from '@pos/config/businessProfiles';
 import GlobalComandaNotifier from '@pos/components/GlobalComandaNotifier';
 import { fetchMyTenant, fetchTenantSnapshot, fetchMyPayments, fetchSaasConfig } from '../monitor/api';
 
@@ -99,6 +94,38 @@ function AppShellInner() {
   const [settingsInitialTab, setSettingsInitialTab] = useState('fiscal');
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [installingUpdate, setInstallingUpdate] = useState(false);
+
+  // Perfil de Negocio Modular (Heladería, Restaurante, Retail, etc.)
+  const [businessProfile, setBusinessProfile] = useState(() => getActiveBusinessProfile(tenant));
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (tenant) {
+      setBusinessProfile(getActiveBusinessProfile(tenant));
+    }
+  }, [tenant]);
+
+  useEffect(() => {
+    const handleProfileChange = () => {
+      const updated = getActiveBusinessProfile(tenant);
+      setBusinessProfile(updated);
+      if (!updated.features.hasTables && activeTab === 'tables') {
+        setActiveTab('pos');
+      }
+    };
+    window.addEventListener('facturasya_profile_changed', handleProfileChange);
+    return () => window.removeEventListener('facturasya_profile_changed', handleProfileChange);
+  }, [tenant, activeTab]);
+
+  // Si el usuario es nuevo y aún no tiene guardado un perfil, mostrar el asistente de inicio
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !loading && tenant) {
+      const hasChosen = localStorage.getItem('pos_business_profile');
+      if (!hasChosen && !tenant.business_type) {
+        setIsProfileModalOpen(true);
+      }
+    }
+  }, [loading, tenant]);
 
   const openSubscriptionSettings = () => {
     setSettingsInitialTab('subscription');
@@ -259,32 +286,43 @@ function AppShellInner() {
     return evaluateSubscriptionStatus(tenant, tenantPayments);
   }, [tenant, tenantPayments]);
 
-  // Lista de navegación 100% OPERATIVA (Cero duplicados de configuración o pago en el sidebar)
-  const navSections = [
-    {
-      title: 'Operaciones',
-      items: [
-        { id: 'pos', label: 'Punto de Venta', icon: ShoppingCart, badge: 'Caja' },
-        { id: 'tables', label: 'Mesas & Salón', icon: Utensils, badge: 'Salas' }
-      ]
-    },
-    {
-      title: 'Catálogo & Insumos',
-      items: [
-        { id: 'products', label: 'Menú & Productos', icon: Package },
-        { id: 'inventory', label: 'Inventario & Stock', icon: Boxes },
-        { id: 'clients', label: 'Clientes & Crédito', icon: Users }
-      ]
-    },
-    {
-      title: 'Administración & Finanzas',
-      items: [
-        { id: 'dashboard', label: 'Dashboard de Ventas', icon: LayoutDashboard },
-        { id: 'fiscal', label: 'Libros de Compra y Venta', icon: BookOpen, badge: 'Fiscal' },
-        { id: 'cash-close', label: 'Cierre de Caja', icon: Calculator, badge: 'Arqueo' }
-      ]
+  // Lista de navegación 100% OPERATIVA y Adaptable al Perfil (Heladería, Restaurante, Retail)
+  const navSections = useMemo(() => {
+    const operationsItems = [
+      { id: 'pos', label: 'Punto de Venta', icon: ShoppingCart, badge: 'Caja' }
+    ];
+
+    if (businessProfile.features.hasTables) {
+      operationsItems.push({ id: 'tables', label: 'Mesas & Salón', icon: Utensils, badge: 'Salas' });
     }
-  ];
+
+    return [
+      {
+        title: 'Operaciones',
+        items: operationsItems
+      },
+      {
+        title: 'Catálogo & Insumos',
+        items: [
+          {
+            id: 'products',
+            label: businessProfile.features.hasMultiPricing ? 'Catálogo & Precios' : 'Menú & Productos',
+            icon: Package
+          },
+          { id: 'inventory', label: 'Inventario & Stock', icon: Boxes },
+          { id: 'clients', label: 'Clientes & Crédito', icon: Users }
+        ]
+      },
+      {
+        title: 'Administración & Finanzas',
+        items: [
+          { id: 'dashboard', label: 'Dashboard de Ventas', icon: LayoutDashboard },
+          { id: 'fiscal', label: 'Libros de Compra y Venta', icon: BookOpen, badge: 'Fiscal' },
+          { id: 'cash-close', label: 'Cierre de Caja', icon: Calculator, badge: 'Arqueo' }
+        ]
+      }
+    ];
+  }, [businessProfile]);
 
   const allNavItems = useMemo(() => navSections.flatMap((s) => s.items), []);
   const currentNavItem = allNavItems.find((n) => n.id === activeTab) || allNavItems[0];
@@ -378,13 +416,23 @@ function AppShellInner() {
                 FY
               </div>
               <div className="min-w-0">
-                <h2 className="text-xs font-bold text-white tracking-tight truncate">
-                  {tenant?.name || 'Mi Negocio'}
-                </h2>
+                <div className="flex items-center gap-1.5">
+                  <h2 className="text-xs font-bold text-white tracking-tight truncate">
+                    {tenant?.name || 'Mi Negocio'}
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => setIsProfileModalOpen(true)}
+                    className="p-0.5 rounded hover:bg-zinc-800 text-xs transition-transform active:scale-95 cursor-pointer shrink-0"
+                    title={`Perfil: ${businessProfile.name}. Clic para cambiar giro comercial.`}
+                  >
+                    <span>{businessProfile.icon}</span>
+                  </button>
+                </div>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                   <span className="text-[10px] text-zinc-400 font-semibold truncate">
-                    {subStatus?.daysRemaining || 14} días de acceso
+                    {businessProfile.shortName} · {subStatus?.daysRemaining || 14}d
                   </span>
                 </div>
               </div>
@@ -779,10 +827,12 @@ function AppShellInner() {
                   onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
                 />
               )}
-              {activeTab === 'tables' && (
-                <TablesView
-                  onGoToPos={() => setActiveTab('pos')}
-                />
+              {activeTab === 'tables' && businessProfile.features.hasTables && (
+                <React.Suspense fallback={<div className="min-h-full flex items-center justify-center text-xs text-zinc-500 font-semibold">Cargando Mesas & Salón...</div>}>
+                  <TablesView
+                    onGoToPos={() => setActiveTab('pos')}
+                  />
+                </React.Suspense>
               )}
               {activeTab === 'dashboard' && <SalesDashboardView />}
               {activeTab === 'fiscal' && <FiscalBooksView />}
@@ -885,6 +935,19 @@ function AppShellInner() {
           </div>
         </div>
       )}
+
+      {/* MODAL ASISTENTE DE PERFIL DE NEGOCIO (ESTILO NOTION) */}
+      <BusinessProfileSelectorModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        tenant={tenant}
+        onProfileSaved={(newProf) => {
+          setBusinessProfile(newProf);
+          if (newProf?.features?.hasTables === false && activeTab === 'tables') {
+            setActiveTab('pos');
+          }
+        }}
+      />
 
     </div>
   );

@@ -2,6 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { Search, Plus, User, Check, X, Building2, MapPin, Phone, Hash } from 'lucide-react';
 import { useData } from '../../pos-core/contexts/DataContext';
 import { supabase } from '../../lib/supabase';
+import { getActiveBusinessProfile } from '../../pos-core/config/businessProfiles';
+import { MODALIDADES_LIST, MODALIDADES } from '../../pos-core/utils/pricingEngine';
 
 export default function ClientSelectorModal({
   isOpen,
@@ -17,6 +19,7 @@ export default function ClientSelectorModal({
 
   const [activeTab, setActiveTab] = useState('search'); // 'search' | 'create'
   const [searchQuery, setSearchQuery] = useState('');
+  const businessProfile = useMemo(() => getActiveBusinessProfile(), []);
 
   // Formulario nuevo cliente
   const [docPrefix, setDocPrefix] = useState('V');
@@ -24,6 +27,7 @@ export default function ClientSelectorModal({
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
+  const [clientType, setClientType] = useState('detal'); // 'detal' | 'mayor' | 'congelador' | 'microdistribuidor'
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
 
@@ -76,7 +80,9 @@ export default function ClientSelectorModal({
         cedula: fullRif,
         address: address.trim() || 'Ciudad',
         phone: phone.trim() || '',
-        type: 'normal',
+        type: clientType,
+        clientType: clientType,
+        tipoCliente: clientType,
         created_at: new Date().toISOString()
       };
 
@@ -224,7 +230,10 @@ export default function ClientSelectorModal({
                             rif: rif,
                             cedula: rif,
                             address: c.address || 'Ciudad',
-                            phone: c.phone || ''
+                            phone: c.phone || '',
+                            type: c.type || c.clientType || 'normal',
+                            clientType: c.type || c.clientType || 'normal',
+                            tipoCliente: c.type || c.clientType || 'normal'
                           });
                           onClose();
                         }}
@@ -235,11 +244,16 @@ export default function ClientSelectorModal({
                         }`}
                       >
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-extrabold text-xs text-zinc-900 truncate">{c.name}</span>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-extrabold text-xs text-zinc-950 truncate">{c.name}</span>
                             <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-zinc-100 text-zinc-600">
                               {rif}
                             </span>
+                            {c.type && c.type !== 'normal' && c.type !== 'detal' && MODALIDADES[c.type] && (
+                              <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-200">
+                                {MODALIDADES[c.type]?.name || c.type}
+                              </span>
+                            )}
                           </div>
                           {c.address && (
                             <p className="text-[10px] text-zinc-400 truncate mt-0.5">{c.address}</p>
@@ -336,6 +350,26 @@ export default function ClientSelectorModal({
                   className="w-full px-3 py-1.5 rounded-xl border border-zinc-300 text-xs font-mono"
                 />
               </div>
+
+              {/* TIPO DE CLIENTE / TARIFA PREFERENCIAL (SI MULTI-PRECIOS ACTIVO) */}
+              {businessProfile?.features?.hasMultiPricing && (
+                <div>
+                  <label className="text-[11px] font-bold text-zinc-700 block mb-1">
+                    Tarifa de Venta / Modalidad Asignada:
+                  </label>
+                  <select
+                    value={clientType}
+                    onChange={(e) => setClientType(e.target.value)}
+                    className="w-full px-3 py-1.5 rounded-xl border border-zinc-300 text-xs font-bold bg-white"
+                  >
+                    {MODALIDADES_LIST.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.icon} {m.name} ({m.description})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* BOTÓN REGISTRAR Y USAR */}
               <div className="pt-2">

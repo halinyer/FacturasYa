@@ -46,6 +46,13 @@ import TopBarRate from '../app-shell/TopBarRate';
 import { VZLA_BANKS, BankLogo, findBank } from '../../pos-core/utils/venezuelaBanks';
 import { printIsolatedTicket } from '../../pos-core/utils/printIsolatedTicket';
 import { getLocalTerminalConfig } from '../monitor/api';
+import {
+  MODALIDADES,
+  MODALIDADES_LIST,
+  getProductPriceByModalidad,
+  getModalidadForClient
+} from '../../pos-core/utils/pricingEngine';
+import { getActiveBusinessProfile } from '../../pos-core/config/businessProfiles';
 
 // Formateador legible para métodos de pago venezolanos
 export function formatPaymentMethodLabel(method) {
@@ -136,6 +143,22 @@ export default function WebPosView({
   const [cart, setCart] = useState([]);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
 
+  // Perfil de negocio y modalidad activa de precios (Detal, Mayor, Congelador, Microdistribuidor)
+  const [businessProfile, setBusinessProfile] = useState(() => getActiveBusinessProfile());
+  const [modalidad, setModalidad] = useState(MODALIDADES.DETAL);
+
+  useEffect(() => {
+    const onProfileChanged = () => {
+      const p = getActiveBusinessProfile();
+      setBusinessProfile(p);
+      if (!p?.features?.hasMultiPricing) {
+        setModalidad(MODALIDADES.DETAL);
+      }
+    };
+    window.addEventListener('business-profile-changed', onProfileChanged);
+    return () => window.removeEventListener('business-profile-changed', onProfileChanged);
+  }, []);
+
   // Cliente Receptor Fiscal (Consumidor Final por defecto o cliente registrado con RIF)
   const [activeClient, setActiveClient] = useState({
     id: 'generic',
@@ -144,6 +167,35 @@ export default function WebPosView({
     cedula: 'V-00000000-0',
     address: 'Mostrador / Local'
   });
+
+  const handleModalidadChange = (newMod) => {
+    setModalidad(newMod);
+    if (!businessProfile?.features?.hasMultiPricing) return;
+
+    setCart((prevCart) =>
+      prevCart.map((item) => {
+        const catalogProd = products.find((p) => p.id === item.id) || item;
+        const newPrice = getProductPriceByModalidad(catalogProd, newMod);
+        return {
+          ...item,
+          price: newPrice,
+          priceUsd: newPrice,
+          priceUSD: newPrice,
+          modalidad: newMod
+        };
+      })
+    );
+  };
+
+  const handleSelectClient = (client) => {
+    setActiveClient(client);
+    if (businessProfile?.features?.hasMultiPricing) {
+      const clientMod = getModalidadForClient(client);
+      if (clientMod && clientMod !== modalidad) {
+        handleModalidadChange(clientMod);
+      }
+    }
+  };
   const [orderTable, setOrderTable] = useState('Barra / Mostrador');
   const [orderNotes, setOrderNotes] = useState('');
   const [loadedTableOrder, setLoadedTableOrder] = useState(null);
@@ -298,12 +350,36 @@ export default function WebPosView({
 
   // Manejo del carrito
   const addToCart = (product) => {
+    const appliedPrice = businessProfile?.features?.hasMultiPricing
+      ? getProductPriceByModalidad(product, modalidad)
+      : Number(product.priceUsd || product.price || 0);
+
     setCart((prev) => {
       const existing = prev.find((i) => i.id === product.id);
       if (existing) {
-        return prev.map((i) => (i.id === product.id ? { ...i, qty: i.qty + 1 } : i));
+        return prev.map((i) =>
+          i.id === product.id
+            ? {
+                ...i,
+                qty: i.qty + 1,
+                price: appliedPrice,
+                priceUsd: appliedPrice,
+                priceUSD: appliedPrice
+              }
+            : i
+        );
       }
-      return [...prev, { ...product, qty: 1 }];
+      return [
+        ...prev,
+        {
+          ...product,
+          price: appliedPrice,
+          priceUsd: appliedPrice,
+          priceUSD: appliedPrice,
+          modalidad: businessProfile?.features?.hasMultiPricing ? modalidad : undefined,
+          qty: 1
+        }
+      ];
     });
   };
 
@@ -397,6 +473,8 @@ export default function WebPosView({
         invoiceNumber,
         docType,
         isFiscalInvoice: docType === 'fiscal',
+        businessType: businessProfile?.id || 'restaurant',
+        modalidad: businessProfile?.features?.hasMultiPricing ? modalidad : undefined,
         terminalId: localTerm.terminalId || 'CAJA-01',
         terminalName: localTerm.terminalName || 'Caja Principal',
         date: now.toISOString(),
@@ -419,6 +497,7 @@ export default function WebPosView({
             priceUsd: unitPriceUsd,
             priceUSD: unitPriceUsd,
             priceBs: Number((unitPriceUsd * bcvRate).toFixed(2)),
+            modalidad: i.modalidad || (businessProfile?.features?.hasMultiPricing ? modalidad : undefined),
             isExempt: Boolean(i.isExempt),
             totalUsd: Number((unitPriceUsd * qty).toFixed(2)),
             totalUSD: Number((unitPriceUsd * qty).toFixed(2)),
@@ -679,6 +758,43 @@ export default function WebPosView({
         </div>
       </div>
 
+      {/* 3.1 ESCALA DE PRECIOS / MODALIDAD DE VENTA (HELADERÍA / COMERCIO) */}
+      {businessProfile?.features?.hasMultiPricing && (
+        <div className="px-3.5 py-1.5 bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-200/80 shrink-0 flex items-center justify-between gap-1.5">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-sm shrink-0">{MODALIDADES[modalidad]?.icon || '🏷️'}</span>
+            <div className="truncate">
+              <span className="text-[11px] font-extrabold text-amber-950 block leading-tight truncate">
+                {MODALIDADES[modalidad]?.name}
+              </span>
+              <span className="text-[9px] text-amber-700 font-medium block truncate">
+                {MODALIDADES[modalidad]?.description}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            {MODALIDADES_LIST.map((m) => {
+              const isSelected = modalidad === m.id;
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => handleModalidadChange(m.id)}
+                  className={`px-1.5 py-0.5 rounded-md text-[10px] font-extrabold cursor-pointer transition-all ${
+                    isSelected
+                      ? 'bg-amber-600 text-white shadow-2xs font-black'
+                      : 'bg-white text-amber-900 border border-amber-200 hover:bg-amber-100/60'
+                  }`}
+                  title={`${m.name}: ${m.description}`}
+                >
+                  {m.shortLabel}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* 4. LISTADO DE PRODUCTOS EN COMANDA:
              - CADA PRODUCTO TIENE SU FOTOGRAFÍA 1:1
              - OCUPA TODO EL ALTO CON SCROLL FLUIDO INVISIBLE (.no-scrollbar) */}
@@ -733,8 +849,13 @@ export default function WebPosView({
                   >
                     {item.name}
                   </h4>
-                  <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 font-mono mt-0.5">
+                  <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 font-mono mt-0.5 flex-wrap">
                     <span className="font-semibold text-zinc-600">${itemPrice.toFixed(2)} c/u</span>
+                    {businessProfile?.features?.hasMultiPricing && item.modalidad && item.modalidad !== 'detal' && (
+                      <span className="px-1 py-0.2 rounded text-[9px] font-extrabold bg-amber-100 text-amber-800 border border-amber-200">
+                        {MODALIDADES[item.modalidad]?.badge || item.modalidad.toUpperCase()}
+                      </span>
+                    )}
                     <span>·</span>
                     <span>Bs. {lineTotalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
@@ -859,14 +980,16 @@ export default function WebPosView({
 
       {/* 7. BOTONES DE ACCIÓN FOOTER */}
       <div className="p-3 bg-white border-t border-zinc-200/80 shrink-0 flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setIsKitchenModalOpen(true)}
-          className="p-2.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 transition-all cursor-pointer shadow-2xs shrink-0"
-          title="Mandar ticket a cocina"
-        >
-          <ChefHat size={17} className="text-amber-600" />
-        </button>
+        {(businessProfile?.features?.hasTables || businessProfile?.features?.hasKitchenTickets) && (
+          <button
+            type="button"
+            onClick={() => setIsKitchenModalOpen(true)}
+            className="p-2.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 transition-all cursor-pointer shadow-2xs shrink-0"
+            title="Mandar ticket a cocina"
+          >
+            <ChefHat size={17} className="text-amber-600" />
+          </button>
+        )}
 
         <button
           type="button"
@@ -992,6 +1115,41 @@ export default function WebPosView({
           </div>
         </div>
 
+        {/* MODALIDAD DE TARIFA / ESCALA DE PRECIOS ACTIVA (HELADERÍA / COMERCIO) */}
+        {businessProfile?.features?.hasMultiPricing && (
+          <div className="bg-amber-50/70 border-b border-amber-200/80 px-4 py-2 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar shrink-0">
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="text-xs font-black text-amber-950 flex items-center gap-1">
+                <span>{MODALIDADES[modalidad]?.icon}</span>
+                <span>{MODALIDADES[modalidad]?.name}</span>
+              </span>
+              <span className="text-[10px] text-amber-700 hidden md:inline">
+                ({MODALIDADES[modalidad]?.description})
+              </span>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              {MODALIDADES_LIST.map((m) => {
+                const isSelected = modalidad === m.id;
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => handleModalidadChange(m.id)}
+                    className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      isSelected
+                        ? 'bg-amber-600 text-white shadow-xs font-black'
+                        : 'bg-white text-amber-900 border border-amber-200 hover:bg-amber-100/70'
+                    }`}
+                  >
+                    <span>{m.icon}</span>
+                    <span>{m.shortLabel}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* FILTRO DE CATEGORÍAS TIPO CHIPS (CON SCROLL FLUIDO INVISIBLE .no-scrollbar) */}
         <div className="bg-white px-4 py-2 border-b border-zinc-200/80 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
           {categories.map((cat) => {
@@ -1050,9 +1208,13 @@ export default function WebPosView({
             }}
           >
             {filteredProducts.map((p) => {
-              const price = Number(p.priceUsd || p.price || 0);
+              const appliedPrice = businessProfile?.features?.hasMultiPricing
+                ? getProductPriceByModalidad(p, modalidad)
+                : Number(p.priceUsd || p.price || 0);
+              const price = appliedPrice;
               const priceBs = price * bcvRate;
               const inCart = cart.find((i) => i.id === p.id);
+              const regularDetalPrice = Number(p.priceDetal || p.priceUsd || p.price || 0);
 
               return (
                 <div
@@ -1122,12 +1284,26 @@ export default function WebPosView({
 
                     <div className="pt-2 border-t border-zinc-100 flex items-baseline justify-between">
                       <div>
-                        <span className="text-base font-black text-emerald-600 font-mono block leading-tight">
-                          ${price.toFixed(2)}
-                        </span>
-                        <span className="text-[10px] font-bold text-zinc-500 font-mono block">
-                          Bs. {priceBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-base font-black text-emerald-600 font-mono block leading-tight">
+                            ${price.toFixed(2)}
+                          </span>
+                          {businessProfile?.features?.hasMultiPricing && modalidad !== 'detal' && (
+                            <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-amber-100 text-amber-800 border border-amber-200">
+                              {MODALIDADES[modalidad]?.badge}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] font-bold text-zinc-500 font-mono block">
+                            Bs. {priceBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                          {businessProfile?.features?.hasMultiPricing && modalidad !== 'detal' && regularDetalPrice > price && (
+                            <span className="text-[10px] text-zinc-400 font-mono line-through block" title="Precio regular Detal">
+                              ${regularDetalPrice.toFixed(2)}
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       {inCart ? (
@@ -1225,7 +1401,7 @@ export default function WebPosView({
         isOpen={isClientModalOpen}
         onClose={() => setIsClientModalOpen(false)}
         selectedClient={activeClient}
-        onSelectClient={(client) => setActiveClient(client)}
+        onSelectClient={handleSelectClient}
         tenant={tenant}
       />
 

@@ -67,6 +67,8 @@ ALTER TABLE public.tenants ADD COLUMN IF NOT EXISTS fiscal_serial TEXT DEFAULT '
 ALTER TABLE public.tenants ADD COLUMN IF NOT EXISTS instagram TEXT DEFAULT '';
 ALTER TABLE public.tenants ADD COLUMN IF NOT EXISTS is_fiscal_verified BOOLEAN DEFAULT false;
 ALTER TABLE public.tenants ADD COLUMN IF NOT EXISTS fiscal_terminals JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.tenants ADD COLUMN IF NOT EXISTS business_type TEXT DEFAULT 'restaurant';
+ALTER TABLE public.tenants ADD COLUMN IF NOT EXISTS features JSONB DEFAULT '{}'::jsonb;
 
 -- 3. TABLA DE PAGOS DE SUSCRIPCIÓN (PAGO MÓVIL / BINANCE)
 CREATE TABLE IF NOT EXISTS public.subscription_payments (

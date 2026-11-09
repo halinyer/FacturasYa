@@ -1,14 +1,18 @@
 import facturapos from './facturapos.js';
 import happydays from './happydays.js';
+import heladoslacascada from './heladoslacascada.js';
+import heladoscali from './heladoscali.js';
 
 /**
- * Registro de franquicias y restaurantes soportados.
- * Para agregar un nuevo restaurante, simplemente crea un archivo en esta carpeta
+ * Registro de franquicias, restaurantes y heladerías soportados.
+ * Para agregar un nuevo establecimiento, simplemente crea un archivo en esta carpeta
  * y agrégalo a este objeto con su respectivo identificador.
  */
 export const FRANCHISES = {
   facturapos,
-  happydays
+  happydays,
+  heladoslacascada,
+  heladoscali
 };
 
 /**
