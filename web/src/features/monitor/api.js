@@ -130,7 +130,75 @@ export const fetchMyPayments = async (tenantId) => {
   return unwrap(res) || [];
 };
 
-// Reportar Pago Móvil / Binance Pay con Autoridad de Precio en el Servidor
+// Comprime imágenes de comprobantes / captures para optimizar ancho de banda (Venezuela)
+export const compressReceiptImage = (fileOrBlob, maxWidth = 1200, quality = 0.75) => {
+  return new Promise((resolve, reject) => {
+    if (!fileOrBlob) return resolve('');
+    if (typeof fileOrBlob === 'string' && fileOrBlob.startsWith('data:image')) {
+      return resolve(fileOrBlob);
+    }
+    if (!fileOrBlob.type || !fileOrBlob.type.startsWith('image/')) {
+      return reject(new Error('El comprobante debe ser una imagen válida (JPG, PNG o WebP).'));
+    }
+
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('No se pudo leer el archivo de la imagen.'));
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('No se pudo procesar el formato de la imagen.'));
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(dataUrl);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(fileOrBlob);
+  });
+};
+
+// Sube el capture a Supabase Storage con fallback directo a dataUrl si el bucket aún no existe
+export const uploadReceiptImage = async (dataUrl, tenantId, reference) => {
+  if (!dataUrl || !String(dataUrl).startsWith('data:image')) return dataUrl || '';
+  try {
+    const res = await fetch(dataUrl);
+    const blob = await res.blob();
+    const cleanRef = String(reference || 'rec').replace(/\W/g, '').slice(-8);
+    const fileName = `${tenantId || 'general'}/${Date.now()}_ref_${cleanRef}.jpg`;
+
+    const { data, error } = await supabase.storage
+      .from('payment-receipts')
+      .upload(fileName, blob, { contentType: 'image/jpeg', upsert: true });
+
+    if (!error && data?.path) {
+      const { data: pub } = supabase.storage
+        .from('payment-receipts')
+        .getPublicUrl(data.path);
+      if (pub?.publicUrl) return pub.publicUrl;
+    }
+  } catch (e) {
+    console.warn('Storage bucket fallback to compressed dataUrl:', e);
+  }
+  return dataUrl;
+};
+
+// Reportar Pago Móvil / Binance Pay con Autoridad de Precio en el Servidor y Capture
 export const submitOwnerPagoMovil = async ({
   tenantId,
   tenantName,
@@ -143,6 +211,9 @@ export const submitOwnerPagoMovil = async ({
   phoneOrigin,
   payerDoc = '',
   referenceLast6,
+  receiptFile = null,
+  receiptDataUrl = '',
+  receiptUrl = '',
   autoVerifyProvider = 'manual'
 }) => {
   const isBinance = paymentMethod === 'binance';
@@ -150,19 +221,42 @@ export const submitOwnerPagoMovil = async ({
     ? String(referenceLast6 || '').trim().replace(/[^A-Za-z0-9]/g, '').slice(-8).toUpperCase()
     : String(referenceLast6 || '').replace(/\D/g, '').slice(-6);
 
-  if (!isBinance && (!bankOrigin || !phoneOrigin || cleanRef.length < 4)) {
-    throw new Error('Completa el banco emisor, teléfono y los últimos 6 dígitos de la referencia.');
-  }
-  if (isBinance && cleanRef.length < 4) {
-    throw new Error('Ingresa los últimos dígitos del Order ID de Binance Pay.');
+  if (!cleanRef || cleanRef.length < 4) {
+    throw new Error(
+      isBinance
+        ? 'Ingresa los últimos dígitos del Order ID de Binance Pay (mínimo 4 caracteres).'
+        : 'Ingresa al menos los últimos 4 dígitos de la referencia que aparece en tu comprobante de Pago Móvil.'
+    );
   }
 
-  const finalBank = isBinance ? 'Binance Pay (USDT)' : bankOrigin;
-  const finalPhone = isBinance ? (phoneOrigin || 'USDT').trim() : phoneOrigin.trim();
+  const finalBank = isBinance ? 'Binance Pay (USDT)' : (bankOrigin || '').trim();
+  const finalPhone = isBinance ? (phoneOrigin || 'USDT').trim() : (phoneOrigin || '').trim();
   const cleanDoc = payerDoc ? formatRifSeniat(payerDoc) : '';
   const daysToAdd = plan === 'annual' ? 365 : 30;
 
-  // 1. Si hay pasarela automática configurada (Pabilo / Cobrix), invocar la Edge Function
+  if (!isBinance && !finalBank) {
+    throw new Error('Por favor selecciona el banco emisor desde donde hiciste el Pago Móvil.');
+  }
+
+  if (!isBinance && !finalPhone) {
+    throw new Error('Por favor ingresa el número de teléfono emisor desde el que enviaste el Pago Móvil (ej: 0414-1234567).');
+  }
+
+  // 1. Procesar y optimizar el capture / screenshot de comprobante si fue provisto
+  let finalReceiptUrl = receiptUrl || '';
+  try {
+    let sourceDataUrl = receiptDataUrl;
+    if (!sourceDataUrl && receiptFile) {
+      sourceDataUrl = await compressReceiptImage(receiptFile);
+    }
+    if (sourceDataUrl) {
+      finalReceiptUrl = await uploadReceiptImage(sourceDataUrl, tenantId, cleanRef);
+    }
+  } catch (err) {
+    console.warn('No se pudo procesar la imagen del capture:', err);
+  }
+
+  // 2. Si hay pasarela automática configurada (Pabilo / Cobrix), invocar la Edge Function
   if (!isBinance && (autoVerifyProvider === 'pabilo' || autoVerifyProvider === 'cobrix')) {
     try {
       const { data: fnData, error: fnErr } = await supabase.functions.invoke('verify-pago-movil', {
@@ -177,7 +271,8 @@ export const submitOwnerPagoMovil = async ({
           bankOrigin: finalBank,
           phoneOrigin: finalPhone,
           payerDoc: cleanDoc,
-          referenceLast6: cleanRef
+          referenceLast6: cleanRef,
+          receiptUrl: finalReceiptUrl
         }
       });
       if (!fnErr && fnData?.success) {
@@ -193,7 +288,7 @@ export const submitOwnerPagoMovil = async ({
     }
   }
 
-  // 2. Intentar vía RPC seguro con Autoridad de Precio en el Servidor (report_subscription_payment)
+  // 3. Intentar vía RPC seguro con Autoridad de Precio en el Servidor (report_subscription_payment)
   const rpcRes = await supabase.rpc('report_subscription_payment', {
     p_tenant_id: tenantId,
     p_plan: plan,
@@ -202,7 +297,8 @@ export const submitOwnerPagoMovil = async ({
     p_phone_origin: finalPhone,
     p_payer_doc: cleanDoc,
     p_reference_last6: cleanRef,
-    p_rate_bcv: Number(rateBcv) || 0
+    p_rate_bcv: Number(rateBcv) || 0,
+    p_receipt_url: finalReceiptUrl
   });
 
   if (!rpcRes.error && rpcRes.data) {
@@ -214,7 +310,7 @@ export const submitOwnerPagoMovil = async ({
     }
   }
 
-  // 3. Fallback directo a la tabla subscription_payments (compatible antes y después de migración SQL)
+  // 4. Fallback directo a la tabla subscription_payments (con soporte de capture y columnas actualizadas)
   const fullPayload = {
     tenant_id: tenantId,
     tenant_name: tenantName,
@@ -226,8 +322,10 @@ export const submitOwnerPagoMovil = async ({
     rate_bcv: Number(rateBcv),
     bank_origin: finalBank,
     phone_origin: finalPhone,
+    client_phone: finalPhone,
     payer_doc: cleanDoc,
     reference_last6: cleanRef,
+    receipt_url: finalReceiptUrl,
     status: 'pending',
     verified_by: 'pending'
   };
@@ -239,7 +337,7 @@ export const submitOwnerPagoMovil = async ({
     .single();
 
   if (res.error) {
-    // Si la BD aún no tiene las columnas payment_method / payer_doc, reintentar con columnas base
+    // Si la BD aún no tiene columnas nuevas, reintentar con columnas base
     if (/column .* does not exist/i.test(res.error.message || '')) {
       const legacyRes = await supabase
         .from('subscription_payments')
@@ -260,12 +358,12 @@ export const submitOwnerPagoMovil = async ({
         .select()
         .single();
       if (legacyRes.error && /uq_sub_payments_active_ref|duplicate key/i.test(legacyRes.error.message || '')) {
-        throw new Error(`La referencia #${cleanRef} ya fue registrada anteriormente.`);
+        throw new Error(`La referencia #${cleanRef} de ${finalBank} ya fue reportada anteriormente y está en proceso de verificación.`);
       }
       return unwrap(legacyRes);
     }
     if (/uq_sub_payments_active_ref|duplicate key/i.test(res.error.message || '')) {
-      throw new Error(`La referencia #${cleanRef} ya fue registrada anteriormente.`);
+      throw new Error(`La referencia #${cleanRef} de ${finalBank} ya fue reportada anteriormente y está en proceso de verificación.`);
     }
     throw new Error(res.error.message);
   }

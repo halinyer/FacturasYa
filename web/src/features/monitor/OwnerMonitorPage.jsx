@@ -32,7 +32,9 @@ import {
   Banknote,
   ArrowDownRight,
   Percent,
-  UtensilsCrossed
+  UtensilsCrossed,
+  Image as ImageIcon,
+  UploadCloud
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthProvider';
 import LoginForm from '../auth/LoginForm';
@@ -46,6 +48,7 @@ import {
   fetchSaasConfig,
   fetchMyPayments,
   submitOwnerPagoMovil,
+  compressReceiptImage,
   completeFiscalVerification,
   updateTenantFiscalProfile,
   formatRifSeniat,
@@ -248,10 +251,39 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
   const [pagoPhone, setPagoPhone] = useState('');
   const [pagoPayerDoc, setPagoPayerDoc] = useState('');
   const [pagoRef, setPagoRef] = useState('');
+  const [pagoReceiptFile, setPagoReceiptFile] = useState(null);
+  const [pagoReceiptPreview, setPagoReceiptPreview] = useState('');
+  const [selectedReceiptModal, setSelectedReceiptModal] = useState(null);
   const [pagoSubmitting, setPagoSubmitting] = useState(false);
   const [pagoError, setPagoError] = useState('');
   const [pagoSuccessMsg, setPagoSuccessMsg] = useState('');
   const [copiedField, setCopiedField] = useState(null);
+
+  const handleMonitorReceiptFile = async (file) => {
+    if (!file) return;
+    try {
+      const compressedDataUrl = await compressReceiptImage(file);
+      setPagoReceiptFile(file);
+      setPagoReceiptPreview(compressedDataUrl);
+      setPagoError('');
+    } catch (e) {
+      setPagoError(e.message || 'Error procesando la imagen');
+    }
+  };
+
+  const handleMonitorPaste = async (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        const file = items[i].getAsFile();
+        if (file) {
+          await handleMonitorReceiptFile(file);
+          break;
+        }
+      }
+    }
+  };
 
   // Carga inicial de datos
   const loadData = useCallback(async () => {
@@ -668,6 +700,8 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
         phoneOrigin: pagoMethod === 'binance' ? (session?.user?.email || 'USDT') : pagoPhone,
         payerDoc: pagoPayerDoc || tenant?.rif || '',
         referenceLast6: pagoRef,
+        receiptFile: pagoReceiptFile,
+        receiptDataUrl: pagoReceiptPreview,
         autoVerifyProvider: saasConfig?.auto_verify_provider || 'manual'
       });
 
@@ -676,6 +710,8 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
 
       setPagoSuccessMsg('¡Pago reportado con éxito! Tu caja cuenta con Pase de Cortesía activo mientras se verifica la referencia.');
       setPagoRef('');
+      setPagoReceiptFile(null);
+      setPagoReceiptPreview('');
       setTimeout(() => {
         setPagoModalOpen(false);
         setPagoSuccessMsg('');
@@ -2180,12 +2216,12 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
 
               <div>
                 <label className="block text-zinc-700 font-semibold mb-1">
-                  {pagoMethod === 'pago_movil' ? 'Últimos 6 dígitos de Referencia' : 'Últimos dígitos del Order ID de Binance'}
+                  {pagoMethod === 'pago_movil' ? 'Últimos 4 a 6 dígitos de Referencia *' : 'Últimos dígitos del Order ID de Binance *'}
                 </label>
                 <input
                   type="text"
                   required
-                  maxLength={10}
+                  maxLength={12}
                   placeholder={pagoMethod === 'pago_movil' ? 'Ej. 987654' : 'Ej. 28394812'}
                   value={pagoRef}
                   onChange={(e) => setPagoRef(e.target.value)}
@@ -2193,8 +2229,53 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
                 />
               </div>
 
+              {/* Uploader de Capture */}
+              <div className="border border-dashed border-zinc-200 rounded-xl p-3 bg-zinc-50/60">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-[11px] font-bold text-zinc-700 flex items-center gap-1.5">
+                    <ImageIcon size={13} className="text-zinc-500" />
+                    <span>Adjuntar Capture / Screenshot (Recomendado)</span>
+                  </label>
+                  <span className="text-[10px] text-zinc-400">JPG/PNG</span>
+                </div>
+
+                {pagoReceiptPreview ? (
+                  <div className="relative inline-block border border-zinc-200 rounded-lg p-1 bg-white shadow-2xs">
+                    <img
+                      src={pagoReceiptPreview}
+                      alt="Comprobante"
+                      className="h-20 w-auto rounded object-contain max-w-full cursor-pointer hover:opacity-95"
+                      onClick={() => setSelectedReceiptModal(pagoReceiptPreview)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPagoReceiptFile(null);
+                        setPagoReceiptPreview('');
+                      }}
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-600 text-white flex items-center justify-center text-xs shadow-xs hover:bg-red-700 cursor-pointer"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex items-center justify-center gap-2 p-2.5 bg-white border border-zinc-200 rounded-lg cursor-pointer hover:bg-zinc-50 transition-all text-xs text-zinc-600 font-medium">
+                    <UploadCloud size={15} className="text-zinc-400" />
+                    <span>Seleccionar comprobante del banco</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        if (e.target.files?.[0]) handleMonitorReceiptFile(e.target.files[0]);
+                      }}
+                    />
+                  </label>
+                )}
+              </div>
+
               {pagoError && (
-                <div className="p-2 rounded-lg bg-red-50 text-red-700 text-xs font-medium">
+                <div className="p-2.5 rounded-lg bg-red-50 text-red-700 text-xs font-medium border border-red-200">
                   {pagoError}
                 </div>
               )}
@@ -2209,10 +2290,24 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
               <button
                 type="submit"
                 disabled={pagoSubmitting}
-                className="w-full py-2.5 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 font-semibold text-xs text-white shadow-xs transition-all flex items-center justify-center gap-2"
+                className="w-full py-2.5 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 font-semibold text-xs text-white shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 {pagoSubmitting ? 'Confirmando...' : 'Confirmar Reporte de Pago Móvil →'}
               </button>
+
+              <div className="text-center pt-1">
+                <a
+                  href={`https://wa.me/584120000000?text=${encodeURIComponent(
+                    `Hola Soporte FacturasYa, tengo una consulta con mi pago de suscripción para ${tenant?.name || 'mi negocio'}.`
+                  )}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[11px] text-zinc-500 hover:text-zinc-950 hover:underline inline-flex items-center gap-1"
+                >
+                  <span>¿Dudas con tu pago? Escríbenos a soporte por WhatsApp</span>
+                  <ExternalLink size={10} />
+                </a>
+              </div>
             </form>
           </div>
         </div>
@@ -2425,6 +2520,49 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
           invoice={selectedInvoiceForPreview}
           onClose={() => setSelectedInvoiceForPreview(null)}
         />
+      )}
+
+      {/* MODAL LIGHTBOX PARA VISUALIZAR CAPTURE DE COMPROBANTE EN ALTA RESOLUCIÓN */}
+      {selectedReceiptModal && (
+        <div
+          className="fixed inset-0 z-60 bg-zinc-950/80 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+          onClick={() => setSelectedReceiptModal(null)}
+        >
+          <div
+            className="relative max-w-xl max-h-[85vh] bg-white rounded-2xl overflow-hidden shadow-2xl p-2 flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-2 border-b border-zinc-100">
+              <span className="text-xs font-bold text-zinc-900">Comprobante de Pago</span>
+              <button
+                type="button"
+                onClick={() => setSelectedReceiptModal(null)}
+                className="w-7 h-7 rounded-full bg-zinc-100 hover:bg-zinc-200 flex items-center justify-center text-zinc-600 cursor-pointer"
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-2 overflow-auto flex items-center justify-center">
+              <img
+                src={selectedReceiptModal}
+                alt="Comprobante en Alta Resolución"
+                className="max-h-[70vh] w-auto object-contain rounded-lg"
+              />
+            </div>
+            <div className="p-2 border-t border-zinc-100 flex justify-end">
+              <a
+                href={selectedReceiptModal}
+                target="_blank"
+                rel="noreferrer"
+                download="comprobante-pago.jpg"
+                className="text-xs font-semibold text-zinc-700 hover:text-zinc-950 flex items-center gap-1"
+              >
+                <span>Abrir imagen completa</span>
+                <ExternalLink size={12} />
+              </a>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

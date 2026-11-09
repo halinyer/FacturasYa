@@ -81,6 +81,37 @@ export const approvePayment = (paymentId) =>
 export const rejectPayment = (paymentId, notes = '') =>
   supabase.rpc('admin_reject_payment', { p_payment_id: paymentId, p_notes: notes }).then(unwrap);
 
+export const updatePaymentDetails = async (paymentId, { newReference, newBank, newPhone, newPayerDoc, notes }) => {
+  const rpcRes = await supabase.rpc('admin_update_payment_details', {
+    p_payment_id: paymentId,
+    p_new_reference: String(newReference || '').trim(),
+    p_new_bank: newBank ? String(newBank).trim() : null,
+    p_new_phone: newPhone ? String(newPhone).trim() : null,
+    p_new_payer_doc: newPayerDoc ? String(newPayerDoc).trim() : null,
+    p_notes: notes || ''
+  });
+
+  if (!rpcRes.error && rpcRes.data?.success) {
+    return rpcRes.data;
+  }
+
+  // Fallback directo si el RPC no se ha cargado en SQL Editor
+  const cleanRef = String(newReference || '').trim().replace(/\D/g, '').slice(-6);
+  const directUpdate = {
+    reference_last6: cleanRef,
+    notes: notes || undefined
+  };
+  if (newBank) directUpdate.bank_origin = newBank;
+  if (newPhone) {
+    directUpdate.phone_origin = newPhone;
+    directUpdate.client_phone = newPhone;
+  }
+  if (newPayerDoc) directUpdate.payer_doc = newPayerDoc;
+
+  const res = await supabase.from('subscription_payments').update(directUpdate).eq('id', paymentId);
+  return unwrap(res);
+};
+
 export const updateTenantProfileByAdmin = async (tenantId, fields) => {
   const rpcRes = await supabase.rpc('admin_update_tenant_profile', {
     p_tenant_id: tenantId,

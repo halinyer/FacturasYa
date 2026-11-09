@@ -25,7 +25,10 @@ import {
   Sliders,
   Store,
   Boxes,
-  Package
+  Package,
+  Image as ImageIcon,
+  UploadCloud,
+  HelpCircle
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { printIsolatedTicket } from '../../pos-core/utils/printIsolatedTicket';
@@ -45,7 +48,8 @@ import {
   saveLocalTerminalConfig,
   fetchSaasConfig,
   fetchMyPayments,
-  submitOwnerPagoMovil
+  submitOwnerPagoMovil,
+  compressReceiptImage
 } from '../monitor/api';
 
 const VENEZUELA_BANKS = [
@@ -302,8 +306,22 @@ export default function NotionSettingsModal({
   const [pagoPhone, setPagoPhone] = useState(tenant?.phone || '');
   const [pagoPayerDoc, setPagoPayerDoc] = useState(tenant?.rif || 'V-');
   const [pagoRef, setPagoRef] = useState('');
+  const [receiptFile, setReceiptFile] = useState(null);
+  const [receiptPreview, setReceiptPreview] = useState('');
+  const [selectedReceiptModal, setSelectedReceiptModal] = useState(null);
+  const [pagoValidationErrors, setPagoValidationErrors] = useState({});
   const [submittingPago, setSubmittingPago] = useState(false);
   const [copiedKey, setCopiedKey] = useState(null);
+
+  // Sincronizar teléfono del tenant si se carga después
+  useEffect(() => {
+    if (tenant?.phone && !pagoPhone) {
+      setPagoPhone(tenant.phone);
+    }
+    if (tenant?.rif && pagoPayerDoc === 'V-') {
+      setPagoPayerDoc(tenant.rif);
+    }
+  }, [tenant]);
 
   useEffect(() => {
     fetchSaasConfig().then((cfg) => {
@@ -393,15 +411,61 @@ export default function NotionSettingsModal({
     showToast(next ? 'Modo Restaurante activado' : 'Modo Caja Rápida activado');
   };
 
+  const handleReceiptFileChange = async (file) => {
+    if (!file) return;
+    try {
+      const compressedDataUrl = await compressReceiptImage(file);
+      setReceiptFile(file);
+      setReceiptPreview(compressedDataUrl);
+      setPagoValidationErrors((prev) => ({ ...prev, receipt: null }));
+    } catch (e) {
+      showToast(e.message || 'Error procesando la imagen', 'error');
+    }
+  };
+
+  const handlePasteReceipt = async (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        const file = items[i].getAsFile();
+        if (file) {
+          await handleReceiptFileChange(file);
+          showToast('¡Capture de pantalla pegado desde el portapapeles!');
+          break;
+        }
+      }
+    }
+  };
+
   // Reportar Pago Móvil / Binance Pay unificado con saas_config y RPC seguro
   const handleReportPago = async (e) => {
     e.preventDefault();
-    if (!pagoRef.trim() || pagoRef.trim().length < 4) {
-      showToast('Ingresa los últimos dígitos válidos de la referencia bancaria u Order ID', 'error');
+    const errors = {};
+
+    const cleanRef = pagoRef.trim().replace(/\D/g, '');
+    if (pagoMethod === 'pago_movil') {
+      if (!cleanRef || cleanRef.length < 4) {
+        errors.ref = 'Ingresa al menos los últimos 4 dígitos de la referencia que aparece en tu comprobante';
+      }
+      if (!pagoPhone.trim() || pagoPhone.trim().length < 7) {
+        errors.phone = 'Ingresa el número de teléfono emisor desde donde hiciste el Pago Móvil';
+      }
+    } else {
+      if (!pagoRef.trim() || pagoRef.trim().length < 4) {
+        errors.ref = 'Ingresa el Order ID o referencia de Binance Pay (mínimo 4 caracteres)';
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setPagoValidationErrors(errors);
+      showToast('Por favor completa los datos obligatorios para registrar tu pago.', 'error');
       return;
     }
 
     setSubmittingPago(true);
+    setPagoValidationErrors({});
+
     try {
       if (tenant?.id) {
         const created = await submitOwnerPagoMovil({
@@ -413,9 +477,11 @@ export default function NotionSettingsModal({
           amountBs: currentPlanBs,
           rateBcv: activeRate,
           bankOrigin: pagoMethod === 'binance' ? 'Binance Pay (USDT)' : pagoBank,
-          phoneOrigin: pagoMethod === 'binance' ? (session?.user?.email || 'USDT') : pagoPhone,
+          phoneOrigin: pagoMethod === 'binance' ? (session?.user?.email || 'USDT') : pagoPhone.trim(),
           payerDoc: pagoPayerDoc,
           referenceLast6: pagoRef.trim(),
+          receiptFile,
+          receiptDataUrl: receiptPreview,
           autoVerifyProvider: saasConfig?.auto_verify_provider || 'manual'
         });
 
@@ -425,8 +491,16 @@ export default function NotionSettingsModal({
 
       showToast('¡Pago reportado con éxito! Tu servicio cuenta con Pase de Cortesía activo mientras se verifica.');
       setPagoRef('');
+      setReceiptFile(null);
+      setReceiptPreview('');
     } catch (err) {
-      showToast(err.message || 'Error al reportar pago', 'error');
+      const msg = err.message || 'Error al reportar pago';
+      if (/ya fue registrada|ya fue reportada/i.test(msg)) {
+        setPagoValidationErrors({
+          ref: `La referencia #${pagoRef.trim()} ya fue reportada anteriormente. Si cometiste un error, escríbenos a Soporte por WhatsApp.`
+        });
+      }
+      showToast(msg, 'error');
     } finally {
       setSubmittingPago(false);
     }
@@ -1609,20 +1683,27 @@ export default function NotionSettingsModal({
                 )}
 
                 {/* Formulario de Reporte */}
-                <form onSubmit={handleReportPago} className="space-y-3.5 border border-zinc-200 rounded-xl p-4 bg-white">
-                  <h4 className="text-xs font-bold text-zinc-950 flex items-center gap-1.5">
-                    <Smartphone size={15} className="text-emerald-600" />
-                    <span>
-                      {pagoMethod === 'pago_movil'
-                        ? 'Reportar Comprobante de Pago Móvil'
-                        : 'Reportar Orden de Binance Pay (USDT)'}
-                    </span>
-                  </h4>
+                <form
+                  onSubmit={handleReportPago}
+                  onPaste={handlePasteReceipt}
+                  className="space-y-3.5 border border-zinc-200 rounded-xl p-4 bg-white"
+                >
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-zinc-950 flex items-center gap-1.5">
+                      <Smartphone size={15} className="text-emerald-600" />
+                      <span>
+                        {pagoMethod === 'pago_movil'
+                          ? 'Reportar Comprobante de Pago Móvil'
+                          : 'Reportar Orden de Binance Pay (USDT)'}
+                      </span>
+                    </h4>
+                    <span className="text-[10px] text-zinc-400">Pega tu capture con Ctrl+V</span>
+                  </div>
 
                   {pagoMethod === 'pago_movil' ? (
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div>
-                        <label className="block text-[11px] font-bold text-zinc-700 mb-1">Banco Emisor</label>
+                        <label className="block text-[11px] font-bold text-zinc-700 mb-1">Banco Emisor *</label>
                         <select
                           value={pagoBank}
                           onChange={(e) => setPagoBank(e.target.value)}
@@ -1635,15 +1716,26 @@ export default function NotionSettingsModal({
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-bold text-zinc-700 mb-1">Teléfono Emisor</label>
+                        <label className="block text-[11px] font-bold text-zinc-700 mb-1">Teléfono Emisor *</label>
                         <input
                           type="text"
                           value={pagoPhone}
-                          onChange={(e) => setPagoPhone(e.target.value)}
+                          onChange={(e) => {
+                            setPagoPhone(e.target.value);
+                            if (pagoValidationErrors.phone) {
+                              setPagoValidationErrors((prev) => ({ ...prev, phone: null }));
+                            }
+                          }}
                           placeholder="0414-1234567"
-                          className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-200"
-                          required
+                          className={`w-full px-3 py-2 text-xs rounded-lg border ${
+                            pagoValidationErrors.phone ? 'border-red-400 bg-red-50/50' : 'border-zinc-200'
+                          }`}
                         />
+                        {pagoValidationErrors.phone && (
+                          <span className="text-[10px] text-red-600 font-medium block mt-1">
+                            {pagoValidationErrors.phone}
+                          </span>
+                        )}
                       </div>
 
                       <div>
@@ -1662,18 +1754,82 @@ export default function NotionSettingsModal({
                   <div>
                     <label className="block text-[11px] font-bold text-zinc-700 mb-1">
                       {pagoMethod === 'pago_movil'
-                        ? 'Últimos 6 dígitos de la Referencia Bancaria *'
+                        ? 'Últimos 4 a 6 dígitos de la Referencia Bancaria *'
                         : 'Últimos dígitos del Order ID de Binance Pay *'}
                     </label>
                     <input
                       type="text"
-                      maxLength={10}
+                      maxLength={12}
                       value={pagoRef}
-                      onChange={(e) => setPagoRef(e.target.value)}
+                      onChange={(e) => {
+                        setPagoRef(e.target.value);
+                        if (pagoValidationErrors.ref) {
+                          setPagoValidationErrors((prev) => ({ ...prev, ref: null }));
+                        }
+                      }}
                       placeholder={pagoMethod === 'pago_movil' ? 'Ej. 984201' : 'Ej. 28394812'}
-                      className="w-full px-3 py-2 text-xs font-mono font-bold rounded-lg border border-zinc-200"
-                      required
+                      className={`w-full px-3 py-2 text-xs font-mono font-bold rounded-lg border ${
+                        pagoValidationErrors.ref ? 'border-red-400 bg-red-50/50' : 'border-zinc-200'
+                      }`}
                     />
+                    {pagoValidationErrors.ref ? (
+                      <span className="text-[10px] text-red-600 font-semibold block mt-1">
+                        {pagoValidationErrors.ref}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-zinc-400 block mt-0.5">
+                        {pagoMethod === 'pago_movil'
+                          ? 'Copia el número de referencia tal como lo muestra tu banco emisor'
+                          : 'Copia el identificador de orden que Binance te asignó'}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Selector / Uploader de Capture de Pantalla */}
+                  <div className="border border-dashed border-zinc-200 rounded-xl p-3 bg-zinc-50/60">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-[11px] font-bold text-zinc-700 flex items-center gap-1.5">
+                        <ImageIcon size={13} className="text-zinc-500" />
+                        <span>Adjuntar Capture / Comprobante (Recomendado)</span>
+                      </label>
+                      <span className="text-[10px] text-zinc-400 font-medium">JPG, PNG o WebP (Ctrl+V)</span>
+                    </div>
+
+                    {receiptPreview ? (
+                      <div className="relative inline-block border border-zinc-200 rounded-lg p-1 bg-white shadow-2xs">
+                        <img
+                          src={receiptPreview}
+                          alt="Comprobante"
+                          className="h-24 w-auto rounded object-contain max-w-full cursor-pointer hover:opacity-95"
+                          onClick={() => setSelectedReceiptModal(receiptPreview)}
+                          title="Clic para ampliar comprobante"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setReceiptFile(null);
+                            setReceiptPreview('');
+                          }}
+                          className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-red-600 text-white flex items-center justify-center text-xs shadow-xs hover:bg-red-700 cursor-pointer"
+                          title="Eliminar capture"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex items-center justify-center gap-2 p-3 bg-white border border-zinc-200 rounded-lg cursor-pointer hover:bg-zinc-50 transition-all text-xs text-zinc-600 font-medium">
+                        <UploadCloud size={16} className="text-zinc-400" />
+                        <span>Seleccionar screenshot del banco o arrastra aquí</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            if (e.target.files?.[0]) handleReceiptFileChange(e.target.files[0]);
+                          }}
+                        />
+                      </label>
+                    )}
                   </div>
 
                   <button
@@ -1682,31 +1838,65 @@ export default function NotionSettingsModal({
                     className="w-full py-2.5 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-bold shadow-xs transition-all disabled:opacity-50 cursor-pointer"
                   >
                     {submittingPago
-                      ? 'Verificando y Registrando...'
+                      ? 'Verificando y Registrando Pago...'
                       : `Confirmar Reporte (${pagoPlan === 'annual' ? 'Plan Anual' : 'Plan Mensual'}) →`}
                   </button>
+
+                  {/* Asistencia Directa en caso de duda */}
+                  <div className="pt-1 flex items-center justify-between text-[11px] text-zinc-500">
+                    <span className="flex items-center gap-1">
+                      <HelpCircle size={12} className="text-zinc-400" />
+                      <span>¿Tuviste algún error con tu comprobante?</span>
+                    </span>
+                    <a
+                      href={`https://wa.me/584120000000?text=${encodeURIComponent(
+                        `Hola Soporte FacturasYa, tengo una consulta con el reporte de mi pago de suscripción para ${tenant?.name || 'mi restaurante'} (Ref: ${pagoRef || 'N/A'}).`
+                      )}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-emerald-700 hover:underline font-semibold flex items-center gap-1"
+                    >
+                      <span>Soporte por WhatsApp</span>
+                      <ExternalLink size={10} />
+                    </a>
+                  </div>
                 </form>
 
                 {/* Historial de Pagos Reportados */}
                 {myPayments.length > 0 && (
                   <div className="border border-zinc-200 rounded-xl overflow-hidden">
-                    <div className="px-3.5 py-2 bg-zinc-50 border-b border-zinc-200 text-[11px] font-bold text-zinc-700">
-                      Historial de Pagos Reportados
+                    <div className="px-3.5 py-2 bg-zinc-50 border-b border-zinc-200 text-[11px] font-bold text-zinc-700 flex items-center justify-between">
+                      <span>Historial de Pagos Reportados</span>
+                      <span className="text-[10px] text-zinc-400 font-normal">Actualizado en tiempo real</span>
                     </div>
-                    <div className="divide-y divide-zinc-100 text-xs max-h-40 overflow-y-auto">
+                    <div className="divide-y divide-zinc-100 text-xs max-h-48 overflow-y-auto">
                       {myPayments.slice(0, 6).map((p) => (
-                        <div key={p.id} className="px-3.5 py-2 flex items-center justify-between gap-2">
-                          <div>
-                            <span className="font-mono font-bold text-zinc-950">#{p.reference_last6}</span>
-                            <span className="text-zinc-500 ml-2">{p.bank_origin}</span>
-                            <span className="text-[10px] text-zinc-400 block">
-                              {new Date(p.created_at).toLocaleDateString('es-VE')} · ${Number(p.amount_usd || 0).toFixed(0)}
-                            </span>
-                            {p.status === 'rejected' && p.notes && (
-                              <span className="text-[10px] text-red-600 font-semibold block">
-                                Motivo: {p.notes}
-                              </span>
+                        <div key={p.id} className="px-3.5 py-2.5 flex items-center justify-between gap-2 hover:bg-zinc-50/50">
+                          <div className="flex items-center gap-3">
+                            {p.receipt_url && (
+                              <button
+                                type="button"
+                                onClick={() => setSelectedReceiptModal(p.receipt_url)}
+                                className="w-9 h-9 rounded-lg border border-zinc-200 overflow-hidden bg-zinc-100 shrink-0 hover:ring-2 hover:ring-zinc-900 transition-all cursor-pointer"
+                                title="Ver capture"
+                              >
+                                <img src={p.receipt_url} alt="Capture" className="w-full h-full object-cover" />
+                              </button>
                             )}
+                            <div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-mono font-bold text-zinc-950">#{p.reference_last6}</span>
+                                <span className="text-zinc-500 text-[11px]">· {p.bank_origin}</span>
+                              </div>
+                              <span className="text-[10px] text-zinc-400 block">
+                                {new Date(p.created_at).toLocaleDateString('es-VE')} · ${Number(p.amount_usd || 0).toFixed(0)} ({p.plan === 'annual' ? 'Anual' : 'Mensual'})
+                              </span>
+                              {p.status === 'rejected' && p.notes && (
+                                <span className="text-[10px] text-red-600 font-semibold block mt-0.5">
+                                  Motivo de rechazo: {p.notes}
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <span
                             className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
@@ -1800,6 +1990,49 @@ export default function NotionSettingsModal({
           </div>
         </main>
       </div>
+
+      {/* MODAL LIGHTBOX PARA VISUALIZAR CAPTURE DE COMPROBANTE EN ALTA RESOLUCIÓN */}
+      {selectedReceiptModal && (
+        <div
+          className="fixed inset-0 z-60 bg-zinc-950/80 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+          onClick={() => setSelectedReceiptModal(null)}
+        >
+          <div
+            className="relative max-w-xl max-h-[85vh] bg-white rounded-2xl overflow-hidden shadow-2xl p-2 flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-2 border-b border-zinc-100">
+              <span className="text-xs font-bold text-zinc-900">Comprobante de Pago</span>
+              <button
+                type="button"
+                onClick={() => setSelectedReceiptModal(null)}
+                className="w-7 h-7 rounded-full bg-zinc-100 hover:bg-zinc-200 flex items-center justify-center text-zinc-600 cursor-pointer"
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-2 overflow-auto flex items-center justify-center">
+              <img
+                src={selectedReceiptModal}
+                alt="Comprobante en Alta Resolución"
+                className="max-h-[70vh] w-auto object-contain rounded-lg"
+              />
+            </div>
+            <div className="p-2 border-t border-zinc-100 flex justify-end">
+              <a
+                href={selectedReceiptModal}
+                target="_blank"
+                rel="noreferrer"
+                download="comprobante-pago.jpg"
+                className="text-xs font-semibold text-zinc-700 hover:text-zinc-950 flex items-center gap-1"
+              >
+                <span>Abrir imagen completa</span>
+                <ExternalLink size={12} />
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

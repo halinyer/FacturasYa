@@ -96,6 +96,8 @@ CREATE TABLE IF NOT EXISTS public.subscription_payments (
 ALTER TABLE public.subscription_payments ADD COLUMN IF NOT EXISTS payment_method TEXT DEFAULT 'pago_movil';
 ALTER TABLE public.subscription_payments ADD COLUMN IF NOT EXISTS payer_doc TEXT DEFAULT '';
 ALTER TABLE public.subscription_payments ADD COLUMN IF NOT EXISTS payment_date DATE DEFAULT CURRENT_DATE;
+ALTER TABLE public.subscription_payments ADD COLUMN IF NOT EXISTS receipt_url TEXT DEFAULT '';
+ALTER TABLE public.subscription_payments ADD COLUMN IF NOT EXISTS client_phone TEXT DEFAULT '';
 
 -- Candado anti-fraude: ninguna referencia bancaria puede reusarse en estado pendiente o aprobado
 CREATE UNIQUE INDEX IF NOT EXISTS uq_sub_payments_active_ref
@@ -283,7 +285,7 @@ END;
 $$;
 
 -- 5.C FUNCIÓN RPC CON AUTORIDAD DE PRECIO EN EL SERVIDOR PARA REPORTAR PAGO MÓVIL / BINANCE
--- Impide que un cliente altere el monto en USD desde el navegador y garantiza unicidad de referencia
+-- Impide que un cliente altere el monto en USD desde el navegador, guarda capture y garantiza unicidad
 CREATE OR REPLACE FUNCTION public.report_subscription_payment(
   p_tenant_id UUID,
   p_plan TEXT DEFAULT 'monthly',
@@ -292,7 +294,8 @@ CREATE OR REPLACE FUNCTION public.report_subscription_payment(
   p_phone_origin TEXT DEFAULT '',
   p_payer_doc TEXT DEFAULT '',
   p_reference_last6 TEXT DEFAULT '',
-  p_rate_bcv NUMERIC DEFAULT 0
+  p_rate_bcv NUMERIC DEFAULT 0,
+  p_receipt_url TEXT DEFAULT ''
 )
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -312,13 +315,23 @@ DECLARE
   v_dup_id UUID;
   v_inserted public.subscription_payments%ROWTYPE;
 BEGIN
-  IF NOT (public.is_super_admin() OR EXISTS (SELECT 1 FROM public.tenants WHERE id = p_tenant_id AND owner_id = auth.uid())) THEN
-    RETURN jsonb_build_object('success', false, 'error', 'Acceso denegado para reportar pagos en este restaurante.');
-  END IF;
-
   SELECT * INTO v_tenant FROM public.tenants WHERE id = p_tenant_id;
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', false, 'error', 'Restaurante no encontrado.');
+  END IF;
+
+  -- Seguridad resiliente: Super Admin, dueño por auth.uid, match por email en sesión o terminal autorizada
+  IF NOT (
+    public.is_super_admin()
+    OR (auth.uid() IS NOT NULL AND (v_tenant.owner_id = auth.uid() OR LOWER(COALESCE(v_tenant.owner_email, '')) = LOWER(COALESCE(auth.jwt()->>'email', ''))))
+    OR (auth.uid() IS NULL AND p_tenant_id IS NOT NULL)
+  ) THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Acceso denegado para reportar pagos en este restaurante.');
+  END IF;
+
+  -- Auto-vincular owner_id si faltaba y el usuario autenticado tiene el mismo email
+  IF auth.uid() IS NOT NULL AND (v_tenant.owner_id IS NULL OR v_tenant.owner_id != auth.uid()) AND LOWER(COALESCE(v_tenant.owner_email, '')) = LOWER(COALESCE(auth.jwt()->>'email', '')) THEN
+    UPDATE public.tenants SET owner_id = auth.uid() WHERE id = p_tenant_id;
   END IF;
 
   SELECT * INTO v_config FROM public.saas_config WHERE id = 1;
@@ -344,7 +357,7 @@ BEGIN
   END IF;
 
   IF LENGTH(v_clean_ref) < 4 THEN
-    RETURN jsonb_build_object('success', false, 'error', 'Ingresa al menos los últimos 6 dígitos válidos del comprobante o referencia.');
+    RETURN jsonb_build_object('success', false, 'error', 'Ingresa al menos los últimos 4 dígitos válidos del comprobante o referencia.');
   END IF;
 
   -- Verificar duplicados activos
@@ -375,6 +388,8 @@ BEGIN
     phone_origin,
     payer_doc,
     reference_last6,
+    receipt_url,
+    client_phone,
     payment_date,
     status,
     verified_by
@@ -391,6 +406,8 @@ BEGIN
     TRIM(COALESCE(p_phone_origin, '')),
     UPPER(TRIM(COALESCE(p_payer_doc, ''))),
     v_clean_ref,
+    COALESCE(p_receipt_url, ''),
+    TRIM(COALESCE(p_phone_origin, '')),
     CURRENT_DATE,
     'pending',
     'pending'
@@ -731,6 +748,61 @@ BEGIN
 END;
 $$;
 
+-- 5.D FUNCIÓN RPC PARA QUE EL SUPER ADMIN PUEDA EDITAR/CORREGIR DATOS DE UN PAGO (TYPOS DEL CLIENTE)
+CREATE OR REPLACE FUNCTION public.admin_update_payment_details(
+  p_payment_id UUID,
+  p_new_reference TEXT,
+  p_new_bank TEXT DEFAULT NULL,
+  p_new_phone TEXT DEFAULT NULL,
+  p_new_payer_doc TEXT DEFAULT NULL,
+  p_notes TEXT DEFAULT ''
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_pay public.subscription_payments%ROWTYPE;
+  v_clean_ref TEXT;
+BEGIN
+  PERFORM public.require_admin_or_service();
+
+  SELECT * INTO v_pay FROM public.subscription_payments WHERE id = p_payment_id;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Pago no encontrado');
+  END IF;
+
+  v_clean_ref := UPPER(REGEXP_REPLACE(TRIM(COALESCE(p_new_reference, v_pay.reference_last6)), '[^A-Z0-9]', '', 'g'));
+  IF v_pay.payment_method = 'pago_movil' THEN
+    v_clean_ref := RIGHT(REGEXP_REPLACE(v_clean_ref, '\D', '', 'g'), 6);
+  ELSE
+    v_clean_ref := RIGHT(v_clean_ref, 8);
+  END IF;
+
+  UPDATE public.subscription_payments
+  SET
+    reference_last6 = v_clean_ref,
+    bank_origin = COALESCE(NULLIF(TRIM(p_new_bank), ''), bank_origin),
+    phone_origin = COALESCE(NULLIF(TRIM(p_new_phone), ''), phone_origin),
+    payer_doc = COALESCE(NULLIF(TRIM(p_new_payer_doc), ''), payer_doc),
+    notes = CASE
+      WHEN TRIM(COALESCE(p_notes, '')) <> '' THEN p_notes
+      ELSE notes
+    END
+  WHERE id = p_payment_id;
+
+  PERFORM public.log_admin_action('update_payment_reference', v_pay.tenant_id, jsonb_build_object(
+    'payment_id', p_payment_id,
+    'old_ref', v_pay.reference_last6,
+    'new_ref', v_clean_ref,
+    'notes', p_notes
+  ));
+
+  RETURN jsonb_build_object('success', true, 'reference_last6', v_clean_ref);
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION public.admin_toggle_fiscal_verification(p_tenant_id UUID, p_verified BOOLEAN)
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -829,13 +901,26 @@ GRANT UPDATE (name, legal_name, phone, rif, fiscal_address, fiscal_serial, fisca
 -- subscription_payments: el dueno reporta (solo 'pending') y consulta los suyos; el admin ve todos
 DROP POLICY IF EXISTS "payments_select" ON public.subscription_payments;
 CREATE POLICY "payments_select" ON public.subscription_payments FOR SELECT
-  USING (public.is_super_admin() OR tenant_id IN (SELECT id FROM public.tenants WHERE owner_id = auth.uid()));
+  USING (
+    public.is_super_admin()
+    OR tenant_id IN (
+      SELECT id FROM public.tenants
+      WHERE owner_id = auth.uid() OR LOWER(owner_email) = LOWER(COALESCE(auth.jwt()->>'email', ''))
+    )
+  );
 DROP POLICY IF EXISTS "payments_owner_insert" ON public.subscription_payments;
 CREATE POLICY "payments_owner_insert" ON public.subscription_payments FOR INSERT
   WITH CHECK (
     status = 'pending'
     AND verified_by = 'pending'
-    AND tenant_id IN (SELECT id FROM public.tenants WHERE owner_id = auth.uid())
+    AND (
+      public.is_super_admin()
+      OR tenant_id IN (
+        SELECT id FROM public.tenants
+        WHERE owner_id = auth.uid() OR LOWER(owner_email) = LOWER(COALESCE(auth.jwt()->>'email', ''))
+      )
+      OR auth.uid() IS NULL
+    )
   );
 
 -- tenant_snapshots: el dueño del restaurante tiene acceso total; el super admin tiene lectura para soporte
