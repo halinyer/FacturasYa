@@ -1,33 +1,39 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ShoppingCart,
   Utensils,
   LayoutDashboard,
-  BookOpen,
-  Calculator,
   Boxes,
   Package,
-  Users,
   TrendingUp,
   Settings,
   Search,
   Plus,
+  Minus,
+  Trash2,
   Printer,
   CheckCircle2,
   QrCode,
-  FileSpreadsheet,
-  Download,
-  ChefHat,
-  Bell,
-  Clock
+  DollarSign,
+  Smartphone,
+  Store,
+  Layers,
+  Sparkles,
+  ArrowRight,
+  Barcode,
+  Check,
+  X,
+  Clock,
+  RefreshCw
 } from 'lucide-react';
 
-// Ilustraciones vectoriales instantáneas (0ms de carga, sin peticiones externas que retrasen la animación)
+// Ilustraciones vectoriales instantáneas y nítidas sin peticiones de red externas
 function ProductGraphic({ type }) {
+  // Hamburguesa
   if (type === 'burger') {
     return (
-      <svg viewBox="0 0 120 90" className="w-full h-full bg-amber-50/70">
+      <svg viewBox="0 0 120 90" className="w-full h-full bg-amber-50/80">
         <circle cx="60" cy="45" r="34" fill="#fef3c7" />
         <path d="M32 40 C32 24, 88 24, 88 40 Z" fill="#d97706" />
         <circle cx="48" cy="31" r="1.5" fill="#fef3c7" />
@@ -40,9 +46,10 @@ function ProductGraphic({ type }) {
       </svg>
     );
   }
+  // Pepito / Sandwich
   if (type === 'pepito') {
     return (
-      <svg viewBox="0 0 120 90" className="w-full h-full bg-orange-50/70">
+      <svg viewBox="0 0 120 90" className="w-full h-full bg-orange-50/80">
         <circle cx="60" cy="45" r="34" fill="#ffedd5" />
         <rect x="24" y="34" width="72" height="22" rx="11" fill="#d97706" />
         <rect x="28" y="39" width="64" height="7" rx="3.5" fill="#78350f" />
@@ -50,23 +57,24 @@ function ProductGraphic({ type }) {
       </svg>
     );
   }
+  // Papas fritas
   if (type === 'fries') {
     return (
-      <svg viewBox="0 0 120 90" className="w-full h-full bg-yellow-50/70">
+      <svg viewBox="0 0 120 90" className="w-full h-full bg-yellow-50/80">
         <circle cx="60" cy="45" r="34" fill="#fef9c3" />
         <rect x="42" y="20" width="6" height="28" rx="2" fill="#eab308" />
         <rect x="50" y="17" width="6" height="30" rx="2" fill="#facc15" />
         <rect x="58" y="19" width="6" height="28" rx="2" fill="#eab308" />
         <rect x="66" y="18" width="6" height="29" rx="2" fill="#facc15" />
-        <rect x="74" y="22" width="6" height="25" rx="2" fill="#ca8a04" />
         <path d="M38 42 L82 42 L76 68 L44 68 Z" fill="#dc2626" />
-        <circle cx="60" cy="55" r="6" fill="#fef2f2" />
+        <circle cx="60" cy="55" r="5" fill="#fef2f2" />
       </svg>
     );
   }
+  // Alitas BBQ
   if (type === 'wings') {
     return (
-      <svg viewBox="0 0 120 90" className="w-full h-full bg-red-50/60">
+      <svg viewBox="0 0 120 90" className="w-full h-full bg-red-50/70">
         <circle cx="60" cy="45" r="34" fill="#fee2e2" />
         <ellipse cx="52" cy="46" rx="18" ry="11" transform="rotate(-18 52 46)" fill="#b45309" />
         <ellipse cx="68" cy="50" rx="16" ry="10" transform="rotate(15 68 50)" fill="#92400e" />
@@ -74,9 +82,10 @@ function ProductGraphic({ type }) {
       </svg>
     );
   }
+  // Bebida / Cóctel
   if (type === 'drink') {
     return (
-      <svg viewBox="0 0 120 90" className="w-full h-full bg-sky-50/60">
+      <svg viewBox="0 0 120 90" className="w-full h-full bg-sky-50/70">
         <circle cx="60" cy="45" r="34" fill="#e0f2fe" />
         <path d="M64 16 L70 16 L63 30" stroke="#0284c7" strokeWidth="3" fill="none" strokeLinecap="round" />
         <path d="M44 28 L76 28 L72 68 L48 68 Z" fill="#f59e0b" opacity="0.85" />
@@ -84,107 +93,164 @@ function ProductGraphic({ type }) {
       </svg>
     );
   }
+  // Barquilla de helado (cono)
+  if (type === 'icecream_cone') {
+    return (
+      <svg viewBox="0 0 120 90" className="w-full h-full bg-pink-50/80">
+        <circle cx="60" cy="45" r="34" fill="#fdf2f8" />
+        <polygon points="46,45 74,45 60,74" fill="#d97706" />
+        <path d="M46 45 L74 45" stroke="#b45309" strokeWidth="1.5" />
+        <circle cx="60" cy="38" r="14" fill="#f43f5e" />
+        <circle cx="60" cy="24" r="12" fill="#fef08a" />
+        <circle cx="60" cy="14" r="3.5" fill="#dc2626" />
+      </svg>
+    );
+  }
+  // Tina de helado
+  if (type === 'icecream_tub') {
+    return (
+      <svg viewBox="0 0 120 90" className="w-full h-full bg-violet-50/80">
+        <circle cx="60" cy="45" r="34" fill="#f5f3ff" />
+        <path d="M38 42 L82 42 L76 68 L44 68 Z" fill="#8b5cf6" />
+        <ellipse cx="60" cy="42" rx="22" ry="6" fill="#c4b5fd" />
+        <circle cx="52" cy="34" r="10" fill="#fbcfe8" />
+        <circle cx="68" cy="34" r="10" fill="#fed7aa" />
+        <circle cx="60" cy="26" r="9" fill="#78350f" />
+      </svg>
+    );
+  }
+  // Vaso de helado
+  if (type === 'icecream_cup') {
+    return (
+      <svg viewBox="0 0 120 90" className="w-full h-full bg-emerald-50/80">
+        <circle cx="60" cy="45" r="34" fill="#ecfdf5" />
+        <path d="M42 46 L78 46 L73 68 L47 68 Z" fill="#10b981" />
+        <circle cx="60" cy="36" r="14" fill="#ec4899" />
+        <circle cx="56" cy="32" r="3" fill="#fdf2f8" />
+      </svg>
+    );
+  }
+  // Café caliente
+  if (type === 'coffee') {
+    return (
+      <svg viewBox="0 0 120 90" className="w-full h-full bg-amber-50/70">
+        <circle cx="60" cy="45" r="34" fill="#fef3c7" />
+        <rect x="42" y="36" width="34" height="28" rx="5" fill="#78350f" />
+        <path d="M76 42 C84 42, 84 54, 76 54" stroke="#78350f" strokeWidth="3" fill="none" />
+        <path d="M50 24 Q54 28, 50 32" stroke="#d97706" strokeWidth="2" fill="none" strokeLinecap="round" />
+        <path d="M60 22 Q64 26, 60 30" stroke="#d97706" strokeWidth="2" fill="none" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  // Alimento / Harina
+  if (type === 'grocery') {
+    return (
+      <svg viewBox="0 0 120 90" className="w-full h-full bg-yellow-50/80">
+        <circle cx="60" cy="45" r="34" fill="#fef9c3" />
+        <rect x="40" y="24" width="40" height="46" rx="4" fill="#facc15" stroke="#ca8a04" strokeWidth="2" />
+        <circle cx="60" cy="44" r="10" fill="#1e3a8a" />
+        <circle cx="60" cy="44" r="5" fill="#ffffff" />
+        <rect x="44" y="58" width="32" height="4" rx="1" fill="#dc2626" />
+      </svg>
+    );
+  }
+  // Aceite
+  if (type === 'oil') {
+    return (
+      <svg viewBox="0 0 120 90" className="w-full h-full bg-amber-50/70">
+        <circle cx="60" cy="45" r="34" fill="#fef3c7" />
+        <rect x="46" y="32" width="28" height="38" rx="4" fill="#fbbf24" opacity="0.9" />
+        <rect x="52" y="22" width="16" height="10" rx="2" fill="#dc2626" />
+        <rect x="49" y="44" width="22" height="12" rx="2" fill="#ffffff" />
+      </svg>
+    );
+  }
+  // Refresco
+  if (type === 'soda') {
+    return (
+      <svg viewBox="0 0 120 90" className="w-full h-full bg-red-50/80">
+        <circle cx="60" cy="45" r="34" fill="#fee2e2" />
+        <rect x="46" y="28" width="28" height="44" rx="6" fill="#1e1b4b" />
+        <rect x="53" y="20" width="14" height="8" rx="2" fill="#dc2626" />
+        <rect x="46" y="42" width="28" height="14" fill="#dc2626" />
+        <path d="M49 49 Q60 45, 71 49" stroke="#ffffff" strokeWidth="2" fill="none" />
+      </svg>
+    );
+  }
+  // Default
   return (
     <svg viewBox="0 0 120 90" className="w-full h-full bg-zinc-100">
       <circle cx="60" cy="45" r="34" fill="#e4e4e7" />
-      <path d="M46 34 L74 34 L70 68 L50 68 Z" fill="#52525b" />
-      <path d="M44 34 Q60 18, 76 34 Z" fill="#fafafa" />
-      <circle cx="60" cy="22" r="3.5" fill="#e11d48" />
+      <rect x="42" y="30" width="36" height="34" rx="4" fill="#71717a" />
     </svg>
   );
 }
 
-const SHOWCASE_PRODUCTS = [
-  {
-    id: 'p1',
-    name: 'Smash Burger Doble',
-    description: 'Doble carne, cheddar y tocineta',
-    category: 'Hamburguesas',
-    priceUsd: 7.5,
-    art: 'burger'
+// 3 PERFILES DE NEGOCIO REALES CON COMPONENTES Y PRODUCTOS DISTINTOS
+const BUSINESS_MODES = {
+  restaurant: {
+    id: 'restaurant',
+    tag: 'Restaurante & Bar',
+    businessName: 'El Portón Grill & Bar',
+    categoryLabel: 'Menú & Cocina',
+    hasTables: true,
+    hasBarcodes: false,
+    navPill: 'Modo Restaurante',
+    description: 'Gestión de mesas, comandas automáticas a cocina y meseros por QR.',
+    products: [
+      { id: 'r1', name: 'Smash Burger Doble', detail: 'Doble carne, cheddar y tocineta', priceUsd: 7.5, art: 'burger' },
+      { id: 'r2', name: 'Pepito Lomito 35cm', detail: 'Lomito, maíz, papas y queso', priceUsd: 9.0, art: 'pepito' },
+      { id: 'r3', name: 'Papas Rústicas', detail: 'Con queso fundido y tocineta', priceUsd: 4.5, art: 'fries' },
+      { id: 'r4', name: 'Alitas BBQ (8 und)', detail: 'Salsa artesanal y ajonjolí', priceUsd: 6.5, art: 'wings' },
+      { id: 'r5', name: 'Té Frío Durazno', detail: 'Vaso grande con limón', priceUsd: 2.5, art: 'drink' },
+      { id: 'r6', name: 'Mojito Clásico', detail: 'Hierbabuena fresca y ron', priceUsd: 5.0, art: 'drink' }
+    ],
+    tables: [
+      { id: 'm1', name: 'Mesa 1', zone: 'Salón', status: 'ocupada', totalUsd: 21.0, mins: '14 min', waiter: 'Carlos M.' },
+      { id: 'm2', name: 'Mesa 2', zone: 'Salón', status: 'libre', totalUsd: 0, mins: null, waiter: null },
+      { id: 'm3', name: 'Mesa 3', zone: 'Terraza', status: 'cuenta', totalUsd: 38.5, mins: '42 min', waiter: 'Valeria R.' },
+      { id: 'm4', name: 'Mesa 4', zone: 'Terraza', status: 'ocupada', totalUsd: 16.5, mins: 'Hace 5m', waiter: 'Valeria R.' }
+    ]
   },
-  {
-    id: 'p2',
-    name: 'Pepito Lomito 35cm',
-    description: 'Lomito, maíz, papas y queso',
-    category: 'Pepitos',
-    priceUsd: 9.0,
-    art: 'pepito'
+  ice_cream: {
+    id: 'ice_cream',
+    tag: 'Heladería & Café',
+    businessName: 'Helados La Cascada C.A.',
+    categoryLabel: 'Sabores & Mostrador',
+    hasTables: false,
+    hasBarcodes: false,
+    navPill: 'Modo Heladería',
+    description: 'Venta rápida de mostrador, combinaciones de sabores, conos, tinas y peso en KG.',
+    products: [
+      { id: 'h1', name: 'Barquilla 2 Sabores', detail: 'Mantecado + Chocolate Suizo', priceUsd: 3.5, art: 'icecream_cone' },
+      { id: 'h2', name: 'Tina 1/2 Litro (3 Sabores)', detail: 'Empaque térmico para llevar', priceUsd: 6.0, art: 'icecream_tub' },
+      { id: 'h3', name: 'Vaso 1 Sabor Especial', detail: 'Fresa Silvestre artesanal', priceUsd: 2.5, art: 'icecream_cup' },
+      { id: 'h4', name: 'Cono Waffle Doble Topping', detail: 'Nutella, lluvia de maní y crema', priceUsd: 4.5, art: 'icecream_cone' },
+      { id: 'h5', name: 'Café Latte Vainilla', detail: 'Espresso doble con leche vaporizada', priceUsd: 2.0, art: 'coffee' },
+      { id: 'h6', name: 'Tina 1 Litro (Familiar)', detail: 'Hasta 4 sabores a elección', priceUsd: 11.0, art: 'icecream_tub' }
+    ],
+    tables: []
   },
-  {
-    id: 'p3',
-    name: 'Papas Rústicas',
-    description: 'Con queso fundido y tocineta',
-    category: 'Entradas',
-    priceUsd: 4.5,
-    art: 'fries'
-  },
-  {
-    id: 'p4',
-    name: 'Alitas BBQ (8 und)',
-    description: 'Salsa BBQ artesanal y ajonjolí',
-    category: 'Entradas',
-    priceUsd: 6.5,
-    art: 'wings'
-  },
-  {
-    id: 'p5',
-    name: 'Té Frío Durazno',
-    description: 'Vaso grande con limón',
-    category: 'Bebidas',
-    priceUsd: 2.5,
-    art: 'drink'
-  },
-  {
-    id: 'p6',
-    name: 'Merengada Brownie',
-    description: 'Helado cremoso con brownie',
-    category: 'Bebidas',
-    priceUsd: 5.0,
-    art: 'shake'
+  retail: {
+    id: 'retail',
+    tag: 'Retail & Minimarket',
+    businessName: 'Bodegón & Minimarket Central',
+    categoryLabel: 'Productos & Stock',
+    hasTables: false,
+    hasBarcodes: true,
+    navPill: 'Modo Retail',
+    description: 'Lector de códigos de barra, control de inventario en vivo, SKU y tickets al instante.',
+    products: [
+      { id: 'b1', name: 'Harina PAN Maíz Blanco 1kg', detail: 'SKU: 7591038 · Stock: 48 und', priceUsd: 1.4, art: 'grocery' },
+      { id: 'b2', name: 'Aceite Vegetal 1 Litro', detail: 'SKU: 7592004 · Stock: 24 und', priceUsd: 3.2, art: 'oil' },
+      { id: 'b3', name: 'Refresco 2 Litros Cola', detail: 'SKU: 7590012 · Stock: 35 und', priceUsd: 2.2, art: 'soda' },
+      { id: 'b4', name: 'Café Molido Gourmet 500g', detail: 'SKU: 7593411 · Stock: 18 und', priceUsd: 4.8, art: 'coffee' },
+      { id: 'b5', name: 'Queso Parmesano 250g', detail: 'SKU: 7596123 · Stock: 12 und', priceUsd: 3.9, art: 'grocery' },
+      { id: 'b6', name: 'Galletas Chips Chocolate', detail: 'SKU: 7594520 · Stock: 60 und', priceUsd: 1.5, art: 'grocery' }
+    ],
+    tables: []
   }
-];
-
-const SHOWCASE_TABLES = [
-  { id: 't1', name: 'Mesa 1', zone: 'Salón', status: 'ocupada', waiter: 'Carlos M.', totalUsd: 24.0, mins: '18 min' },
-  { id: 't2', name: 'Mesa 2', zone: 'Salón', status: 'libre', waiter: null, totalUsd: 0, mins: null },
-  { id: 't3', name: 'Mesa 3', zone: 'Salón', status: 'cuenta', waiter: 'Valeria R.', totalUsd: 38.5, mins: '42 min' },
-  { id: 't4', name: 'Mesa 4', zone: 'Terraza', status: 'ocupada', waiter: 'Valeria R.', totalUsd: 19.5, mins: 'Hace 1m' },
-  { id: 't5', name: 'Mesa 5', zone: 'Terraza', status: 'libre', waiter: null, totalUsd: 0, mins: null },
-  { id: 't6', name: 'Barra 1', zone: 'Barra', status: 'ocupada', waiter: 'Andrés S.', totalUsd: 11.5, mins: '12 min' }
-];
-
-const NAV_SECTIONS = [
-  {
-    title: 'Operaciones',
-    items: [
-      { id: 'pos', label: 'Punto de Venta', icon: ShoppingCart, badge: 'Caja' },
-      { id: 'tables', label: 'Mesas & Salón', icon: Utensils, badge: 'Salas' }
-    ]
-  },
-  {
-    title: 'Catálogo & Insumos',
-    items: [
-      { id: 'products', label: 'Menú & Productos', icon: Package },
-      { id: 'inventory', label: 'Inventario & Stock', icon: Boxes },
-      { id: 'clients', label: 'Clientes & Crédito', icon: Users }
-    ]
-  },
-  {
-    title: 'Administración & Finanzas',
-    items: [
-      { id: 'dashboard', label: 'Dashboard de Ventas', icon: LayoutDashboard },
-      { id: 'fiscal', label: 'Libros de Compra y Venta', icon: BookOpen, badge: 'Fiscal' },
-      { id: 'cash-close', label: 'Cierre de Caja', icon: Calculator, badge: 'Arqueo' }
-    ]
-  },
-  {
-    title: 'En la Nube',
-    items: [
-      { id: 'monitor', label: 'Monitor del Dueño', icon: TrendingUp, badge: 'En vivo' }
-    ]
-  }
-];
+};
 
 function formatBs(val) {
   return 'Bs. ' + Number(val || 0).toLocaleString('es-VE', {
@@ -194,678 +260,638 @@ function formatBs(val) {
 }
 
 export default function NotionAppShowcase({ rate = 896.12 }) {
-  const [step, setStep] = useState(0);
+  const [activeMode, setActiveMode] = useState('restaurant'); // 'restaurant' | 'ice_cream' | 'retail'
+  const [activeView, setActiveView] = useState('pos'); // 'pos' | 'tables' | 'monitor'
+  const [cart, setCart] = useState({
+    r1: 2,
+    r3: 1
+  });
+  const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
+  const [simulatedPaymentSuccess, setSimulatedPaymentSuccess] = useState(false);
 
-  useEffect(() => {
-    const durations = [1400, 1200, 1200, 1300, 2400, 1400, 2300, 1400, 2400];
-    const timer = setTimeout(() => {
-      setStep((prev) => (prev + 1) % durations.length);
-    }, durations[step]);
-    return () => clearTimeout(timer);
-  }, [step]);
+  const currentMode = BUSINESS_MODES[activeMode];
 
-  const activeTab = step <= 4 ? 'pos' : step <= 6 ? 'tables' : 'fiscal';
+  // Cambiar de perfil de negocio reinicia el carrito con un ejemplo relevante
+  const handleSelectMode = (modeKey) => {
+    setActiveMode(modeKey);
+    setActiveView('pos');
+    setCheckoutModalOpen(false);
+    setSimulatedPaymentSuccess(false);
 
-  const cartCounts = {
-    p1: step >= 1 ? 2 : 1,
-    p2: step >= 2 ? 1 : 0,
-    p3: step >= 3 ? 1 : 0
+    if (modeKey === 'restaurant') {
+      setCart({ r1: 2, r3: 1 });
+    } else if (modeKey === 'ice_cream') {
+      setCart({ h1: 2, h2: 1 });
+    } else {
+      setCart({ b1: 3, b2: 1 });
+    }
   };
 
-  const totalQty = (cartCounts.p1 || 0) + (cartCounts.p2 || 0) + (cartCounts.p3 || 0);
-  const totalUsd = cartCounts.p1 * 7.5 + cartCounts.p2 * 9.0 + cartCounts.p3 * 4.5;
-  const totalBs = totalUsd * rate;
+  const addToCart = (product) => {
+    setCart((prev) => ({
+      ...prev,
+      [product.id]: (prev[product.id] || 0) + 1
+    }));
+  };
 
-  const cursorPositions = [
-    { x: '38%', y: '38%', clicking: false },
-    { x: '36%', y: '41%', clicking: true },
-    { x: '58%', y: '41%', clicking: true },
-    { x: '79%', y: '41%', clicking: true },
-    { x: '68%', y: '90%', clicking: true },
-    { x: '11%', y: '27%', clicking: true },
-    { x: '74%', y: '46%', clicking: false },
-    { x: '11%', y: '61%', clicking: true },
-    { x: '84%', y: '22%', clicking: true }
-  ];
-  const currentCursor = cursorPositions[step] || cursorPositions[0];
+  const removeFromCart = (productId) => {
+    setCart((prev) => {
+      const next = { ...prev };
+      if (next[productId] > 1) {
+        next[productId] -= 1;
+      } else {
+        delete next[productId];
+      }
+      return next;
+    });
+  };
 
-  const currentNavMeta =
-    activeTab === 'pos'
-      ? { label: 'Punto de Venta', badge: 'Caja' }
-      : activeTab === 'tables'
-      ? { label: 'Mesas & Salón', badge: 'Salas' }
-      : { label: 'Libros de Compra y Venta', badge: 'Fiscal' };
+  const clearCart = () => setCart({});
+
+  // Cálculo de totales en $ y Bs en tiempo real
+  const cartSummary = useMemo(() => {
+    let totalQty = 0;
+    let totalUsd = 0;
+
+    currentMode.products.forEach((p) => {
+      const q = cart[p.id] || 0;
+      if (q > 0) {
+        totalQty += q;
+        totalUsd += p.priceUsd * q;
+      }
+    });
+
+    const totalBs = totalUsd * rate;
+    return { totalQty, totalUsd, totalBs };
+  }, [cart, currentMode, rate]);
+
+  const handleSimulateCheckout = () => {
+    if (cartSummary.totalQty === 0) return;
+    setCheckoutModalOpen(true);
+    setSimulatedPaymentSuccess(false);
+  };
+
+  const handleConfirmSimulatedPayment = () => {
+    setSimulatedPaymentSuccess(true);
+    setTimeout(() => {
+      setCheckoutModalOpen(false);
+      setSimulatedPaymentSuccess(false);
+      clearCart();
+    }, 2200);
+  };
 
   return (
-    <div className="mt-12 max-w-6xl mx-auto select-none pointer-events-none" aria-hidden="true">
-      <div className="relative rounded-2xl p-1.5 sm:p-2 bg-zinc-200/70 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.14)] border border-zinc-200">
-        {/* VENTANA DE LA APLICACIÓN REAL */}
-        <div className="relative rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900 flex h-[480px] sm:h-[540px] text-left">
+    <div className="mt-8 max-w-6xl mx-auto">
+
+      {/* SELECTOR SEGMENTADO DE PERFIL DE NEGOCIO (ESTILO NOTION / LINEAR) */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4 px-2">
+        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-zinc-100 border border-zinc-200/90 shadow-2xs">
+          {Object.entries(BUSINESS_MODES).map(([key, mode]) => {
+            const isSelected = activeMode === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => handleSelectMode(key)}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  isSelected
+                    ? 'bg-white text-zinc-950 shadow-xs border border-zinc-200/80 scale-102'
+                    : 'text-zinc-600 hover:text-zinc-950 hover:bg-zinc-50'
+                }`}
+              >
+                <span>{key === 'restaurant' ? '🍔' : key === 'ice_cream' ? '🍦' : '🛍️'}</span>
+                <span>{mode.tag}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="text-xs text-zinc-500 font-medium flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>Prueba la demo interactiva en vivo · Haz clic en los platos y productos</span>
+        </div>
+      </div>
+
+      {/* VENTANA DEL SOFTWARE REAL */}
+      <div className="relative rounded-2xl p-1.5 sm:p-2 bg-zinc-200/80 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.18)] border border-zinc-300/80">
+        <div className="relative rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900 flex flex-col md:flex-row h-[560px] text-left">
           
-          {/* SIDEBAR */}
-          <aside className="hidden md:flex w-56 flex-col bg-zinc-900 text-zinc-300 border-r border-zinc-800 shrink-0">
+          {/* SIDEBAR ADAPTABLE SEGÚN EL PERFIL */}
+          <aside className="hidden md:flex w-52 flex-col bg-zinc-900 text-zinc-300 border-r border-zinc-800 shrink-0 select-none">
+            
+            {/* Header del local en Sidebar */}
             <div className="p-3 border-b border-zinc-800 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
                 <div className="w-7 h-7 rounded-lg bg-zinc-800 border border-zinc-700 text-white font-extrabold text-[11px] flex items-center justify-center shrink-0">
-                  FY
+                  {activeMode === 'restaurant' ? 'RG' : activeMode === 'ice_cream' ? 'HC' : 'BM'}
                 </div>
                 <div className="min-w-0">
                   <div className="text-[11px] font-bold text-white tracking-tight truncate">
-                    El Portón Grill C.A.
+                    {currentMode.businessName}
                   </div>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
                     <span className="text-[9px] text-zinc-400 font-semibold truncate">
-                      Caja principal activa
+                      {currentMode.navPill}
                     </span>
                   </div>
                 </div>
               </div>
-              <div className="p-1 rounded-lg text-zinc-400">
-                <Settings size={13} />
+            </div>
+
+            {/* Opciones de menú según el perfil */}
+            <div className="flex-1 overflow-hidden p-2 space-y-3">
+              <div>
+                <div className="px-2 pb-1 text-[9px] font-bold uppercase tracking-wider text-zinc-500">
+                  Caja & Ventas
+                </div>
+                <div className="space-y-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setActiveView('pos')}
+                    className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      activeView === 'pos' ? 'bg-zinc-800 text-white font-bold' : 'text-zinc-400 hover:text-zinc-200'
+                    }`}
+                  >
+                    <ShoppingCart size={13} className={activeView === 'pos' ? 'text-emerald-400' : 'text-zinc-400'} />
+                    <span className="flex-1 text-left">Punto de Venta</span>
+                    <span className="text-[9px] px-1.5 py-0.2 rounded font-mono bg-zinc-800 text-emerald-400 font-bold">
+                      {cartSummary.totalQty}
+                    </span>
+                  </button>
+
+                  {currentMode.hasTables && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveView('tables')}
+                      className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                        activeView === 'tables' ? 'bg-zinc-800 text-white font-bold' : 'text-zinc-400 hover:text-zinc-200'
+                      }`}
+                    >
+                      <Utensils size={13} className={activeView === 'tables' ? 'text-amber-400' : 'text-zinc-400'} />
+                      <span className="flex-1 text-left">Mesas & Salón</span>
+                      <span className="text-[9px] px-1.5 py-0.2 rounded font-mono bg-amber-500/20 text-amber-300">
+                        4
+                      </span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <div className="px-2 pb-1 text-[9px] font-bold uppercase tracking-wider text-zinc-500">
+                  Gestión Inteligente
+                </div>
+                <div className="space-y-0.5 text-zinc-400 text-xs font-medium">
+                  <div className="px-2.5 py-1.5 rounded-lg hover:bg-zinc-800/40 flex items-center gap-2">
+                    <Package size={13} />
+                    <span>{currentMode.categoryLabel}</span>
+                  </div>
+                  {currentMode.hasBarcodes ? (
+                    <div className="px-2.5 py-1.5 rounded-lg hover:bg-zinc-800/40 flex items-center gap-2">
+                      <Barcode size={13} />
+                      <span>Códigos de Barra</span>
+                    </div>
+                  ) : (
+                    <div className="px-2.5 py-1.5 rounded-lg hover:bg-zinc-800/40 flex items-center gap-2">
+                      <Boxes size={13} />
+                      <span>Inventario</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <div className="px-2 pb-1 text-[9px] font-bold uppercase tracking-wider text-zinc-500">
+                  En la Nube
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveView('monitor')}
+                  className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    activeView === 'monitor' ? 'bg-zinc-800 text-white font-bold' : 'text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  <TrendingUp size={13} className={activeView === 'monitor' ? 'text-sky-400' : 'text-zinc-400'} />
+                  <span className="flex-1 text-left">Monitor Móvil</span>
+                  <span className="text-[8px] px-1 py-0.2 rounded bg-sky-500/20 text-sky-300 font-bold">
+                    Ventas
+                  </span>
+                </button>
               </div>
             </div>
 
-            <div className="flex-1 overflow-hidden p-2 space-y-2.5">
-              {NAV_SECTIONS.map((section) => (
-                <div key={section.title} className="space-y-0.5">
-                  <div className="px-2 pt-0.5 pb-0.5 text-[9px] font-bold uppercase tracking-wider text-zinc-500">
-                    {section.title}
-                  </div>
-                  {section.items.map((item) => {
-                    const Icon = item.icon;
-                    const isActive = activeTab === item.id;
-                    return (
-                      <div
-                        key={item.id}
-                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[11px] font-semibold transition-colors ${
-                          isActive ? 'bg-zinc-800 text-white font-bold' : 'text-zinc-400'
-                        }`}
-                      >
-                        <Icon
-                          size={14}
-                          className={isActive ? 'text-emerald-400' : 'text-zinc-400'}
-                        />
-                        <span className="flex-1 truncate">{item.label}</span>
-                        {item.badge && (
-                          <span
-                            className={`text-[8px] px-1.5 py-0.2 rounded-full font-bold ${
-                              item.badge === 'Caja'
-                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                                : item.badge === 'Legal'
-                                ? 'bg-sky-500/20 text-sky-300'
-                                : item.badge === 'Salas'
-                                ? 'bg-amber-500/20 text-amber-300'
-                                : item.badge === 'Arqueo'
-                                ? 'bg-indigo-500/20 text-indigo-300'
-                                : 'bg-zinc-800 text-zinc-400'
-                            }`}
-                          >
-                            {item.badge}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
-
-            <div className="p-2 border-t border-zinc-800">
-              <div className="flex items-center justify-between p-2 rounded-xl bg-zinc-800/80 border border-zinc-700/60">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-6 h-6 rounded-lg bg-zinc-700 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
-                    P
-                  </div>
-                  <div className="min-w-0">
-                    <span className="block text-[10px] font-bold text-zinc-200 truncate">
-                      caja@elporton.com
-                    </span>
-                    <span className="text-[8px] text-emerald-400 font-semibold flex items-center gap-1">
-                      <span className="w-1 h-1 rounded-full bg-emerald-400"></span>
-                      HKA80 · COM4 Activa
-                    </span>
-                  </div>
-                </div>
-                <Settings size={12} className="text-zinc-400 shrink-0" />
+            {/* Indicador de Tasa BCV Oficial */}
+            <div className="p-2.5 border-t border-zinc-800 bg-zinc-950/60">
+              <div className="flex items-center justify-between text-[10px]">
+                <span className="text-zinc-400 font-medium">Tasa Oficial BCV:</span>
+                <span className="text-emerald-400 font-mono font-bold">{rate.toFixed(2)} Bs/$</span>
               </div>
             </div>
           </aside>
 
-          {/* CONTENIDO PRINCIPAL */}
-          <div className="flex-1 flex flex-col min-w-0 bg-zinc-50 overflow-hidden relative">
+          {/* ÁREA DE TRABAJO PRINCIPAL */}
+          <main className="flex-1 flex flex-col min-w-0 bg-zinc-50 overflow-hidden relative">
             
-            {/* TOPBAR */}
-            <div className="h-11 bg-zinc-900 border-b border-zinc-800 px-4 flex items-center justify-between shrink-0 text-white">
+            {/* TOPBAR DE LA APLICACIÓN */}
+            <div className="h-11 bg-zinc-900 border-b border-zinc-800 px-3 sm:px-4 flex items-center justify-between shrink-0 text-white">
               <div className="flex items-center gap-2">
-                <span className="font-extrabold text-xs tracking-tight text-white">
-                  {currentNavMeta.label}
+                <span className="font-extrabold text-xs text-white">
+                  {activeView === 'pos'
+                    ? 'Punto de Venta'
+                    : activeView === 'tables'
+                    ? 'Mesas & Salón'
+                    : 'Monitor del Dueño en Vivo'}
                 </span>
                 <span className="text-[9px] px-2 py-0.5 rounded-full font-bold bg-zinc-800 text-zinc-300 border border-zinc-700">
-                  {currentNavMeta.badge}
+                  {currentMode.tag}
                 </span>
               </div>
 
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1.5 bg-zinc-800 border border-zinc-700 rounded-xl px-2.5 py-1 text-[10px]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                  <span className="text-zinc-400 font-semibold">BCV:</span>
-                  <span className="text-white font-extrabold font-mono">{rate.toFixed(2)} Bs/$</span>
+              {/* Selector de Vistas en móviles o barras */}
+              <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1 p-0.5 rounded-lg bg-zinc-800 border border-zinc-700 text-[10px]">
+                  <button
+                    type="button"
+                    onClick={() => setActiveView('pos')}
+                    className={`px-2 py-0.5 rounded font-bold cursor-pointer transition-all ${
+                      activeView === 'pos' ? 'bg-zinc-950 text-white shadow-2xs' : 'text-zinc-400'
+                    }`}
+                  >
+                    Caja
+                  </button>
+                  {currentMode.hasTables && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveView('tables')}
+                      className={`px-2 py-0.5 rounded font-bold cursor-pointer transition-all ${
+                        activeView === 'tables' ? 'bg-zinc-950 text-white shadow-2xs' : 'text-zinc-400'
+                      }`}
+                    >
+                      Mesas
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setActiveView('monitor')}
+                    className={`px-2 py-0.5 rounded font-bold cursor-pointer transition-all ${
+                      activeView === 'monitor' ? 'bg-zinc-950 text-white shadow-2xs' : 'text-zinc-400'
+                    }`}
+                  >
+                    Celular
+                  </button>
                 </div>
 
-                <div className="hidden sm:flex items-center gap-1.5 pl-2 ml-1 border-l border-zinc-800">
-                  <span className="w-2.5 h-2.5 rounded-full bg-zinc-700"></span>
-                  <span className="w-2.5 h-2.5 rounded-full bg-zinc-700"></span>
-                  <span className="w-2.5 h-2.5 rounded-full bg-zinc-700"></span>
+                <div className="hidden sm:flex items-center gap-1.5 pl-2 border-l border-zinc-800 text-xs">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                  <span className="text-[10px] text-zinc-400 font-mono font-semibold">100% Offline-Ready</span>
                 </div>
               </div>
             </div>
 
-            {/* ESCENAS */}
-            <div className="flex-1 overflow-hidden relative flex flex-col">
-              <AnimatePresence mode="wait">
+            {/* VISTA 1: PUNTO DE VENTA INTERACTIVO (CATÁLOGO + CARRITO) */}
+            {activeView === 'pos' && (
+              <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
                 
-                {/* ESCENA 1: PUNTO DE VENTA */}
-                {activeTab === 'pos' && (
-                  <motion.div
-                    key="scene-pos"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.18 }}
-                    className="flex-1 flex flex-col h-full bg-zinc-50 overflow-hidden relative"
-                  >
-                    <div className="bg-white border-b border-zinc-200/80 px-4 py-2 shrink-0 flex items-center justify-between gap-3">
-                      <div className="relative flex-1 max-w-xs">
-                        <Search size={13} className="absolute left-2.5 top-2 text-zinc-400" />
-                        <div className="w-full pl-8 pr-3 py-1 rounded-xl border border-zinc-200 text-[11px] text-zinc-400 bg-zinc-50/50">
-                          Buscar plato, combo o bebida...
-                        </div>
-                      </div>
-
-                      <div className="px-2.5 py-1 rounded-xl border bg-zinc-950 text-white border-zinc-950 text-[11px] font-bold flex items-center gap-1.5">
-                        <ShoppingCart size={13} className="text-emerald-400" />
-                        <span>Comanda</span>
-                        <span className="px-1.5 py-0.2 rounded-full font-mono text-[10px] bg-zinc-800 text-emerald-300 font-bold">
-                          {totalQty}
-                        </span>
-                        <span className="font-mono text-zinc-300 text-[10px] border-l border-zinc-700 pl-1.5">
-                          ${totalUsd.toFixed(2)}
-                        </span>
-                      </div>
+                {/* Cuadrícula de Productos */}
+                <div className="flex-1 flex flex-col overflow-hidden bg-zinc-100/60 p-3">
+                  
+                  {/* Buscador / Escáner */}
+                  <div className="mb-2.5 flex items-center justify-between gap-2">
+                    <div className="relative flex-1 max-w-sm">
+                      <Search size={13} className="absolute left-2.5 top-2.5 text-zinc-400" />
+                      <input
+                        type="text"
+                        readOnly
+                        value={currentMode.hasBarcodes ? 'Lector de código de barras activo...' : 'Buscar producto o categoría...'}
+                        className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-zinc-200 text-xs bg-white text-zinc-600 shadow-2xs cursor-default"
+                      />
                     </div>
+                    <span className="text-[11px] text-zinc-500 font-semibold hidden sm:inline">
+                      {currentMode.products.length} productos listos
+                    </span>
+                  </div>
 
-                    <div className="bg-white px-4 py-1.5 border-b border-zinc-200/80 flex items-center gap-1.5 shrink-0">
-                      {[
-                        { name: 'Todos', count: 6, active: true },
-                        { name: 'Hamburguesas', count: 2, active: false },
-                        { name: 'Pepitos', count: 1, active: false },
-                        { name: 'Entradas', count: 2, active: false },
-                        { name: 'Bebidas', count: 2, active: false }
-                      ].map((cat) => (
+                  {/* Grid de productos */}
+                  <div className="flex-1 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 gap-2.5 pr-0.5">
+                    {currentMode.products.map((p) => {
+                      const inCartQty = cart[p.id] || 0;
+                      return (
                         <div
-                          key={cat.name}
-                          className={`px-2.5 py-1 rounded-xl text-[10px] font-semibold flex items-center gap-1 ${
-                            cat.active ? 'bg-zinc-950 text-white' : 'bg-zinc-100 text-zinc-600'
+                          key={p.id}
+                          onClick={() => addToCart(p)}
+                          className={`group relative rounded-xl border p-2 flex flex-col justify-between transition-all cursor-pointer bg-white hover:border-zinc-400 hover:shadow-xs active:scale-98 ${
+                            inCartQty > 0 ? 'border-zinc-900 ring-1 ring-zinc-900/10' : 'border-zinc-200'
                           }`}
                         >
-                          <span>{cat.name}</span>
-                          <span
-                            className={`text-[9px] px-1 rounded-full font-bold ${
-                              cat.active ? 'bg-zinc-800 text-zinc-200' : 'bg-zinc-200 text-zinc-600'
-                            }`}
-                          >
-                            {cat.count}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="flex-1 p-3 sm:p-4 grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3 overflow-hidden">
-                      {SHOWCASE_PRODUCTS.map((p) => {
-                        const qty = cartCounts[p.id] || 0;
-                        const priceBs = p.priceUsd * rate;
-
-                        return (
-                          <div
-                            key={p.id}
-                            className={`rounded-2xl border bg-white overflow-hidden flex flex-col justify-between transition-colors ${
-                              qty > 0
-                                ? 'border-zinc-950 ring-1 ring-zinc-950/20'
-                                : 'border-zinc-200/80'
-                            }`}
-                          >
-                            <div className="h-22 sm:h-26 w-full overflow-hidden relative">
-                              <ProductGraphic type={p.art} />
-                              <div className="absolute top-1.5 left-1.5">
-                                <span className="px-1.5 py-0.5 rounded-md font-bold text-[8px] bg-emerald-600 text-white">
-                                  IVA 16%
-                                </span>
-                              </div>
-                              {qty > 0 && (
-                                <div className="absolute top-1.5 right-1.5 min-w-[20px] h-5 px-1 rounded-full bg-zinc-950 text-white font-bold text-[10px] flex items-center justify-center shadow-xs">
-                                  {qty}
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="p-2.5 flex-1 flex flex-col justify-between">
-                              <div>
-                                <div className="font-bold text-[11px] text-zinc-950 truncate">
-                                  {p.name}
-                                </div>
-                                <div className="text-[9px] text-zinc-400 truncate">
-                                  {p.description}
-                                </div>
-                              </div>
-
-                              <div className="pt-1.5 mt-1 border-t border-zinc-100 flex items-baseline justify-between">
-                                <div>
-                                  <span className="text-xs font-extrabold text-zinc-950 font-mono">
-                                    ${p.priceUsd.toFixed(2)}
-                                  </span>
-                                  <span className="text-[9px] text-zinc-400 font-mono block leading-tight">
-                                    {formatBs(priceBs)}
-                                  </span>
-                                </div>
-                                <div
-                                  className={`w-5 h-5 rounded-lg flex items-center justify-center ${
-                                    qty > 0 ? 'bg-zinc-950 text-white' : 'bg-zinc-100 text-zinc-600'
-                                  }`}
-                                >
-                                  <Plus size={11} />
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Barra Inferior Unificada */}
-                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-zinc-950 text-white p-1.5 rounded-2xl shadow-xl border border-zinc-800">
-                      <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-zinc-900 text-[11px] font-semibold">
-                        <ShoppingCart size={13} className="text-emerald-400" />
-                        <span className="font-bold">{totalQty} ítems</span>
-                        <span className="font-mono text-emerald-300 font-bold border-l border-zinc-700 pl-2">
-                          ${totalUsd.toFixed(2)}
-                        </span>
-                      </div>
-
-                      <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-zinc-900 text-zinc-200 text-[11px] font-semibold border border-zinc-800">
-                        <ChefHat size={13} className="text-amber-400" />
-                        <span>Comanda</span>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-500 text-zinc-950 font-extrabold text-[11px]">
-                        <Printer size={13} />
-                        <span>Cobrar / Facturar</span>
-                      </div>
-                    </div>
-
-                    {/* Confirmación de Factura Fiscal en Paso 4 */}
-                    <AnimatePresence>
-                      {step === 4 && (
-                        <motion.div
-                          initial={{ opacity: 0, scale: 0.96 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.96 }}
-                          transition={{ duration: 0.18 }}
-                          className="absolute inset-0 z-30 bg-zinc-950/30 flex items-center justify-center p-4"
-                        >
-                          <div className="bg-white rounded-2xl border border-zinc-200 shadow-2xl max-w-xs w-full p-4 space-y-3">
-                            <div className="flex items-center justify-between border-b border-zinc-100 pb-2.5">
-                              <div className="flex items-center gap-2">
-                                <div className="w-7 h-7 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center">
-                                  <CheckCircle2 size={16} />
-                                </div>
-                                <div>
-                                  <div className="text-xs font-extrabold text-zinc-950">
-                                    Factura Fiscal Emitida
-                                  </div>
-                                  <div className="text-[10px] text-emerald-700 font-semibold">
-                                    The Factory HKA80 · COM4
-                                  </div>
-                                </div>
-                              </div>
-                              <span className="font-mono text-[10px] font-bold bg-zinc-100 px-2 py-0.5 rounded text-zinc-800">
-                                #00048291
+                          <div className="h-20 w-full rounded-lg overflow-hidden mb-2 relative">
+                            <ProductGraphic type={p.art} />
+                            {inCartQty > 0 && (
+                              <span className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-zinc-950 text-white text-[10px] font-mono font-bold flex items-center justify-center shadow-xs">
+                                {inCartQty}
                               </span>
-                            </div>
-
-                            <div className="p-2.5 rounded-xl bg-zinc-50 border border-zinc-200/80 font-mono text-[10px] space-y-1 text-zinc-700">
-                              <div className="flex justify-between">
-                                <span>2x SMASH BURGER DOBLE</span>
-                                <span className="font-bold text-zinc-950">{formatBs(15 * rate)}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span>1x PEPITO LOMITO 35CM</span>
-                                <span className="font-bold text-zinc-950">{formatBs(9 * rate)}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span>1x PAPAS RÚSTICAS</span>
-                                <span className="font-bold text-zinc-950">{formatBs(4.5 * rate)}</span>
-                              </div>
-                              <div className="border-t border-dashed border-zinc-300 pt-1 mt-1 flex justify-between font-bold text-zinc-950 text-[11px]">
-                                <span>TOTAL ($28.50):</span>
-                                <span>{formatBs(totalBs)}</span>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center justify-between text-[10px] text-zinc-500">
-                              <span>Pago Mixto: $10 Efectivo + Pago Móvil</span>
-                              <span className="text-emerald-700 font-bold">Impresa</span>
-                            </div>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </motion.div>
-                )}
-
-                {/* ESCENA 2: MESAS & SALÓN */}
-                {activeTab === 'tables' && (
-                  <motion.div
-                    key="scene-tables"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.18 }}
-                    className="flex-1 flex flex-col h-full bg-zinc-50 overflow-hidden relative"
-                  >
-                    <div className="bg-white border-b border-zinc-200/80 px-5 py-3 shrink-0 flex items-center justify-between gap-2">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="p-1 rounded-lg bg-zinc-100 text-zinc-700">
-                            <Utensils size={14} />
-                          </span>
-                          <span className="text-sm font-bold text-zinc-950">
-                            Control de Salón y Comandas
-                          </span>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            2 Libres · 4 Ocupadas
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-zinc-500 mt-0.5">
-                          Pedidos de mesoneros por QR y cuentas abiertas en vivo
-                        </p>
-                      </div>
-
-                      <div className="hidden sm:flex items-center gap-1.5">
-                        <div className="px-2.5 py-1.5 rounded-xl bg-sky-50 text-sky-800 border border-sky-200/80 text-[10px] font-bold flex items-center gap-1.5">
-                          <QrCode size={12} className="text-sky-600" />
-                          <span>Vincular Tablets (QR)</span>
-                        </div>
-                        <div className="px-2.5 py-1.5 rounded-xl bg-zinc-950 text-white text-[10px] font-bold flex items-center gap-1.5">
-                          <ShoppingCart size={12} className="text-emerald-400" />
-                          <span>Punto de Venta</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="p-4 grid grid-cols-2 sm:grid-cols-3 gap-3 flex-1 overflow-hidden">
-                      {SHOWCASE_TABLES.map((t) => {
-                        const isOccupied = t.status === 'ocupada';
-                        const isBill = t.status === 'cuenta';
-                        const isNewQr = step === 6 && t.id === 't4';
-
-                        return (
-                          <div
-                            key={t.id}
-                            className={`bg-white rounded-2xl border p-3.5 flex flex-col justify-between transition-colors ${
-                              isNewQr
-                                ? 'border-emerald-500 ring-2 ring-emerald-200'
-                                : isBill
-                                ? 'border-sky-300'
-                                : isOccupied
-                                ? 'border-amber-300'
-                                : 'border-zinc-200/80'
-                            }`}
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div>
-                                <div className="font-extrabold text-xs text-zinc-950">{t.name}</div>
-                                <div className="text-[10px] text-zinc-500">Zona: {t.zone}</div>
-                              </div>
-                              <span
-                                className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${
-                                  isBill
-                                    ? 'bg-sky-100 text-sky-800'
-                                    : isOccupied
-                                    ? 'bg-amber-100 text-amber-800'
-                                    : 'bg-emerald-50 text-emerald-700'
-                                }`}
-                              >
-                                {isBill ? 'Pre-Cuenta' : isOccupied ? 'Ocupada' : 'Libre'}
-                              </span>
-                            </div>
-
-                            {t.status !== 'libre' ? (
-                              <div className="pt-2 border-t border-zinc-100 space-y-1">
-                                <div className="flex items-center justify-between text-[10px] text-zinc-500">
-                                  <span>Mesero: {t.waiter}</span>
-                                  <span className="inline-flex items-center gap-0.5">
-                                    <Clock size={10} /> {t.mins}
-                                  </span>
-                                </div>
-                                <div className="flex items-baseline justify-between">
-                                  <span className="text-xs font-extrabold text-zinc-950 font-mono">
-                                    ${t.totalUsd.toFixed(2)}
-                                  </span>
-                                  <span className="text-[10px] text-zinc-500 font-mono">
-                                    {formatBs(t.totalUsd * rate)}
-                                  </span>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="pt-2 border-t border-zinc-100 text-[10px] text-zinc-400">
-                                Mesa libre
-                              </div>
                             )}
                           </div>
-                        );
-                      })}
-                    </div>
-
-                    <AnimatePresence>
-                      {step === 6 && (
-                        <motion.div
-                          initial={{ opacity: 0, y: -8 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -8 }}
-                          transition={{ duration: 0.18 }}
-                          className="absolute top-14 right-4 z-30 bg-zinc-950 text-white rounded-2xl border border-zinc-800 shadow-xl p-3.5 max-w-xs flex items-start gap-3"
-                        >
-                          <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shrink-0">
-                            <Bell size={15} />
-                          </div>
-                          <div className="text-[11px] space-y-0.5">
-                            <div className="font-extrabold text-white flex items-center gap-1.5">
-                              <span>Comanda recibida</span>
-                              <span className="text-[9px] bg-emerald-500 text-zinc-950 font-black px-1.5 py-0.2 rounded">
-                                MESA 4
+                          <div>
+                            <div className="font-bold text-xs text-zinc-950 line-clamp-1 leading-tight group-hover:text-emerald-700 transition-colors">
+                              {p.name}
+                            </div>
+                            <div className="text-[10px] text-zinc-400 line-clamp-1 mt-0.5">
+                              {p.detail}
+                            </div>
+                            <div className="mt-2 flex items-baseline justify-between pt-1 border-t border-zinc-100">
+                              <span className="font-mono font-extrabold text-xs text-zinc-950">
+                                ${p.priceUsd.toFixed(2)}
+                              </span>
+                              <span className="text-[10px] text-emerald-700 font-mono font-bold">
+                                {formatBs(p.priceUsd * rate)}
                               </span>
                             </div>
-                            <p className="text-zinc-300 text-[10px]">
-                              Mesonero: <strong>Valeria R.</strong> · 2x Smash Burger + 1x Té Frío enviados a cocina.
-                            </p>
                           </div>
-                        </motion.div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Carrito de Comanda / Ticket de Venta */}
+                <div className="w-full lg:w-72 bg-white border-t lg:border-t-0 lg:border-l border-zinc-200/90 flex flex-col shrink-0">
+                  <div className="p-3 border-b border-zinc-200/80 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 font-bold text-xs text-zinc-900">
+                      <ShoppingCart size={14} className="text-emerald-600" />
+                      <span>Cuenta Actual</span>
+                      <span className="px-1.5 py-0.2 rounded-full font-mono text-[10px] bg-zinc-100 text-zinc-700 font-bold">
+                        {cartSummary.totalQty}
+                      </span>
+                    </div>
+                    {cartSummary.totalQty > 0 && (
+                      <button
+                        type="button"
+                        onClick={clearCart}
+                        className="text-[10px] text-zinc-400 hover:text-red-600 font-semibold cursor-pointer"
+                      >
+                        Vaciar
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Lista de items en carrito */}
+                  <div className="flex-1 overflow-y-auto p-2.5 divide-y divide-zinc-100 max-h-48 lg:max-h-none text-xs">
+                    {cartSummary.totalQty === 0 ? (
+                      <div className="py-12 text-center text-zinc-400 text-xs">
+                        <ShoppingCart size={22} className="mx-auto mb-2 text-zinc-300" />
+                        <span>Carrito vacío. Haz clic en cualquier plato o producto para agregarlo.</span>
+                      </div>
+                    ) : (
+                      currentMode.products.map((p) => {
+                        const q = cart[p.id] || 0;
+                        if (q === 0) return null;
+                        return (
+                          <div key={p.id} className="py-2 flex items-center justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <span className="font-semibold text-zinc-900 block truncate">{p.name}</span>
+                              <span className="text-[10px] text-zinc-400 font-mono">
+                                ${p.priceUsd.toFixed(2)} c/u · {formatBs(p.priceUsd * rate)}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => removeFromCart(p.id)}
+                                className="w-5 h-5 rounded bg-zinc-100 hover:bg-zinc-200 text-zinc-700 flex items-center justify-center font-bold text-xs cursor-pointer"
+                              >
+                                -
+                              </button>
+                              <span className="w-5 text-center font-mono font-bold text-xs text-zinc-950">{q}</span>
+                              <button
+                                type="button"
+                                onClick={() => addToCart(p)}
+                                className="w-5 h-5 rounded bg-zinc-100 hover:bg-zinc-200 text-zinc-700 flex items-center justify-center font-bold text-xs cursor-pointer"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* Totales y Botón de Cobro */}
+                  <div className="p-3 bg-zinc-50 border-t border-zinc-200/90 space-y-2">
+                    <div className="flex items-baseline justify-between text-xs">
+                      <span className="text-zinc-500 font-semibold">Total Dólares:</span>
+                      <strong className="font-mono font-extrabold text-base text-zinc-950">
+                        ${cartSummary.totalUsd.toFixed(2)}
+                      </strong>
+                    </div>
+                    <div className="flex items-baseline justify-between text-xs pt-1 border-t border-zinc-200/60">
+                      <span className="text-zinc-500 font-semibold">Total Bolívares (BCV):</span>
+                      <strong className="font-mono font-bold text-xs text-emerald-700">
+                        {formatBs(cartSummary.totalBs)}
+                      </strong>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={cartSummary.totalQty === 0}
+                      onClick={handleSimulateCheckout}
+                      className="w-full py-2.5 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 active:scale-98"
+                    >
+                      <DollarSign size={13} className="text-emerald-400" />
+                      <span>Cobrar (${cartSummary.totalUsd.toFixed(2)}) →</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* VISTA 2: MAPA DE MESAS (EXCLUSIVO RESTAURANTE) */}
+            {activeView === 'tables' && currentMode.hasTables && (
+              <div className="flex-1 p-4 overflow-y-auto bg-zinc-100/50">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h4 className="font-bold text-sm text-zinc-950">Mapa de Mesas y Salón</h4>
+                    <p className="text-[11px] text-zinc-500">Visualiza mesas ocupadas, cuentas abiertas y rotación.</p>
+                  </div>
+                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800">
+                    2 Mesas Ocupadas
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {currentMode.tables.map((t) => (
+                    <div
+                      key={t.id}
+                      className={`p-3.5 rounded-2xl border transition-all ${
+                        t.status === 'ocupada'
+                          ? 'bg-amber-50/70 border-amber-200 shadow-2xs'
+                          : t.status === 'cuenta'
+                          ? 'bg-emerald-50/70 border-emerald-200 shadow-2xs'
+                          : 'bg-white border-zinc-200'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-bold text-xs text-zinc-950">{t.name}</span>
+                        <span
+                          className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold uppercase ${
+                            t.status === 'ocupada'
+                              ? 'bg-amber-200 text-amber-900'
+                              : t.status === 'cuenta'
+                              ? 'bg-emerald-200 text-emerald-900'
+                              : 'bg-zinc-100 text-zinc-500'
+                          }`}
+                        >
+                          {t.status}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-zinc-500">{t.zone}</div>
+                      {t.status !== 'libre' ? (
+                        <div className="mt-2 pt-2 border-t border-zinc-200/60">
+                          <div className="font-mono font-bold text-sm text-zinc-950">${t.totalUsd.toFixed(2)}</div>
+                          <div className="text-[10px] text-zinc-400 flex items-center justify-between mt-0.5">
+                            <span>{t.waiter}</span>
+                            <span>{t.mins}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mt-4 text-[10px] text-zinc-400 font-medium">Disponible para comensal</div>
                       )}
-                    </AnimatePresence>
-                  </motion.div>
-                )}
-
-                {/* ESCENA 3: LIBROS DE COMPRA Y VENTA */}
-                {activeTab === 'fiscal' && (
-                  <motion.div
-                    key="scene-fiscal"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.18 }}
-                    className="flex-1 flex flex-col h-full bg-zinc-50 overflow-hidden relative"
-                  >
-                    <div className="bg-white border-b border-zinc-200/80 px-5 py-3 shrink-0 flex items-center justify-between gap-2">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="p-1 rounded-lg bg-zinc-100 text-zinc-700">
-                            <BookOpen size={14} />
-                          </span>
-                          <span className="text-sm font-bold text-zinc-950">
-                            Libros de Compra y Venta
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-zinc-500 mt-0.5">
-                          Libro de Ventas, Compras y Cierres Z listos para contabilidad
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-1.5">
-                        <div className="hidden sm:flex px-2.5 py-1.5 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 text-[10px] font-bold items-center gap-1">
-                          <FileSpreadsheet size={12} className="text-amber-700" />
-                          <span>Memoria Fiscal Z</span>
-                        </div>
-                        <div className="px-2.5 py-1.5 rounded-xl bg-zinc-950 text-white text-[10px] font-bold flex items-center gap-1">
-                          <Download size={12} />
-                          <span>Exportar Excel</span>
-                        </div>
-                      </div>
                     </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
-                    <div className="p-4 space-y-3 flex-1 overflow-hidden">
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                        <div className="bg-white p-3 rounded-xl border border-zinc-200/80">
-                          <span className="text-[9px] font-bold uppercase text-zinc-400 block">
-                            Total Facturado
-                          </span>
-                          <span className="text-xs font-extrabold text-zinc-950 font-mono mt-0.5 block">
-                            {formatBs(1485.5 * rate)}
-                          </span>
-                        </div>
-                        <div className="bg-white p-3 rounded-xl border border-zinc-200/80">
-                          <span className="text-[9px] font-bold uppercase text-zinc-400 block">
-                            Base Imponible 16%
-                          </span>
-                          <span className="text-xs font-extrabold text-zinc-950 font-mono mt-0.5 block">
-                            {formatBs(1280.6 * rate)}
-                          </span>
-                        </div>
-                        <div className="bg-white p-3 rounded-xl border border-zinc-200/80">
-                          <span className="text-[9px] font-bold uppercase text-zinc-400 block">
-                            IVA 16%
-                          </span>
-                          <span className="text-xs font-extrabold text-emerald-700 font-mono mt-0.5 block">
-                            {formatBs(204.9 * rate)}
-                          </span>
-                        </div>
-                        <div className="bg-white p-3 rounded-xl border border-zinc-200/80">
-                          <span className="text-[9px] font-bold uppercase text-zinc-400 block">
-                            IGTF 3%
-                          </span>
-                          <span className="text-xs font-extrabold text-amber-700 font-mono mt-0.5 block">
-                            {formatBs(18.4 * rate)}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="bg-white rounded-xl border border-zinc-200/80 overflow-hidden">
-                        <div className="px-3.5 py-2 bg-zinc-50 border-b border-zinc-200/80 flex items-center justify-between text-[10px] font-bold text-zinc-600">
-                          <span>LIBRO DE VENTAS · IMPRESORA HKA80 (Z1B8049210)</span>
-                          <span className="text-emerald-700">Reporte Z #0142 al día</span>
-                        </div>
-                        <table className="w-full text-left border-collapse text-[10px]">
-                          <thead>
-                            <tr className="border-b border-zinc-100 text-zinc-400 uppercase text-[9px]">
-                              <th className="py-2 px-3">Factura</th>
-                              <th className="py-2 px-3">RIF / Cliente</th>
-                              <th className="py-2 px-3">Serial</th>
-                              <th className="py-2 px-3 text-right">Base 16%</th>
-                              <th className="py-2 px-3 text-right">IVA 16%</th>
-                              <th className="py-2 px-3 text-right">Total Bs</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-zinc-100 font-mono text-zinc-700">
-                            {[
-                              { num: '00048291', rif: 'J-40129381-2 · Inversiones Kroma', serial: 'Z1B8049210', usd: 28.5 },
-                              { num: '00048290', rif: 'V-19842104-3 · Carlos Mendoza', serial: 'Z1B8049210', usd: 19.0 },
-                              { num: '00048289', rif: 'V-00000000-0 · Consumidor Final', serial: 'Z1B8049210', usd: 42.0 },
-                              { num: '00048288', rif: 'J-31094821-0 · Alimentos Los Andes', serial: 'Z1B8049210', usd: 64.5 }
-                            ].map((row) => {
-                              const totalRowBs = row.usd * rate;
-                              const baseRowBs = totalRowBs / 1.16;
-                              const ivaRowBs = totalRowBs - baseRowBs;
-                              return (
-                                <tr key={row.num} className="bg-white">
-                                  <td className="py-2 px-3 font-bold text-zinc-950">#{row.num}</td>
-                                  <td className="py-2 px-3 font-sans truncate max-w-[160px]">{row.rif}</td>
-                                  <td className="py-2 px-3 text-zinc-500">{row.serial}</td>
-                                  <td className="py-2 px-3 text-right">{formatBs(baseRowBs)}</td>
-                                  <td className="py-2 px-3 text-right text-emerald-700">{formatBs(ivaRowBs)}</td>
-                                  <td className="py-2 px-3 text-right font-bold text-zinc-950">{formatBs(totalRowBs)}</td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
+            {/* VISTA 3: MONITOR MÓVIL DEL DUEÑO */}
+            {activeView === 'monitor' && (
+              <div className="flex-1 p-4 overflow-y-auto bg-zinc-950 text-white flex items-center justify-center">
+                <div className="w-full max-w-sm rounded-3xl border border-zinc-800 bg-zinc-900 p-4 shadow-2xl space-y-3">
+                  <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+                    <div className="flex items-center gap-1.5">
+                      <Smartphone size={14} className="text-emerald-400" />
+                      <span className="text-xs font-bold text-white">Monitor en tu Celular</span>
                     </div>
-                  </motion.div>
-                )}
+                    <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 font-bold">
+                      En Vivo
+                    </span>
+                  </div>
 
-              </AnimatePresence>
-            </div>
-          </div>
+                  <div>
+                    <span className="text-[10px] text-zinc-400 block">Ventas de Hoy ({currentMode.businessName})</span>
+                    <strong className="text-2xl font-mono font-extrabold text-white">$482.50</strong>
+                    <span className="text-[11px] text-emerald-400 font-mono block mt-0.5">
+                      ≈ {formatBs(482.5 * rate)}
+                    </span>
+                  </div>
 
-          {/* CURSOR ANIMADO LIGERO */}
-          <motion.div
-            animate={{
-              left: currentCursor.x,
-              top: currentCursor.y,
-              scale: currentCursor.clicking ? 0.88 : 1
-            }}
-            transition={{
-              left: { type: 'tween', duration: 0.38, ease: 'easeOut' },
-              top: { type: 'tween', duration: 0.38, ease: 'easeOut' },
-              scale: { duration: 0.15 }
-            }}
-            className="hidden sm:block absolute z-40 pointer-events-none"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="drop-shadow-md">
-              <path
-                d="M4 3L11.5 20L14.2 13.2L21 10.5L4 3Z"
-                fill="#09090b"
-                stroke="#ffffff"
-                strokeWidth="1.8"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </motion.div>
+                  <div className="grid grid-cols-2 gap-2 pt-1 text-xs">
+                    <div className="p-2 rounded-xl bg-zinc-800/80 border border-zinc-700/60">
+                      <span className="text-[10px] text-zinc-400 block">Pago Móvil (Bs)</span>
+                      <strong className="font-mono text-white">$265.00</strong>
+                    </div>
+                    <div className="p-2 rounded-xl bg-zinc-800/80 border border-zinc-700/60">
+                      <span className="text-[10px] text-zinc-400 block">Efectivo ($ / Bs)</span>
+                      <strong className="font-mono text-white">$217.50</strong>
+                    </div>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-zinc-800/50 border border-zinc-800 text-[11px] text-zinc-300 space-y-1">
+                    <div className="flex justify-between">
+                      <span>Caja Principal:</span>
+                      <span className="text-emerald-400 font-semibold">Abierta sin descuadres</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Tickets emitidos:</span>
+                      <span className="font-mono text-white font-bold">29 ventas</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* MODAL SIMULADO DE COBRO Y EMISIÓN DE TICKET */}
+            {checkoutModalOpen && (
+              <div
+                className="absolute inset-0 z-30 bg-zinc-950/70 backdrop-blur-xs flex items-center justify-center p-3 animate-in fade-in duration-150"
+                onClick={() => setCheckoutModalOpen(false)}
+              >
+                <div
+                  className="bg-white rounded-2xl p-4 max-w-sm w-full shadow-2xl space-y-3"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {simulatedPaymentSuccess ? (
+                    <div className="py-6 text-center space-y-2">
+                      <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+                        <Check size={24} />
+                      </div>
+                      <h4 className="font-bold text-sm text-zinc-950">¡Venta Registrada e Impresa!</h4>
+                      <p className="text-xs text-zinc-500">
+                        Ticket emitido con éxito. El inventario y la caja se actualizaron al instante.
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between border-b border-zinc-100 pb-2">
+                        <div className="flex items-center gap-1.5 font-bold text-xs text-zinc-950">
+                          <Printer size={14} className="text-emerald-600" />
+                          <span>Finalizar Venta ({currentMode.tag})</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setCheckoutModalOpen(false)}
+                          className="w-5 h-5 rounded-full hover:bg-zinc-100 flex items-center justify-center text-zinc-400 cursor-pointer"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+
+                      <div className="p-2.5 rounded-xl bg-zinc-50 border border-zinc-200/80 flex items-center justify-between">
+                        <div>
+                          <span className="text-[10px] text-zinc-500 block">Total a pagar</span>
+                          <strong className="text-lg font-mono font-extrabold text-zinc-950">
+                            ${cartSummary.totalUsd.toFixed(2)}
+                          </strong>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[10px] text-zinc-500 block">En Bolívares (BCV)</span>
+                          <strong className="text-xs font-mono font-bold text-emerald-700">
+                            {formatBs(cartSummary.totalBs)}
+                          </strong>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5 text-xs">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                          Medio de Pago Seleccionado:
+                        </span>
+                        <div className="grid grid-cols-2 gap-1.5 text-[11px] font-semibold">
+                          <div className="p-2 rounded-lg border border-emerald-500 bg-emerald-50/50 text-emerald-950 flex items-center justify-between">
+                            <span>Pago Móvil (Bs)</span>
+                            <Check size={12} className="text-emerald-600" />
+                          </div>
+                          <div className="p-2 rounded-lg border border-zinc-200 bg-white text-zinc-700">
+                            <span>Efectivo ($)</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleConfirmSimulatedPayment}
+                        className="w-full py-2.5 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
+                      >
+                        <Printer size={13} />
+                        <span>Imprimir Ticket & Finalizar →</span>
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+          </main>
         </div>
-      </div>
-
-      {/* INDICADORES DE VISTA */}
-      <div className="mt-4 flex items-center justify-center gap-2">
-        {[
-          { id: 'pos', label: 'Punto de Venta' },
-          { id: 'tables', label: 'Mesas y Comandas' },
-          { id: 'fiscal', label: 'Libros de Compra y Venta' }
-        ].map((scene) => {
-          const isCurrent = activeTab === scene.id;
-          return (
-            <div
-              key={scene.id}
-              className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-colors flex items-center gap-1.5 border ${
-                isCurrent
-                  ? 'bg-zinc-900 text-white border-zinc-900'
-                  : 'bg-white text-zinc-400 border-zinc-200/70'
-              }`}
-            >
-              <span className={`w-1.5 h-1.5 rounded-full ${isCurrent ? 'bg-emerald-400' : 'bg-zinc-300'}`} />
-              <span>{scene.label}</span>
-            </div>
-          );
-        })}
       </div>
     </div>
   );
