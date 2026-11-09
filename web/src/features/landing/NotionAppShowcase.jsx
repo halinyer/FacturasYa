@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ShoppingCart,
@@ -25,12 +25,14 @@ import {
   Check,
   X,
   Clock,
-  RefreshCw
+  RefreshCw,
+  Play,
+  Pause,
+  Zap
 } from 'lucide-react';
 
 // Ilustraciones vectoriales instantáneas y nítidas sin peticiones de red externas
 function ProductGraphic({ type }) {
-  // Hamburguesa
   if (type === 'burger') {
     return (
       <svg viewBox="0 0 120 90" className="w-full h-full bg-amber-50/80">
@@ -46,7 +48,6 @@ function ProductGraphic({ type }) {
       </svg>
     );
   }
-  // Pepito / Sandwich
   if (type === 'pepito') {
     return (
       <svg viewBox="0 0 120 90" className="w-full h-full bg-orange-50/80">
@@ -57,7 +58,6 @@ function ProductGraphic({ type }) {
       </svg>
     );
   }
-  // Papas fritas
   if (type === 'fries') {
     return (
       <svg viewBox="0 0 120 90" className="w-full h-full bg-yellow-50/80">
@@ -71,7 +71,6 @@ function ProductGraphic({ type }) {
       </svg>
     );
   }
-  // Alitas BBQ
   if (type === 'wings') {
     return (
       <svg viewBox="0 0 120 90" className="w-full h-full bg-red-50/70">
@@ -82,7 +81,6 @@ function ProductGraphic({ type }) {
       </svg>
     );
   }
-  // Bebida / Cóctel
   if (type === 'drink') {
     return (
       <svg viewBox="0 0 120 90" className="w-full h-full bg-sky-50/70">
@@ -93,7 +91,6 @@ function ProductGraphic({ type }) {
       </svg>
     );
   }
-  // Barquilla de helado (cono)
   if (type === 'icecream_cone') {
     return (
       <svg viewBox="0 0 120 90" className="w-full h-full bg-pink-50/80">
@@ -106,7 +103,6 @@ function ProductGraphic({ type }) {
       </svg>
     );
   }
-  // Tina de helado
   if (type === 'icecream_tub') {
     return (
       <svg viewBox="0 0 120 90" className="w-full h-full bg-violet-50/80">
@@ -119,84 +115,73 @@ function ProductGraphic({ type }) {
       </svg>
     );
   }
-  // Vaso de helado
   if (type === 'icecream_cup') {
+    return (
+      <svg viewBox="0 0 120 90" className="w-full h-full bg-rose-50/80">
+        <circle cx="60" cy="45" r="34" fill="#fff1f2" />
+        <path d="M42 45 L78 45 L74 68 L46 68 Z" fill="#f43f5e" />
+        <circle cx="60" cy="36" r="14" fill="#fbbf24" />
+        <circle cx="60" cy="24" r="4" fill="#e11d48" />
+      </svg>
+    );
+  }
+  if (type === 'coffee') {
+    return (
+      <svg viewBox="0 0 120 90" className="w-full h-full bg-amber-50/80">
+        <circle cx="60" cy="45" r="34" fill="#fef3c7" />
+        <rect x="42" y="38" width="36" height="30" rx="6" fill="#78350f" />
+        <path d="M78 44 C84 44 86 54 78 58" stroke="#78350f" strokeWidth="3" fill="none" />
+        <ellipse cx="60" cy="38" rx="18" ry="4" fill="#d97706" />
+        <path d="M54 26 Q56 20 54 14" stroke="#d97706" strokeWidth="2" fill="none" strokeLinecap="round" />
+        <path d="M62 28 Q64 22 62 16" stroke="#d97706" strokeWidth="2" fill="none" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (type === 'grocery') {
     return (
       <svg viewBox="0 0 120 90" className="w-full h-full bg-emerald-50/80">
         <circle cx="60" cy="45" r="34" fill="#ecfdf5" />
-        <path d="M42 46 L78 46 L73 68 L47 68 Z" fill="#10b981" />
-        <circle cx="60" cy="36" r="14" fill="#ec4899" />
-        <circle cx="56" cy="32" r="3" fill="#fdf2f8" />
+        <rect x="40" y="24" width="40" height="46" rx="4" fill="#059669" />
+        <rect x="46" y="30" width="28" height="12" rx="2" fill="#a7f3d0" />
+        <rect x="46" y="48" width="28" height="4" rx="2" fill="#ffffff" />
+        <rect x="46" y="55" width="20" height="4" rx="2" fill="#ffffff" />
       </svg>
     );
   }
-  // Café caliente
-  if (type === 'coffee') {
-    return (
-      <svg viewBox="0 0 120 90" className="w-full h-full bg-amber-50/70">
-        <circle cx="60" cy="45" r="34" fill="#fef3c7" />
-        <rect x="42" y="36" width="34" height="28" rx="5" fill="#78350f" />
-        <path d="M76 42 C84 42, 84 54, 76 54" stroke="#78350f" strokeWidth="3" fill="none" />
-        <path d="M50 24 Q54 28, 50 32" stroke="#d97706" strokeWidth="2" fill="none" strokeLinecap="round" />
-        <path d="M60 22 Q64 26, 60 30" stroke="#d97706" strokeWidth="2" fill="none" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  // Alimento / Harina
-  if (type === 'grocery') {
+  if (type === 'oil') {
     return (
       <svg viewBox="0 0 120 90" className="w-full h-full bg-yellow-50/80">
         <circle cx="60" cy="45" r="34" fill="#fef9c3" />
-        <rect x="40" y="24" width="40" height="46" rx="4" fill="#facc15" stroke="#ca8a04" strokeWidth="2" />
-        <circle cx="60" cy="44" r="10" fill="#1e3a8a" />
-        <circle cx="60" cy="44" r="5" fill="#ffffff" />
-        <rect x="44" y="58" width="32" height="4" rx="1" fill="#dc2626" />
+        <rect x="46" y="30" width="28" height="40" rx="5" fill="#eab308" />
+        <rect x="52" y="22" width="16" height="8" rx="2" fill="#ca8a04" />
+        <ellipse cx="60" cy="48" rx="8" ry="12" fill="#fef08a" />
       </svg>
     );
   }
-  // Aceite
-  if (type === 'oil') {
-    return (
-      <svg viewBox="0 0 120 90" className="w-full h-full bg-amber-50/70">
-        <circle cx="60" cy="45" r="34" fill="#fef3c7" />
-        <rect x="46" y="32" width="28" height="38" rx="4" fill="#fbbf24" opacity="0.9" />
-        <rect x="52" y="22" width="16" height="10" rx="2" fill="#dc2626" />
-        <rect x="49" y="44" width="22" height="12" rx="2" fill="#ffffff" />
-      </svg>
-    );
-  }
-  // Refresco
   if (type === 'soda') {
     return (
       <svg viewBox="0 0 120 90" className="w-full h-full bg-red-50/80">
         <circle cx="60" cy="45" r="34" fill="#fee2e2" />
-        <rect x="46" y="28" width="28" height="44" rx="6" fill="#1e1b4b" />
-        <rect x="53" y="20" width="14" height="8" rx="2" fill="#dc2626" />
-        <rect x="46" y="42" width="28" height="14" fill="#dc2626" />
-        <path d="M49 49 Q60 45, 71 49" stroke="#ffffff" strokeWidth="2" fill="none" />
+        <rect x="46" y="26" width="28" height="46" rx="6" fill="#dc2626" />
+        <rect x="52" y="20" width="16" height="6" rx="2" fill="#991b1b" />
+        <path d="M46 44 Q60 38 74 44" stroke="#ffffff" strokeWidth="3" fill="none" />
       </svg>
     );
   }
-  // Default
-  return (
-    <svg viewBox="0 0 120 90" className="w-full h-full bg-zinc-100">
-      <circle cx="60" cy="45" r="34" fill="#e4e4e7" />
-      <rect x="42" y="30" width="36" height="34" rx="4" fill="#71717a" />
-    </svg>
-  );
+  return null;
 }
 
-// 3 PERFILES DE NEGOCIO REALES CON COMPONENTES Y PRODUCTOS DISTINTOS
+// Configuración de los 3 perfiles de negocio adaptables
 const BUSINESS_MODES = {
   restaurant: {
     id: 'restaurant',
     tag: 'Restaurante & Bar',
-    businessName: 'El Portón Grill & Bar',
+    businessName: 'Burger & Bar Gourmet',
     categoryLabel: 'Menú & Cocina',
     hasTables: true,
     hasBarcodes: false,
     navPill: 'Modo Restaurante',
-    description: 'Gestión de mesas, comandas automáticas a cocina y meseros por QR.',
+    description: 'Comandas a cocina, gestión de mesas, comandero móvil y división de cuentas.',
     products: [
       { id: 'r1', name: 'Smash Burger Doble', detail: 'Doble carne, cheddar y tocineta', priceUsd: 7.5, art: 'burger' },
       { id: 'r2', name: 'Pepito Lomito 35cm', detail: 'Lomito, maíz, papas y queso', priceUsd: 9.0, art: 'pepito' },
@@ -259,44 +244,217 @@ function formatBs(val) {
   });
 }
 
+// Pasos de la animación estilo Notion (guion cinemático que muestra la versatilidad del software)
+const ANIMATION_BEATS = [
+  // Beat 0: Enfoque inicial en Restaurante
+  {
+    mode: 'restaurant',
+    view: 'pos',
+    cart: { r1: 1 },
+    modal: false,
+    success: false,
+    scanning: false,
+    cursor: { x: '28%', y: '36%', clicking: false, label: 'Notion POS' },
+    caption: 'Modo Restaurante: Selecciona productos y mesas con 1 clic',
+    duration: 1700
+  },
+  // Beat 1: Cursor hace clic en Pepito Lomito (se agrega al carrito)
+  {
+    mode: 'restaurant',
+    view: 'pos',
+    cart: { r1: 1, r2: 1 },
+    modal: false,
+    success: false,
+    scanning: false,
+    cursor: { x: '45%', y: '40%', clicking: true, label: '+ Pepito Lomito' },
+    caption: 'Cálculo instantáneo en USD ($) y Bolívares (Bs. BCV)',
+    duration: 1700
+  },
+  // Beat 2: Cursor glides al Switcher superior para cambiar a Heladería
+  {
+    mode: 'restaurant',
+    view: 'pos',
+    cart: { r1: 1, r2: 1 },
+    modal: false,
+    success: false,
+    scanning: false,
+    cursor: { x: '28%', y: '4%', clicking: true, label: 'Cambiar a Heladería 🍦' },
+    caption: 'Arquitectura modular: Elige tu necesidad como en Notion',
+    duration: 1800
+  },
+  // Beat 3: Morphing a Heladería & Selección de Tina de Helado
+  {
+    mode: 'ice_cream',
+    view: 'pos',
+    cart: { h1: 1 },
+    modal: false,
+    success: false,
+    scanning: false,
+    cursor: { x: '46%', y: '38%', clicking: false, label: 'Sabores & Tinas' },
+    caption: 'Modo Heladería: Gestión por tinas, barquillas y combinaciones',
+    duration: 1800
+  },
+  // Beat 4: Clic en Tina 1/2 Litro
+  {
+    mode: 'ice_cream',
+    view: 'pos',
+    cart: { h1: 1, h2: 1 },
+    modal: false,
+    success: false,
+    scanning: false,
+    cursor: { x: '46%', y: '40%', clicking: true, label: '+ Tina 1/2 Litro' },
+    caption: 'Presentaciones térmicas, toppings y peso automático',
+    duration: 1800
+  },
+  // Beat 5: Cursor glides al Switcher para cambiar a Retail / Minimarket
+  {
+    mode: 'ice_cream',
+    view: 'pos',
+    cart: { h1: 1, h2: 1 },
+    modal: false,
+    success: false,
+    scanning: false,
+    cursor: { x: '46%', y: '4%', clicking: true, label: 'Cambiar a Retail 🛍️' },
+    caption: 'Adaptación sin recargar: Activa escaneo de barras y stock',
+    duration: 1800
+  },
+  // Beat 6: Escaneo con rayo láser en Retail (Harina PAN)
+  {
+    mode: 'retail',
+    view: 'pos',
+    cart: { b1: 1 },
+    modal: false,
+    success: false,
+    scanning: true,
+    cursor: { x: '28%', y: '38%', clicking: true, label: '⚡ Escáner Láser BEEP!' },
+    caption: 'Lector de códigos de barra y sincronización de stock en vivo',
+    duration: 2000
+  },
+  // Beat 7: Cursor añade Aceite y se mueve al botón de cobro
+  {
+    mode: 'retail',
+    view: 'pos',
+    cart: { b1: 2, b2: 1 },
+    modal: false,
+    success: false,
+    scanning: false,
+    cursor: { x: '88%', y: '86%', clicking: true, label: 'Cobrar Venta' },
+    caption: 'Cobro rápido bimoneda con arqueo automático',
+    duration: 1800
+  },
+  // Beat 8: Se abre el Modal de Cobro estilo Notion (Pago Móvil)
+  {
+    mode: 'retail',
+    view: 'pos',
+    cart: { b1: 2, b2: 1 },
+    modal: true,
+    success: false,
+    scanning: false,
+    cursor: { x: '58%', y: '72%', clicking: true, label: 'Confirmar & Ticket' },
+    caption: 'Desglose en Pago Móvil, Efectivo $ y Punto de Venta',
+    duration: 2000
+  },
+  // Beat 9: Éxito e impresión de ticket fiscal
+  {
+    mode: 'retail',
+    view: 'pos',
+    cart: { b1: 2, b2: 1 },
+    modal: true,
+    success: true,
+    scanning: false,
+    cursor: { x: '50%', y: '50%', clicking: false, label: '✅ Ticket Impreso' },
+    caption: '¡Factura emitida! Impresora HKA80 y caja cuadrada sin descuadres',
+    duration: 2800
+  }
+];
+
 export default function NotionAppShowcase({ rate = 896.12 }) {
-  const [activeMode, setActiveMode] = useState('restaurant'); // 'restaurant' | 'ice_cream' | 'retail'
-  const [activeView, setActiveView] = useState('pos'); // 'pos' | 'tables' | 'monitor'
-  const [cart, setCart] = useState({
-    r1: 2,
-    r3: 1
-  });
-  const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
-  const [simulatedPaymentSuccess, setSimulatedPaymentSuccess] = useState(false);
+  const [currentBeat, setCurrentBeat] = useState(0);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  const userInteractionTimeoutRef = useRef(null);
 
-  const currentMode = BUSINESS_MODES[activeMode];
+  // Estados interactivos locales
+  const [manualMode, setManualMode] = useState(null);
+  const [manualView, setManualView] = useState(null);
+  const [manualCart, setManualCart] = useState(null);
+  const [manualModal, setManualModal] = useState(null);
+  const [manualSuccess, setManualSuccess] = useState(null);
 
-  // Cambiar de perfil de negocio reinicia el carrito con un ejemplo relevante
+  // Obtenemos los valores activos (priorizando el estado del beat automático, o manual si el usuario interactuó)
+  const activeBeatData = ANIMATION_BEATS[currentBeat] || ANIMATION_BEATS[0];
+
+  const activeMode = manualMode !== null ? manualMode : activeBeatData.mode;
+  const activeView = manualView !== null ? manualView : activeBeatData.view;
+  const cart = manualCart !== null ? manualCart : activeBeatData.cart;
+  const checkoutModalOpen = manualModal !== null ? manualModal : activeBeatData.modal;
+  const simulatedPaymentSuccess = manualSuccess !== null ? manualSuccess : activeBeatData.success;
+  const isScanning = !manualMode && activeBeatData.scanning;
+
+  const currentMode = BUSINESS_MODES[activeMode] || BUSINESS_MODES.restaurant;
+  const currentCursor = activeBeatData.cursor;
+
+  // Ciclo automático de animación (solo cuando no hay pausa manual del usuario)
+  useEffect(() => {
+    if (!isAutoPlaying) return;
+
+    const currentDuration = activeBeatData.duration || 2000;
+    const timer = setTimeout(() => {
+      setCurrentBeat((prev) => (prev + 1) % ANIMATION_BEATS.length);
+    }, currentDuration);
+
+    return () => clearTimeout(timer);
+  }, [currentBeat, isAutoPlaying, activeBeatData.duration]);
+
+  // Manejo de interacción humana: Si el usuario toca o hace clic, pausamos temporalmente el autómata
+  const pauseAutoForUser = () => {
+    setIsAutoPlaying(false);
+    if (userInteractionTimeoutRef.current) {
+      clearTimeout(userInteractionTimeoutRef.current);
+    }
+    // Reanudar automáticamente tras 8 segundos de inactividad
+    userInteractionTimeoutRef.current = setTimeout(() => {
+      // Limpiamos los overrides manuales y reanudamos el ciclo suavemente
+      setManualMode(null);
+      setManualView(null);
+      setManualCart(null);
+      setManualModal(null);
+      setManualSuccess(null);
+      setIsAutoPlaying(true);
+    }, 8000);
+  };
+
   const handleSelectMode = (modeKey) => {
-    setActiveMode(modeKey);
-    setActiveView('pos');
-    setCheckoutModalOpen(false);
-    setSimulatedPaymentSuccess(false);
+    pauseAutoForUser();
+    setManualMode(modeKey);
+    setManualView('pos');
+    setManualModal(false);
+    setManualSuccess(false);
 
     if (modeKey === 'restaurant') {
-      setCart({ r1: 2, r3: 1 });
+      setManualCart({ r1: 2, r3: 1 });
     } else if (modeKey === 'ice_cream') {
-      setCart({ h1: 2, h2: 1 });
+      setManualCart({ h1: 2, h2: 1 });
     } else {
-      setCart({ b1: 3, b2: 1 });
+      setManualCart({ b1: 3, b2: 1 });
     }
   };
 
   const addToCart = (product) => {
-    setCart((prev) => ({
-      ...prev,
-      [product.id]: (prev[product.id] || 0) + 1
-    }));
+    pauseAutoForUser();
+    setManualCart((prev) => {
+      const base = prev !== null ? prev : cart;
+      return {
+        ...base,
+        [product.id]: (base[product.id] || 0) + 1
+      };
+    });
   };
 
   const removeFromCart = (productId) => {
-    setCart((prev) => {
-      const next = { ...prev };
+    pauseAutoForUser();
+    setManualCart((prev) => {
+      const base = prev !== null ? prev : cart;
+      const next = { ...base };
       if (next[productId] > 1) {
         next[productId] -= 1;
       } else {
@@ -306,7 +464,26 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
     });
   };
 
-  const clearCart = () => setCart({});
+  const clearCart = () => {
+    pauseAutoForUser();
+    setManualCart({});
+  };
+
+  const handleSimulateCheckout = () => {
+    pauseAutoForUser();
+    setManualModal(true);
+    setManualSuccess(false);
+  };
+
+  const handleConfirmSimulatedPayment = () => {
+    pauseAutoForUser();
+    setManualSuccess(true);
+    setTimeout(() => {
+      setManualModal(false);
+      setManualSuccess(false);
+      setManualCart({});
+    }, 2200);
+  };
 
   // Cálculo de totales en $ y Bs en tiempo real
   const cartSummary = useMemo(() => {
@@ -325,25 +502,10 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
     return { totalQty, totalUsd, totalBs };
   }, [cart, currentMode, rate]);
 
-  const handleSimulateCheckout = () => {
-    if (cartSummary.totalQty === 0) return;
-    setCheckoutModalOpen(true);
-    setSimulatedPaymentSuccess(false);
-  };
-
-  const handleConfirmSimulatedPayment = () => {
-    setSimulatedPaymentSuccess(true);
-    setTimeout(() => {
-      setCheckoutModalOpen(false);
-      setSimulatedPaymentSuccess(false);
-      clearCart();
-    }, 2200);
-  };
-
   return (
-    <div className="mt-8 max-w-6xl mx-auto">
+    <div className="mt-8 max-w-6xl mx-auto select-none">
 
-      {/* SELECTOR SEGMENTADO DE PERFIL DE NEGOCIO (ESTILO NOTION / LINEAR) */}
+      {/* SELECTOR SEGMENTADO DE PERFIL ESTILO NOTION */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4 px-2">
         <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-zinc-100 border border-zinc-200/90 shadow-2xs">
           {Object.entries(BUSINESS_MODES).map(([key, mode]) => {
@@ -353,26 +515,59 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
                 key={key}
                 type="button"
                 onClick={() => handleSelectMode(key)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                className={`relative px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                   isSelected
-                    ? 'bg-white text-zinc-950 shadow-xs border border-zinc-200/80 scale-102'
+                    ? 'text-zinc-950 font-extrabold'
                     : 'text-zinc-600 hover:text-zinc-950 hover:bg-zinc-50'
                 }`}
               >
-                <span>{key === 'restaurant' ? '🍔' : key === 'ice_cream' ? '🍦' : '🛍️'}</span>
-                <span>{mode.tag}</span>
+                {isSelected && (
+                  <motion.div
+                    layoutId="activePillMode"
+                    className="absolute inset-0 bg-white rounded-xl shadow-xs border border-zinc-200/80"
+                    transition={{ type: 'spring', bounce: 0.18, duration: 0.4 }}
+                  />
+                )}
+                <span className="relative z-10">{key === 'restaurant' ? '🍔' : key === 'ice_cream' ? '🍦' : '🛍️'}</span>
+                <span className="relative z-10">{mode.tag}</span>
               </button>
             );
           })}
         </div>
 
-        <div className="text-xs text-zinc-500 font-medium flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span>Prueba la demo interactiva en vivo · Haz clic en los platos y productos</span>
+        {/* CÁPSULA DE ESTADO DE LA ANIMACIÓN ESTILO NOTION */}
+        <div className="flex items-center gap-2">
+          <div className="text-xs text-zinc-600 font-medium flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-100 border border-zinc-200/80 shadow-2xs">
+            <span className={`w-2 h-2 rounded-full ${isAutoPlaying ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+            <span className="text-[11px] font-semibold text-zinc-800">
+              {isAutoPlaying ? activeBeatData.caption : 'Modo interactivo manual activo'}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (isAutoPlaying) {
+                setIsAutoPlaying(false);
+              } else {
+                setManualMode(null);
+                setManualView(null);
+                setManualCart(null);
+                setManualModal(null);
+                setManualSuccess(null);
+                setIsAutoPlaying(true);
+              }
+            }}
+            className="p-1.5 rounded-xl bg-white hover:bg-zinc-100 text-zinc-700 border border-zinc-200/80 shadow-2xs text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-all"
+            title={isAutoPlaying ? 'Pausar animación' : 'Reanudar animación'}
+          >
+            {isAutoPlaying ? <Pause size={12} className="text-zinc-500" /> : <Play size={12} className="text-emerald-600" />}
+            <span className="hidden sm:inline">{isAutoPlaying ? 'Pausar' : 'Auto'}</span>
+          </button>
         </div>
       </div>
 
-      {/* VENTANA DEL SOFTWARE REAL */}
+      {/* VENTANA NOTION SAAS ELEGANTE */}
       <div className="relative rounded-2xl p-1.5 sm:p-2 bg-zinc-200/80 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.18)] border border-zinc-300/80">
         <div className="relative rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900 flex flex-col md:flex-row h-[560px] text-left">
           
@@ -408,7 +603,10 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
                 <div className="space-y-0.5">
                   <button
                     type="button"
-                    onClick={() => setActiveView('pos')}
+                    onClick={() => {
+                      pauseAutoForUser();
+                      setManualView('pos');
+                    }}
                     className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                       activeView === 'pos' ? 'bg-zinc-800 text-white font-bold' : 'text-zinc-400 hover:text-zinc-200'
                     }`}
@@ -423,7 +621,10 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
                   {currentMode.hasTables && (
                     <button
                       type="button"
-                      onClick={() => setActiveView('tables')}
+                      onClick={() => {
+                        pauseAutoForUser();
+                        setManualView('tables');
+                      }}
                       className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                         activeView === 'tables' ? 'bg-zinc-800 text-white font-bold' : 'text-zinc-400 hover:text-zinc-200'
                       }`}
@@ -448,14 +649,14 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
                     <span>{currentMode.categoryLabel}</span>
                   </div>
                   {currentMode.hasBarcodes ? (
-                    <div className="px-2.5 py-1.5 rounded-lg hover:bg-zinc-800/40 flex items-center gap-2">
+                    <div className="px-2.5 py-1.5 rounded-lg bg-zinc-800/60 text-emerald-400 flex items-center gap-2 font-bold">
                       <Barcode size={13} />
                       <span>Códigos de Barra</span>
                     </div>
                   ) : (
                     <div className="px-2.5 py-1.5 rounded-lg hover:bg-zinc-800/40 flex items-center gap-2">
                       <Boxes size={13} />
-                      <span>Inventario</span>
+                      <span>Control de Stock</span>
                     </div>
                   )}
                 </div>
@@ -467,7 +668,10 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setActiveView('monitor')}
+                  onClick={() => {
+                    pauseAutoForUser();
+                    setManualView('monitor');
+                  }}
                   className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                     activeView === 'monitor' ? 'bg-zinc-800 text-white font-bold' : 'text-zinc-400 hover:text-zinc-200'
                   }`}
@@ -508,12 +712,15 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
                 </span>
               </div>
 
-              {/* Selector de Vistas en móviles o barras */}
+              {/* Selector de Vistas en pantallas pequeñas */}
               <div className="flex items-center gap-1.5">
                 <div className="flex items-center gap-1 p-0.5 rounded-lg bg-zinc-800 border border-zinc-700 text-[10px]">
                   <button
                     type="button"
-                    onClick={() => setActiveView('pos')}
+                    onClick={() => {
+                      pauseAutoForUser();
+                      setManualView('pos');
+                    }}
                     className={`px-2 py-0.5 rounded font-bold cursor-pointer transition-all ${
                       activeView === 'pos' ? 'bg-zinc-950 text-white shadow-2xs' : 'text-zinc-400'
                     }`}
@@ -523,7 +730,10 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
                   {currentMode.hasTables && (
                     <button
                       type="button"
-                      onClick={() => setActiveView('tables')}
+                      onClick={() => {
+                        pauseAutoForUser();
+                        setManualView('tables');
+                      }}
                       className={`px-2 py-0.5 rounded font-bold cursor-pointer transition-all ${
                         activeView === 'tables' ? 'bg-zinc-950 text-white shadow-2xs' : 'text-zinc-400'
                       }`}
@@ -533,7 +743,10 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
                   )}
                   <button
                     type="button"
-                    onClick={() => setActiveView('monitor')}
+                    onClick={() => {
+                      pauseAutoForUser();
+                      setManualView('monitor');
+                    }}
                     className={`px-2 py-0.5 rounded font-bold cursor-pointer transition-all ${
                       activeView === 'monitor' ? 'bg-zinc-950 text-white shadow-2xs' : 'text-zinc-400'
                     }`}
@@ -549,12 +762,12 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
               </div>
             </div>
 
-            {/* VISTA 1: PUNTO DE VENTA INTERACTIVO (CATÁLOGO + CARRITO) */}
+            {/* VISTA 1: PUNTO DE VENTA (CATÁLOGO + CARRITO) */}
             {activeView === 'pos' && (
               <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
                 
                 {/* Cuadrícula de Productos */}
-                <div className="flex-1 flex flex-col overflow-hidden bg-zinc-100/60 p-3">
+                <div className="flex-1 flex flex-col overflow-hidden bg-zinc-100/60 p-3 relative">
                   
                   {/* Buscador / Escáner */}
                   <div className="mb-2.5 flex items-center justify-between gap-2">
@@ -572,10 +785,18 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
                     </span>
                   </div>
 
-                  {/* Grid de productos */}
-                  <div className="flex-1 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 gap-2.5 pr-0.5">
+                  {/* Grid de productos con morphing Framer Motion */}
+                  <motion.div
+                    key={activeMode}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.25 }}
+                    className="flex-1 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 gap-2.5 pr-0.5"
+                  >
                     {currentMode.products.map((p) => {
                       const inCartQty = cart[p.id] || 0;
+                      const isProductBeingScanned = isScanning && p.id === 'b1';
+
                       return (
                         <div
                           key={p.id}
@@ -584,6 +805,16 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
                             inCartQty > 0 ? 'border-zinc-900 ring-1 ring-zinc-900/10' : 'border-zinc-200'
                           }`}
                         >
+                          {/* Efecto de láser rojo al escanear en Retail */}
+                          {isProductBeingScanned && (
+                            <motion.div
+                              initial={{ top: '0%' }}
+                              animate={{ top: ['0%', '100%', '0%'] }}
+                              transition={{ duration: 0.8, repeat: Infinity }}
+                              className="absolute left-0 right-0 h-0.5 bg-red-500 shadow-[0_0_8px_#ef4444] z-20 pointer-events-none"
+                            />
+                          )}
+
                           <div className="h-20 w-full rounded-lg overflow-hidden mb-2 relative">
                             <ProductGraphic type={p.art} />
                             {inCartQty > 0 && (
@@ -611,7 +842,7 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
                         </div>
                       );
                     })}
-                  </div>
+                  </motion.div>
                 </div>
 
                 {/* Carrito de Comanda / Ticket de Venta */}
@@ -706,7 +937,7 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
               </div>
             )}
 
-            {/* VISTA 2: MAPA DE MESAS (EXCLUSIVO RESTAURANTE) */}
+            {/* VISTA 2: MAPA DE MESAS (RESTAURANTE) */}
             {activeView === 'tables' && currentMode.hasTables && (
               <div className="flex-1 p-4 overflow-y-auto bg-zinc-100/50">
                 <div className="flex items-center justify-between mb-3">
@@ -814,7 +1045,10 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
             {checkoutModalOpen && (
               <div
                 className="absolute inset-0 z-30 bg-zinc-950/70 backdrop-blur-xs flex items-center justify-center p-3 animate-in fade-in duration-150"
-                onClick={() => setCheckoutModalOpen(false)}
+                onClick={() => {
+                  pauseAutoForUser();
+                  setManualModal(false);
+                }}
               >
                 <div
                   className="bg-white rounded-2xl p-4 max-w-sm w-full shadow-2xl space-y-3"
@@ -822,13 +1056,21 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
                 >
                   {simulatedPaymentSuccess ? (
                     <div className="py-6 text-center space-y-2">
-                      <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+                      <motion.div
+                        initial={{ scale: 0.5, rotate: -20 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        transition={{ type: 'spring', bounce: 0.4 }}
+                        className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto"
+                      >
                         <Check size={24} />
-                      </div>
+                      </motion.div>
                       <h4 className="font-bold text-sm text-zinc-950">¡Venta Registrada e Impresa!</h4>
                       <p className="text-xs text-zinc-500">
-                        Ticket emitido con éxito. El inventario y la caja se actualizaron al instante.
+                        Ticket fiscal emitido con éxito. El inventario y la caja se actualizaron al instante.
                       </p>
+                      <div className="mt-2 p-2 rounded-xl bg-zinc-50 border border-zinc-200/80 text-[10px] font-mono text-zinc-700">
+                        <span>HKA80 · FACTURA FISCAL #0084 · TASA {rate.toFixed(2)}</span>
+                      </div>
                     </div>
                   ) : (
                     <>
@@ -839,7 +1081,10 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
                         </div>
                         <button
                           type="button"
-                          onClick={() => setCheckoutModalOpen(false)}
+                          onClick={() => {
+                            pauseAutoForUser();
+                            setManualModal(false);
+                          }}
                           className="w-5 h-5 rounded-full hover:bg-zinc-100 flex items-center justify-center text-zinc-400 cursor-pointer"
                         >
                           <X size={12} />
@@ -890,9 +1135,99 @@ export default function NotionAppShowcase({ rate = 896.12 }) {
               </div>
             )}
 
+            {/* CURSOR VIRTUAL ANIMADO ESTILO NOTION */}
+            {isAutoPlaying && (
+              <motion.div
+                animate={{
+                  left: currentCursor.x,
+                  top: currentCursor.y,
+                  scale: currentCursor.clicking ? 0.84 : 1
+                }}
+                transition={{
+                  left: { type: 'spring', damping: 28, stiffness: 220 },
+                  top: { type: 'spring', damping: 28, stiffness: 220 },
+                  scale: { duration: 0.12 }
+                }}
+                className="absolute z-50 pointer-events-none -ml-1 -mt-1 hidden sm:flex items-center gap-1.5"
+              >
+                {/* Ripple al hacer clic */}
+                {currentCursor.clicking && (
+                  <motion.div
+                    key={`click-ripple-${currentBeat}`}
+                    initial={{ scale: 0.3, opacity: 0.9 }}
+                    animate={{ scale: 2.2, opacity: 0 }}
+                    transition={{ duration: 0.4 }}
+                    className="absolute -top-2.5 -left-2.5 w-8 h-8 rounded-full border-2 border-emerald-500 bg-emerald-400/20 pointer-events-none"
+                  />
+                )}
+
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" className="drop-shadow-xl">
+                  <path
+                    d="M4 3L11.5 20L14.2 13.2L21 10.5L4 3Z"
+                    fill="#09090b"
+                    stroke="#ffffff"
+                    strokeWidth="2"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+
+                <motion.span
+                  className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-zinc-950 text-white shadow-lg border border-zinc-800 whitespace-nowrap flex items-center gap-1"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>{currentCursor.label}</span>
+                </motion.span>
+              </motion.div>
+            )}
+
           </main>
         </div>
       </div>
+
+      {/* BARRA INFERIOR DE PASOS Y CONTROLES ESTILO NOTION */}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 px-2">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {[
+            { beat: 0, label: 'Restaurante', icon: '🍔' },
+            { beat: 3, label: 'Heladería', icon: '🍦' },
+            { beat: 6, label: 'Retail & Minimarket', icon: '🛍️' },
+            { beat: 8, label: 'Cobro & Ticket', icon: '🧾' }
+          ].map((item) => {
+            const isActive =
+              (item.beat === 0 && (currentBeat >= 0 && currentBeat <= 2)) ||
+              (item.beat === 3 && (currentBeat >= 3 && currentBeat <= 4)) ||
+              (item.beat === 6 && (currentBeat >= 5 && currentBeat <= 7)) ||
+              (item.beat === 8 && currentBeat >= 8);
+
+            return (
+              <button
+                key={item.beat}
+                type="button"
+                onClick={() => {
+                  pauseAutoForUser();
+                  setCurrentBeat(item.beat);
+                }}
+                className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-all flex items-center gap-1.5 border cursor-pointer ${
+                  isActive
+                    ? 'bg-zinc-950 text-white border-zinc-950 shadow-xs'
+                    : 'bg-white text-zinc-500 border-zinc-200 hover:text-zinc-900 hover:bg-zinc-50'
+                }`}
+              >
+                <span>{item.icon}</span>
+                <span>{item.label}</span>
+                {isActive && isAutoPlaying && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="text-[11px] text-zinc-400 font-medium">
+          💡 Puedes hacer clic en cualquier producto o pestaña para interactuar manualmente
+        </div>
+      </div>
+
     </div>
   );
 }
