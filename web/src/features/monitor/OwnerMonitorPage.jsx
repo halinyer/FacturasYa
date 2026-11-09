@@ -22,12 +22,24 @@ import {
   Copy,
   Check,
   Sparkles,
-  Printer
+  Printer,
+  Calendar,
+  Filter,
+  ArrowUpRight,
+  ShoppingBag,
+  Eye,
+  Search,
+  Banknote,
+  ArrowDownRight,
+  Percent,
+  UtensilsCrossed
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthProvider';
 import LoginForm from '../auth/LoginForm';
 import { supabase } from '../../lib/supabase';
 import { db } from '../../pos-core/services/dataService';
+import InvoicePreview from '../../pos-core/components/InvoicePreview';
+import { BankLogo, findBank } from '../../pos-core/utils/venezuelaBanks';
 import {
   fetchMyTenant,
   fetchTenantSnapshot,
@@ -83,9 +95,36 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
   const [activeTab, setActiveTab] = useState(defaultTab);
   useEffect(() => {
     if (defaultTab) setActiveTab(defaultTab);
-  }, [defaultTab]); // 'overview' | 'tables' | 'invoices' | 'inventory' | 'subscription'
+  }, [defaultTab]); // 'overview' | 'tables' | 'invoices' | 'expenses' | 'inventory' | 'subscription'
   const [lastSyncTime, setLastSyncTime] = useState(null);
   const [invoiceFilter, setInvoiceFilter] = useState('all');
+  const [selectedInvoiceForPreview, setSelectedInvoiceForPreview] = useState(null);
+
+  // Moneda activa de visualización: 'USD' | 'BS'
+  const [currencyView, setCurrencyView] = useState(() => {
+    return typeof window !== 'undefined' ? (localStorage.getItem('pos_owner_currency') || 'USD') : 'USD';
+  });
+  const toggleCurrency = (curr) => {
+    setCurrencyView(curr);
+    try { localStorage.setItem('pos_owner_currency', curr); } catch (e) {}
+  };
+
+  // Filtro de período dinámico estilo Happy Days y SalesDashboard
+  const todayLocalDateStr = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }, []);
+
+  const yesterdayStr = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }, []);
+
+  const [dateRange, setDateRange] = useState('today'); // 'today' | 'yesterday' | 'week' | 'month' | 'custom'
+  const [customStartDate, setCustomStartDate] = useState(todayLocalDateStr);
+  const [customEndDate, setCustomEndDate] = useState(todayLocalDateStr);
+  const [searchInvoiceQuery, setSearchInvoiceQuery] = useState('');
 
   // Verificación Fiscal Híbrida SENIAT (Auto-Lectura S1 + Manual)
   const [fiscalModalOpen, setFiscalModalOpen] = useState(false);
@@ -315,58 +354,270 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
     Number(tenant?.exchange_rate) ||
     896.12;
 
-  // Filtrar ventas del día
-  const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  // Carga de respaldo local (offline first) por si el snapshot aún no tiene datos o la PC está en red local
+  const localFallback = useMemo(() => {
+    if (typeof window === 'undefined') return { invoices: [], expenses: [], openTabs: [], products: [] };
+    try {
+      const invs = JSON.parse(localStorage.getItem('pos_invoices') || '[]');
+      const exps = JSON.parse(localStorage.getItem('pos_expenses') || '[]');
+      const tabs = JSON.parse(localStorage.getItem('pos_open_tabs') || '[]');
+      const prods = JSON.parse(localStorage.getItem('pos_products') || '[]');
+      return { invoices: invs, expenses: exps, openTabs: tabs, products: prods };
+    } catch (e) {
+      return { invoices: [], expenses: [], openTabs: [], products: [] };
+    }
+  }, []);
 
-  const todayInvoices = useMemo(() => {
-    const invs = snapshot?.invoices || [];
-    return invs.filter((i) => {
-      if (!i.date) return false;
-      const invDate = String(i.date).slice(0, 10);
-      return invDate === todayStr && i.status !== 'voided';
+  // Consolidar fuentes de datos (Snapshot Cloud + Local Fallback)
+  const allInvoices = useMemo(() => {
+    if (Array.isArray(snapshot?.invoices) && snapshot.invoices.length > 0) {
+      return snapshot.invoices;
+    }
+    return localFallback.invoices || [];
+  }, [snapshot?.invoices, localFallback.invoices]);
+
+  const allExpenses = useMemo(() => {
+    if (Array.isArray(snapshot?.expenses) && snapshot.expenses.length > 0) {
+      return snapshot.expenses;
+    }
+    return localFallback.expenses || [];
+  }, [snapshot?.expenses, localFallback.expenses]);
+
+  const allOpenTabs = useMemo(() => {
+    if (Array.isArray(snapshot?.open_tabs) && snapshot.open_tabs.length > 0) {
+      return snapshot.open_tabs;
+    }
+    if (Array.isArray(snapshot?.openTabs) && snapshot.openTabs.length > 0) {
+      return snapshot.openTabs;
+    }
+    return localFallback.openTabs || [];
+  }, [snapshot?.open_tabs, snapshot?.openTabs, localFallback.openTabs]);
+
+  const formatPrimary = useCallback((usd, bs) => {
+    return currencyView === 'USD' ? formatUsd(usd) : formatBs(bs);
+  }, [currencyView]);
+
+  const formatSecondary = useCallback((usd, bs) => {
+    return currencyView === 'USD' ? formatBs(bs) : formatUsd(usd);
+  }, [currencyView]);
+
+
+  // Filtrado de Facturas según el período seleccionado
+  const filteredInvoices = useMemo(() => {
+    return (allInvoices || []).filter((inv) => {
+      if (!inv.date) return true;
+      const invDateStr = inv.date.includes('T') ? inv.date.split('T')[0] : String(inv.date).slice(0, 10);
+
+      if (dateRange === 'today') {
+        if (invDateStr !== todayLocalDateStr) return false;
+      } else if (dateRange === 'yesterday') {
+        if (invDateStr !== yesterdayStr) return false;
+      } else if (dateRange === 'week') {
+        const invTime = new Date(inv.date).getTime();
+        const diffDays = (Date.now() - invTime) / (1000 * 60 * 60 * 24);
+        if (diffDays > 7) return false;
+      } else if (dateRange === 'month') {
+        const invTime = new Date(inv.date).getTime();
+        const diffDays = (Date.now() - invTime) / (1000 * 60 * 60 * 24);
+        if (diffDays > 30) return false;
+      } else if (dateRange === 'custom') {
+        if (customStartDate && invDateStr < customStartDate) return false;
+        if (customEndDate && invDateStr > customEndDate) return false;
+      }
+
+      if (searchInvoiceQuery.trim()) {
+        const q = searchInvoiceQuery.toLowerCase();
+        const client = String(inv.client?.name || inv.clientName || '').toLowerCase();
+        const rif = String(inv.client?.rif || inv.clientRif || '').toLowerCase();
+        const num = String(inv.invoiceNumber || inv.id || inv.number || '').toLowerCase();
+        return client.includes(q) || rif.includes(q) || num.includes(q);
+      }
+
+      return true;
     });
-  }, [snapshot?.invoices, todayStr]);
+  }, [allInvoices, dateRange, todayLocalDateStr, yesterdayStr, customStartDate, customEndDate, searchInvoiceQuery]);
 
+  // Alias para retrocompatibilidad
+  const todayInvoices = filteredInvoices;
+
+  // Filtrado de Gastos según el mismo período
+  const filteredExpenses = useMemo(() => {
+    return (allExpenses || []).filter((exp) => {
+      if (!exp.date && !exp.createdAt) return true;
+      const expDate = (exp.date || exp.createdAt || '').slice(0, 10);
+
+      if (dateRange === 'today') {
+        if (expDate !== todayLocalDateStr) return false;
+      } else if (dateRange === 'yesterday') {
+        if (expDate !== yesterdayStr) return false;
+      } else if (dateRange === 'week') {
+        const expTime = new Date(exp.date || exp.createdAt).getTime();
+        const diffDays = (Date.now() - expTime) / (1000 * 60 * 60 * 24);
+        if (diffDays > 7) return false;
+      } else if (dateRange === 'month') {
+        const expTime = new Date(exp.date || exp.createdAt).getTime();
+        const diffDays = (Date.now() - expTime) / (1000 * 60 * 60 * 24);
+        if (diffDays > 30) return false;
+      } else if (dateRange === 'custom') {
+        if (customStartDate && expDate < customStartDate) return false;
+        if (customEndDate && expDate > customEndDate) return false;
+      }
+      return true;
+    });
+  }, [allExpenses, dateRange, todayLocalDateStr, yesterdayStr, customStartDate, customEndDate]);
+
+  // KPIs y Desglose Financiero Completo con soporte para Pagos Mixtos
   const kpis = useMemo(() => {
-    let totalUsd = 0;
+    let totalSalesUsd = 0;
+    let totalSalesBs = 0;
+    let validCount = 0;
+    let voidedCount = 0;
+
     let cashUsd = 0;
+    let cashBs = 0;
     let pagoMovilBs = 0;
     let posBs = 0;
+    let zelleUsd = 0;
     let otherUsd = 0;
 
-    todayInvoices.forEach((inv) => {
-      const invTotal = Number(inv.total || inv.totalAmount || 0);
-      totalUsd += invTotal;
+    filteredInvoices.forEach((inv) => {
+      const stat = (inv.status || '').toLowerCase();
+      const isVoided = stat === 'voided' || stat === 'anulada';
+      if (isVoided) {
+        voidedCount++;
+        return;
+      }
+      validCount++;
+
+      const invUsd = Number(inv.total || inv.totalUSD || inv.totalUsd || inv.totalAmount || 0);
+      const invRate = Number(inv.exchangeRate) || rate;
+      const invBs = Number(inv.totalBs || invUsd * invRate);
+
+      totalSalesUsd += invUsd;
+      totalSalesBs += invBs;
 
       const method = (inv.paymentMethod || '').toLowerCase();
-      if (method.includes('efectivo') || method.includes('cash') || method.includes('dolar')) {
-        cashUsd += invTotal;
+      if (method === 'mixto') {
+        // Desglose multi-tender idéntico al POS y Dashboard
+        const cUsd = Number(inv.paymentDetails?.cashUsd || 0);
+        const cBs = Number(inv.paymentDetails?.cashBs || 0);
+        const pBs = Number(inv.paymentDetails?.pagoMovilBs || 0);
+        const ptBs = Number(inv.paymentDetails?.puntoBs || 0);
+        const zUsd = Number(inv.paymentDetails?.zelleUsd || 0);
+        cashUsd += cUsd;
+        cashBs += cBs;
+        pagoMovilBs += pBs;
+        posBs += ptBs;
+        zelleUsd += zUsd;
+      } else if (method.includes('efectivo') || method.includes('cash') || method.includes('dolar')) {
+        if (method.includes('bs')) {
+          cashBs += invBs;
+        } else {
+          cashUsd += invUsd;
+        }
       } else if (method.includes('movil') || method.includes('pago')) {
-        pagoMovilBs += (inv.totalBs ? Number(inv.totalBs) : invTotal * rate);
-      } else if (method.includes('punto') || method.includes('debito') || method.includes('tarjeta')) {
-        posBs += (inv.totalBs ? Number(inv.totalBs) : invTotal * rate);
+        pagoMovilBs += invBs;
+      } else if (method.includes('punto') || method.includes('debito') || method.includes('tarjeta') || method.includes('pos')) {
+        posBs += invBs;
+      } else if (method.includes('zelle')) {
+        zelleUsd += invUsd;
       } else {
-        otherUsd += invTotal;
+        otherUsd += invUsd;
       }
     });
 
-    const openTabs = snapshot?.openTabs || [];
-    const openTabsCount = openTabs.length;
-    const openTabsTotalUsd = openTabs.reduce((sum, tab) => sum + Number(tab.total || tab.subtotal || 0), 0);
+    // Gastos acumulados del período
+    let totalExpensesUsd = 0;
+    let totalExpensesBs = 0;
+    filteredExpenses.forEach((exp) => {
+      const usd = Number(exp.amountUsd || exp.totalUSD || 0);
+      const bs = Number(exp.amountBs || exp.totalBs || 0);
+      if (usd > 0) {
+        totalExpensesUsd += usd;
+        totalExpensesBs += bs > 0 ? bs : usd * rate;
+      } else if (bs > 0) {
+        totalExpensesBs += bs;
+        totalExpensesUsd += bs / rate;
+      }
+    });
+
+    const netCashUsd = totalSalesUsd - totalExpensesUsd;
+    const netCashBs = totalSalesBs - totalExpensesBs;
+    const avgTicketUsd = validCount > 0 ? totalSalesUsd / validCount : 0;
+    const avgTicketBs = validCount > 0 ? totalSalesBs / validCount : 0;
+
+    const openTabsCount = allOpenTabs.length;
+    const openTabsTotalUsd = allOpenTabs.reduce((sum, tab) => sum + Number(tab.total || tab.subtotal || 0), 0);
+    const openTabsTotalBs = openTabsTotalUsd * rate;
 
     return {
-      totalSalesUsd: totalUsd,
-      totalSalesBs: totalUsd * rate,
+      totalSalesUsd,
+      totalSalesBs,
+      totalExpensesUsd,
+      totalExpensesBs,
+      netCashUsd,
+      netCashBs,
+      avgTicketUsd,
+      avgTicketBs,
+      validCount,
+      voidedCount,
+      totalCount: filteredInvoices.length,
       cashUsd,
+      cashBs,
       pagoMovilBs,
       posBs,
+      zelleUsd,
       otherUsd,
       openTabsCount,
       openTabsTotalUsd,
-      openTabsTotalBs: openTabsTotalUsd * rate,
-      invoicesCount: todayInvoices.length
+      openTabsTotalBs,
+      invoicesCount: validCount
     };
-  }, [todayInvoices, snapshot?.openTabs, rate]);
+  }, [filteredInvoices, filteredExpenses, allOpenTabs, rate]);
+
+  // Ranking de "Los Items" / Productos Estrella más vendidos
+  const topProducts = useMemo(() => {
+    const map = new Map();
+    let totalQty = 0;
+
+    filteredInvoices.forEach((inv) => {
+      const stat = (inv.status || '').toLowerCase();
+      if (stat === 'voided' || stat === 'anulada') return;
+
+      const items = inv.items || inv.products || [];
+      items.forEach((it) => {
+        const id = it.id || it.productId || it.name;
+        const name = it.name || 'Producto';
+        const qty = Number(it.qty || it.quantity || 1);
+        const priceUsd = Number(it.priceUsd ?? it.priceUSD ?? it.unitPrice ?? it.price ?? 0);
+        const invRate = Number(inv.exchangeRate) || rate;
+        const totalUsd = Number(it.totalUsd ?? it.totalUSD ?? (priceUsd * qty));
+        const totalBs = Number(it.totalBs || totalUsd * invRate);
+
+        totalQty += qty;
+
+        if (map.has(id)) {
+          const prev = map.get(id);
+          prev.qty += qty;
+          prev.totalUsd += totalUsd;
+          prev.totalBs += totalBs;
+        } else {
+          map.set(id, { id, name, qty, totalUsd, totalBs, priceUsd });
+        }
+      });
+    });
+
+    const list = Array.from(map.values());
+    list.sort((a, b) => b.qty - a.qty);
+    const top6 = list.slice(0, 6);
+    const maxQty = top6.length > 0 ? top6[0].qty : 1;
+
+    return top6.map((it) => ({
+      ...it,
+      percentage: Math.round((it.qty / (totalQty || 1)) * 100),
+      barWidth: Math.round((it.qty / maxQty) * 100)
+    }));
+  }, [filteredInvoices, rate]);
 
   // Días restantes de suscripción SaaS
   const subStatus = useMemo(() => {
@@ -585,7 +836,7 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
         </div>
 
         {/* NAVEGACIÓN POR PESTAÑAS */}
-        <div className="max-w-5xl mx-auto px-4 flex gap-1 overflow-x-auto border-t border-zinc-100 text-xs font-semibold py-1.5">
+        <div className="max-w-5xl mx-auto px-4 flex gap-1 overflow-x-auto border-t border-zinc-100 text-xs font-semibold py-1.5 scrollbar-none">
           <button
             type="button"
             onClick={() => setActiveTab('overview')}
@@ -595,7 +846,7 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
                 : 'text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100'
             }`}
           >
-            Resumen Hoy
+            Resumen General
           </button>
           <button
             type="button"
@@ -618,13 +869,36 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
           <button
             type="button"
             onClick={() => setActiveTab('invoices')}
-            className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${
+            className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-all flex items-center gap-1.5 ${
               activeTab === 'invoices'
                 ? 'bg-zinc-950 text-white shadow-2xs'
                 : 'text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100'
             }`}
           >
-            Facturas ({todayInvoices.length})
+            <span>Facturas</span>
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+              activeTab === 'invoices' ? 'bg-zinc-800 text-white' : 'bg-zinc-200 text-zinc-800'
+            }`}>
+              {kpis.totalCount}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('expenses')}
+            className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-all flex items-center gap-1.5 ${
+              activeTab === 'expenses'
+                ? 'bg-zinc-950 text-white shadow-2xs'
+                : 'text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100'
+            }`}
+          >
+            <span>Gastos & Caja</span>
+            {filteredExpenses.length > 0 && (
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                activeTab === 'expenses' ? 'bg-zinc-800 text-white' : 'bg-rose-100 text-rose-800'
+              }`}>
+                {filteredExpenses.length}
+              </span>
+            )}
           </button>
           <button
             type="button"
@@ -723,36 +997,185 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
       {/* CONTENIDO PRINCIPAL */}
       <main className="max-w-5xl mx-auto px-4 pt-6 space-y-6">
 
-        {/* METRICS HERO CARDS (HOY) */}
+        {/* BARRA DE FILTROS DE PERÍODO Y MONEDA ESTILO HAPPY DAYS & SALES DASHBOARD */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-zinc-200/90 shadow-2xs">
+          {/* Chips de Selección de Período */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none text-xs">
+            <span className="text-zinc-400 font-semibold flex items-center gap-1 mr-1 text-[11px] shrink-0">
+              <Calendar size={13} />
+              <span>Período:</span>
+            </span>
+            {[
+              { id: 'today', label: 'Hoy' },
+              { id: 'yesterday', label: 'Ayer' },
+              { id: 'week', label: 'Esta Semana' },
+              { id: 'month', label: 'Este Mes' },
+              { id: 'custom', label: 'Personalizado' }
+            ].map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setDateRange(p.id)}
+                className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all cursor-pointer ${
+                  dateRange === p.id
+                    ? 'bg-zinc-950 text-white shadow-2xs'
+                    : 'bg-zinc-100 text-zinc-600 hover:text-zinc-950 hover:bg-zinc-200/70'
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Rango de Fechas si es Personalizado + Toggle Moneda */}
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap justify-between sm:justify-end">
+            {dateRange === 'custom' && (
+              <div className="flex items-center gap-1 bg-zinc-50 border border-zinc-200 rounded-xl px-2.5 py-1 text-xs">
+                <input
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  className="font-semibold bg-transparent text-zinc-800 focus:outline-none cursor-pointer"
+                />
+                <span className="text-zinc-400">a</span>
+                <input
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  className="font-semibold bg-transparent text-zinc-800 focus:outline-none cursor-pointer"
+                />
+              </div>
+            )}
+
+            {/* Toggle Moneda de Visualización */}
+            <div className="flex items-center bg-zinc-100 p-1 rounded-xl text-xs font-semibold shrink-0">
+              <button
+                type="button"
+                onClick={() => toggleCurrency('USD')}
+                className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                  currencyView === 'USD'
+                    ? 'bg-white text-zinc-950 shadow-2xs font-bold'
+                    : 'text-zinc-600 hover:text-zinc-950'
+                }`}
+              >
+                $ USD
+              </button>
+              <button
+                type="button"
+                onClick={() => toggleCurrency('BS')}
+                className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                  currencyView === 'BS'
+                    ? 'bg-white text-zinc-950 shadow-2xs font-bold'
+                    : 'text-zinc-600 hover:text-zinc-950'
+                }`}
+              >
+                Bs.
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* HERO CARD: CAJA NETA REAL (INGRESOS FACTURADOS - GASTOS) */}
+        <section className="bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-800 text-white rounded-2xl p-6 shadow-sm border border-zinc-800 relative overflow-hidden space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></div>
+              <span className="text-xs uppercase tracking-wider font-extrabold text-zinc-300">
+                Caja Neta Real ({dateRange === 'today' ? 'Hoy' : dateRange === 'yesterday' ? 'Ayer' : dateRange === 'week' ? 'Esta Semana' : dateRange === 'month' ? 'Este Mes' : 'Período'})
+              </span>
+            </div>
+            <span className="text-xs text-zinc-400 font-medium">
+              Ventas Cobradas − Gastos Registrados
+            </span>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2">
+            <div>
+              <div className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mono-num">
+                {formatPrimary(kpis.netCashUsd, kpis.netCashBs)}
+              </div>
+              <div className="text-sm text-zinc-400 font-semibold mono-num mt-0.5">
+                ≈ {formatSecondary(kpis.netCashUsd, kpis.netCashBs)}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="px-2.5 py-1 rounded-lg bg-zinc-800/80 text-zinc-200 text-xs font-semibold border border-zinc-700/60 flex items-center gap-1.5">
+                <CheckCircle2 size={13} className="text-emerald-400" />
+                <span>{kpis.validCount} {kpis.validCount === 1 ? 'venta cobrada' : 'ventas cobradas'}</span>
+              </span>
+              {kpis.voidedCount > 0 && (
+                <span className="px-2.5 py-1 rounded-lg bg-rose-950/60 text-rose-300 text-xs font-semibold border border-rose-800/40">
+                  {kpis.voidedCount} anulada(s)
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-3 border-t border-zinc-800/80 text-xs">
+            <div>
+              <span className="text-zinc-400 block text-[11px] font-medium">(+) Ingresos Facturados:</span>
+              <span className="font-extrabold text-emerald-400 text-sm mono-num">
+                +{formatPrimary(kpis.totalSalesUsd, kpis.totalSalesBs)}
+              </span>
+            </div>
+            <div>
+              <span className="text-zinc-400 block text-[11px] font-medium">(-) Gastos / Salidas:</span>
+              <span className="font-extrabold text-rose-400 text-sm mono-num">
+                -{formatPrimary(kpis.totalExpensesUsd, kpis.totalExpensesBs)}
+              </span>
+            </div>
+            <div className="col-span-2 sm:col-span-1">
+              <span className="text-zinc-400 block text-[11px] font-medium">Consumo en Mesas Activas:</span>
+              <span className="font-extrabold text-zinc-200 text-sm mono-num">
+                {formatPrimary(kpis.openTabsTotalUsd, kpis.openTabsTotalBs)} ({kpis.openTabsCount})
+              </span>
+            </div>
+          </div>
+        </section>
+
+        {/* METRICS 4 FINANCIAL KPI CARDS */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           
           <div className="p-4 rounded-xl bg-white border border-zinc-200/90 shadow-2xs space-y-1">
             <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">
-              Ventas Totales Hoy
+              Ventas Período
             </span>
             <div className="text-xl sm:text-2xl font-extrabold text-zinc-950 mono-num">
-              {formatUsd(kpis.totalSalesUsd)}
+              {formatPrimary(kpis.totalSalesUsd, kpis.totalSalesBs)}
             </div>
             <span className="text-xs text-zinc-500 font-medium block mono-num">
-              ≈ {formatBs(kpis.totalSalesBs)}
+              ≈ {formatSecondary(kpis.totalSalesUsd, kpis.totalSalesBs)}
             </span>
           </div>
 
           <div className="p-4 rounded-xl bg-white border border-zinc-200/90 shadow-2xs space-y-1">
             <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">
-              Efectivo USD ($)
+              Ticket Promedio
+            </span>
+            <div className="text-xl sm:text-2xl font-extrabold text-zinc-950 mono-num">
+              {formatPrimary(kpis.avgTicketUsd, kpis.avgTicketBs)}
+            </div>
+            <span className="text-xs text-zinc-400 font-medium block">
+              Por cliente / factura emitida
+            </span>
+          </div>
+
+          <div className="p-4 rounded-xl bg-white border border-zinc-200/90 shadow-2xs space-y-1">
+            <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">
+              Efectivo en Gaveta
             </span>
             <div className="text-xl sm:text-2xl font-extrabold text-emerald-700 mono-num">
               {formatUsd(kpis.cashUsd)}
             </div>
-            <span className="text-xs text-zinc-400 font-medium block">
-              En gaveta física de caja
+            <span className="text-xs text-zinc-500 font-medium block mono-num">
+              {kpis.cashBs > 0 ? `+ ${formatBs(kpis.cashBs)}` : 'Gaveta física en caja'}
             </span>
           </div>
 
           <div className="p-4 rounded-xl bg-white border border-zinc-200/90 shadow-2xs space-y-1">
             <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">
-              Pago Móvil & Bancos (Bs)
+              Pago Móvil & Bancos
             </span>
             <div className="text-xl sm:text-2xl font-extrabold text-zinc-950 mono-num">
               {formatBs(kpis.pagoMovilBs + kpis.posBs)}
@@ -762,22 +1185,10 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
             </span>
           </div>
 
-          <div className="p-4 rounded-xl bg-white border border-zinc-200/90 shadow-2xs space-y-1">
-            <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">
-              Mesas Ocupadas
-            </span>
-            <div className="text-xl sm:text-2xl font-extrabold text-zinc-950 mono-num">
-              {kpis.openTabsCount}
-            </div>
-            <span className="text-xs text-zinc-500 font-medium block mono-num">
-              Consumo: {formatUsd(kpis.openTabsTotalUsd)}
-            </span>
-          </div>
-
         </div>
 
-        {/* SI AÚN NO SE HA REGISTRADO EL PRIMER SNAPSHOT DESDE LA CAJA */}
-        {!snapshot && (
+        {/* SI AÚN NO SE HA REGISTRADO EL PRIMER SNAPSHOT DESDE LA CAJA NI VENTAS */}
+        {!snapshot && allInvoices.length === 0 && (
           <div className="p-6 rounded-2xl bg-white border border-zinc-200 text-center space-y-4 shadow-2xs">
             <div className="w-12 h-12 rounded-xl bg-zinc-100 flex items-center justify-center mx-auto text-zinc-600">
               <Download size={22} />
@@ -829,15 +1240,15 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
             <div className="p-5 rounded-2xl bg-white border border-zinc-200/90 shadow-2xs space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-bold text-zinc-950">Desglose de Caja de Hoy</h3>
-                  <p className="text-xs text-zinc-500">Separación por moneda y canal receptor:</p>
+                  <h3 className="text-sm font-bold text-zinc-950">Desglose de Caja por Canal de Cobro</h3>
+                  <p className="text-xs text-zinc-500">Conciliación neta de entradas según método receptor:</p>
                 </div>
                 <span className="text-xs font-semibold text-zinc-600 mono-num">
-                  {kpis.invoicesCount} {kpis.invoicesCount === 1 ? 'factura' : 'facturas'}
+                  {kpis.validCount} {kpis.validCount === 1 ? 'factura' : 'facturas'}
                 </span>
               </div>
 
-              <div className="grid sm:grid-cols-3 gap-3 text-xs">
+              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
                 <div className="p-3.5 rounded-xl bg-zinc-50 border border-zinc-200/70 space-y-1">
                   <span className="text-zinc-500 font-medium">Efectivo Divisas ($)</span>
                   <div className="font-extrabold text-base text-zinc-950 mono-num">
@@ -867,7 +1278,77 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
                     ≈ {formatUsd(kpis.posBs / rate)}
                   </span>
                 </div>
+
+                <div className="p-3.5 rounded-xl bg-zinc-50 border border-zinc-200/70 space-y-1">
+                  <span className="text-zinc-500 font-medium">Zelle & Transferencia ($)</span>
+                  <div className="font-extrabold text-base text-zinc-950 mono-num">
+                    {formatUsd(kpis.zelleUsd + kpis.otherUsd)}
+                  </div>
+                  <span className="text-[11px] text-zinc-400 mono-num">
+                    ≈ {formatBs((kpis.zelleUsd + kpis.otherUsd) * rate)}
+                  </span>
+                </div>
               </div>
+            </div>
+
+            {/* RANKING DE PLATOS & BEBIDAS ESTRELLA MÁS VENDIDOS ("LOS ITEMS") */}
+            <div className="p-5 rounded-2xl bg-white border border-zinc-200/90 shadow-2xs space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-700 flex items-center justify-center shrink-0">
+                    <UtensilsCrossed size={16} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-zinc-950">Platos & Bebidas más Vendidos (Top Ítems)</h3>
+                    <p className="text-xs text-zinc-500">Ranking por volumen de unidades y recaudación en el período:</p>
+                  </div>
+                </div>
+                <span className="text-xs font-semibold text-zinc-500">
+                  Top 6 más pedidos
+                </span>
+              </div>
+
+              {topProducts.length > 0 ? (
+                <div className="space-y-3">
+                  {topProducts.map((prod, idx) => (
+                    <div key={prod.id || idx} className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className={`w-5 h-5 rounded-md flex items-center justify-center font-bold text-[11px] shrink-0 ${
+                            idx === 0 ? 'bg-amber-100 text-amber-900 border border-amber-300' :
+                            idx === 1 ? 'bg-zinc-200 text-zinc-800' :
+                            idx === 2 ? 'bg-amber-50 text-amber-800' :
+                            'bg-zinc-100 text-zinc-600'
+                          }`}>
+                            #{idx + 1}
+                          </span>
+                          <span className="font-bold text-zinc-900 truncate">
+                            {prod.name}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                          <span className="font-bold text-zinc-700 mono-num">
+                            {prod.qty} {prod.qty === 1 ? 'unidad' : 'unidades'}
+                          </span>
+                          <span className="font-extrabold text-zinc-950 mono-num text-right w-20">
+                            {formatPrimary(prod.totalUsd, prod.totalBs)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="w-full bg-zinc-100 h-2 rounded-full overflow-hidden">
+                        <div
+                          className="bg-zinc-950 h-full rounded-full transition-all duration-500"
+                          style={{ width: `${Math.max(6, prod.barWidth)}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-6 text-zinc-400 text-xs">
+                  No se registran platos o bebidas vendidas en este período todavía.
+                </div>
+              )}
             </div>
 
             {/* Vista Rápida de Mesas Abiertas */}
@@ -882,21 +1363,21 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
                   onClick={() => setActiveTab('tables')}
                   className="text-xs font-semibold text-zinc-950 hover:underline inline-flex items-center gap-1"
                 >
-                  <span>Ver todas</span>
+                  <span>Ver todas ({allOpenTabs.length})</span>
                   <ChevronRight size={14} />
                 </button>
               </div>
 
-              {(snapshot?.openTabs || []).length > 0 ? (
+              {allOpenTabs.length > 0 ? (
                 <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
-                  {(snapshot.openTabs || []).slice(0, 6).map((tab, idx) => (
+                  {allOpenTabs.slice(0, 6).map((tab, idx) => (
                     <div key={tab.id || idx} className="p-3.5 rounded-xl border border-zinc-200 bg-zinc-50/50 space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-xs text-zinc-900">
                           {tab.tableName || `Mesa ${tab.tableNumber || idx + 1}`}
                         </span>
                         <span className="font-bold text-xs text-zinc-950 mono-num">
-                          {formatUsd(tab.total || tab.subtotal || 0)}
+                          {formatPrimary(Number(tab.total || tab.subtotal || 0), Number(tab.total || tab.subtotal || 0) * rate)}
                         </span>
                       </div>
                       <div className="text-[11px] text-zinc-500 line-clamp-2">
@@ -923,13 +1404,15 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-base font-bold text-zinc-950">Mesas Abiertas en Salón</h3>
-                <p className="text-xs text-zinc-500">Total en consumo: <strong className="text-zinc-900 mono-num">{formatUsd(kpis.openTabsTotalUsd)}</strong> ({formatBs(kpis.openTabsTotalBs)})</p>
+                <p className="text-xs text-zinc-500">
+                  Total en consumo: <strong className="text-zinc-900 mono-num">{formatPrimary(kpis.openTabsTotalUsd, kpis.openTabsTotalBs)}</strong> ({formatSecondary(kpis.openTabsTotalUsd, kpis.openTabsTotalBs)})
+                </p>
               </div>
             </div>
 
-            {(snapshot?.openTabs || []).length > 0 ? (
+            {allOpenTabs.length > 0 ? (
               <div className="grid sm:grid-cols-2 gap-4">
-                {(snapshot.openTabs || []).map((tab, idx) => (
+                {allOpenTabs.map((tab, idx) => (
                   <div key={tab.id || idx} className="p-4 rounded-xl bg-white border border-zinc-200/90 shadow-2xs space-y-3">
                     <div className="flex items-start justify-between border-b border-zinc-100 pb-2.5">
                       <div>
@@ -942,10 +1425,10 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
                       </div>
                       <div className="text-right">
                         <span className="font-extrabold text-base text-zinc-950 mono-num block">
-                          {formatUsd(tab.total || tab.subtotal || 0)}
+                          {formatPrimary(Number(tab.total || tab.subtotal || 0), Number(tab.total || tab.subtotal || 0) * rate)}
                         </span>
                         <span className="text-[11px] text-zinc-500 mono-num block">
-                          {formatBs((tab.total || tab.subtotal || 0) * rate)}
+                          ≈ {formatSecondary(Number(tab.total || tab.subtotal || 0), Number(tab.total || tab.subtotal || 0) * rate)}
                         </span>
                       </div>
                     </div>
@@ -962,7 +1445,7 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
                                 {item.qty || 1}x {item.name}
                               </span>
                               <span className="text-zinc-500 mono-num text-[11px]">
-                                {formatUsd((item.price || item.priceUsd || 0) * (item.qty || 1))}
+                                {formatPrimary((item.price || item.priceUsd || 0) * (item.qty || 1), (item.price || item.priceUsd || 0) * (item.qty || 1) * rate)}
                               </span>
                             </div>
                           ))}
@@ -982,33 +1465,194 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
           </div>
         )}
 
-        {/* PESTAÑA 3: FACTURAS DE HOY (INVOICES) */}
+        {/* PESTAÑA 3: FACTURAS EMITIDAS (INVOICES) */}
         {activeTab === 'invoices' && (
           <div className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h3 className="text-base font-bold text-zinc-950">Ventas Facturadas Hoy</h3>
-                <p className="text-xs text-zinc-500">Historial en tiempo real de comprobantes emitidos en el local:</p>
+                <h3 className="text-base font-bold text-zinc-950">
+                  Ventas Facturadas ({filteredInvoices.length})
+                </h3>
+                <p className="text-xs text-zinc-500">
+                  Historial de comprobantes emitidos en el período ({dateRange === 'today' ? 'Hoy' : dateRange === 'yesterday' ? 'Ayer' : dateRange === 'week' ? 'Esta Semana' : dateRange === 'month' ? 'Este Mes' : 'Rango Personalizado'}):
+                </p>
               </div>
 
-              <div className="flex gap-1.5 text-xs">
-                {['all', 'cash', 'movil', 'pos'].map((f) => (
+              {/* Buscador de Factura en Tiempo Real */}
+              <div className="relative w-full sm:w-64">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+                <input
+                  type="text"
+                  value={searchInvoiceQuery}
+                  onChange={(e) => setSearchInvoiceQuery(e.target.value)}
+                  placeholder="Buscar factura, cliente, RIF..."
+                  className="w-full pl-8 pr-7 py-1.5 text-xs rounded-xl border border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900"
+                />
+                {searchInvoiceQuery && (
                   <button
-                    key={f}
                     type="button"
-                    onClick={() => setInvoiceFilter(f)}
-                    className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
-                      invoiceFilter === f
-                        ? 'bg-zinc-950 text-white shadow-2xs'
-                        : 'bg-white border border-zinc-200 text-zinc-600 hover:bg-zinc-50'
-                    }`}
+                    onClick={() => setSearchInvoiceQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700"
                   >
-                    {f === 'all' && 'Todas'}
-                    {f === 'cash' && 'Efectivo $'}
-                    {f === 'movil' && 'Pago Móvil'}
-                    {f === 'pos' && 'Punto'}
+                    <X size={13} />
                   </button>
-                ))}
+                )}
+              </div>
+            </div>
+
+            {/* Filtros por Método de Cobro */}
+            <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
+              {[
+                { id: 'all', label: 'Todas las Ventas' },
+                { id: 'cash', label: 'Efectivo $' },
+                { id: 'movil', label: 'Pago Móvil' },
+                { id: 'pos', label: 'Punto de Venta' },
+                { id: 'mixto', label: 'Pago Mixto' }
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setInvoiceFilter(f.id)}
+                  className={`px-3 py-1 rounded-lg font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                    invoiceFilter === f.id
+                      ? 'bg-zinc-950 text-white shadow-2xs font-bold'
+                      : 'bg-white border border-zinc-200 text-zinc-600 hover:bg-zinc-50'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="bg-white border border-zinc-200/90 rounded-2xl shadow-2xs overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-zinc-200 bg-zinc-50/70 text-zinc-500 uppercase text-[11px] font-semibold">
+                      <th className="py-3 px-4">Fecha / Hora</th>
+                      <th className="py-3 px-4">Comprobante</th>
+                      <th className="py-3 px-4">Cliente</th>
+                      <th className="py-3 px-4">Platos / Ítems</th>
+                      <th className="py-3 px-4">Método</th>
+                      <th className="py-3 px-4 text-right">Monto</th>
+                      <th className="py-3 px-3 text-center">Ticket</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100 text-zinc-700">
+                    {filteredInvoices
+                      .filter((inv) => {
+                        if (invoiceFilter === 'all') return true;
+                        const m = (inv.paymentMethod || '').toLowerCase();
+                        if (invoiceFilter === 'cash') return m.includes('efectivo') || m.includes('cash') || m.includes('dolar');
+                        if (invoiceFilter === 'movil') return m.includes('movil') || m.includes('pago');
+                        if (invoiceFilter === 'pos') return m.includes('punto') || m.includes('debito') || m.includes('tarjeta');
+                        if (invoiceFilter === 'mixto') return m.includes('mixto') || Boolean(inv.paymentDetails?.isMixto);
+                        return true;
+                      })
+                      .map((inv, idx) => {
+                        const totalUsd = Number(inv.total || inv.totalAmount || inv.totalUSD || 0);
+                        const invRate = Number(inv.exchangeRate) || rate;
+                        const totalBs = Number(inv.totalBs || totalUsd * invRate);
+                        const isVoided = (inv.status || '').toLowerCase() === 'voided' || (inv.status || '').toLowerCase() === 'anulada';
+                        const items = inv.items || inv.products || [];
+
+                        return (
+                          <tr
+                            key={inv.id || idx}
+                            className={`hover:bg-zinc-50/70 transition-colors ${isVoided ? 'bg-rose-50/30 opacity-75' : ''}`}
+                          >
+                            <td className="py-3 px-4 font-mono text-zinc-500 whitespace-nowrap">
+                              {inv.date ? new Date(inv.date).toLocaleString('es-VE', { dateStyle: 'short', timeStyle: 'short' }) : '—'}
+                            </td>
+                            <td className="py-3 px-4 font-semibold text-zinc-950">
+                              <div className="flex items-center gap-1.5">
+                                <span>{inv.invoiceNumber || inv.number || `#${idx + 1}`}</span>
+                                {isVoided && (
+                                  <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-rose-100 text-rose-800">
+                                    ANULADA
+                                  </span>
+                                )}
+                              </div>
+                              {inv.fiscalReceiptNumber && (
+                                <span className="block text-[10px] text-emerald-700 font-mono font-medium">
+                                  SENIAT: {inv.fiscalReceiptNumber}
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className="font-medium text-zinc-900 block truncate max-w-[140px]">
+                                {inv.client?.name || inv.clientName || 'Consumidor Final'}
+                              </span>
+                              <span className="text-[10px] text-zinc-400 font-mono">
+                                {inv.client?.rif || inv.clientRif || 'V-00000000'}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 max-w-[200px]">
+                              {items.length > 0 ? (
+                                <span className="text-zinc-600 truncate block text-[11px]" title={items.map((i) => `${i.qty || 1}x ${i.name}`).join(', ')}>
+                                  {items.map((i) => `${i.qty || 1}x ${i.name}`).join(', ')}
+                                </span>
+                              ) : (
+                                <span className="text-zinc-400 text-[11px]">Consumo general</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 whitespace-nowrap">
+                              <span className="inline-block px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700 font-medium text-[11px]">
+                                {inv.paymentMethod || 'Efectivo'}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-right font-bold text-zinc-950 mono-num whitespace-nowrap">
+                              {formatPrimary(totalUsd, totalBs)}
+                              <span className="block text-[10px] text-zinc-400 font-normal">
+                                ≈ {formatSecondary(totalUsd, totalBs)}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 text-center">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedInvoiceForPreview(inv)}
+                                title="Ver comprobante e imprimir ticket fiscal"
+                                className="p-1.5 rounded-lg border border-zinc-200 text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100 transition-colors inline-flex items-center justify-center cursor-pointer"
+                              >
+                                <Eye size={14} />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+
+                    {filteredInvoices.length === 0 && (
+                      <tr>
+                        <td colSpan="7" className="py-8 text-center text-zinc-400 text-xs">
+                          No se encontraron ventas para los filtros seleccionados.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* PESTAÑA 4: GASTOS Y SALIDAS (EXPENSES) */}
+        {activeTab === 'expenses' && (
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-base font-bold text-zinc-950">Gastos y Salidas de Caja del Período</h3>
+                <p className="text-xs text-zinc-500">
+                  Egresos registrados para cuadre de caja y control de gaveta:
+                </p>
+              </div>
+              <div className="p-3 rounded-xl bg-white border border-zinc-200/90 shadow-2xs flex items-center gap-3">
+                <span className="text-xs text-zinc-500 font-semibold">Total Gastos:</span>
+                <span className="font-extrabold text-sm text-rose-600 mono-num">
+                  -{formatPrimary(kpis.totalExpensesUsd, kpis.totalExpensesBs)}
+                </span>
+                <span className="text-[11px] text-zinc-400 mono-num">
+                  ({formatSecondary(kpis.totalExpensesUsd, kpis.totalExpensesBs)})
+                </span>
               </div>
             </div>
 
@@ -1017,62 +1661,57 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="border-b border-zinc-200 bg-zinc-50/70 text-zinc-500 uppercase text-[11px] font-semibold">
-                      <th className="py-3 px-4">Hora</th>
-                      <th className="py-3 px-4">Comprobante</th>
-                      <th className="py-3 px-4">Cliente</th>
-                      <th className="py-3 px-4">Método</th>
+                      <th className="py-3 px-4">Fecha / Hora</th>
+                      <th className="py-3 px-4">Concepto / Motivo</th>
+                      <th className="py-3 px-4">Categoría</th>
+                      <th className="py-3 px-4">Salió De</th>
                       <th className="py-3 px-4 text-right">Monto</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-100 text-zinc-700">
-                    {todayInvoices
-                      .filter((inv) => {
-                        if (invoiceFilter === 'all') return true;
-                        const m = (inv.paymentMethod || '').toLowerCase();
-                        if (invoiceFilter === 'cash') return m.includes('efectivo') || m.includes('cash') || m.includes('dolar');
-                        if (invoiceFilter === 'movil') return m.includes('movil') || m.includes('pago');
-                        if (invoiceFilter === 'pos') return m.includes('punto') || m.includes('debito') || m.includes('tarjeta');
-                        return true;
-                      })
-                      .map((inv, idx) => (
-                        <tr key={inv.id || idx} className="hover:bg-zinc-50/60 transition-colors">
-                          <td className="py-3 px-4 font-mono text-zinc-500">
-                            {inv.date ? new Date(inv.date).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                    {filteredExpenses.map((exp, idx) => {
+                      const usd = Number(exp.amountUsd || exp.totalUSD || 0);
+                      const bs = Number(exp.amountBs || exp.totalBs || 0);
+                      const d = exp.date || exp.createdAt;
+                      const dateFormatted = d ? new Date(d).toLocaleString('es-VE', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+
+                      return (
+                        <tr key={exp.id || idx} className="hover:bg-zinc-50/60 transition-colors">
+                          <td className="py-3 px-4 font-mono text-zinc-500 whitespace-nowrap">
+                            {dateFormatted}
                           </td>
                           <td className="py-3 px-4 font-semibold text-zinc-950">
-                            {inv.invoiceNumber || inv.number || `#${idx + 1}`}
-                            {inv.fiscalReceiptNumber && (
-                              <span className="block text-[10px] text-emerald-700 font-mono font-medium">
-                                SENIAT: {inv.fiscalReceiptNumber}
+                            {exp.description || exp.concept || exp.name || 'Gasto Operativo'}
+                            {exp.notes && (
+                              <span className="block text-[10px] text-zinc-400 font-normal">
+                                {exp.notes}
                               </span>
                             )}
                           </td>
                           <td className="py-3 px-4">
-                            <span className="font-medium text-zinc-900 block truncate max-w-[140px]">
-                              {inv.client?.name || inv.clientName || 'Consumidor Final'}
-                            </span>
-                            <span className="text-[10px] text-zinc-400 font-mono">
-                              {inv.client?.rif || inv.clientRif || 'V-00000000'}
+                            <span className="inline-block px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700 text-[11px] font-medium">
+                              {exp.category || 'Insumos / Operativo'}
                             </span>
                           </td>
                           <td className="py-3 px-4">
-                            <span className="inline-block px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700 font-medium text-[11px]">
-                              {inv.paymentMethod || 'Efectivo'}
+                            <span className="inline-block px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 text-[11px] font-medium border border-amber-200">
+                              {exp.paymentMethod || exp.method || 'Efectivo Divisas ($)'}
                             </span>
                           </td>
-                          <td className="py-3 px-4 text-right font-bold text-zinc-950 mono-num">
-                            {formatUsd(inv.total || inv.totalAmount || 0)}
+                          <td className="py-3 px-4 text-right font-extrabold text-rose-600 mono-num whitespace-nowrap">
+                            -{formatPrimary(usd > 0 ? usd : bs / rate, bs > 0 ? bs : usd * rate)}
                             <span className="block text-[10px] text-zinc-400 font-normal">
-                              {formatBs((inv.total || inv.totalAmount || 0) * rate)}
+                              ≈ {formatSecondary(usd > 0 ? usd : bs / rate, bs > 0 ? bs : usd * rate)}
                             </span>
                           </td>
                         </tr>
-                      ))}
+                      );
+                    })}
 
-                    {todayInvoices.length === 0 && (
+                    {filteredExpenses.length === 0 && (
                       <tr>
                         <td colSpan="5" className="py-8 text-center text-zinc-400 text-xs">
-                          No se han emitido facturas hoy todavía.
+                          No se han registrado salidas ni gastos de caja en este período.
                         </td>
                       </tr>
                     )}
@@ -1778,6 +2417,14 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
             </form>
           </div>
         </div>
+      )}
+
+      {/* MODAL DE PREVISUALIZACIÓN DE FACTURA FISCAL / TICKET TÉRMICO */}
+      {selectedInvoiceForPreview && (
+        <InvoicePreview
+          invoice={selectedInvoiceForPreview}
+          onClose={() => setSelectedInvoiceForPreview(null)}
+        />
       )}
 
     </div>
