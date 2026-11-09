@@ -4,6 +4,7 @@ import { formatVE, getFiscalCompanyProfile } from '../../utils/seniatCsvExporter
 
 export default function TaxSummaryForma30({
   taxSummary = {},
+  onExportExcel,
   onExportResumen,
   selectedMonth = '10',
   selectedYear = '2026',
@@ -43,7 +44,17 @@ export default function TaxSummaryForma30({
             </p>
           </div>
 
-          {onExportResumen && (
+          {onExportExcel ? (
+            <button
+              type="button"
+              onClick={onExportExcel}
+              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-98 shrink-0"
+              title="Descargar libro en formato Excel (.xlsx) con 3 hojas interconectadas (COMPRAS, VENTAS, RESUMEN)"
+            >
+              <Download size={14} />
+              <span>Exportar Libro Excel (.xlsx)</span>
+            </button>
+          ) : onExportResumen ? (
             <button
               type="button"
               onClick={onExportResumen}
@@ -53,7 +64,7 @@ export default function TaxSummaryForma30({
               <Download size={14} />
               <span>Exportar Plantilla Resumen CSV</span>
             </button>
-          )}
+          ) : null}
         </div>
 
         <div className="space-y-3 text-xs">
@@ -129,7 +140,28 @@ export default function TaxSummaryForma30({
             </span>
           </div>
 
-          {onExportResumen && (
+          {onExportExcel ? (
+            <div className="space-y-1.5 mt-2">
+              <button
+                type="button"
+                onClick={onExportExcel}
+                className="w-full py-3 px-4 rounded-xl border border-emerald-600 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm active:scale-98"
+                title="Descargar libro en formato Excel (.xlsx) con 3 hojas interconectadas (COMPRAS, VENTAS, RESUMEN)"
+              >
+                <Download size={15} />
+                <span>Descargar Plantilla Oficial Excel (.xlsx) [3 Hojas]</span>
+              </button>
+              {onExportResumen && (
+                <button
+                  type="button"
+                  onClick={onExportResumen}
+                  className="w-full py-1 text-center text-zinc-400 hover:text-zinc-700 text-[10px] font-semibold transition-colors cursor-pointer"
+                >
+                  O descargar como archivo CSV plano ("COMPRA VENTAS - Resumen.csv")
+                </button>
+              )}
+            </div>
+          ) : onExportResumen ? (
             <button
               type="button"
               onClick={onExportResumen}
@@ -138,7 +170,7 @@ export default function TaxSummaryForma30({
               <Download size={14} className="text-emerald-700" />
               <span>Descargar Archivo Oficial: "COMPRA VENTAS - Resumen.csv"</span>
             </button>
-          )}
+          ) : null}
         </div>
       </div>
 

@@ -511,6 +511,32 @@ export default function FiscalBooksView() {
   };
 
   // Manejadores oficiales de exportación SENIAT
+  const handleExportFullExcelWorkbook = async () => {
+    try {
+      showToast('Generando plantilla de Excel (COMPRAS, VENTAS, RESUMEN)...');
+      const isUsingZ = filteredZReports.length > 0;
+      const { exportFullSeniatWorkbook } = await import('../../pos-core/utils/seniatExcelExporter');
+      const filename = await exportFullSeniatWorkbook({
+        selectedMonth,
+        selectedYear,
+        selectedFortnight,
+        companyProfile,
+        salesBookData,
+        salesTotals,
+        purchasesBookData,
+        purchasesTotals,
+        zReports: filteredZReports,
+        zReportsTotals,
+        isUsingZ
+      });
+      showToast(`¡Plantilla Excel descargada exitosamente! (${filename})`);
+      setShowExportMenu(false);
+    } catch (err) {
+      console.error('Error generando libro Excel:', err);
+      alert('Error generando plantilla de Excel: ' + err.message);
+    }
+  };
+
   const handleExportResumen = () => {
     const isUsingZ = filteredZReports.length > 0;
     exportSeniatResumenCompraVentaCSV({
@@ -595,7 +621,7 @@ export default function FiscalBooksView() {
     } else if (activeTab === 'compras') {
       handleExportPurchases();
     } else if (activeTab === 'resumen') {
-      handleExportResumen();
+      handleExportFullExcelWorkbook();
     }
   };
 
@@ -631,12 +657,12 @@ export default function FiscalBooksView() {
                   type="button"
                   onClick={handleMainExportClick}
                   className="px-3.5 py-2 hover:bg-zinc-50 text-zinc-800 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer rounded-l-xl active:scale-98"
-                  title="Descargar libro en formato CSV oficial SENIAT para Excel"
+                  title="Descargar libro en formato oficial para Excel"
                 >
                   <Download size={14} className="text-emerald-600" />
                   <span>
                     {activeTab === 'resumen'
-                      ? 'Exportar Resumen CSV'
+                      ? 'Exportar Plantilla Excel (.xlsx)'
                       : activeTab === 'ventas_z'
                       ? 'Exportar Reportes Z CSV'
                       : activeTab === 'ventas_detalle'
@@ -659,23 +685,40 @@ export default function FiscalBooksView() {
               {showExportMenu && (
                 <>
                   <div className="fixed inset-0 z-20" onClick={() => setShowExportMenu(false)} />
-                  <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-zinc-200/90 py-2 z-30 space-y-1">
+                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-zinc-200/90 py-2 z-30 space-y-1">
                     <div className="px-3 py-1.5 text-[10px] font-bold text-zinc-600 uppercase tracking-wider border-b border-zinc-100">
                       Formatos Oficiales SENIAT
                     </div>
 
+                    {/* OPCIÓN 1: PLANTILLA COMPLETA DE 3 HOJAS EN MICROSOFT EXCEL (.XLSX) */}
+                    <button
+                      type="button"
+                      onClick={handleExportFullExcelWorkbook}
+                      className="w-full px-3 py-2.5 text-left text-xs font-semibold text-emerald-950 bg-emerald-50/90 hover:bg-emerald-100 transition-all flex items-start gap-2.5 cursor-pointer border-b border-emerald-100"
+                    >
+                      <FileSpreadsheet size={18} className="text-emerald-700 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-extrabold flex items-center gap-1.5 text-emerald-950">
+                          <span>Libro Compra y Venta (.xlsx)</span>
+                          <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-600 text-white font-black">Plantilla 3 Hojas</span>
+                        </div>
+                        <p className="text-[10px] text-emerald-800 font-medium mt-0.5">
+                          Hojas COMPRAS, VENTAS y RESUMEN FORMA 30 interconectadas con fórmulas y formato
+                        </p>
+                      </div>
+                    </button>
+
                     <button
                       type="button"
                       onClick={handleExportResumen}
-                      className="w-full px-3 py-2 text-left text-xs font-semibold text-zinc-800 hover:bg-emerald-50 hover:text-emerald-900 transition-all flex items-start gap-2.5 cursor-pointer"
+                      className="w-full px-3 py-2 text-left text-xs font-semibold text-zinc-800 hover:bg-zinc-50 hover:text-zinc-950 transition-all flex items-start gap-2.5 cursor-pointer"
                     >
                       <FileSpreadsheet size={16} className="text-emerald-600 shrink-0 mt-0.5" />
                       <div>
                         <div className="font-bold flex items-center gap-1.5">
-                          <span>Resumen Compra y Venta</span>
-                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 font-bold">Plantilla Oficial</span>
+                          <span>Resumen Forma 30 (CSV Plano)</span>
                         </div>
-                        <p className="text-[10px] text-zinc-500 font-normal">Forma 30 SENIAT (Débito, Crédito y Autoliquidación)</p>
+                        <p className="text-[10px] text-zinc-500 font-normal">Autoliquidación en texto plano separado por comas</p>
                       </div>
                     </button>
 
@@ -1349,6 +1392,7 @@ export default function FiscalBooksView() {
         {activeTab === 'resumen' && (
           <TaxSummaryForma30
             taxSummary={taxSummary}
+            onExportExcel={handleExportFullExcelWorkbook}
             onExportResumen={handleExportResumen}
             selectedMonth={selectedMonth}
             selectedYear={selectedYear}
