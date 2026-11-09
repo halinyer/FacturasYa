@@ -12,11 +12,18 @@ import {
   Cpu,
   Search,
   CheckCircle2,
-  FileText
+  FileText,
+  ChevronDown
 } from 'lucide-react';
 import { useData } from '../../pos-core/contexts/DataContext';
 import { CLIENT_CONFIG } from '../../pos-core/config/clientConfig';
-import { formatVE, exportSeniatBookToCSV, exportZReportsToCSV } from '../../pos-core/utils/seniatCsvExporter';
+import {
+  formatVE,
+  exportSeniatBookToCSV,
+  exportZReportsToCSV,
+  exportSeniatResumenCompraVentaCSV,
+  getFiscalCompanyProfile
+} from '../../pos-core/utils/seniatCsvExporter';
 import TaxSummaryForma30 from '../../pos-core/components/fiscalBooks/TaxSummaryForma30';
 import PurchaseFormModal from '../../pos-core/components/fiscalBooks/PurchaseFormModal';
 import ZReportFormModal from '../../pos-core/components/fiscalBooks/ZReportFormModal';
@@ -65,6 +72,8 @@ export default function FiscalBooksView() {
   const [editingZReport, setEditingZReport] = useState(null);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [toast, setToast] = useState(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const companyProfile = useMemo(() => getFiscalCompanyProfile(fiscalSettings), [fiscalSettings]);
 
   // Formulario de compra
   const [purchaseForm, setPurchaseForm] = useState({
@@ -501,6 +510,95 @@ export default function FiscalBooksView() {
     }));
   };
 
+  // Manejadores oficiales de exportación SENIAT
+  const handleExportResumen = () => {
+    const isUsingZ = filteredZReports.length > 0;
+    exportSeniatResumenCompraVentaCSV({
+      selectedMonth,
+      selectedYear,
+      selectedFortnight,
+      companyName: companyProfile.legalName,
+      rif: companyProfile.rif,
+      fiscalAddress: companyProfile.fiscalAddress,
+      taxpayerType: companyProfile.taxpayerType,
+      // Ventas
+      exemptSalesBs: isUsingZ ? (zReportsTotals.exemptSalesBs || 0) : (salesTotals.exemptBs || 0),
+      baseGeneral16Bs: isUsingZ ? (zReportsTotals.baseGeneral16Bs || 0) : (salesTotals.taxableBaseBs || 0),
+      taxGeneral16Bs: isUsingZ ? (zReportsTotals.taxGeneral16Bs || 0) : (salesTotals.ivaBs || 0),
+      baseAdditionalBs: isUsingZ ? (zReportsTotals.baseAdditionalBs || 0) : 0,
+      taxAdditionalBs: isUsingZ ? (zReportsTotals.taxAdditionalBs || 0) : 0,
+      baseReduced8Bs: isUsingZ ? (zReportsTotals.baseReduced8Bs || 0) : 0,
+      taxReduced8Bs: isUsingZ ? (zReportsTotals.taxReduced8Bs || 0) : 0,
+      // Compras
+      exemptPurchasesBs: purchasesTotals.exemptAmountBs || 0,
+      basePurchasesGeneralBs: purchasesTotals.taxableBaseBs || 0,
+      taxPurchasesGeneralBs: purchasesTotals.ivaBs || 0,
+      // Retenciones
+      retencionesAcumuladas: 0,
+      retencionesPeriodo: purchasesTotals.ivaRetainedBs || 0,
+      retencionesDescontadas: Math.min(taxSummary.montoPagar, purchasesTotals.ivaRetainedBs || 0)
+    });
+    showToast('¡Plantilla oficial de Resumen de Compra y Ventas exportada exitosamente!');
+    setShowExportMenu(false);
+  };
+
+  const handleExportZReports = () => {
+    exportZReportsToCSV({
+      zRecords: filteredZReports,
+      zReports: filteredZReports,
+      selectedMonth,
+      selectedYear,
+      selectedFortnight,
+      machineNumber: fiscalSettings?.registeredMachineNumber || companyProfile.machineNumber,
+      rif: companyProfile.rif,
+      legalName: companyProfile.legalName
+    });
+    showToast(`¡Se exportaron ${filteredZReports.length} reporte(s) Z en formato CSV SENIAT!`);
+    setShowExportMenu(false);
+  };
+
+  const handleExportDetailedSales = () => {
+    exportSeniatBookToCSV({
+      isSales: true,
+      selectedMonth,
+      selectedYear,
+      selectedFortnight,
+      salesBookData,
+      salesTotals,
+      legalName: companyProfile.legalName,
+      rif: companyProfile.rif
+    });
+    showToast(`¡Libro de Ventas Detallado (${salesBookData.length} facturas) exportado exitosamente!`);
+    setShowExportMenu(false);
+  };
+
+  const handleExportPurchases = () => {
+    exportSeniatBookToCSV({
+      isSales: false,
+      selectedMonth,
+      selectedYear,
+      selectedFortnight,
+      purchasesBookData,
+      purchasesTotals,
+      legalName: companyProfile.legalName,
+      rif: companyProfile.rif
+    });
+    showToast(`¡Libro de Compras (${purchasesBookData.length} compras) exportado exitosamente!`);
+    setShowExportMenu(false);
+  };
+
+  const handleMainExportClick = () => {
+    if (activeTab === 'ventas_z') {
+      handleExportZReports();
+    } else if (activeTab === 'ventas_detalle') {
+      handleExportDetailedSales();
+    } else if (activeTab === 'compras') {
+      handleExportPurchases();
+    } else if (activeTab === 'resumen') {
+      handleExportResumen();
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col h-full bg-zinc-50 overflow-y-auto">
       {/* HEADER DE MÓDULO NOTION */}
@@ -520,48 +618,106 @@ export default function FiscalBooksView() {
               </span>
             </div>
             <p className="text-xs text-zinc-500 mt-1">
-              {CLIENT_CONFIG.legalName || 'MI NEGOCIO C.A.'} • RIF: {CLIENT_CONFIG.rif || 'J-00000000-0'} • Cumplimiento de la Ley del IVA y Providencia SNAT/2011/00071
+              {companyProfile.legalName} • RIF: {companyProfile.rif} • Cumplimiento de la Ley del IVA y Providencia SNAT/2011/00071
             </p>
           </div>
 
           {/* Acciones Superiores Claras */}
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                if (activeTab === 'ventas_z') {
-                  exportZReportsToCSV({
-                    zReports: filteredZReports,
-                    selectedMonth,
-                    selectedYear,
-                    selectedFortnight
-                  });
-                } else if (activeTab === 'ventas_detalle') {
-                  exportSeniatBookToCSV({
-                    isSales: true,
-                    selectedMonth,
-                    selectedYear,
-                    selectedFortnight,
-                    salesBookData,
-                    salesTotals
-                  });
-                } else if (activeTab === 'compras') {
-                  exportSeniatBookToCSV({
-                    isSales: false,
-                    selectedMonth,
-                    selectedYear,
-                    selectedFortnight,
-                    purchasesBookData,
-                    purchasesTotals
-                  });
-                }
-              }}
-              className="px-3.5 py-2 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-800 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-98"
-              title="Descargar libro en formato CSV oficial SENIAT para Excel"
-            >
-              <Download size={14} />
-              <span>Exportar CSV SENIAT</span>
-            </button>
+            {/* Botón y Dropdown de Exportación SENIAT */}
+            <div className="relative">
+              <div className="inline-flex rounded-xl shadow-xs border border-zinc-200 bg-white">
+                <button
+                  type="button"
+                  onClick={handleMainExportClick}
+                  className="px-3.5 py-2 hover:bg-zinc-50 text-zinc-800 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer rounded-l-xl active:scale-98"
+                  title="Descargar libro en formato CSV oficial SENIAT para Excel"
+                >
+                  <Download size={14} className="text-emerald-600" />
+                  <span>
+                    {activeTab === 'resumen'
+                      ? 'Exportar Resumen CSV'
+                      : activeTab === 'ventas_z'
+                      ? 'Exportar Reportes Z CSV'
+                      : activeTab === 'ventas_detalle'
+                      ? 'Exportar Ventas CSV'
+                      : 'Exportar Compras CSV'}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  className="px-2 py-2 border-l border-zinc-200 hover:bg-zinc-50 text-zinc-600 hover:text-zinc-900 transition-all rounded-r-xl cursor-pointer"
+                  title="Ver todos los formatos oficiales de exportación SENIAT"
+                >
+                  <ChevronDown size={14} className={`transition-transform duration-200 ${showExportMenu ? 'rotate-180' : ''}`} />
+                </button>
+              </div>
+
+              {/* Menú Desplegable con Todos los Formatos */}
+              {showExportMenu && (
+                <>
+                  <div className="fixed inset-0 z-20" onClick={() => setShowExportMenu(false)} />
+                  <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-zinc-200/90 py-2 z-30 space-y-1">
+                    <div className="px-3 py-1.5 text-[10px] font-bold text-zinc-600 uppercase tracking-wider border-b border-zinc-100">
+                      Formatos Oficiales SENIAT
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleExportResumen}
+                      className="w-full px-3 py-2 text-left text-xs font-semibold text-zinc-800 hover:bg-emerald-50 hover:text-emerald-900 transition-all flex items-start gap-2.5 cursor-pointer"
+                    >
+                      <FileSpreadsheet size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-bold flex items-center gap-1.5">
+                          <span>Resumen Compra y Venta</span>
+                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 font-bold">Plantilla Oficial</span>
+                        </div>
+                        <p className="text-[10px] text-zinc-500 font-normal">Forma 30 SENIAT (Débito, Crédito y Autoliquidación)</p>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleExportZReports}
+                      className="w-full px-3 py-2 text-left text-xs font-semibold text-zinc-800 hover:bg-zinc-50 hover:text-zinc-950 transition-all flex items-start gap-2.5 cursor-pointer"
+                    >
+                      <Cpu size={16} className="text-zinc-700 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-bold">Libro Consolidado de Reportes Z</div>
+                        <p className="text-[10px] text-zinc-500 font-normal">{filteredZReports.length} registro(s) diarios asentados</p>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleExportDetailedSales}
+                      className="w-full px-3 py-2 text-left text-xs font-semibold text-zinc-800 hover:bg-zinc-50 hover:text-zinc-950 transition-all flex items-start gap-2.5 cursor-pointer"
+                    >
+                      <Receipt size={16} className="text-blue-600 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-bold">Libro Detallado de Ventas</div>
+                        <p className="text-[10px] text-zinc-500 font-normal">{salesBookData.length} factura(s) discriminadas</p>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleExportPurchases}
+                      className="w-full px-3 py-2 text-left text-xs font-semibold text-zinc-800 hover:bg-zinc-50 hover:text-zinc-950 transition-all flex items-start gap-2.5 cursor-pointer"
+                    >
+                      <Building2 size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-bold">Libro Oficial de Compras</div>
+                        <p className="text-[10px] text-zinc-500 font-normal">{purchasesBookData.length} compra(s) registradas</p>
+                      </div>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
 
             <button
               type="button"
@@ -1191,7 +1347,16 @@ export default function FiscalBooksView() {
 
         {/* TAB 4: AUTOLIQUIDACIÓN FORMA 30 */}
         {activeTab === 'resumen' && (
-          <TaxSummaryForma30 taxSummary={taxSummary} />
+          <TaxSummaryForma30
+            taxSummary={taxSummary}
+            onExportResumen={handleExportResumen}
+            selectedMonth={selectedMonth}
+            selectedYear={selectedYear}
+            selectedFortnight={selectedFortnight}
+            salesTotals={salesTotals}
+            zReportsTotals={zReportsTotals}
+            purchasesTotals={purchasesTotals}
+          />
         )}
       </div>
 
