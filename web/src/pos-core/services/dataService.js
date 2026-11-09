@@ -87,21 +87,58 @@ const getStorageItem = (key) => {
 };
 
 let saveTimeout = null;
-const persistStore = () => {
+export const flushStore = async () => {
+  if (saveTimeout) {
+    clearTimeout(saveTimeout);
+    saveTimeout = null;
+  }
+  if (window.electronAPI && memoryStore) {
+    try {
+      await window.electronAPI.saveDb(memoryStore);
+    } catch (e) {
+      console.warn("Error in flushStore:", e);
+    }
+  }
+};
+
+const persistStore = (immediate = false) => {
+  if (immediate) {
+    flushStore();
+    return;
+  }
   if (saveTimeout) clearTimeout(saveTimeout);
   saveTimeout = setTimeout(async () => {
     if (window.electronAPI && memoryStore) {
-      await window.electronAPI.saveDb(memoryStore);
+      try {
+        await window.electronAPI.saveDb(memoryStore);
+      } catch (e) {
+        console.warn("Error saving db to disk:", e);
+      }
     }
-  }, 500); // 500ms debounce
+  }, 250);
 };
 
-const setStorageItem = (key, data) => {
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    flushStore();
+  });
+}
+
+const CRITICAL_STORAGE_KEYS = new Set([
+  'pos_invoices',
+  'pos_cash_closes',
+  'pos_z_reports',
+  'pos_products',
+  'pos_purchases',
+  'pos_settings'
+]);
+
+const setStorageItem = (key, data, forceImmediate = false) => {
   if (memoryStore) {
     memoryStore[key] = data;
-    persistStore();
+    const shouldFlushNow = forceImmediate || CRITICAL_STORAGE_KEYS.has(key);
+    persistStore(shouldFlushNow);
   }
-  // Fallback to localStorage (might throw QuotaExceededError if large, so we catch it)
   try {
     localStorage.setItem(key, JSON.stringify(data));
   } catch (e) {
@@ -137,6 +174,7 @@ export const normalizeCedulaRif = (raw) => {
 export const db = {
   rawGet: (key) => getStorageItem(key),
   rawSet: (key, data) => setStorageItem(key, data),
+  flush: () => flushStore(),
   
   // RESTAURANT MODE
   getRestaurantMode: () => {

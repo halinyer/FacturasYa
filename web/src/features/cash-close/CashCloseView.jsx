@@ -45,6 +45,7 @@ export default function CashCloseView() {
   const {
     createCashClose,
     addCashClose,
+    addZReport,
     voidInvoice,
     restoreInvoice,
     deleteInvoice,
@@ -338,6 +339,61 @@ export default function CashCloseView() {
       createCashClose(closeRecord);
     } else if (addCashClose) {
       addCashClose(closeRecord);
+    }
+
+    // Registrar y asentar automáticamente el Reporte Z oficial en pos_z_reports
+    try {
+      const fiscalInvs = (dateInvoices || []).filter(inv => {
+        const stat = (inv.status || '').toLowerCase();
+        if (stat === 'voided' || stat === 'anulada') return false;
+        return Boolean(inv.isFiscalInvoice || inv.docType === 'fiscal' || inv.fiscalInvoiceNumber);
+      });
+
+      const exemptBs = fiscalInvs.reduce((sum, inv) => sum + Number(inv.exemptBs || inv.exentoBs || 0), 0);
+      const taxableBaseBs = fiscalInvs.reduce((sum, inv) => {
+        const bs = Number(inv.totalBs || (Number(inv.total || inv.totalUSD || 0) * (Number(inv.exchangeRate) || exchangeRate)));
+        const ex = Number(inv.exemptBs || inv.exentoBs || 0);
+        return sum + Number(inv.taxableBaseBs || ((bs - ex) / 1.16));
+      }, 0);
+      const ivaBs = fiscalInvs.reduce((sum, inv) => {
+        const bs = Number(inv.totalBs || (Number(inv.total || inv.totalUSD || 0) * (Number(inv.exchangeRate) || exchangeRate)));
+        const ex = Number(inv.exemptBs || inv.exentoBs || 0);
+        const base = Number(inv.taxableBaseBs || ((bs - ex) / 1.16));
+        return sum + Number(inv.ivaBs || inv.iva16Bs || (base * 0.16));
+      }, 0);
+      const igtfBs = fiscalInvs.reduce((sum, inv) => sum + Number(inv.igtfBs || 0), 0);
+      const totalFiscalBs = fiscalInvs.reduce((sum, inv) => sum + Number(inv.totalBs || 0), 0);
+
+      const nums = fiscalInvs
+        .map(i => parseInt(i.fiscalInvoiceNumber || i.invoiceNumber?.replace(/\D/g, '') || 0, 10))
+        .filter(n => n > 0)
+        .sort((a, b) => a - b);
+
+      const firstInv = nums.length > 0 ? nums[0] : 1;
+      const lastInv = nums.length > 0 ? nums[nums.length - 1] : Math.max(1, fiscalInvs.length);
+
+      const zEntry = {
+        id: 'z_' + selectedDate + '_' + Date.now(),
+        zNumber: (data?.zReports?.length || 0) + 1,
+        zDate: selectedDate,
+        registeredMachineNumber: fiscalSettings?.registeredMachineNumber || 'Z1B1234567',
+        firstInvoiceNumber: firstInv,
+        lastInvoiceNumber: lastInv,
+        invoiceCount: fiscalInvs.length,
+        exemptSalesBs: exemptBs,
+        baseGeneral16Bs: taxableBaseBs > 0 ? taxableBaseBs : (summary.totalBs / 1.16),
+        taxGeneral16Bs: ivaBs > 0 ? ivaBs : (summary.totalBs - (summary.totalBs / 1.16)),
+        totalSalesBs: totalFiscalBs > 0 ? totalFiscalBs : summary.totalBs,
+        igtfBs: igtfBs,
+        source: 'cierre_z_fiscal',
+        updatedAt: new Date().toISOString()
+      };
+
+      if (addZReport) {
+        addZReport(zEntry);
+      }
+    } catch (e) {
+      console.warn('Error registrando Z report desde CashCloseView:', e);
     }
 
     setActiveReceiptModal({

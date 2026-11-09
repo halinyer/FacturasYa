@@ -298,8 +298,20 @@ switch ($Action) {
                     $qe = $totalZ + 1
                     if ($totalZ -le 0) { $qe = 200 }
                     if ($StartZ -gt 0) { $qs = [Math]::Max(1, $StartZ - 1) }
-                    if ($EndZ -gt 0 -and $EndZ -ge $StartZ) { $qe = $EndZ + 1 }
-                    if (($qe - $qs) -gt 350) { $qs = [Math]::Max(1, $qe - 350) }
+                    if ($EndZ -gt 0 -and $EndZ -ge $StartZ) {
+                        if ($totalZ -gt 0 -and $EndZ -ge $totalZ) {
+                            $qe = $totalZ + 1
+                        } else {
+                            $qe = $EndZ + 1
+                        }
+                    }
+                    if (($qe - $qs) -gt 350) {
+                        if ($qs -eq 1 -or $StartZ -eq 1) {
+                            $qe = $qs + 350
+                        } else {
+                            $qs = [Math]::Max(1, $qe - 350)
+                        }
+                    }
                     $r = $printer.GetZReport($qs, $qe)
                     if ($r) { $raw = @($r | Where-Object { $_ }) }
                     $diag.byNumberCount = $raw.Count
@@ -405,12 +417,44 @@ switch ($Action) {
                 }
             }
 
+            # Si el filtro por fecha no arrojó resultados pero la memoria fiscal sí contiene cierres Z
+            $fallbackReports = @()
+            if ($allReports.Count -eq 0 -and $list.Count -gt 0) {
+                foreach ($x in $list) {
+                    $fallbackReports += @{
+                        zNumber = $x.zNumber
+                        zDate = $x.zDt.ToString("yyyy-MM-dd")
+                        zDateTime = $x.zDt.ToString("yyyy-MM-dd HH:mm:ss")
+                        firstInvoiceNumber = 1
+                        lastInvoiceNumber = $x.lastInvoiceNumber
+                        invoiceCount = 0
+                        exemptSalesBs = $x.exemptSalesBs
+                        baseGeneral16Bs = $x.baseGeneral16Bs
+                        taxGeneral16Bs = $x.taxGeneral16Bs
+                        baseReduced8Bs = $x.baseReduced8Bs
+                        taxReduced8Bs = $x.taxReduced8Bs
+                        baseAdditionalBs = $x.baseAdditionalBs
+                        taxAdditionalBs = $x.taxAdditionalBs
+                        totalSalesBs = $x.totalSalesBs
+                        devolutionsBs = $x.devolutionsBs
+                        lastCreditNote = $x.lastCreditNote
+                        lastDebitNote = $x.lastDebitNote
+                        lastNonFiscal = $x.lastNonFiscal
+                        isFallback = $true
+                    }
+                }
+            }
+
             $printer.CloseFpctrl()
+
+            $finalRecords = if ($allReports.Count -gt 0) { @($allReports) } else { @($fallbackReports) }
 
             $result = @{
                 success = $true
-                records = @($allReports)
-                totalRecords = $allReports.Count
+                records = $finalRecords
+                totalRecords = $finalRecords.Count
+                matchedDateFilter = ($allReports.Count -gt 0)
+                fallbackUsed = ($allReports.Count -eq 0 -and $fallbackReports.Count -gt 0)
                 totalZInPrinter = $totalZ
                 registeredMachineNumber = $s1.RegisteredMachineNumber
                 rif = $s1.RIF

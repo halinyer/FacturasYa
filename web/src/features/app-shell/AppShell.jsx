@@ -147,26 +147,54 @@ function AppShellInner() {
 
         const prevTenantId = localStorage.getItem('pos_active_tenant_id');
         const isSwitchingTenant = prevTenantId && prevTenantId !== tData.id;
-        const isLocalEmpty = (db.getProducts() || []).length === 0 && (db.getInvoices() || []).length === 0;
+        const localProds = db.getProducts() || [];
+        const localInvs = db.getInvoices() || [];
+        const isLocalEmpty = localProds.length === 0 && localInvs.length === 0;
 
         if (isSwitchingTenant || (isLocalEmpty && snap && hydratedUserIdRef.current !== tData.id)) {
           hydratedUserIdRef.current = tData.id;
           localStorage.setItem('pos_active_tenant_id', tData.id);
+
+          // Si la nube tiene productos, hidratar. Si la nube NO tiene productos pero la BD local sí tiene,
+          // PRESERVAR LOS PRODUCTOS LOCALES Y RESPALDARLOS EN LA NUBE. ¡NUNCA BORRARLOS!
           if (Array.isArray(snap?.products) && snap.products.length > 0) {
             db.rawSet('pos_products', snap.products);
+          } else if (localProds.length > 0) {
+            // Conservar catálogo local
           } else if (isSwitchingTenant) {
             db.rawSet('pos_products', []);
           }
+
           db.rawSet('pos_clients', Array.isArray(snap?.clients) && snap.clients.length > 0 ? snap.clients : [
             { id: 'cli_default', name: 'Consumidor Final', cedula: 'V-00000000', phone: '', type: 'normal', address: 'Mostrador', createdAt: new Date().toISOString() }
           ]);
-          db.rawSet('pos_invoices', Array.isArray(snap?.invoices) ? snap.invoices : []);
-          db.rawSet('pos_purchases', Array.isArray(snap?.purchases) ? snap.purchases : []);
-          db.rawSet('pos_payments', Array.isArray(snap?.payments) ? snap.payments : []);
-          db.rawSet('pos_cash_closes', Array.isArray(snap?.cash_closes) ? snap.cash_closes : []);
-          db.rawSet('pos_open_tabs', Array.isArray(snap?.open_tabs) ? snap.open_tabs : []);
-          db.rawSet('pos_inventory', Array.isArray(snap?.inventory) ? snap.inventory : []);
-          db.rawSet('pos_z_reports', Array.isArray(snap?.z_reports) ? snap.z_reports : []);
+
+          if (Array.isArray(snap?.invoices) && snap.invoices.length > 0) {
+            db.rawSet('pos_invoices', snap.invoices);
+          } else if (localInvs.length > 0) {
+            // Conservar facturas locales
+          } else if (isSwitchingTenant) {
+            db.rawSet('pos_invoices', []);
+          }
+
+          if (Array.isArray(snap?.purchases) && snap.purchases.length > 0) {
+            db.rawSet('pos_purchases', snap.purchases);
+          }
+          if (Array.isArray(snap?.payments) && snap.payments.length > 0) {
+            db.rawSet('pos_payments', snap.payments);
+          }
+          if (Array.isArray(snap?.cash_closes) && snap.cash_closes.length > 0) {
+            db.rawSet('pos_cash_closes', snap.cash_closes);
+          }
+          if (Array.isArray(snap?.open_tabs) && snap.open_tabs.length > 0) {
+            db.rawSet('pos_open_tabs', snap.open_tabs);
+          }
+          if (Array.isArray(snap?.inventory) && snap.inventory.length > 0) {
+            db.rawSet('pos_inventory', snap.inventory);
+          }
+          if (Array.isArray(snap?.z_reports) && snap.z_reports.length > 0) {
+            db.rawSet('pos_z_reports', snap.z_reports);
+          }
           if (isSwitchingTenant) {
             localStorage.removeItem('facturasya_restaurant_tables');
           }
