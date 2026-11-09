@@ -36,14 +36,17 @@
         "dir"
       ],
       "artifactName": "FacturaPOS-${version}.${ext}",
-      "signAndEditExecutable": false
+      "requestedExecutionLevel": "asInvoker",
+      "legalCopyright": "Copyright © 2026 FacturasYa",
+      "publisherName": "FacturasYa"
     },
     "nsis": {
       "oneClick": true,
       "perMachine": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "runAfterFinish": true
+      "runAfterFinish": true,
+      "shortcutName": "FacturaPOS"
     },
     "extraResources": [
       {

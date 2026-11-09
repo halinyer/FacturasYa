@@ -314,6 +314,13 @@ export default function LandingPage() {
               )}
             </div>
 
+            <div className="pt-0.5 text-center">
+              <Link to="/descargar" className="text-xs text-zinc-500 hover:text-zinc-900 underline inline-flex items-center gap-1">
+                <span>¿Primera vez instalando? Ver guía paso a paso para Windows</span>
+                <ChevronRight size={12} />
+              </Link>
+            </div>
+
             {/* Micro-beneficios Clave */}
             <div className="flex flex-wrap items-center justify-center gap-5 pt-2 text-xs text-zinc-600 font-medium">
               <span className="inline-flex items-center gap-1.5">
@@ -769,6 +776,13 @@ export default function LandingPage() {
                 <ArrowRight size={15} />
               </button>
             )}
+          </div>
+
+          <div className="pt-0.5 text-center">
+            <Link to="/descargar" className="text-xs text-zinc-400 hover:text-white underline inline-flex items-center gap-1">
+              <span>¿Primera vez? Ver guía de instalación segura en Windows</span>
+              <ChevronRight size={12} />
+            </Link>
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-6 pt-3 text-xs text-zinc-400">

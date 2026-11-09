@@ -84,16 +84,26 @@ export default function DownloadPage() {
 
           {/* TARJETA DE DESCARGA PRINCIPAL */}
           <div className="pt-4 flex flex-col items-center gap-3">
-            <button
-              type="button"
-              onClick={handleDownload}
-              className="bg-zinc-950 hover:bg-zinc-800 text-white font-extrabold text-sm sm:text-base px-8 py-4 rounded-2xl shadow-lg hover:shadow-xl transition-all inline-flex items-center gap-3 active:scale-98 cursor-pointer group"
-            >
-              <Download size={20} className="group-hover:translate-y-0.5 transition-transform" />
-              <span>Descargar para Windows (.exe)</span>
-            </button>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={handleDownload}
+                className="bg-zinc-950 hover:bg-zinc-800 text-white font-extrabold text-sm sm:text-base px-8 py-4 rounded-2xl shadow-lg hover:shadow-xl transition-all inline-flex items-center gap-3 active:scale-98 cursor-pointer group"
+              >
+                <Download size={20} className="group-hover:translate-y-0.5 transition-transform" />
+                <span>Descargar para Windows (.exe)</span>
+              </button>
 
-            <div className="flex items-center gap-3 text-xs text-zinc-500 font-mono">
+              <Link
+                to="/app"
+                className="bg-zinc-100 hover:bg-zinc-200 text-zinc-900 font-bold text-sm sm:text-base px-6 py-4 rounded-2xl border border-zinc-200 transition-all inline-flex items-center gap-2 active:scale-98"
+              >
+                <span>Usar en Navegador Web</span>
+                <ArrowRight size={16} className="text-zinc-500" />
+              </Link>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-zinc-500 font-mono">
               <span>Versión 1.0.0 Standalone</span>
               <span>·</span>
               <span>Instalador Portable (~139 MB)</span>
@@ -126,6 +136,70 @@ export default function DownloadPage() {
               </div>
             </div>
           )}
+
+          {/* GUÍA VISUAL PREVENTIVA WINDOWS SMARTSCREEN */}
+          <div className="mt-8 text-left bg-zinc-50 border border-zinc-200/90 rounded-3xl p-6 sm:p-8 space-y-5 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-200/70 pb-4">
+              <div className="space-y-1">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-blue-900 text-[11px] font-bold">
+                  <ShieldCheck size={13} className="text-blue-600" />
+                  Guía de Instalación Segura en Windows
+                </div>
+                <h3 className="text-lg font-extrabold text-zinc-950 tracking-tight">
+                  ¿Windows o tu navegador muestran una advertencia preventiva?
+                </h3>
+              </div>
+              <span className="text-xs text-zinc-500 bg-white px-3 py-1.5 rounded-xl border border-zinc-200 font-medium">
+                Paso normal en software nuevo
+              </span>
+            </div>
+
+            <p className="text-xs text-zinc-600 leading-relaxed">
+              Como FacturasYa es una versión de lanzamiento reciente, Microsoft SmartScreen y Google Chrome aún no han acumulado miles de descargas para indexarla automáticamente en su base de datos. <strong>La aplicación es 100% segura, libre de virus y verificada.</strong> Sigue estos 2 sencillos pasos:
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+              {/* Paso 1 */}
+              <div className="p-4 rounded-2xl bg-white border border-zinc-200 space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg bg-zinc-950 text-white font-mono font-bold text-xs flex items-center justify-center">
+                    1
+                  </div>
+                  <strong className="text-xs font-bold text-zinc-950">En tu Navegador (Chrome o Edge)</strong>
+                </div>
+                <p className="text-xs text-zinc-600 leading-relaxed">
+                  Si dice <em>"Este archivo no se descarga habitualmente"</em>, haz clic en el menú de descarga (o los 3 puntos) y selecciona <strong>"Conservar"</strong> o <strong>"Descargar de todos modos"</strong>.
+                </p>
+              </div>
+
+              {/* Paso 2 */}
+              <div className="p-4 rounded-2xl bg-white border border-blue-200 bg-blue-50/30 space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg bg-blue-600 text-white font-mono font-bold text-xs flex items-center justify-center">
+                    2
+                  </div>
+                  <strong className="text-xs font-bold text-blue-950">En la Pantalla Azul de Windows</strong>
+                </div>
+                <p className="text-xs text-zinc-600 leading-relaxed">
+                  Cuando Windows muestre <em>"Windows protegió su PC"</em>, haz clic en el texto subrayado <strong>"Más información"</strong> y luego pulsa el botón <strong>"Ejecutar de todas formas"</strong>.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 flex items-center justify-between flex-wrap gap-2">
+              <span className="flex items-center gap-2">
+                <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
+                <span>¿Prefieres no instalar nada? Puedes usar FacturasYa directamente desde Google Chrome.</span>
+              </span>
+              <Link
+                to="/app"
+                className="font-bold underline text-emerald-950 hover:text-emerald-800 text-xs inline-flex items-center gap-1"
+              >
+                <span>Abrir Versión Web</span>
+                <ChevronRight size={13} />
+              </Link>
+            </div>
+          </div>
         </div>
 
         {/* COMPARACIÓN ESTILO NOTION: ¿POR QUÉ USAR LA APP DE ESCRITORIO? */}
