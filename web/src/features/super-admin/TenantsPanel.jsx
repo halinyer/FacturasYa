@@ -93,7 +93,7 @@ export default function TenantsPanel({ tenants = [], snapshots = [], payments = 
   const stats = useMemo(() => {
     const clientTenants = tenants.filter((t) => t.owner_email !== 'signalnotestudio@gmail.com');
     const paying = clientTenants.filter((t) => t.plan !== 'trial' && !t.is_expired);
-    const monthly = Number(config?.monthly_price_usd || 30);
+    const monthly = Number(config?.monthly_price_usd || 20);
     const annual = Number(config?.annual_price_usd || 300);
     return {
       total: clientTenants.length,

@@ -13,7 +13,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- 1. TABLA DE CONFIGURACIÓN GLOBAL DEL SAAS (Datos de Pago Móvil y Planes)
 CREATE TABLE IF NOT EXISTS public.saas_config (
   id INT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
-  monthly_price_usd NUMERIC(10,2) DEFAULT 30.00,
+  monthly_price_usd NUMERIC(10,2) DEFAULT 20.00,
   annual_price_usd NUMERIC(10,2) DEFAULT 300.00,
   bcv_rate NUMERIC(12,4) DEFAULT 876.80,
   trial_days INT DEFAULT 14,
@@ -343,7 +343,7 @@ BEGIN
   -- Autoridad de precio en el servidor: jamás confiar en el precio USD enviado por el cliente
   v_official_usd := CASE
     WHEN v_plan = 'annual' THEN COALESCE(v_config.annual_price_usd, 300.00)
-    ELSE COALESCE(v_config.monthly_price_usd, 30.00)
+    ELSE COALESCE(v_config.monthly_price_usd, 20.00)
   END;
 
   -- Tasa efectiva (resiliente si la columna bcv_rate no existe en saas_config)

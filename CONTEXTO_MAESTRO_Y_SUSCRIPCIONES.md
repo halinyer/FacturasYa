@@ -44,7 +44,7 @@ Este documento contiene el mapa arquitectónico completo de **FacturasYa** hasta
      - `status TEXT NOT NULL DEFAULT 'trial'` (`'trial' | 'active' | 'past_due' | 'suspended'`)
      - `trial_ends_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '14 days')`
      - `valid_until TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '14 days')`
-     - `monthly_price_usd NUMERIC(10,2) DEFAULT 30.00`
+     - `monthly_price_usd NUMERIC(10,2) DEFAULT 20.00`
      - `annual_price_usd NUMERIC(10,2) DEFAULT 300.00`
      - `is_fiscal_verified BOOLEAN NOT NULL DEFAULT false`
 2. **Tabla `public.saas_config` (Fila única `id = 1`)**:

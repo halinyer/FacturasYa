@@ -52,7 +52,7 @@ export const saveSupabaseCreds = (url, anonKey) => {
 // Configuración por defecto de tus planes y Pago Móvil receptor
 export const DEFAULT_SAAS_CONFIG = {
   id: 1,
-  monthly_price_usd: 30.00,
+  monthly_price_usd: 20.00,
   annual_price_usd: 300.00,
   trial_days: 14,
   pago_movil_bank: '0172 - Bancamiga',
@@ -60,6 +60,6 @@ export const DEFAULT_SAAS_CONFIG = {
   pago_movil_phone: '0412-0000000',
   pago_movil_holder: 'Halinyer - FacturasYa',
   binance_email: 'pagos@facturapos.com',
-  support_whatsapp: '+584120000000',
+  support_whatsapp: '+584128269031',
   auto_verify_provider: 'manual'
 };

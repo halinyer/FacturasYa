@@ -3,7 +3,7 @@ import { saveConfig } from './api';
 import { Check, Save, Smartphone, CreditCard, ShieldCheck } from 'lucide-react';
 
 const FIELDS = [
-  ['monthly_price_usd', 'Precio Plan Mensual ($ USD)', 'number', '30.00'],
+  ['monthly_price_usd', 'Precio Plan Mensual ($ USD)', 'number', '20.00'],
   ['annual_price_usd', 'Precio Plan Anual ($ USD)', 'number', '300.00'],
   ['bcv_rate', 'Tasa BCV Referencial (Bs/$)', 'number', '876.80'],
   ['trial_days', 'Días de Prueba Gratis', 'number', '14'],
@@ -12,7 +12,7 @@ const FIELDS = [
   ['pago_movil_phone', 'Teléfono Receptor Pago Móvil', 'text', '0412-0000000'],
   ['pago_movil_holder', 'Nombre del Titular / Concepto', 'text', 'FacturasYa - Cobranzas'],
   ['binance_email', 'Correo / ID para Binance Pay (USDT)', 'text', 'pagos@facturasya.com'],
-  ['support_whatsapp', 'WhatsApp de Soporte para Clientes', 'text', '+584120000000']
+  ['support_whatsapp', 'WhatsApp de Soporte para Clientes', 'text', '+584128269031']
 ];
 
 export default function ConfigPanel({ config, onChange, onError }) {
@@ -39,7 +39,7 @@ export default function ConfigPanel({ config, onChange, onError }) {
     }
   };
 
-  const monthlyUsd = Number(form.monthly_price_usd || 30);
+  const monthlyUsd = Number(form.monthly_price_usd || 20);
   const annualUsd = Number(form.annual_price_usd || 300);
   const bcvRate = Number(form.bcv_rate || 876.8);
 

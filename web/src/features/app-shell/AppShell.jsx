@@ -758,7 +758,7 @@ function AppShellInner() {
                         Pago Móvil Directo ({saasConfig?.pago_movil_bank || '0172 - Bancamiga'})
                       </span>
                       <span className="font-mono font-extrabold text-zinc-950">
-                        Plan Mensual: ${Number(saasConfig?.monthly_price_usd || 30).toFixed(0)}/mes
+                        Plan Mensual: ${Number(saasConfig?.monthly_price_usd || 20).toFixed(0)}/mes
                       </span>
                     </div>
                     <div className="grid grid-cols-2 gap-2 pt-1 text-[11px]">

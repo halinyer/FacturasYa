@@ -45,7 +45,6 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const { session, isAdmin } = useAuth() || {};
   const [bcvRate, setBcvRate] = useState(896.12);
-  const [billingCycle, setBillingCycle] = useState('monthly'); // 'monthly' | 'annual'
   const [supportPhone, setSupportPhone] = useState('584128269031');
 
   useEffect(() => {
@@ -543,7 +542,7 @@ export default function LandingPage() {
                   <td className="py-4 px-5 text-zinc-500">$500 a $1,200 + costo de técnico instalador</td>
                   <td className="py-4 px-5 text-zinc-500">Exigen tarjeta de crédito internacional en dólares</td>
                   <td className="py-4 px-5 bg-zinc-50 font-bold text-emerald-700">
-                    14 días gratis · Luego desde $15/mes en Bs por Pago Móvil
+                    14 días gratis · Luego $20/mes en Bs por Pago Móvil
                   </td>
                 </tr>
                 <tr>
@@ -601,169 +600,113 @@ export default function LandingPage() {
               Precios transparentes y sin contratos forzosos
             </h2>
             <p className="text-sm text-zinc-600">
-              Pagas mes a mes en Bolívares por Pago Móvil a tasa oficial BCV o en USDT por Binance Pay.
+              Suscripción mensual simple. Pagas mes a mes en Bolívares por Pago Móvil a tasa oficial BCV o en USDT por Binance Pay.
             </p>
-
-            {/* Selector Mensual vs Anual */}
-            <div className="pt-2 flex items-center justify-center gap-3">
-              <span className={`text-xs font-semibold ${billingCycle === 'monthly' ? 'text-zinc-950' : 'text-zinc-400'}`}>
-                Mensual
-              </span>
-              <button
-                type="button"
-                onClick={() => setBillingCycle((prev) => (prev === 'monthly' ? 'annual' : 'monthly'))}
-                className="w-12 h-6 rounded-full bg-zinc-950 p-0.5 transition-colors cursor-pointer relative"
-              >
-                <div
-                  className={`w-5 h-5 rounded-full bg-white shadow-xs transition-transform transform ${
-                    billingCycle === 'annual' ? 'translate-x-6' : 'translate-x-0'
-                  }`}
-                />
-              </button>
-              <div className="flex items-center gap-1.5">
-                <span className={`text-xs font-semibold ${billingCycle === 'annual' ? 'text-zinc-950' : 'text-zinc-400'}`}>
-                  Anual
-                </span>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                  2 meses gratis 🎁
-                </span>
-              </div>
-            </div>
           </div>
 
-          {/* Grid de 4 Planes */}
-          <div className="grid md:grid-cols-4 gap-4 max-w-5xl mx-auto items-stretch">
+          {/* Grid de 3 Planes */}
+          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto items-stretch">
             
-            {/* Plan 1: Starter */}
-            <div className="p-6 rounded-2xl bg-white border border-zinc-200 shadow-2xs flex flex-col justify-between space-y-4">
-              <div className="space-y-3">
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600">
-                  Starter
-                </span>
-                <div>
-                  <h3 className="font-bold text-base text-zinc-950">Comercio Básico</h3>
-                  <div className="mt-1 flex items-baseline gap-1">
-                    <span className="text-3xl font-extrabold text-zinc-950">
-                      ${billingCycle === 'annual' ? '12.50' : '15'}
-                    </span>
-                    <span className="text-[11px] text-zinc-500 font-medium">/ mes</span>
-                  </div>
-                </div>
-                <p className="text-xs text-zinc-500 leading-relaxed">
-                  Para quioscos, cafeterías pequeñas o puntos de venta únicos.
-                </p>
-                <ul className="space-y-2 text-xs text-zinc-600 pt-3 border-t border-zinc-100">
-                  <li className="flex items-center gap-1.5"><Check size={13} className="text-emerald-600 shrink-0" /> 1 Caja Mostrador</li>
-                  <li className="flex items-center gap-1.5"><Check size={13} className="text-emerald-600 shrink-0" /> Ventas ilimitadas</li>
-                  <li className="flex items-center gap-1.5"><Check size={13} className="text-emerald-600 shrink-0" /> Multi-moneda BCV</li>
-                  <li className="flex items-center gap-1.5"><Check size={13} className="text-emerald-600 shrink-0" /> Monitor en el celular</li>
-                </ul>
-              </div>
-
-              <button
-                type="button"
-                onClick={openTrialModal}
-                className="w-full py-2.5 rounded-xl border border-zinc-300 hover:bg-zinc-50 font-bold text-xs text-zinc-900 transition-colors cursor-pointer"
-              >
-                Probar 14 días gratis
-              </button>
-            </div>
-
-            {/* Plan 2: Pro Restaurante */}
-            <div className="p-6 rounded-2xl bg-white border-2 border-zinc-950 shadow-md flex flex-col justify-between space-y-4 relative">
-              <span className="absolute -top-2.5 right-4 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-zinc-950 text-white">
+            {/* Plan 1: Pro Restaurante */}
+            <div className="p-7 rounded-2xl bg-white border-2 border-zinc-950 shadow-md flex flex-col justify-between space-y-6 relative">
+              <span className="absolute -top-3 right-5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-zinc-950 text-white shadow-xs">
                 Más Popular
               </span>
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-800">
-                  Restaurante
+                  Restaurante & Bar
                 </span>
                 <div>
-                  <h3 className="font-bold text-base text-zinc-950">Pro Salón & Mesas</h3>
+                  <h3 className="font-bold text-lg text-zinc-950">Pro Salón & Mesas</h3>
                   <div className="mt-1 flex items-baseline gap-1">
-                    <span className="text-3xl font-extrabold text-zinc-950">
-                      ${billingCycle === 'annual' ? '20' : '25'}
-                    </span>
-                    <span className="text-[11px] text-zinc-500 font-medium">/ mes</span>
+                    <span className="text-3xl font-extrabold text-zinc-950">$20</span>
+                    <span className="text-xs text-zinc-500 font-medium">/ mes</span>
                   </div>
+                  <span className="text-[11px] text-emerald-700 font-semibold block mt-1">
+                    14 días de prueba gratis · En Bs a tasa BCV
+                  </span>
                 </div>
-                <p className="text-xs text-zinc-500 leading-relaxed">
-                  Para restaurantes, pizzerías, hamburgueserías y bares.
+                <p className="text-xs text-zinc-600 leading-relaxed">
+                  Para restaurantes, pizzerías, hamburgueserías y bares con atención en mesa o mostrador.
                 </p>
                 <ul className="space-y-2 text-xs text-zinc-700 pt-3 border-t border-zinc-100 font-medium">
                   <li className="flex items-center gap-1.5"><Check size={13} className="text-emerald-600 shrink-0" /> Mesas y salón ilimitados</li>
-                  <li className="flex items-center gap-1.5"><Check size={13} className="text-emerald-600 shrink-0" /> Comandas a cocina</li>
-                  <li className="flex items-center gap-1.5"><Check size={13} className="text-emerald-600 shrink-0" /> Meseros por QR</li>
-                  <li className="flex items-center gap-1.5"><Check size={13} className="text-emerald-600 shrink-0" /> Facturación fiscal HKA</li>
+                  <li className="flex items-center gap-1.5"><Check size={13} className="text-emerald-600 shrink-0" /> Comandas automáticas a cocina</li>
+                  <li className="flex items-center gap-1.5"><Check size={13} className="text-emerald-600 shrink-0" /> Meseros toman pedidos por QR</li>
+                  <li className="flex items-center gap-1.5"><Check size={13} className="text-emerald-600 shrink-0" /> Facturación fiscal The Factory HKA</li>
+                  <li className="flex items-center gap-1.5"><Check size={13} className="text-emerald-600 shrink-0" /> Monitor en vivo en el celular</li>
                 </ul>
               </div>
 
               <button
                 type="button"
                 onClick={openTrialModal}
-                className="w-full py-2.5 rounded-xl bg-zinc-950 hover:bg-zinc-800 font-bold text-xs text-white shadow-xs transition-all cursor-pointer"
+                className="w-full py-3 rounded-xl bg-zinc-950 hover:bg-zinc-800 font-bold text-xs text-white shadow-xs transition-all cursor-pointer active:scale-98"
               >
                 Comenzar con Restaurante
               </button>
             </div>
 
-            {/* Plan 3: Heladería & Retail */}
-            <div className="p-6 rounded-2xl bg-white border border-zinc-200 shadow-2xs flex flex-col justify-between space-y-4">
-              <div className="space-y-3">
+            {/* Plan 2: Heladería & Retail */}
+            <div className="p-7 rounded-2xl bg-white border border-zinc-200 shadow-2xs flex flex-col justify-between space-y-6">
+              <div className="space-y-4">
                 <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600">
                   Especializado
                 </span>
                 <div>
-                  <h3 className="font-bold text-base text-zinc-950">Heladería & Retail</h3>
+                  <h3 className="font-bold text-lg text-zinc-950">Heladería & Retail</h3>
                   <div className="mt-1 flex items-baseline gap-1">
-                    <span className="text-3xl font-extrabold text-zinc-950">
-                      ${billingCycle === 'annual' ? '25' : '30'}
-                    </span>
-                    <span className="text-[11px] text-zinc-500 font-medium">/ mes</span>
+                    <span className="text-3xl font-extrabold text-zinc-950">$20</span>
+                    <span className="text-xs text-zinc-500 font-medium">/ mes</span>
                   </div>
+                  <span className="text-[11px] text-emerald-700 font-semibold block mt-1">
+                    14 días de prueba gratis · En Bs a tasa BCV
+                  </span>
                 </div>
-                <p className="text-xs text-zinc-500 leading-relaxed">
-                  Para heladerías artesanales, bodegones, minimarkets y tiendas.
+                <p className="text-xs text-zinc-600 leading-relaxed">
+                  Para heladerías artesanales, cafeterías, bodegones, tiendas y minimarkets.
                 </p>
-                <ul className="space-y-2 text-xs text-zinc-600 pt-3 border-t border-zinc-100">
-                  <li className="flex items-center gap-1.5"><Check size={13} className="text-emerald-600 shrink-0" /> Venta por peso (KG / g)</li>
-                  <li className="flex items-center gap-1.5"><Check size={13} className="text-emerald-600 shrink-0" /> Lector de código de barras</li>
+                <ul className="space-y-2 text-xs text-zinc-700 pt-3 border-t border-zinc-100 font-medium">
+                  <li className="flex items-center gap-1.5"><Check size={13} className="text-emerald-600 shrink-0" /> Venta por peso (KG / gramos)</li>
                   <li className="flex items-center gap-1.5"><Check size={13} className="text-emerald-600 shrink-0" /> Sabores y tinas térmicas</li>
-                  <li className="flex items-center gap-1.5"><Check size={13} className="text-emerald-600 shrink-0" /> Control de stock en vivo</li>
+                  <li className="flex items-center gap-1.5"><Check size={13} className="text-emerald-600 shrink-0" /> Lector de código de barras</li>
+                  <li className="flex items-center gap-1.5"><Check size={13} className="text-emerald-600 shrink-0" /> Control de inventario en vivo</li>
+                  <li className="flex items-center gap-1.5"><Check size={13} className="text-emerald-600 shrink-0" /> Monitor en vivo en el celular</li>
                 </ul>
               </div>
 
               <button
                 type="button"
                 onClick={openTrialModal}
-                className="w-full py-2.5 rounded-xl border border-zinc-300 hover:bg-zinc-50 font-bold text-xs text-zinc-900 transition-colors cursor-pointer"
+                className="w-full py-3 rounded-xl border border-zinc-300 hover:bg-zinc-50 font-bold text-xs text-zinc-900 transition-colors cursor-pointer active:scale-98"
               >
-                Comenzar con Heladería
+                Comenzar con Heladería & Retail
               </button>
             </div>
 
-            {/* Plan 4: Multi-Caja / Cadena */}
-            <div className="p-6 rounded-2xl bg-white border border-zinc-200 shadow-2xs flex flex-col justify-between space-y-4">
-              <div className="space-y-3">
+            {/* Plan 3: Multi-Caja / Cadena */}
+            <div className="p-7 rounded-2xl bg-white border border-zinc-200 shadow-2xs flex flex-col justify-between space-y-6">
+              <div className="space-y-4">
                 <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600">
                   Empresarial
                 </span>
                 <div>
-                  <h3 className="font-bold text-base text-zinc-950">Multi-Caja & Red</h3>
+                  <h3 className="font-bold text-lg text-zinc-950">Multi-Caja & Red</h3>
                   <div className="mt-1 flex items-baseline gap-1">
-                    <span className="text-3xl font-extrabold text-zinc-950">
-                      ${billingCycle === 'annual' ? '37.50' : '45'}
-                    </span>
-                    <span className="text-[11px] text-zinc-500 font-medium">/ mes</span>
+                    <span className="text-3xl font-extrabold text-zinc-950">A consultar</span>
                   </div>
+                  <span className="text-[11px] text-zinc-500 font-medium block mt-1">
+                    Atención personalizada por WhatsApp
+                  </span>
                 </div>
-                <p className="text-xs text-zinc-500 leading-relaxed">
-                  Para negocios grandes con varias cajas de cobro sincronizadas.
+                <p className="text-xs text-zinc-600 leading-relaxed">
+                  Para comercios con varias cajas de cobro sincronizadas o múltiples sucursales.
                 </p>
-                <ul className="space-y-2 text-xs text-zinc-600 pt-3 border-t border-zinc-100">
+                <ul className="space-y-2 text-xs text-zinc-700 pt-3 border-t border-zinc-100 font-medium">
                   <li className="flex items-center gap-1.5"><Check size={13} className="text-emerald-600 shrink-0" /> Múltiples cajas en red local</li>
                   <li className="flex items-center gap-1.5"><Check size={13} className="text-emerald-600 shrink-0" /> Sincronización multi-terminal</li>
-                  <li className="flex items-center gap-1.5"><Check size={13} className="text-emerald-600 shrink-0" /> Libros Forma 30 en Excel</li>
+                  <li className="flex items-center gap-1.5"><Check size={13} className="text-emerald-600 shrink-0" /> Libros de Compra y Venta (Excel)</li>
+                  <li className="flex items-center gap-1.5"><Check size={13} className="text-emerald-600 shrink-0" /> Asistencia remota por AnyDesk</li>
                   <li className="flex items-center gap-1.5"><Check size={13} className="text-emerald-600 shrink-0" /> Soporte VIP por WhatsApp</li>
                 </ul>
               </div>
@@ -772,7 +715,7 @@ export default function LandingPage() {
                 href={`https://wa.me/${supportPhone}?text=${encodeURIComponent('Hola, me interesa el plan Multi-Caja & Red de FacturasYa')}`}
                 target="_blank"
                 rel="noreferrer"
-                className="w-full py-2.5 rounded-xl border border-zinc-300 hover:bg-zinc-50 font-bold text-xs text-zinc-900 transition-colors text-center block cursor-pointer"
+                className="w-full py-3 rounded-xl border border-zinc-300 hover:bg-zinc-50 font-bold text-xs text-zinc-900 transition-colors text-center block cursor-pointer active:scale-98"
               >
                 Consultar por WhatsApp
               </a>

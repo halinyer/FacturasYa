@@ -71,7 +71,7 @@ BEGIN
   -- Autoridad de precio en el servidor: jamás confiar en el precio USD enviado por el cliente
   v_official_usd := CASE
     WHEN v_plan = 'annual' THEN COALESCE(v_config.annual_price_usd, 300.00)
-    ELSE COALESCE(v_config.monthly_price_usd, 30.00)
+    ELSE COALESCE(v_config.monthly_price_usd, 20.00)
   END;
 
   v_effective_rate := COALESCE(NULLIF(p_rate_bcv, 0), NULLIF(v_tenant.exchange_rate, 0), 876.80);

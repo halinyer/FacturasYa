@@ -683,9 +683,7 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
     setPagoSuccessMsg('');
 
     try {
-      const priceUsd = selectedPlan === 'annual'
-        ? Number(saasConfig?.annual_price_usd || 300)
-        : Number(saasConfig?.monthly_price_usd || 30);
+      const priceUsd = Number(saasConfig?.monthly_price_usd || 20);
       const amountBs = priceUsd * rate;
 
       await submitOwnerPagoMovil({
@@ -1915,7 +1913,7 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
                   className="px-4 py-2 rounded-xl bg-zinc-950 text-white font-semibold text-xs shadow-xs hover:bg-zinc-800 transition-all flex items-center gap-1.5"
                 >
                   <Smartphone size={14} />
-                  <span>Pagar con Pago Móvil (${Number(saasConfig?.monthly_price_usd || 30).toFixed(0)}/mes)</span>
+                  <span>Pagar con Pago Móvil (${Number(saasConfig?.monthly_price_usd || 20).toFixed(0)}/mes)</span>
                 </button>
               </div>
 
@@ -2024,48 +2022,15 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
               </button>
             </div>
 
-            {/* Selector de Plan */}
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => setSelectedPlan('monthly')}
-                className={`p-3 rounded-xl border text-left transition-all ${
-                  selectedPlan === 'monthly'
-                    ? 'border-zinc-950 bg-zinc-50 shadow-2xs'
-                    : 'border-zinc-200 bg-white hover:bg-zinc-50'
-                }`}
-              >
-                <div className="font-bold text-zinc-950">Plan Mensual</div>
-                <div className="text-zinc-600 font-mono mt-0.5">
-                  ${Number(saasConfig?.monthly_price_usd || 30).toFixed(0)} / mes
-                </div>
-                <div className="text-[10px] text-zinc-400 font-mono">
-                  {formatBs((Number(saasConfig?.monthly_price_usd || 30)) * rate)}
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setSelectedPlan('annual')}
-                className={`p-3 rounded-xl border text-left transition-all ${
-                  selectedPlan === 'annual'
-                    ? 'border-zinc-950 bg-zinc-50 shadow-2xs'
-                    : 'border-zinc-200 bg-white hover:bg-zinc-50'
-                }`}
-              >
-                <div className="font-bold text-zinc-950 flex items-center justify-between">
-                  <span>Plan Anual</span>
-                  <span className="text-[9px] bg-emerald-100 text-emerald-800 font-bold px-1 rounded">
-                    Ahorras $60
-                  </span>
-                </div>
-                <div className="text-zinc-600 font-mono mt-0.5">
-                  ${Number(saasConfig?.annual_price_usd || 300).toFixed(0)} / año
-                </div>
-                <div className="text-[10px] text-zinc-400 font-mono">
-                  {formatBs((Number(saasConfig?.annual_price_usd || 300)) * rate)}
-                </div>
-              </button>
+            {/* Plan Mensual Único */}
+            <div className="p-3.5 rounded-xl border border-zinc-950 bg-zinc-50/70 shadow-2xs space-y-1 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-zinc-950">Suscripción Plan Mensual (+30 días)</span>
+                <span className="font-mono font-extrabold text-sm text-zinc-950">${Number(saasConfig?.monthly_price_usd || 20).toFixed(0)} / mes</span>
+              </div>
+              <div className="text-[11px] text-zinc-500 font-mono">
+                Monto en Bolívares: <strong className="text-zinc-900">{formatBs(Number(saasConfig?.monthly_price_usd || 20) * rate)}</strong> (Calculado a tasa oficial BCV)
+              </div>
             </div>
 
             {/* Selector de Método: Pago Móvil vs Binance Pay */}
@@ -2135,14 +2100,14 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
                       type="button"
                       onClick={() =>
                         copyToClipboard(
-                          ((selectedPlan === 'annual' ? Number(saasConfig?.annual_price_usd || 300) : Number(saasConfig?.monthly_price_usd || 30)) * rate).toFixed(2),
+                          (Number(saasConfig?.monthly_price_usd || 20) * rate).toFixed(2),
                           'amount_bs'
                         )
                       }
                       className="text-emerald-700 font-bold font-mono text-sm inline-flex items-center gap-1 hover:underline"
                     >
                       <span>
-                        {formatBs((selectedPlan === 'annual' ? Number(saasConfig?.annual_price_usd || 300) : Number(saasConfig?.monthly_price_usd || 30)) * rate)}
+                        {formatBs(Number(saasConfig?.monthly_price_usd || 20) * rate)}
                       </span>
                       {copiedField === 'amount_bs' ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} className="text-emerald-600" />}
                     </button>
@@ -2169,7 +2134,7 @@ export default function OwnerMonitorPage({ embedded = false, defaultTab = 'overv
                   <div className="flex justify-between items-center pt-1 border-t border-zinc-200">
                     <span>Monto exacto en USDT:</span>
                     <strong className="text-emerald-700 font-mono text-sm">
-                      ${(selectedPlan === 'annual' ? Number(saasConfig?.annual_price_usd || 300) : Number(saasConfig?.monthly_price_usd || 30)).toFixed(2)} USDT
+                      ${Number(saasConfig?.monthly_price_usd || 20).toFixed(2)} USDT
                     </strong>
                   </div>
                 </div>

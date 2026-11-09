@@ -338,9 +338,8 @@ export default function NotionSettingsModal({
     Number(tenant?.exchange_rate) ||
     876.80;
 
-  const monthlyUsd = Number(saasConfig?.monthly_price_usd || 30);
-  const annualUsd = Number(saasConfig?.annual_price_usd || 300);
-  const currentPlanUsd = pagoPlan === 'annual' ? annualUsd : monthlyUsd;
+  const monthlyUsd = Number(saasConfig?.monthly_price_usd || 20);
+  const currentPlanUsd = monthlyUsd;
   const currentPlanBs = currentPlanUsd * activeRate;
 
   const copyText = (val, key) => {
@@ -1498,48 +1497,15 @@ export default function NotionSettingsModal({
                   </div>
                 </div>
 
-                {/* Selector de Plan (Mensual vs Anual) */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => setPagoPlan('monthly')}
-                    className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
-                      pagoPlan === 'monthly'
-                        ? 'border-zinc-950 bg-zinc-50 shadow-2xs ring-1 ring-zinc-950'
-                        : 'border-zinc-200 bg-white hover:bg-zinc-50'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-zinc-950">Plan Mensual (+30 días)</span>
-                      <span className="font-mono font-extrabold text-sm text-zinc-950">${monthlyUsd.toFixed(0)}/mes</span>
-                    </div>
-                    <div className="text-[11px] text-zinc-500 font-mono mt-1">
-                      ≈ Bs. {(monthlyUsd * activeRate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setPagoPlan('annual')}
-                    className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
-                      pagoPlan === 'annual'
-                        ? 'border-zinc-950 bg-zinc-50 shadow-2xs ring-1 ring-zinc-950'
-                        : 'border-zinc-200 bg-white hover:bg-zinc-50'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-zinc-950 flex items-center gap-1.5">
-                        <span>Plan Anual (+365 días)</span>
-                        <span className="px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 text-[9px] font-bold">
-                          2 Meses Gratis
-                        </span>
-                      </span>
-                      <span className="font-mono font-extrabold text-sm text-zinc-950">${annualUsd.toFixed(0)}/año</span>
-                    </div>
-                    <div className="text-[11px] text-zinc-500 font-mono mt-1">
-                      ≈ Bs. {(annualUsd * activeRate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </div>
-                  </button>
+                {/* Plan Mensual Único */}
+                <div className="p-3.5 rounded-xl border border-zinc-950 bg-zinc-50/70 shadow-2xs space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-zinc-950 text-xs">Suscripción Plan Mensual (+30 días)</span>
+                    <span className="font-mono font-extrabold text-sm text-zinc-950">${monthlyUsd.toFixed(0)} / mes</span>
+                  </div>
+                  <div className="text-[11px] text-zinc-500 font-mono">
+                    Monto en Bolívares: <strong className="text-zinc-900">Bs. {(monthlyUsd * activeRate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> (Calculado a tasa oficial BCV)
+                  </div>
                 </div>
 
                 {/* Selector de Método: Pago Móvil vs Binance Pay */}
@@ -1570,22 +1536,6 @@ export default function NotionSettingsModal({
                     <span>Binance Pay (USDT Sin Límites)</span>
                   </button>
                 </div>
-
-                {/* Aviso inteligente para Plan Anual en Pago Móvil */}
-                {pagoPlan === 'annual' && pagoMethod === 'pago_movil' && (
-                  <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900 flex items-center justify-between gap-2">
-                    <span>
-                      💡 <strong>Nota sobre límites bancarios P2P:</strong> Si tu banco tiene límite diario en Bs para el monto anual, puedes pagar por <strong>Binance Pay (USDT)</strong> sin límites.
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setPagoMethod('binance')}
-                      className="px-2.5 py-1 rounded-lg bg-amber-900 text-white font-bold whitespace-nowrap cursor-pointer"
-                    >
-                      Usar USDT
-                    </button>
-                  </div>
-                )}
 
                 {/* Datos Receptores Dinámicos */}
                 {pagoMethod === 'pago_movil' ? (
@@ -1843,7 +1793,7 @@ export default function NotionSettingsModal({
                   >
                     {submittingPago
                       ? 'Verificando y Registrando Pago...'
-                      : `Confirmar Reporte (${pagoPlan === 'annual' ? 'Plan Anual' : 'Plan Mensual'}) →`}
+                      : `Confirmar Reporte de Pago Mensual ($${monthlyUsd.toFixed(0)}) →`}
                   </button>
 
                   {/* Asistencia Directa en caso de duda */}
@@ -1853,7 +1803,7 @@ export default function NotionSettingsModal({
                       <span>¿Tuviste algún error con tu comprobante?</span>
                     </span>
                     <a
-                      href={`https://wa.me/584120000000?text=${encodeURIComponent(
+                      href={`https://wa.me/${(saasConfig?.support_whatsapp || saasConfig?.pago_movil_phone || '584128269031').replace(/\D/g, '').replace(/^0/, '58')}?text=${encodeURIComponent(
                         `Hola Soporte FacturasYa, tengo una consulta con el reporte de mi pago de suscripción para ${tenant?.name || 'mi restaurante'} (Ref: ${pagoRef || 'N/A'}).`
                       )}`}
                       target="_blank"

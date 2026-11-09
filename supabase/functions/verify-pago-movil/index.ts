@@ -57,7 +57,7 @@ serve(async (req: Request) => {
 
     const validPlan = plan === "annual" ? "annual" : "monthly";
     const officialUsd = validPlan === "annual"
-      ? Number(saasConfig?.annual_price_usd || 300)
+      ? Number(saasConfig?.annual_price_usd || 200)
       : Number(saasConfig?.monthly_price_usd || 30);
     const officialRate = Number(rateBcv) > 1 ? Number(rateBcv) : Number(saasConfig?.bcv_rate || 876.80);
     const expectedBs = Math.round(officialUsd * officialRate * 100) / 100;
