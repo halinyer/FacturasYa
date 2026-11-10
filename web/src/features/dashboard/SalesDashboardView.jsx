@@ -14,6 +14,7 @@ import {
   Filter,
   Banknote,
   Sparkles,
+  HeartHandshake,
   ShoppingBag,
   RotateCcw,
   Trash2,
@@ -124,6 +125,7 @@ export default function SalesDashboardView() {
   const stats = useMemo(() => {
     let totalUsd = 0;
     let totalBs = 0;
+    let totalTipsUsd = 0;
     let totalIgtfUsd = 0;
     let validCount = 0;
     let voidedCount = 0;
@@ -134,6 +136,8 @@ export default function SalesDashboardView() {
     let pmTotalBs = 0;
     let cardTotalBs = 0;
     let zelleTotalUsd = 0;
+    let casheaTotalUsd = 0;
+    let casheaDownUsd = 0;
 
     filteredInvoices.forEach((inv) => {
       const stat = (inv.status || '').toLowerCase();
@@ -151,14 +155,33 @@ export default function SalesDashboardView() {
       const usd = Number(inv.total || inv.totalUSD || inv.totalUsd || 0);
       const invRate = Number(inv.exchangeRate) || exchangeRate;
       const bs = Number(inv.totalBs || usd * invRate);
-      const igtf = Number(inv.igtfUsd || (inv.igtfBs ? inv.igtfBs / invRate : 0));
 
       totalUsd += usd;
       totalBs += bs;
-      totalIgtfUsd += igtf;
+
+      // Propinas
+      const tipUSD = Number(inv.tipUSD) || 0;
+      totalTipsUsd += tipUSD;
 
       const method = (inv.paymentMethod || 'efectivo_usd').toLowerCase();
-      if (method === 'efectivo_usd' || method === 'usd_cash' || method === 'cash') {
+      if (method === 'cashea' || inv.casheaInfo) {
+        const cInfo = inv.casheaInfo || {};
+        const downUSD = Number(cInfo.downPaymentUSD) || (usd * 0.5);
+        const downBs = Number(cInfo.downPaymentBs) || (downUSD * invRate);
+        casheaTotalUsd += usd;
+        casheaDownUsd += downUSD;
+
+        const dpMethod = cInfo.downPaymentMethod || 'punto';
+        if (dpMethod === 'efectivo_usd') {
+          cashTotalUsd += downUSD;
+        } else if (dpMethod === 'efectivo_bs') {
+          cashTotalBs += downBs;
+        } else if (dpMethod === 'pago_movil') {
+          pmTotalBs += downBs;
+        } else if (dpMethod === 'punto' || dpMethod === 'pos' || dpMethod === 'tarjeta') {
+          cardTotalBs += downBs;
+        }
+      } else if (method === 'efectivo_usd' || method === 'usd_cash' || method === 'cash') {
         cashTotalUsd += usd;
       } else if (method === 'efectivo_bs') {
         cashTotalBs += bs;
@@ -190,6 +213,7 @@ export default function SalesDashboardView() {
     return {
       totalUsd,
       totalBs,
+      totalTipsUsd,
       totalIgtfUsd,
       validCount,
       voidedCount,
@@ -201,7 +225,9 @@ export default function SalesDashboardView() {
       cashTotalBs,
       pmTotalBs,
       cardTotalBs,
-      zelleTotalUsd
+      zelleTotalUsd,
+      casheaTotalUsd,
+      casheaDownUsd
     };
   }, [filteredInvoices, exchangeRate]);
 
@@ -425,16 +451,16 @@ export default function SalesDashboardView() {
 
           <div className="bg-white p-5 rounded-2xl border border-zinc-200/80 shadow-xs space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">IGTF 3% Percibido</span>
-              <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
-                <Printer size={16} />
+              <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Propinas Meseras</span>
+              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <HeartHandshake size={16} />
               </div>
             </div>
             <div className="text-2xl font-black text-zinc-950 font-mono">
-              ${stats.totalIgtfUsd.toFixed(2)}
+              ${stats.totalTipsUsd.toFixed(2)}
             </div>
             <span className="text-xs text-zinc-400 font-mono block">
-              Bs. {(stats.totalIgtfUsd * exchangeRate).toFixed(2)} para declaración SENIAT
+              Bs. {(stats.totalTipsUsd * exchangeRate).toFixed(2)} acumulado en período
             </span>
           </div>
         </div>
@@ -442,7 +468,7 @@ export default function SalesDashboardView() {
         {/* DESGLOSE DE RECAUDACIÓN POR MÉTODO */}
         <div className="bg-white p-6 rounded-2xl border border-zinc-200/80 shadow-xs space-y-4">
           <h2 className="font-extrabold text-sm text-zinc-950">Desglose de Recaudación por Método de Pago</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3.5">
             <div className="p-3.5 rounded-xl bg-emerald-50/60 border border-emerald-200 space-y-1">
               <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-900">
                 <Banknote size={14} />
@@ -505,6 +531,19 @@ export default function SalesDashboardView() {
               </span>
               <span className="text-[10px] text-indigo-700 font-mono block">
                 Bs. {(stats.zelleTotalUsd * exchangeRate).toFixed(2)}
+              </span>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-amber-50/60 border border-amber-200 space-y-1">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
+                <Sparkles size={14} />
+                <span>Cashea (BNPL)</span>
+              </div>
+              <span className="text-lg font-bold text-amber-950 font-mono block">
+                ${stats.casheaTotalUsd.toFixed(2)}
+              </span>
+              <span className="text-[10px] text-amber-700 font-mono block">
+                Inicial: ${stats.casheaDownUsd.toFixed(2)}
               </span>
             </div>
           </div>

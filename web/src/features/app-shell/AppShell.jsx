@@ -29,7 +29,7 @@ import { useAuth as useWebAuth } from '../auth/AuthProvider';
 import { AuthProvider as PosAuthProvider } from '@pos/contexts/AuthContext';
 import { DataProvider, useData } from '@pos/contexts/DataContext';
 import { db } from '@pos/services/dataService';
-import { setCurrentTenant, getCurrentTenant, verifyLicenseWithBackend, evaluateSubscriptionStatus } from '@pos/lib/syncEngine';
+import { setCurrentTenant, getCurrentTenant, verifyLicenseWithBackend, evaluateSubscriptionStatus, pushLocalSnapshotToCloud } from '@pos/lib/syncEngine';
 import { supabase } from '../../lib/supabase';
 
 
@@ -94,6 +94,7 @@ function AppShellInner() {
   const [settingsInitialTab, setSettingsInitialTab] = useState('fiscal');
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [installingUpdate, setInstallingUpdate] = useState(false);
+  const [migrationBanner, setMigrationBanner] = useState(null);
 
   // Perfil de Negocio Modular (Heladería, Restaurante, Retail, etc.)
   const [businessProfile, setBusinessProfile] = useState(() => getActiveBusinessProfile(tenant));
@@ -177,9 +178,51 @@ function AppShellInner() {
         const isSwitchingTenant = prevTenantId && prevTenantId !== tData.id;
         const localProds = db.getProducts() || [];
         const localInvs = db.getInvoices() || [];
+        const localClients = db.getClients() || [];
+        const localCloses = db.getCashCloses() || [];
         const isLocalEmpty = localProds.length === 0 && localInvs.length === 0;
 
-        if (isSwitchingTenant || (isLocalEmpty && snap && hydratedUserIdRef.current !== tData.id)) {
+        const cloudProdsCount = Array.isArray(snap?.products) ? snap.products.length : 0;
+        const cloudInvsCount = Array.isArray(snap?.invoices) ? snap.invoices.length : 0;
+        const isCloudEmptyOrSparse = cloudProdsCount === 0 && cloudInvsCount === 0;
+
+        const migrationKey = `saas_migrated_from_happydays_${tData.id}`;
+        const hasAlreadyMigrated = localStorage.getItem(migrationKey) === 'true';
+
+        // 1. AUTO-MIGRACIÓN: Si la PC local tiene datos de Happy Days y la nube es nueva o tiene menos datos
+        if ((localProds.length > 0 || localInvs.length > 0) && (isCloudEmptyOrSparse || (!hasAlreadyMigrated && (localProds.length > cloudProdsCount || localInvs.length > cloudInvsCount)))) {
+          try {
+            const migrationSnapshot = {
+              products: localProds,
+              clients: localClients.length > 0 ? localClients : (db.getClients() || []),
+              invoices: localInvs,
+              purchases: db.getPurchases() || [],
+              payments: db.getPayments() || [],
+              cashCloses: localCloses.length > 0 ? localCloses : (db.getCashCloses() || []),
+              openTabs: db.getOpenTabs() || [],
+              expenses: db.getExpenses() || [],
+              inventory: db.getInventory() || [],
+              inventoryLogs: db.getInventoryLogs() || [],
+              zReports: db.getZReports() || [],
+              exchangeRate: 876.80
+            };
+
+            await pushLocalSnapshotToCloud(migrationSnapshot);
+            setSnapshot({ ...migrationSnapshot, tenant_id: tData.id });
+            localStorage.setItem(migrationKey, 'true');
+            localStorage.setItem('pos_active_tenant_id', tData.id);
+
+            setMigrationBanner({
+              show: true,
+              productsCount: localProds.length,
+              invoicesCount: localInvs.length,
+              clientsCount: (db.getClients() || []).length
+            });
+          } catch (migErr) {
+            console.warn('Auto-migración local a cloud:', migErr);
+          }
+        } else if (isSwitchingTenant || (isLocalEmpty && snap && hydratedUserIdRef.current !== tData.id)) {
+          // 2. PC NUEVA O FORMATO: Hidratar desde el snapshot de la nube
           hydratedUserIdRef.current = tData.id;
           localStorage.setItem('pos_active_tenant_id', tData.id);
 
@@ -675,6 +718,25 @@ function AppShellInner() {
             </button>
           </div>
         </header>
+        )}
+
+        {/* BANNER DE ÉXITO DE AUTO-MIGRACIÓN DESDE HAPPY DAYS LOCAL */}
+        {migrationBanner && (
+          <div className="bg-emerald-600 text-white px-4 py-2 text-xs font-semibold flex items-center justify-between gap-3 shrink-0 shadow-sm animate-in fade-in duration-200">
+            <div className="flex items-center gap-2">
+              <Sparkles size={16} className="text-amber-300 shrink-0" />
+              <span>
+                <strong>¡Datos locales de Happy Days sincronizados con la nube!</strong> Se respaldaron {migrationBanner.productsCount} productos, {migrationBanner.invoicesCount} facturas y {migrationBanner.clientsCount} clientes en tu cuenta SaaS. El sistema está listo para operar como si siempre lo hubieras usado aquí.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setMigrationBanner(null)}
+              className="px-3 py-1 rounded-lg bg-white/20 hover:bg-white/30 text-white text-[11px] font-bold cursor-pointer whitespace-nowrap transition-colors"
+            >
+              Entendido ✓
+            </button>
+          </div>
         )}
 
         {/* BANNER PREVENTIVO: VENCIMIENTO EN <= 3 DÍAS */}

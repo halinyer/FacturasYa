@@ -18,6 +18,7 @@ import {
   AlertTriangle,
   Share2,
   Sparkles,
+  HeartHandshake,
   Store,
   Layers,
   ChefHat,
@@ -256,6 +257,49 @@ export default function WebPosView({
   });
   const [isSubmittingSale, setIsSubmittingSale] = useState(false);
 
+  // Propina Sugerida para Meseras
+  const [selectedTipPercent, setSelectedTipPercent] = useState(10); // 0, 5, 10, 15, 'custom'
+  const [customTipUsd, setCustomTipUsd] = useState('');
+  const [waitersList, setWaitersList] = useState([]);
+  const [selectedWaiter, setSelectedWaiter] = useState(null);
+
+  // Cashea BNPL
+  const [casheaCode, setCasheaCode] = useState('');
+  const [casheaDownPaymentPercent, setCasheaDownPaymentPercent] = useState(50); // 40, 50, 60
+  const [casheaDownPaymentMethod, setCasheaDownPaymentMethod] = useState('punto');
+  const [casheaDownPaymentBank, setCasheaDownPaymentBank] = useState('0134 - Banesco');
+  const [casheaDownPaymentRef, setCasheaDownPaymentRef] = useState('');
+
+  // Cargar lista de meseros desde el servidor local o fallback de estado
+  useEffect(() => {
+    fetch('http://localhost:3001/api/restaurant/status')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && Array.isArray(data.waiters)) {
+          setWaitersList(data.waiters.filter((w) => w.active !== false));
+        }
+      })
+      .catch(() => {
+        try {
+          const raw = localStorage.getItem('facturasya_restaurant_state_v2');
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed?.waiters)) {
+              setWaitersList(parsed.waiters.filter((w) => w.active !== false));
+            }
+          }
+        } catch (e) {}
+      });
+  }, []);
+
+  useEffect(() => {
+    if (loadedTableOrder?.waiterName) {
+      const match = waitersList.find((w) => w.name?.toLowerCase() === loadedTableOrder.waiterName?.toLowerCase());
+      if (match) setSelectedWaiter(match);
+      else setSelectedWaiter({ id: 'table-waiter', name: loadedTableOrder.waiterName });
+    }
+  }, [loadedTableOrder, waitersList]);
+
   // Ticket completado
   const [completedInvoice, setCompletedInvoice] = useState(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
@@ -294,20 +338,24 @@ export default function WebPosView({
     const baseImponibleUsd = Number((taxableSubtotalUsd / 1.16).toFixed(2));
     const iva16Usd = Number((taxableSubtotalUsd - baseImponibleUsd).toFixed(2));
 
-    // Cálculo del IGTF (3% sobre divisas en efectivo para facturas fiscales SENIAT)
-    let igtfUsd = 0;
-    if (docType === 'fiscal') {
-      if (paymentMethod === 'efectivo_usd' || paymentMethod === 'zelle') {
-        igtfUsd = Number((subtotalUsd * 0.03).toFixed(2));
-      } else if (paymentMethod === 'mixto') {
-        const cashDivisas = (Number(mixedPayments.efectivo_usd) || 0) + (Number(mixedPayments.zelle) || 0);
-        const cashPart = Math.min(cashDivisas, subtotalUsd);
-        igtfUsd = Number((cashPart * 0.03).toFixed(2));
-      }
-    }
+    // IGTF 3% ELIMINADO en cumplimiento tributario y solicitud comercial
+    const igtfUsd = 0;
+    const igtfBs = 0;
 
-    const finalTotalUsd = Number((subtotalUsd + igtfUsd).toFixed(2));
+    // Propina de meseras
+    const tipUSD = selectedTipPercent === 'custom'
+      ? (parseFloat(customTipUsd) || 0)
+      : Number((subtotalUsd * (Number(selectedTipPercent) / 100)).toFixed(2));
+    const tipBs = Number((tipUSD * bcvRate).toFixed(2));
+
+    const finalTotalUsd = Number((subtotalUsd + tipUSD).toFixed(2));
     const finalTotalBs = Number((finalTotalUsd * bcvRate).toFixed(2));
+
+    // Cashea BNPL
+    const casheaDownPaymentUSD = Number((finalTotalUsd * (Number(casheaDownPaymentPercent) / 100)).toFixed(2));
+    const casheaDownPaymentBs = Number((casheaDownPaymentUSD * bcvRate).toFixed(2));
+    const casheaFinancedUSD = Number(Math.max(0, finalTotalUsd - casheaDownPaymentUSD).toFixed(2));
+    const casheaFinancedBs = Number((casheaFinancedUSD * bcvRate).toFixed(2));
 
     // Vueltos y saldos para Efectivo USD
     const cashUsdNum = Number(cashUsdReceived) || 0;
@@ -337,7 +385,13 @@ export default function WebPosView({
       iva16Usd,
       iva16Bs: Number((iva16Usd * bcvRate).toFixed(2)),
       igtfUsd,
-      igtfBs: Number((igtfUsd * bcvRate).toFixed(2)),
+      igtfBs,
+      tipUSD,
+      tipBs,
+      casheaDownPaymentUSD,
+      casheaDownPaymentBs,
+      casheaFinancedUSD,
+      casheaFinancedBs,
       finalTotalUsd,
       finalTotalBs,
       changeUsd,
@@ -346,7 +400,7 @@ export default function WebPosView({
       mixedDifferenceUsd,
       totalQty: cart.reduce((acc, i) => acc + (Number(i.qty) || 1), 0)
     };
-  }, [cart, docType, paymentMethod, mixedPayments, bcvRate, cashUsdReceived, cashBsReceived]);
+  }, [cart, docType, paymentMethod, mixedPayments, bcvRate, cashUsdReceived, cashBsReceived, selectedTipPercent, customTipUsd, casheaDownPaymentPercent]);
 
   // Manejo del carrito
   const addToCart = (product) => {
@@ -460,6 +514,24 @@ export default function WebPosView({
       return;
     }
 
+    // Validación de Cashea BNPL
+    if (paymentMethod === 'cashea') {
+      const cleanCasheaCode = (casheaCode || '').trim();
+      if (!cleanCasheaCode) {
+        setRefError('Debes ingresar el código de compra de Cashea (CSH-XXXX).');
+        if (!isPaymentModalOpen) setIsPaymentModalOpen(true);
+        return;
+      }
+      if (casheaDownPaymentMethod === 'pago_movil' || casheaDownPaymentMethod === 'punto') {
+        const cleanRef = (casheaDownPaymentRef || '').trim();
+        if (cleanRef.length !== 4) {
+          setRefError('Debes ingresar los 4 dígitos de la referencia de la cuota inicial.');
+          if (!isPaymentModalOpen) setIsPaymentModalOpen(true);
+          return;
+        }
+      }
+    }
+
     setIsSubmittingSale(true);
 
     try {
@@ -514,6 +586,24 @@ export default function WebPosView({
         iva16Bs: cartTotals.iva16Bs,
         igtfUsd: cartTotals.igtfUsd,
         igtfBs: cartTotals.igtfBs,
+        // Propina de Meseras
+        tipUSD: cartTotals.tipUSD,
+        tipBs: cartTotals.tipBs,
+        tipPercentage: selectedTipPercent === 'custom' ? 0 : Number(selectedTipPercent),
+        waiterId: selectedWaiter?.id || null,
+        waiterName: selectedWaiter?.name || loadedTableOrder?.waiterName || null,
+        // Cashea BNPL
+        casheaInfo: paymentMethod === 'cashea' ? {
+          code: (casheaCode || '').trim().toUpperCase(),
+          downPaymentPercentage: Number(casheaDownPaymentPercent),
+          downPaymentUSD: cartTotals.casheaDownPaymentUSD,
+          downPaymentBs: cartTotals.casheaDownPaymentBs,
+          financedUSD: cartTotals.casheaFinancedUSD,
+          financedBs: cartTotals.casheaFinancedBs,
+          downPaymentMethod: casheaDownPaymentMethod,
+          downPaymentBank: (casheaDownPaymentMethod === 'punto' || casheaDownPaymentMethod === 'pago_movil') ? casheaDownPaymentBank : null,
+          downPaymentRef: (casheaDownPaymentMethod === 'punto' || casheaDownPaymentMethod === 'pago_movil') ? (casheaDownPaymentRef || '').trim() : null
+        } : null,
         total: cartTotals.finalTotalUsd,
         totalUSD: cartTotals.finalTotalUsd,
         totalUsd: cartTotals.finalTotalUsd,
@@ -606,6 +696,11 @@ export default function WebPosView({
       setPuntoRef('');
       setCashUsdReceived('');
       setCashBsReceived('');
+      setSelectedTipPercent(10);
+      setCustomTipUsd('');
+      setCasheaCode('');
+      setCasheaDownPaymentPercent(50);
+      setCasheaDownPaymentRef('');
       setMixedPayments({
         efectivo_usd: '',
         pago_movil: '',
@@ -914,12 +1009,16 @@ export default function WebPosView({
           <span className="font-mono font-bold text-zinc-800">${cartTotals.subtotalUsd.toFixed(2)}</span>
         </div>
 
+        {cartTotals.tipUSD > 0 && (
+          <div className="flex justify-between items-baseline text-emerald-700 text-[11px] font-bold">
+            <span>Propina Mesera ({selectedTipPercent === 'custom' ? '$' : selectedTipPercent + '%'}):</span>
+            <span className="font-mono">+${cartTotals.tipUSD.toFixed(2)}</span>
+          </div>
+        )}
+
         {docType === 'fiscal' && (
           <div className="flex justify-between items-baseline text-[10px] text-zinc-500 pt-0.5">
             <span>Base: ${cartTotals.baseImponibleUsd.toFixed(2)} · IVA (16% incl.): ${cartTotals.iva16Usd.toFixed(2)}</span>
-            {cartTotals.igtfUsd > 0 && (
-              <span className="text-amber-700 font-bold">+ IGTF (3%): ${cartTotals.igtfUsd.toFixed(2)}</span>
-            )}
           </div>
         )}
 
@@ -954,6 +1053,7 @@ export default function WebPosView({
             { id: 'punto', label: 'Punto Venta' },
             { id: 'efectivo_bs', label: 'Bs' },
             { id: 'zelle', label: 'Zelle' },
+            { id: 'cashea', label: '✨ Cashea' },
             { id: 'mixto', label: 'Mixto' }
           ].map((m) => {
             const isSelected = paymentMethod === m.id;
@@ -1501,6 +1601,79 @@ export default function WebPosView({
               </button>
             </div>
 
+            {/* BLOQUE DE PROPINA SUGERIDA PARA MESERAS */}
+            <div className="p-3 bg-white rounded-xl border border-zinc-200/90 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-800">
+                  <HeartHandshake size={14} className="text-emerald-600" />
+                  <span>Propina para Mesera:</span>
+                </div>
+                {waitersList.length > 0 && (
+                  <select
+                    value={selectedWaiter?.id || ''}
+                    onChange={(e) => {
+                      const w = waitersList.find((x) => x.id === e.target.value);
+                      setSelectedWaiter(w || null);
+                    }}
+                    className="text-[11px] font-semibold bg-zinc-50 border border-zinc-200 rounded-lg px-2 py-1 text-zinc-700 outline-none"
+                  >
+                    <option value="">(Sin asignar / General)</option>
+                    {waitersList.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {[
+                  { val: 0, label: '0%' },
+                  { val: 5, label: '5%' },
+                  { val: 10, label: '10% ★ Sugerida' },
+                  { val: 15, label: '15%' },
+                  { val: 'custom', label: 'Otro $' }
+                ].map((chip) => {
+                  const isSelected = selectedTipPercent === chip.val;
+                  return (
+                    <button
+                      key={String(chip.val)}
+                      type="button"
+                      onClick={() => setSelectedTipPercent(chip.val)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-emerald-600 text-white shadow-2xs'
+                          : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'
+                      }`}
+                    >
+                      {chip.label}
+                    </button>
+                  );
+                })}
+                {selectedTipPercent === 'custom' && (
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs font-bold text-zinc-500">$</span>
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      placeholder="0.00"
+                      value={customTipUsd}
+                      onChange={(e) => setCustomTipUsd(e.target.value)}
+                      className="w-20 px-2 py-1 rounded-lg border border-zinc-300 text-xs font-mono font-bold text-zinc-900 outline-none"
+                    />
+                  </div>
+                )}
+              </div>
+              {cartTotals.tipUSD > 0 && (
+                <div className="flex justify-between items-baseline text-[11px] text-emerald-700 font-bold pt-1 border-t border-zinc-100">
+                  <span>Monto de la Propina:</span>
+                  <span>+${cartTotals.tipUSD.toFixed(2)} USD (Bs. {cartTotals.tipBs.toFixed(2)})</span>
+                </div>
+              )}
+            </div>
+
             {/* TARJETA DE MONTOS PROMINENTES (USD & BS A TASA BCV) */}
             <div className="p-3.5 bg-zinc-50 rounded-xl border border-zinc-200/90 space-y-1.5">
               <div className="flex justify-between items-baseline">
@@ -1515,12 +1688,6 @@ export default function WebPosView({
                   Bs. {cartTotals.finalTotalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
-              {docType === 'fiscal' && cartTotals.igtfUsd > 0 && (
-                <div className="text-[10px] text-amber-700 bg-amber-50 p-1.5 rounded-lg border border-amber-200 flex items-center gap-1">
-                  <AlertCircle size={12} className="shrink-0" />
-                  <span>Incluye IGTF del 3% (${cartTotals.igtfUsd.toFixed(2)}) por pago en divisas en efectivo.</span>
-                </div>
-              )}
             </div>
 
             {/* SELECTOR DE MÉTODO DE PAGO */}
@@ -1528,13 +1695,14 @@ export default function WebPosView({
               <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider block mb-1.5">
                 Seleccionar Método de Pago:
               </span>
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 text-xs">
+              <div className="grid grid-cols-3 sm:grid-cols-7 gap-1.5 text-xs">
                 {[
                   { id: 'efectivo_usd', label: 'Efectivo $', icon: DollarSign, color: 'text-emerald-600' },
                   { id: 'pago_movil', label: 'Pago Móvil', icon: Smartphone, color: 'text-blue-600' },
                   { id: 'punto', label: 'Punto de Venta', icon: CreditCard, color: 'text-sky-600' },
                   { id: 'efectivo_bs', label: 'Efectivo Bs', icon: Banknote, color: 'text-amber-600' },
                   { id: 'zelle', label: 'Zelle', icon: CreditCard, color: 'text-purple-600' },
+                  { id: 'cashea', label: '✨ Cashea', icon: Sparkles, color: 'text-amber-500' },
                   { id: 'mixto', label: 'Mixto', icon: Sparkles, color: 'text-indigo-600' }
                 ].map((m) => {
                   const Icon = m.icon;
@@ -1904,6 +2072,145 @@ export default function WebPosView({
                     ? `Falta: $${cartTotals.mixedDifferenceUsd.toFixed(2)} USD (Bs. ${(cartTotals.mixedDifferenceUsd * bcvRate).toFixed(2)})`
                     : `¡Pago cubierto con éxito! (Vuelto: $${Math.abs(cartTotals.mixedDifferenceUsd).toFixed(2)})`}
                 </div>
+              </div>
+            )}
+
+            {/* SECCIÓN DETALLADA: CASHEA BNPL */}
+            {paymentMethod === 'cashea' && (
+              <div className="p-3.5 bg-amber-50/70 rounded-xl border border-amber-300 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-black text-amber-950">
+                    <Sparkles size={15} className="text-amber-600" />
+                    <span>Pago con Cashea (Compra Ahora, Paga Después)</span>
+                  </div>
+                  <span className="text-[10px] bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full font-bold">
+                    BNPL
+                  </span>
+                </div>
+
+                {/* CÓDIGO DE CASHEA */}
+                <div>
+                  <label className="text-[11px] font-bold text-amber-900 block mb-1">
+                    Código de Aprobación Cashea (App del Cliente):
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ej: CSH-9842"
+                    value={casheaCode}
+                    onChange={(e) => {
+                      setCasheaCode(e.target.value.toUpperCase());
+                      setRefError('');
+                    }}
+                    className="w-full px-3 py-2 rounded-xl border border-amber-300 bg-white text-sm font-mono font-black text-amber-950 uppercase tracking-wider outline-none focus:ring-2 focus:ring-amber-500 shadow-2xs"
+                  />
+                  {refError && paymentMethod === 'cashea' && (
+                    <span className="text-[11px] text-rose-600 font-bold block mt-1">{refError}</span>
+                  )}
+                </div>
+
+                {/* SELECTOR DE CUOTA INICIAL */}
+                <div>
+                  <span className="text-[11px] font-bold text-amber-900 block mb-1.5">
+                    Porcentaje de Cuota Inicial:
+                  </span>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {[
+                      { pct: 40, label: '40% (Nivel 2/3)' },
+                      { pct: 50, label: '50% (Estándar)' },
+                      { pct: 60, label: '60% (Nivel 1)' }
+                    ].map((item) => (
+                      <button
+                        key={item.pct}
+                        type="button"
+                        onClick={() => setCasheaDownPaymentPercent(item.pct)}
+                        className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          casheaDownPaymentPercent === item.pct
+                            ? 'bg-amber-600 text-white shadow-2xs font-black'
+                            : 'bg-white border border-amber-200 text-amber-900 hover:bg-amber-100'
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* DESGLOSE FINANCIERO CASHEA */}
+                <div className="p-2.5 bg-white rounded-lg border border-amber-200 space-y-1 text-xs">
+                  <div className="flex justify-between items-baseline font-bold text-zinc-700">
+                    <span>Total Compra:</span>
+                    <span className="font-mono text-zinc-950">${cartTotals.finalTotalUsd.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-baseline font-bold text-emerald-700">
+                    <span>Inicial a Cobrar en Tienda ({casheaDownPaymentPercent}%):</span>
+                    <div className="text-right font-mono">
+                      <span>${cartTotals.casheaDownPaymentUSD.toFixed(2)}</span>
+                      <span className="text-[10px] text-emerald-600 block">Bs. {cartTotals.casheaDownPaymentBs.toFixed(2)}</span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-baseline font-bold text-indigo-700 pt-1 border-t border-zinc-100">
+                    <span>Saldo Financiado por Cashea (3 cuotas):</span>
+                    <div className="text-right font-mono">
+                      <span>${cartTotals.casheaFinancedUSD.toFixed(2)}</span>
+                      <span className="text-[10px] text-indigo-600 block">Bs. {cartTotals.casheaFinancedBs.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* MÉTODO DE COBRO DE LA CUOTA INICIAL */}
+                <div>
+                  <span className="text-[11px] font-bold text-amber-900 block mb-1.5">
+                    ¿Cómo paga el cliente la cuota inicial (${cartTotals.casheaDownPaymentUSD.toFixed(2)}) hoy?
+                  </span>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 text-xs">
+                    {[
+                      { id: 'punto', label: 'Punto Venta' },
+                      { id: 'pago_movil', label: 'Pago Móvil' },
+                      { id: 'efectivo_usd', label: 'Efectivo $' },
+                      { id: 'efectivo_bs', label: 'Efectivo Bs' }
+                    ].map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => setCasheaDownPaymentMethod(m.id)}
+                        className={`py-1.5 px-2 rounded-lg text-[11px] font-bold cursor-pointer transition-all ${
+                          casheaDownPaymentMethod === m.id
+                            ? 'bg-zinc-950 text-white shadow-2xs'
+                            : 'bg-white border border-amber-200 text-zinc-700 hover:bg-amber-100'
+                        }`}
+                      >
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {(casheaDownPaymentMethod === 'punto' || casheaDownPaymentMethod === 'pago_movil') && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                    <div>
+                      <label className="text-[10px] font-bold text-zinc-500 block mb-0.5">Banco Receptor:</label>
+                      <BankSelector
+                        selectedBank={casheaDownPaymentBank}
+                        onSelectBank={setCasheaDownPaymentBank}
+                        compact
+                        showQuickChips={false}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-zinc-500 block mb-0.5">
+                        Últimos 4 dígitos Ref.:
+                      </label>
+                      <input
+                        type="text"
+                        maxLength={4}
+                        placeholder="Ej: 4920"
+                        value={casheaDownPaymentRef}
+                        onChange={(e) => setCasheaDownPaymentRef(e.target.value.replace(/\D/g, ''))}
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-zinc-200 text-xs font-mono font-bold outline-none bg-white"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

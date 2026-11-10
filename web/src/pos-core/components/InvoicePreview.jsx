@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Printer, Receipt, FileText } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { CLIENT_CONFIG } from '../config/clientConfig';
@@ -58,6 +58,7 @@ export const getPaymentLabel = (method) => {
   if (m === 'efectivo_usd') return 'EFECTIVO DIVISAS (USD)';
   if (m === 'efectivo_bs') return 'EFECTIVO BOLÍVARES';
   if (m === 'zelle') return 'TRANSFERENCIA / ZELLE';
+  if (m === 'cashea') return 'CASHEA (BNPL)';
   if (m === 'mixto') return 'PAGO MIXTO';
   if (m === 'por cobrar' || m === 'pending') return 'POR COBRAR';
   return (method || 'TARJETA 1').toUpperCase();
@@ -856,6 +857,27 @@ const InvoicePreview = ({ invoice, onClose }) => {
                       <span>TOTAL USD (REF):</span>
                       <span style={{ whiteSpace: 'nowrap' }}>$ {totalUSD.toFixed(2)}</span>
                     </div>
+
+                    {Number(invoice.tipUSD) > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#059669', fontSize: is58 ? '8px' : '9px', marginTop: '2px' }}>
+                        <span>PROPINA {invoice.tipPercentage ? `(${invoice.tipPercentage}%)` : ''}:</span>
+                        <span className="ticket-bold">+${Number(invoice.tipUSD).toFixed(2)} (+Bs. {formatVE(invoice.tipBs || (Number(invoice.tipUSD) * exchangeRate))})</span>
+                      </div>
+                    )}
+
+                    {invoice.casheaInfo && (
+                      <div style={{ borderTop: '1px dotted #000', marginTop: '4px', paddingTop: '3px', fontSize: is58 ? '8px' : '9px' }}>
+                        <div className="ticket-bold" style={{ color: '#4338ca' }}>✨ CASHEA (CÓDIGO: {invoice.casheaInfo.code})</div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span>Inicial Pagada:</span>
+                          <span className="ticket-bold">${Number(invoice.casheaInfo.downPaymentUSD).toFixed(2)} (Bs. {formatVE(invoice.casheaInfo.downPaymentBs)})</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#475569' }}>
+                          <span>Financiado (3 cuotas):</span>
+                          <span>${Number(invoice.casheaInfo.financedUSD).toFixed(2)} (Bs. {formatVE(invoice.casheaInfo.financedBs)})</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Avance mínimo para pasar la cuchilla de corte */}

@@ -1,7 +1,10 @@
 /**
- * Constructor y calculador tributario SENIAT de Facturas / Notas de Entrega para el POS.
- * Centraliza el cálculo de Base Imponible, IVA (16%), IGTF (3% sobre pagos en divisas),
- * desglose de pagos mixtos y normalización de datos del cliente.
+ * Constructor y calculador tributario SENIAT de Facturas / Notas de Entrega para el POS (SaaS & Local).
+ * Incluye:
+ * - Eliminación de recargo IGTF 3% sobre divisas (conforme a normativa vigente y Decreto 4.972).
+ * - Soporte para Propina Sugerida para Meseras (cálculo porcentual o monto fijo, asignación de mesera).
+ * - Soporte para Método de Pago CASHEA (código de compra, cuota inicial y saldo financiado).
+ * - Desglose bimonetario ($ y Bs) a tasa oficial BCV.
  */
 export function buildInvoicePayload({
   cart = [],
@@ -21,7 +24,15 @@ export function buildInvoicePayload({
   pagoMovilBank = null,
   pagoMovilRef = null,
   isFiscalInvoice = false,
-  loadedTableOrder = null
+  loadedTableOrder = null,
+  // Propina Sugerida para Meseras
+  tipUSD = 0,
+  tipBs = 0,
+  tipPercentage = 0,
+  waiterId = null,
+  waiterName = null,
+  // Información de Cashea BNPL
+  casheaInfo = null
 }) {
   const selectedClient = client || { id: 'generic', name: 'Consumidor Final', cedula: 'V-00000000', type: 'normal' };
   const isClientCongelador = selectedClient.type === 'congelador';
@@ -29,7 +40,28 @@ export function buildInvoicePayload({
 
   let finalPaymentMethod = paymentMethod;
   let finalMixedPayments = null;
-  let totalReceivedUSD = cartTotalUSD;
+
+  // Cálculo de Subtotal e ítems
+  const subtotalItemsUSD = Number((itemsSubtotalUSD || 0).toFixed(2));
+  const subtotalItemsBs = Number((subtotalItemsUSD * currentRate).toFixed(2));
+  const finalDeliveryFeeUSD = orderType === 'delivery' ? Number((parseFloat(deliveryFee) || 0).toFixed(2)) : 0;
+  const finalDeliveryFeeBs = Number((finalDeliveryFeeUSD * currentRate).toFixed(2));
+  const baseTotalUSD = subtotalItemsUSD + finalDeliveryFeeUSD;
+
+  // Propina de Meseras
+  const numTipUSD = Number((parseFloat(tipUSD) || 0).toFixed(2));
+  const numTipBs = Number((parseFloat(tipBs) || (numTipUSD * currentRate)).toFixed(2));
+  const numTipPercent = Number(tipPercentage) || 0;
+
+  // Total Final a Pagar (Subtotal + Delivery + Propina) -> Cero IGTF
+  const computedTotalUSD = cartTotalUSD > 0 
+    ? Number(cartTotalUSD.toFixed(2)) 
+    : Number((baseTotalUSD + numTipUSD).toFixed(2));
+  const computedTotalBs = cartTotalBs > 0 
+    ? Number(cartTotalBs.toFixed(2)) 
+    : Number((computedTotalUSD * currentRate).toFixed(2));
+
+  let totalReceivedUSD = computedTotalUSD;
 
   if (isMixedPayment && mixedPayments) {
     finalPaymentMethod = 'mixto';
@@ -56,28 +88,48 @@ export function buildInvoicePayload({
     };
   }
 
-  const changeUSD = totalReceivedUSD > cartTotalUSD ? Number((totalReceivedUSD - cartTotalUSD).toFixed(2)) : 0;
+  const changeUSD = totalReceivedUSD > computedTotalUSD ? Number((totalReceivedUSD - computedTotalUSD).toFixed(2)) : 0;
   const changeBs = Number((changeUSD * currentRate).toFixed(2));
 
-  // SENIAT Venezuelan Fiscal Calculations
-  const subtotalItemsUSD = itemsSubtotalUSD;
+  // Cálculos Tributarios SENIAT (16% IVA general)
   const baseImponibleUSD = Number((subtotalItemsUSD / 1.16).toFixed(2));
   const ivaUSD = Number((subtotalItemsUSD - baseImponibleUSD).toFixed(2));
   const baseImponibleBs = Number((baseImponibleUSD * currentRate).toFixed(2));
   const ivaBs = Number((ivaUSD * currentRate).toFixed(2));
 
-  // IGTF 3% calculation: applies ONLY to foreign currency payments (efectivo_usd, zelle, or foreign fraction of mixed)
-  let igtfBaseUSD = 0;
-  if (finalPaymentMethod === 'efectivo_usd' || finalPaymentMethod === 'zelle') {
-    igtfBaseUSD = Number(cartTotalUSD.toFixed(2));
-  } else if (finalPaymentMethod === 'mixto' && finalMixedPayments) {
-    igtfBaseUSD = Number(((parseFloat(finalMixedPayments.efectivo_usd) || 0) + (parseFloat(finalMixedPayments.zelle) || 0)).toFixed(2));
-  }
-  const igtfUSD = Number((igtfBaseUSD * 0.03).toFixed(2));
-  const igtfBs = Number((igtfUSD * currentRate).toFixed(2));
-  const isIgtfExempt = igtfBaseUSD === 0;
+  // IGTF 3% ELIMINADO: fijado en 0 en cumplimiento de normativa y solicitud comercial
+  const igtfBaseUSD = 0;
+  const igtfRate = 0;
+  const igtfUSD = 0;
+  const igtfBs = 0;
+  const isIgtfExempt = true;
 
   const fiscalControlNumber = `00-${String(Date.now()).slice(-6)}`;
+
+  // Normalización de mesera(o)
+  const finalWaiterName = waiterName || loadedTableOrder?.waiterName || null;
+  const finalWaiterId = waiterId || loadedTableOrder?.waiterId || null;
+
+  // Normalización de Cashea BNPL
+  let finalCasheaInfo = null;
+  if (finalPaymentMethod === 'cashea' && casheaInfo) {
+    const downUSD = Number((parseFloat(casheaInfo.downPaymentUSD) || (computedTotalUSD * 0.5)).toFixed(2));
+    const downBs = Number((downUSD * currentRate).toFixed(2));
+    const financedUSD = Number(Math.max(0, computedTotalUSD - downUSD).toFixed(2));
+    const financedBs = Number((financedUSD * currentRate).toFixed(2));
+
+    finalCasheaInfo = {
+      code: (casheaInfo.code || '').trim().toUpperCase(),
+      downPaymentPercentage: casheaInfo.downPaymentPercentage || 50,
+      downPaymentUSD: downUSD,
+      downPaymentBs: downBs,
+      financedUSD,
+      financedBs,
+      downPaymentMethod: casheaInfo.downPaymentMethod || 'punto', // 'punto' | 'pago_movil' | 'efectivo_usd' | 'efectivo_bs'
+      downPaymentBank: casheaInfo.downPaymentBank || null,
+      downPaymentRef: casheaInfo.downPaymentRef || null
+    };
+  }
 
   return {
     clientId: selectedClient.id,
@@ -91,42 +143,53 @@ export function buildInvoicePayload({
     cashierName: user?.name || user?.username || '001',
     orderType,
     deliveryInfo: orderType === 'delivery' ? deliveryInfo : null,
-    deliveryFee: orderType === 'delivery' ? deliveryFee : 0,
+    deliveryFee: finalDeliveryFeeUSD,
     items: cart.map(item => {
-      const unitPriceUSD = Number(item.priceUSD || item.price || 0);
+      const unitPriceUSD = Number(item.priceUSD || item.priceUsd || item.price || 0);
       const unitPriceBs = Number((unitPriceUSD * currentRate).toFixed(2));
       const isExempt = Boolean(item.isExempt || item.taxType === 'exento' || item.taxRate === 0);
       const taxRate = isExempt ? 0.0 : (item.taxRate !== undefined ? Number(item.taxRate) : 0.16);
+      const qty = Number(item.quantity || item.qty || 1);
       return {
-        productId: item.id,
-        productName: item.name,
-        quantity: Number(item.quantity || 1),
+        productId: item.id || item.productId,
+        productName: item.name || item.productName,
+        quantity: qty,
         unitPrice: unitPriceUSD,
         unitPriceUSD,
         unitPriceBs,
         priceBs: unitPriceBs,
-        subtotalUSD: Number((unitPriceUSD * item.quantity).toFixed(2)),
-        subtotalBs: Number((unitPriceBs * item.quantity).toFixed(2)),
-        subtotal: Number((unitPriceBs * item.quantity).toFixed(2)),
+        subtotalUSD: Number((unitPriceUSD * qty).toFixed(2)),
+        subtotalBs: Number((unitPriceBs * qty).toFixed(2)),
+        subtotal: Number((unitPriceBs * qty).toFixed(2)),
         taxRate,
-        taxType: isExempt ? 'exento' : 'general'
+        taxType: isExempt ? 'exento' : 'general',
+        modalidad: item.modalidad
       };
     }),
-    subtotalUSD: Number(subtotalItemsUSD.toFixed(2)),
-    subtotalBs: Number((subtotalItemsUSD * currentRate).toFixed(2)),
+    subtotalUSD: subtotalItemsUSD,
+    subtotalBs: subtotalItemsBs,
     baseImponibleUSD,
     baseImponibleBs,
     ivaRate: 0.16,
     ivaUSD,
     ivaBs,
+    // IGTF a 0
     igtfBaseUSD,
-    igtfRate: 0.03,
+    igtfRate,
     igtfUSD,
     igtfBs,
     isIgtfExempt,
+    // Propina de Meseras
+    tipUSD: numTipUSD,
+    tipBs: numTipBs,
+    tipPercentage: numTipPercent,
+    waiterId: finalWaiterId,
+    waiterName: finalWaiterName,
+    // Cashea BNPL
+    casheaInfo: finalCasheaInfo,
     fiscalControlNumber,
-    totalUSD: Number(cartTotalUSD.toFixed(2)),
-    totalBs: Number(cartTotalBs.toFixed(2)),
+    totalUSD: computedTotalUSD,
+    totalBs: computedTotalBs,
     exchangeRate: currentRate,
     paymentMethod: finalPaymentMethod,
     mixedPayments: finalMixedPayments,
@@ -138,7 +201,6 @@ export function buildInvoicePayload({
     status,
     isFiscalInvoice: Boolean(isFiscalInvoice),
     docType: isFiscalInvoice ? 'fiscal' : 'nota_entrega',
-    tableName: loadedTableOrder?.tableName || null,
-    waiterName: loadedTableOrder?.waiterName || null
+    tableName: loadedTableOrder?.tableName || null
   };
 }

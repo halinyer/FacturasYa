@@ -29,6 +29,9 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   ShieldCheck,
+  HeartHandshake,
+  Sparkles,
+  User,
   Check
 } from 'lucide-react';
 import { useData, getTodayLocalDateStr } from '../../pos-core/contexts/DataContext';
@@ -122,13 +125,31 @@ export default function CashCloseView() {
     let fiscalCount = 0;
     let notaCount = 0;
 
+    // Tracking de Propinas de Meseras
+    let totalTipsUSD = 0;
+    let totalTipsBs = 0;
+    const waiterTips = {}; // { [waiterName]: { count: 0, totalUSD: 0, totalBs: 0 } }
+
+    // Tracking de Cashea BNPL
+    const cashea = {
+      count: 0,
+      totalSalesUSD: 0,
+      totalSalesBs: 0,
+      downPaymentCollectedUSD: 0,
+      downPaymentCollectedBs: 0,
+      financedPendingUSD: 0,
+      financedPendingBs: 0,
+      transactions: []
+    };
+
     // Conteo por métodos de pago
     const methodCounts = {
       cashUsd: 0,
       cashBs: 0,
       pagoMovil: 0,
       card: 0,
-      zelle: 0
+      zelle: 0,
+      cashea: 0
     };
 
     dateInvoices.forEach((inv) => {
@@ -138,7 +159,6 @@ export default function CashCloseView() {
       const usd = Number(inv.total || inv.totalUSD || inv.totalUsd || 0);
       const invRate = Number(inv.exchangeRate) || exchangeRate;
       const bs = Number(inv.totalBs || usd * invRate);
-      const igtf = Number(inv.igtfUsd || (inv.igtfBs ? inv.igtfBs / invRate : 0));
 
       if (isVoided) {
         voidedCount++;
@@ -152,10 +172,73 @@ export default function CashCloseView() {
 
       totalUsd += usd;
       totalBs += bs;
-      igtfUsd += igtf;
+
+      // Tracking de Propinas de Meseras
+      const tipUSD = Number(inv.tipUSD) || 0;
+      const tipBs = Number(inv.tipBs) || (tipUSD * invRate);
+      if (tipUSD > 0) {
+        totalTipsUSD += tipUSD;
+        totalTipsBs += tipBs;
+        const wName = (inv.waiterName || 'Mesera General').trim();
+        if (!waiterTips[wName]) {
+          waiterTips[wName] = { count: 0, totalUSD: 0, totalBs: 0 };
+        }
+        waiterTips[wName].count += 1;
+        waiterTips[wName].totalUSD += tipUSD;
+        waiterTips[wName].totalBs += tipBs;
+      }
 
       const m = (inv.paymentMethod || 'efectivo_usd').toLowerCase();
-      if (m === 'efectivo_usd' || m === 'usd_cash' || m === 'cash') {
+      if (m === 'cashea' || inv.casheaInfo) {
+        const cInfo = inv.casheaInfo || {};
+        const downUSD = Number(cInfo.downPaymentUSD) || (usd * 0.5);
+        const downBs = Number(cInfo.downPaymentBs) || (downUSD * invRate);
+        const finUSD = Number(cInfo.financedUSD) || Math.max(0, usd - downUSD);
+        const finBs = Number(cInfo.financedBs) || (finUSD * invRate);
+
+        cashea.count += 1;
+        cashea.totalSalesUSD += usd;
+        cashea.totalSalesBs += bs;
+        cashea.downPaymentCollectedUSD += downUSD;
+        cashea.downPaymentCollectedBs += downBs;
+        cashea.financedPendingUSD += finUSD;
+        cashea.financedPendingBs += finBs;
+
+        cashea.transactions.push({
+          id: inv.id,
+          invoiceNumber: inv.invoiceNumber,
+          clientName: inv.client?.name || inv.clientName || 'Consumidor Final',
+          date: inv.date,
+          code: cInfo.code || 'CSH-N/D',
+          totalUSD: usd,
+          totalBs: bs,
+          downPaymentUSD: downUSD,
+          downPaymentBs: downBs,
+          financedUSD: finUSD,
+          financedBs: finBs,
+          downPaymentMethod: cInfo.downPaymentMethod || 'punto',
+          downPaymentBank: cInfo.downPaymentBank || '',
+          downPaymentRef: cInfo.downPaymentRef || ''
+        });
+
+        methodCounts.cashea++;
+
+        // La cuota inicial recaudada suma a los saldos de caja o banco según el método
+        const dpMethod = cInfo.downPaymentMethod || 'punto';
+        if (dpMethod === 'efectivo_usd') {
+          cashUsd += downUSD;
+          methodCounts.cashUsd++;
+        } else if (dpMethod === 'efectivo_bs') {
+          cashBs += downBs;
+          methodCounts.cashBs++;
+        } else if (dpMethod === 'pago_movil') {
+          pagoMovilBs += downBs;
+          methodCounts.pagoMovil++;
+        } else if (dpMethod === 'punto' || dpMethod === 'pos' || dpMethod === 'tarjeta') {
+          cardBs += downBs;
+          methodCounts.card++;
+        }
+      } else if (m === 'efectivo_usd' || m === 'usd_cash' || m === 'cash') {
         cashUsd += usd;
         methodCounts.cashUsd++;
       } else if (m === 'efectivo_bs') {
@@ -215,6 +298,10 @@ export default function CashCloseView() {
       voidedTotalUsd,
       fiscalCount,
       notaCount,
+      totalTipsUSD,
+      totalTipsBs,
+      waiterTips,
+      cashea,
       totalInvoices: dateInvoices.length,
       methodCounts,
       enteredUsd,
@@ -368,6 +455,10 @@ export default function CashCloseView() {
       pagoMovilBs: summary.pagoMovilBs,
       cardBs: summary.cardBs,
       zelleUsd: summary.zelleUsd,
+      totalTipsUSD: summary.totalTipsUSD,
+      totalTipsBs: summary.totalTipsBs,
+      waiterTips: summary.waiterTips,
+      cashea: summary.cashea,
       notes: closingNotes || 'Cierre diario de jornada'
     };
 
@@ -402,7 +493,7 @@ export default function CashCloseView() {
         baseGeneral16Bs: zBaseBs,
         ivaGeneral16Bs: zIvaBs,
         exemptSalesBs: 0,
-        igtfSalesBs: summary.igtfUsd * exchangeRate,
+        igtfSalesBs: 0,
         dailyAudit: closeRecord
       };
 
@@ -911,6 +1002,62 @@ export default function CashCloseView() {
                   </div>
                 </div>
 
+                {/* BLOQUE: LIQUIDACIÓN DE PROPINAS POR MESERA(O) */}
+                <div className="bg-white p-4.5 rounded-2xl border border-zinc-200/90 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between border-b border-zinc-100 pb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1 rounded-md bg-emerald-100 text-emerald-800">
+                        <HeartHandshake size={15} />
+                      </div>
+                      <div>
+                        <h2 className="font-extrabold text-xs text-zinc-950 uppercase tracking-wider">
+                          Propinas de Meseras
+                        </h2>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-xs font-black font-mono text-emerald-700 block">
+                        ${summary.totalTipsUSD.toFixed(2)}
+                      </span>
+                      <span className="text-[10px] font-mono text-zinc-400">
+                        Bs. {summary.totalTipsBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
+
+                  {Object.keys(summary.waiterTips).length === 0 ? (
+                    <div className="text-[11px] text-zinc-400 text-center py-2 italic bg-zinc-50 rounded-xl">
+                      No se registraron propinas en las comandas de esta fecha.
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto no-scrollbar">
+                      {Object.entries(summary.waiterTips).map(([wName, tipData]) => (
+                        <div key={wName} className="p-2.5 rounded-xl bg-emerald-50/50 border border-emerald-200/70 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shadow-2xs">
+                              <User size={13} />
+                            </div>
+                            <div>
+                              <span className="text-xs font-bold text-zinc-900 block leading-tight">{wName}</span>
+                              <span className="text-[10px] text-zinc-500 font-medium">
+                                {tipData.count} {tipData.count === 1 ? 'comanda' : 'comandas'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-right font-mono">
+                            <div className="font-bold text-xs text-emerald-800">
+                              ${tipData.totalUSD.toFixed(2)}
+                            </div>
+                            <div className="text-[10px] text-zinc-400">
+                              Bs. {tipData.totalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 {/* BLOQUE C: OBSERVACIONES & BOTÓN DE CIERRE */}
                 <div className="bg-white p-4.5 rounded-2xl border border-zinc-200/90 shadow-xs space-y-3">
                   <div>
@@ -939,8 +1086,106 @@ export default function CashCloseView() {
 
               </div>
 
-              {/* COLUMNA DERECHA (7 de 12 cols = 59%): FACTURAS DE LA JORNADA & RESOLUCIÓN DE ERRORES */}
-              <div className="lg:col-span-7 bg-white rounded-2xl border border-zinc-200/90 shadow-xs overflow-hidden flex flex-col">
+              {/* COLUMNA DERECHA (7 de 12 cols = 59%): FACTURAS DE LA JORNADA & CONCILIACIÓN CASHEA */}
+              <div className="lg:col-span-7 space-y-4 flex flex-col">
+
+                {/* BLOQUE: CONCILIACIÓN CASHEA BNPL */}
+                {summary.cashea.count > 0 && (
+                  <div className="bg-white p-4.5 rounded-2xl border border-zinc-200/90 shadow-xs space-y-3">
+                    <div className="flex items-center justify-between border-b border-zinc-100 pb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1 rounded-md bg-amber-100 text-amber-800">
+                          <Sparkles size={15} />
+                        </div>
+                        <div>
+                          <h2 className="font-extrabold text-xs text-zinc-950 uppercase tracking-wider">
+                            Conciliación Cashea (BNPL)
+                          </h2>
+                          <span className="text-[10px] text-zinc-400">Control de cuotas iniciales y saldo financiado</span>
+                        </div>
+                      </div>
+                      <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full">
+                        {summary.cashea.count} {summary.cashea.count === 1 ? 'operación' : 'operaciones'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <div className="p-3 bg-zinc-50 rounded-xl border border-zinc-200">
+                        <span className="text-[10px] font-bold text-zinc-500 uppercase block">Ventas Totales Cashea</span>
+                        <span className="text-sm font-black font-mono text-zinc-950 block mt-0.5">
+                          ${summary.cashea.totalSalesUSD.toFixed(2)}
+                        </span>
+                        <span className="text-[10px] font-mono text-zinc-400">
+                          Bs. {summary.cashea.totalSalesBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+
+                      <div className="p-3 bg-emerald-50/60 rounded-xl border border-emerald-200">
+                        <span className="text-[10px] font-bold text-emerald-800 uppercase block">Inicial Recaudada en Caja</span>
+                        <span className="text-sm font-black font-mono text-emerald-900 block mt-0.5">
+                          ${summary.cashea.downPaymentCollectedUSD.toFixed(2)}
+                        </span>
+                        <span className="text-[10px] font-mono text-emerald-700">
+                          Bs. {summary.cashea.downPaymentCollectedBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+
+                      <div className="p-3 bg-indigo-50/60 rounded-xl border border-indigo-200">
+                        <span className="text-[10px] font-bold text-indigo-800 uppercase block">Financiado (Por Cobrar)</span>
+                        <span className="text-sm font-black font-mono text-indigo-900 block mt-0.5">
+                          ${summary.cashea.financedPendingUSD.toFixed(2)}
+                        </span>
+                        <span className="text-[10px] font-mono text-indigo-700">
+                          Bs. {summary.cashea.financedPendingBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="border border-zinc-200 rounded-xl overflow-hidden overflow-x-auto no-scrollbar">
+                      <table className="w-full text-[11px] text-left">
+                        <thead className="bg-zinc-50 text-zinc-600 font-bold border-b border-zinc-200">
+                          <tr>
+                            <th className="py-2 px-3">Comprobante</th>
+                            <th className="py-2 px-3">Código Cashea</th>
+                            <th className="py-2 px-3">Cliente</th>
+                            <th className="py-2 px-3 text-right">Total Factura</th>
+                            <th className="py-2 px-3 text-right">Inicial Pagada</th>
+                            <th className="py-2 px-3 text-right">Financiado</th>
+                            <th className="py-2 px-3 text-center">Método Inicial</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-100">
+                          {summary.cashea.transactions.map((tx) => (
+                            <tr key={tx.id} className="hover:bg-zinc-50/60">
+                              <td className="py-2 px-3 font-mono font-bold text-zinc-900">#{tx.invoiceNumber}</td>
+                              <td className="py-2 px-3">
+                                <span className="bg-amber-100 text-amber-900 border border-amber-300 px-1.5 py-0.5 rounded font-mono font-black text-[10px]">
+                                  {tx.code}
+                                </span>
+                              </td>
+                              <td className="py-2 px-3 text-zinc-700">{tx.clientName}</td>
+                              <td className="py-2 px-3 text-right font-mono font-bold">${tx.totalUSD.toFixed(2)}</td>
+                              <td className="py-2 px-3 text-right font-mono font-bold text-emerald-700">
+                                ${tx.downPaymentUSD.toFixed(2)}
+                              </td>
+                              <td className="py-2 px-3 text-right font-mono font-bold text-indigo-700">
+                                ${tx.financedUSD.toFixed(2)}
+                              </td>
+                              <td className="py-2 px-3 text-center">
+                                <span className="text-[10px] bg-zinc-100 text-zinc-700 px-2 py-0.5 rounded font-bold uppercase">
+                                  {tx.downPaymentMethod} {tx.downPaymentRef ? `(Ref ${tx.downPaymentRef})` : ''}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* TABLA PRINCIPAL DE FACTURAS */}
+                <div className="bg-white rounded-2xl border border-zinc-200/90 shadow-xs overflow-hidden flex flex-col">
                 
                 {/* Header de la Tabla */}
                 <div className="p-4 border-b border-zinc-200/80 space-y-3">
@@ -1141,11 +1386,12 @@ export default function CashCloseView() {
                     </tbody>
                   </table>
                 </div>
-
               </div>
 
             </div>
-          </>
+
+          </div>
+        </>
         ) : (
           /* PESTAÑA HISTORIAL DE CIERRES ANTERIORES */
           <div className="bg-white p-6 rounded-2xl border border-zinc-200/90 shadow-xs space-y-4">

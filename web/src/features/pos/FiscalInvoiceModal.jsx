@@ -114,12 +114,6 @@ export default function FiscalInvoiceModal({
             <span>Débito Fiscal IVA (16%):</span>
             <span className="font-mono font-bold">+ Bs. {cartTotals.iva16Bs.toFixed(2)}</span>
           </div>
-          {cartTotals.igtfBs > 0 && (
-            <div className="flex justify-between text-amber-700 font-semibold">
-              <span>IGTF Percibido (3%):</span>
-              <span className="font-mono font-bold">+ Bs. {cartTotals.igtfBs.toFixed(2)}</span>
-            </div>
-          )}
           <div className="pt-2 border-t border-zinc-200 flex justify-between items-baseline">
             <span className="font-bold text-zinc-950">Total Factura Fiscal:</span>
             <div className="text-right">
