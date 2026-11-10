@@ -37,7 +37,7 @@
       ],
       "artifactName": "FacturaPOS-${version}.${ext}",
       "requestedExecutionLevel": "asInvoker",
-      "legalCopyright": "Copyright © 2026 FacturasYa",
+      "signAndEditExecutable": false,
       "publisherName": "FacturasYa"
     },
     "nsis": {
