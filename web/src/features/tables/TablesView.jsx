@@ -120,6 +120,35 @@ export default function TablesView({ onGoToPos }) {
   });
   const [toast, setToast] = useState(null);
 
+  // Detección y selección en vivo de Impresoras Térmicas de Comandas
+  const [printersList, setPrintersList] = useState([]);
+  const [activeComandaPrinter, setActiveComandaPrinter] = useState(() => localStorage.getItem('pos_comanda_printer') || '');
+
+  useEffect(() => {
+    if (window.electronAPI && typeof window.electronAPI.getPrinters === 'function') {
+      window.electronAPI.getPrinters().then((list) => {
+        if (Array.isArray(list) && list.length > 0) {
+          setPrintersList(list);
+          const saved = localStorage.getItem('pos_comanda_printer');
+          const exists = saved && list.some((p) => p.name === saved);
+          if (saved && exists) {
+            setActiveComandaPrinter(saved);
+          } else {
+            const autoMatch =
+              list.find((p) => p.isDefault && /pos|thermal|ticket|58|80|kitchen|comanda|receipt|xp-|tm-|epson|bixolon|star/i.test(p.name)) ||
+              list.find((p) => /pos|thermal|ticket|58|80|kitchen|comanda|receipt|xp-|tm-|epson|bixolon|star/i.test(p.name)) ||
+              list.find((p) => p.isDefault) ||
+              list[0];
+            if (autoMatch) {
+              setActiveComandaPrinter(autoMatch.name);
+              localStorage.setItem('pos_comanda_printer', autoMatch.name);
+            }
+          }
+        }
+      }).catch(() => {});
+    }
+  }, []);
+
   // Estados de formulario para configuración de salón y meseros
   const [newTable, setNewTable] = useState({ name: '', zone: 'Salón' });
   const [newWaiter, setNewWaiter] = useState({ name: '', pin: '' });
@@ -154,13 +183,15 @@ export default function TablesView({ onGoToPos }) {
 
       if (res && res.success === false) {
         showToast(`Aviso impresora: ${res.failureReason || res.error || 'Verifica la comandera'}`, 'error');
+        // Fallback: abrir modal interactivo para permitir previsualizar y elegir la impresora
+        setSelectedComandaPrint({ round, tableName, waiterName, orderId, autoPrint: false });
       } else {
         const printerLabel = printer ? ` (${printer})` : '';
         showToast(`✅ Comanda de ${tableName || 'Mesa'} impresa en cocina${printerLabel}`, 'success');
       }
     } catch (err) {
       console.warn('Error en impresión directa:', err);
-      setSelectedComandaPrint({ round, tableName, waiterName, orderId, autoPrint: true });
+      setSelectedComandaPrint({ round, tableName, waiterName, orderId, autoPrint: false });
     }
   };
 
@@ -800,6 +831,31 @@ export default function TablesView({ onGoToPos }) {
               {(restaurantState.waiters || []).length}
             </span>
           </button>
+
+          {/* SELECTOR RÁPIDO DE COMANDERA */}
+          {printersList.length > 0 && (
+            <div className="ml-auto flex items-center gap-1.5 bg-zinc-100 hover:bg-zinc-200/80 px-2.5 py-1 rounded-lg border border-zinc-200 text-xs">
+              <Printer size={13} className="text-zinc-700 shrink-0" />
+              <span className="font-semibold text-zinc-600 hidden sm:inline">Comandera:</span>
+              <select
+                value={activeComandaPrinter}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setActiveComandaPrinter(val);
+                  localStorage.setItem('pos_comanda_printer', val);
+                  showToast(`Comandera configurada: ${val}`, 'info');
+                }}
+                className="bg-transparent font-bold text-zinc-900 border-none outline-none cursor-pointer max-w-[150px] sm:max-w-[200px] truncate text-xs"
+                title="Selecciona la impresora térmica para comandas de cocina"
+              >
+                {printersList.map((p) => (
+                  <option key={p.name} value={p.name}>
+                    {p.name} {p.isDefault ? '(Predeterminada)' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       </div>
 

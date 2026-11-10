@@ -61,4 +61,5 @@ if (fs.existsSync(debugYml)) {
 
 console.log('\n✅ ¡Listo! Compilación Desktop completada con éxito.');
 console.log('  ➜ 1. Ejecutable directo (Apertura inmediata): dist-electron/win-unpacked/FacturaPOS.exe');
-console.log('  ➜ 2. Instalador One-Click para clientes: dist-electron/FacturaPOS-1.0.0.exe\n');
+console.log('  ➜ 2. Ejecutable Portable (Sin instalación, no sobreescribe nada): dist-electron/FacturasYa-Cloud-POS-1.0.0.exe');
+console.log('  ➜ 3. Instalador Guiado NSIS: dist-electron/FacturasYa-Cloud-POS-Setup-1.0.0.exe\n');

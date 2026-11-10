@@ -190,7 +190,7 @@ function AppShellInner() {
         const hasAlreadyMigrated = localStorage.getItem(migrationKey) === 'true';
 
         // 1. AUTO-MIGRACIÓN: Si la PC local tiene datos de Happy Days y la nube es nueva o tiene menos datos
-        if ((localProds.length > 0 || localInvs.length > 0) && (isCloudEmptyOrSparse || (!hasAlreadyMigrated && (localProds.length > cloudProdsCount || localInvs.length > cloudInvsCount)))) {
+        if ((localProds.length > 0 || localInvs.length > 0) && (isCloudEmptyOrSparse || localProds.length > cloudProdsCount || localInvs.length > cloudInvsCount)) {
           try {
             const migrationSnapshot = {
               products: localProds,

@@ -207,6 +207,27 @@ export const DataProvider = ({ children }) => {
           }
         }).catch(() => {});
       }
+
+      // Auto-detectar y sincronizar impresora de comandas/cocina en segundo plano
+      if (window.electronAPI && typeof window.electronAPI.getPrinters === 'function') {
+        window.electronAPI.getPrinters().then((printers) => {
+          if (Array.isArray(printers) && printers.length > 0) {
+            const saved = localStorage.getItem('pos_comanda_printer');
+            const exists = saved && printers.some((p) => p.name === saved);
+            if (!exists) {
+              const defaultPos =
+                printers.find((p) => p.isDefault && /pos|thermal|ticket|58|80|kitchen|comanda|receipt|xp-|tm-|epson|bixolon|star/i.test(p.name)) ||
+                printers.find((p) => /pos|thermal|ticket|58|80|kitchen|comanda|receipt|xp-|tm-|epson|bixolon|star/i.test(p.name)) ||
+                printers.find((p) => p.isDefault) ||
+                printers[0];
+              if (defaultPos) {
+                localStorage.setItem('pos_comanda_printer', defaultPos.name);
+                console.log('[AutoDetect] Impresora de comandas/cocina auto-configurada:', defaultPos.name);
+              }
+            }
+          }
+        }).catch(() => {});
+      }
       
       // Consultar tasa oficial BCV en segundo plano sin bloquear la apertura de la ventana
       db.getExchangeRate(true).then((rate) => {

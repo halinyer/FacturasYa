@@ -32,21 +32,23 @@
     ],
     "win": {
       "target": [
+        "portable",
         "nsis",
         "dir"
       ],
-      "artifactName": "FacturaPOS-${version}.${ext}",
+      "artifactName": "FacturasYa-Cloud-POS-${version}.${ext}",
       "requestedExecutionLevel": "asInvoker",
       "signAndEditExecutable": false,
       "publisherName": "FacturasYa"
     },
     "nsis": {
-      "oneClick": true,
+      "oneClick": false,
       "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "runAfterFinish": true,
-      "shortcutName": "FacturaPOS"
+      "shortcutName": "FacturasYa Cloud POS"
     },
     "extraResources": [
       {
